@@ -1,0 +1,10 @@
+# Vite-Dev-Server läuft als Daemon im Web-Container, HTTPS kommt vom DDEV-Router.
+web_extra_exposed_ports:
+  - name: vite
+    container_port: 5173
+    http_port: 5172
+    https_port: 5173
+web_extra_daemons:
+  - name: vite
+    command: "npm run dev"
+    directory: /var/www/html/frontend
