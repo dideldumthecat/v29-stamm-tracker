@@ -1,4 +1,4 @@
-name: v29-stammbuch
+name: v29-stamm-tracker
 type: php
 docroot: backend/public
 php_version: "8.4"

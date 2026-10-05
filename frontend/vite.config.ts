@@ -5,7 +5,7 @@ import vue from '@vitejs/plugin-vue'
 import vueDevTools from 'vite-plugin-vue-devtools'
 import { VitePWA } from 'vite-plugin-pwa'
 
-// Im DDEV-Container gesetzt, z.B. https://v29-stammbuch.ddev.site / v29-stammbuch.ddev.site
+// Im DDEV-Container gesetzt, z.B. https://v29-stamm-tracker.ddev.site / v29-stamm-tracker.ddev.site
 const { DDEV_PRIMARY_URL, DDEV_HOSTNAME } = process.env
 
 // https://vite.dev/config/
