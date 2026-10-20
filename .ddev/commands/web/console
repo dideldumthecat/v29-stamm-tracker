@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+## Description: Run Symfony console in backend/ from anywhere
+## Usage: console [args]
+## Example: "ddev console debug:router" or "ddev console make:migration"
+
+cd /var/www/html/backend && php bin/console "$@"

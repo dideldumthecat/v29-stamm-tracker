@@ -1,0 +1,8 @@
+# Playwright browsers + Linux system libraries for E2E tests in the web container.
+# The version MUST match @playwright/test in frontend/package-lock.json –
+# after updating @playwright/test, change it here and run `ddev restart`.
+ARG PLAYWRIGHT_VERSION=1.64.1
+
+ENV PLAYWRIGHT_BROWSERS_PATH=/opt/playwright
+RUN npx -y playwright@${PLAYWRIGHT_VERSION} install --with-deps chromium webkit \
+    && chmod -R a+rX /opt/playwright

@@ -14,14 +14,38 @@ export default defineConfig({
     vue(),
     vueDevTools(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // 'prompt' instead of 'autoUpdate': a new version must never reload the app in the middle
+      // of a data entry. The user confirms the update (UI via `useRegisterSW` still to be built).
+      registerType: 'prompt',
+      includeAssets: ['favicon.ico', 'apple-touch-icon-180x180.png'],
       manifest: {
-        name: 'V29 Stammbuch',
-        short_name: 'Stammbuch',
+        name: 'V29 Stamm-Tracker',
+        short_name: 'Stamm-Tracker',
         lang: 'de',
-        theme_color: '#3b2a1a',
-        background_color: '#ffffff',
+        start_url: '/',
+        scope: '/',
         display: 'standalone',
+        orientation: 'portrait',
+        theme_color: '#ffffff',
+        background_color: '#ffffff',
+        // Placeholder icons – replace once the design is settled
+        icons: [
+          { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
+          { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' },
+          { src: 'maskable-icon-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        ],
+      },
+      workbox: {
+        // SPA routing: unknown paths get index.html from the cache – except API and administration,
+        // which are served by Symfony on the same origin
+        navigateFallback: '/index.html',
+        navigateFallbackDenylist: [/^\/api(\/|$)/, /^\/admin(\/|$)/],
+      },
+      // Service worker also in the dev server, so offline behaviour can be tested without a build
+      devOptions: {
+        enabled: true,
+        type: 'module',
+        navigateFallback: 'index.html',
       },
     }),
   ],

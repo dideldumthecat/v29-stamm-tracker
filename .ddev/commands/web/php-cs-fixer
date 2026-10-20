@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+## Description: Run PHP CS Fixer in backend/ from anywhere
+## Usage: php-cs-fixer [args]
+## Example: "ddev php-cs-fixer fix" or "ddev php-cs-fixer check --diff"
+
+cd /var/www/html/backend && vendor/bin/php-cs-fixer "$@"
