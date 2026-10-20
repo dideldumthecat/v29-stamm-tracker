@@ -6,6 +6,6 @@ import App from '../App.vue'
 describe('App', () => {
   it('mounts renders properly', () => {
     const wrapper = mount(App)
-    expect(wrapper.text()).toContain('V29 Stammbuch')
+    expect(wrapper.text()).toContain('V29 Stamm-Tracker')
   })
 })
