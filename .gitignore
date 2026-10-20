@@ -15,5 +15,8 @@ dist/
 .DS_Store
 .idea/
 
+# Local Claude Code config
+.claude/
+
 # PWA stuff
 /frontend/dev-dist/

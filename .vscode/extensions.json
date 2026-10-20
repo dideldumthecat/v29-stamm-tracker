@@ -1,0 +1,11 @@
+{
+  "recommendations": [
+    "emeraldwalk.RunOnSave",
+    "bmewburn.vscode-intelephense-client",
+    "xdebug.php-debug",
+    "Vue.volar",
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "bradlc.vscode-tailwindcss"
+  ]
+}

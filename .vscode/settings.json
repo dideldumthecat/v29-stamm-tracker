@@ -1,0 +1,23 @@
+{
+  // PHP CS Fixer on save, runs inside the DDEV container (vendor/ is built for Linux).
+  // --path-mode=intersection: respect the Finder excludes in backend/.php-cs-fixer.dist.php
+  "emeraldwalk.runonsave": {
+    "commands": [
+      {
+        "match": "/backend/.*\\.php$",
+        "notMatch": "/backend/(vendor|var)/",
+        "cmd": "ddev php-cs-fixer fix --quiet --path-mode=intersection /var/www/html/${relativeFile}"
+      }
+    ]
+  },
+
+  // Frontend: Prettier formats on save, ESLint fixes on save
+  "[vue]": { "editor.defaultFormatter": "esbenp.prettier-vscode", "editor.formatOnSave": true },
+  "[typescript]": { "editor.defaultFormatter": "esbenp.prettier-vscode", "editor.formatOnSave": true },
+  "[css]": { "editor.defaultFormatter": "esbenp.prettier-vscode", "editor.formatOnSave": true },
+  "editor.codeActionsOnSave": { "source.fixAll.eslint": "explicit" },
+
+  // Tailwind 4: the configuration lives in the CSS entry file
+  "tailwindCSS.experimental.configFile": "frontend/src/assets/main.css",
+  "files.associations": { "*.css": "tailwindcss" }
+}

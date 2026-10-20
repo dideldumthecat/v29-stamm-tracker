@@ -5,6 +5,7 @@ import vue from '@vitejs/plugin-vue'
 import tailwindcss from '@tailwindcss/vite'
 import vueDevTools from 'vite-plugin-vue-devtools'
 import { VitePWA } from 'vite-plugin-pwa'
+import checker from 'vite-plugin-checker'
 
 // Im DDEV-Container gesetzt, z.B. https://v29-stamm-tracker.ddev.site / v29-stamm-tracker.ddev.site
 const { DDEV_PRIMARY_URL, DDEV_HOSTNAME } = process.env
@@ -15,6 +16,16 @@ export default defineConfig({
     vue(),
     tailwindcss(),
     vueDevTools(),
+    // Type and lint errors while the dev server runs: in the terminal and as browser overlay.
+    // Dev only – `npm run build` already type-checks via vue-tsc, lint runs separately.
+    checker({
+      enableBuild: false,
+      vueTsc: { tsconfigPath: 'tsconfig.app.json' },
+      eslint: {
+        lintCommand: 'eslint "./src/**/*.{ts,vue}"',
+        watchPath: './src',
+      },
+    }),
     VitePWA({
       // 'prompt' instead of 'autoUpdate': a new version must never reload the app in the middle
       // of a data entry. The user confirms the update (UI via `useRegisterSW` still to be built).
