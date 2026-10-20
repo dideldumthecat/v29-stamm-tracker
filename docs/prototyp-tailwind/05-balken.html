@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Prototyp Tailwind – 05 Balken</title>
+<link rel="stylesheet" href="build.css">
+</head>
+<body>
+<!-- App-Spalte: max. 430px, auf breiten Bildschirmen seitliche Linien -->
+<div class="mx-auto flex min-h-full max-w-[430px] flex-col bg-paper min-[480px]:border-x min-[480px]:border-line">
+
+  <!-- Kopfzeile Stamm: klebt oben, invertiert -->
+  <header class="sticky top-[env(safe-area-inset-top,0px)] z-5 flex items-center gap-3 bg-ink py-3.5 text-paper px-gutter">
+    <button type="button" class="flex size-11 items-center justify-center rounded-lg border-2 border-current" aria-label="Zurück zum Stamm">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+    </button>
+    <h1 class="flex flex-1 flex-col items-center gap-0.5 text-center">
+      <small class="text-[13px] font-semibold tracking-[.06em]">BALKEN</small>
+      <!-- Balkenkennung ist länger: 34 statt 40px -->
+      <span class="text-[34px] leading-none font-extrabold tabular-nums"><span class="opacity-50">00</span>456-A</span>
+    </h1>
+    <!-- Sync-Knopf invertiert: nur Icon (+ Zähler, falls offen) -->
+    <button type="button" class="flex min-h-11 items-center gap-2 rounded-full border-2 border-paper bg-ink pr-2 pl-3 text-[15px] font-semibold text-paper" aria-label="Synchronisieren, 0 nicht synchronisiert">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12a9 9 0 0 1-15.5 6.2M3 12a9 9 0 0 1 15.5-6.2"/><path d="M21 4v5h-5M3 20v-5h5"/></svg>
+    </button>
+  </header>
+
+  <div class="mx-gutter mt-4 mb-2 flex flex-col gap-1 rounded-lg bg-well px-3.5 py-3 text-sm">
+    <strong class="text-base">Balken aus Stamm <span class="opacity-40">00</span>456</strong>
+    <span>Angelegt 15.10. von Sascha</span>
+    <button type="button" class="self-start py-1 text-[15px] font-semibold text-ink underline">Zum Stamm <span class="opacity-40">00</span>456 ›</button>
+  </div>
+
+  <!-- Vererbte Werte: Markierung „vom Stamm“, Stift überschreibt den Wert nur für diesen Balken -->
+  <div>
+    <section class="flex flex-col gap-2.5 border-t border-line bg-locked py-3.5 text-mute px-gutter *:min-w-0 *:max-w-full">
+      <span class="flex items-center justify-between gap-2 text-[17px] font-bold">Holzart</span>
+      <div class="flex min-h-[52px] items-center gap-3 rounded-lg border-2 border-lockline pl-3">
+        <span class="min-w-0 flex-1">Stieleiche</span>
+        <span class="rounded-xl border-[1.5px] border-current px-2 py-[3px] text-xs font-semibold whitespace-nowrap">vom Stamm</span>
+        <button type="button" class="mr-0.5 flex size-11 items-center justify-center rounded-md text-ink" aria-label="Holzart für diesen Balken überschreiben">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg>
+        </button>
+      </div>
+      <span class="text-[13px] text-mute">Vom Stamm <span class="opacity-40">00</span>456 · 02.10. · Kerstin</span>
+    </section>
+    <section class="flex flex-col gap-2.5 border-t border-line bg-locked py-3.5 text-mute px-gutter *:min-w-0 *:max-w-full">
+      <span class="flex items-center justify-between gap-2 text-[17px] font-bold">Standort</span>
+      <div class="flex min-h-[52px] items-center gap-3 rounded-lg border-2 border-lockline pl-3">
+        <span class="min-w-0 flex-1">Standort 1</span>
+        <span class="rounded-xl border-[1.5px] border-current px-2 py-[3px] text-xs font-semibold whitespace-nowrap">vom Stamm</span>
+        <button type="button" class="mr-0.5 flex size-11 items-center justify-center rounded-md text-ink" aria-label="Standort für diesen Balken überschreiben">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg>
+        </button>
+      </div>
+      <span class="text-[13px] text-mute">Vom Stamm <span class="opacity-40">00</span>456 · 02.10. · Kerstin</span>
+    </section>
+    <section class="flex flex-col gap-2.5 border-t border-line bg-locked py-3.5 text-mute px-gutter *:min-w-0 *:max-w-full">
+      <span class="flex items-center justify-between gap-2 text-[17px] font-bold">Fälldatum</span>
+      <div class="flex min-h-[52px] items-center gap-3 rounded-lg border-2 border-lockline pl-3">
+        <span class="min-w-0 flex-1">29.09.2026</span>
+        <span class="rounded-xl border-[1.5px] border-current px-2 py-[3px] text-xs font-semibold whitespace-nowrap">vom Stamm</span>
+        <button type="button" class="mr-0.5 flex size-11 items-center justify-center rounded-md text-ink" aria-label="Fälldatum für diesen Balken überschreiben">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg>
+        </button>
+      </div>
+      <span class="text-[13px] text-mute">Vom Stamm <span class="opacity-40">00</span>456 · 02.10. · Kerstin</span>
+    </section>
+    <!-- Gesperrtes Ja/Nein-Merkmal; „Nein“ wäre: leeres Kästchen mit border-2 border-lockline und Text „Gesägt: Nein“ -->
+    <section class="flex flex-col gap-2.5 border-t border-line bg-locked py-3.5 text-mute px-gutter *:min-w-0 *:max-w-full">
+      <div class="flex min-h-[60px] items-center gap-3 rounded-lg border-2 border-lockline pl-3.5 text-[17px] font-bold">
+        <span class="flex size-[30px] items-center justify-center rounded-md bg-dim text-paper"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M5 12l5 5L19 7"/></svg></span>
+        <span class="min-w-0 flex-1">Gesägt</span>
+        <span class="rounded-xl border-[1.5px] border-current px-2 py-[3px] text-xs font-semibold whitespace-nowrap">vom Stamm</span>
+        <button type="button" class="mr-0.5 flex size-11 items-center justify-center rounded-md text-ink" aria-label="Gesägt für diesen Balken überschreiben">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg>
+        </button>
+      </div>
+      <span class="text-[13px] text-mute">Vom Stamm <span class="opacity-40">00</span>456 · 15.10. · Sascha</span>
+    </section>
+    <section class="flex flex-col gap-2.5 border-t border-line bg-locked py-3.5 text-mute px-gutter *:min-w-0 *:max-w-full">
+      <span class="flex items-center justify-between gap-2 text-[17px] font-bold">Länge</span>
+      <div class="flex min-h-[52px] items-center gap-3 rounded-lg border-2 border-lockline pl-3">
+        <span class="min-w-0 flex-1">4,00 m</span>
+        <button type="button" class="mr-0.5 flex size-11 items-center justify-center rounded-md text-ink" aria-label="Länge ändern">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg>
+        </button>
+      </div>
+      <span class="text-[13px] text-mute">15.10. · Sascha</span>
+    </section>
+    <section class="flex flex-col gap-2.5 border-t border-line py-3.5 px-gutter *:min-w-0 *:max-w-full">
+      <button type="button" class="group flex min-h-[60px] w-full items-center gap-3.5 rounded-lg border-2 border-ink bg-paper px-3.5 text-left text-[17px] font-bold active:bg-ink active:text-paper" aria-pressed="false">
+        <span class="flex size-[30px] items-center justify-center rounded-md border-2 border-ink bg-paper group-aria-pressed:bg-ink group-aria-pressed:text-paper"></span>
+        <span class="flex-1">Entlastungsschnitt</span>
+      </button>
+    </section>
+    <section class="flex flex-col gap-2.5 border-t border-line bg-locked py-3.5 text-mute px-gutter *:min-w-0 *:max-w-full">
+      <span class="flex items-center justify-between gap-2 text-[17px] font-bold">Sortierklasse</span>
+      <div class="flex min-h-[52px] items-center gap-3 rounded-lg border-2 border-lockline pl-3">
+        <span class="min-w-0 flex-1">A</span>
+        <button type="button" class="mr-0.5 flex size-11 items-center justify-center rounded-md text-ink" aria-label="Sortierklasse ändern">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg>
+        </button>
+      </div>
+      <span class="text-[13px] text-mute">15.10. · Sascha</span>
+    </section>
+    <!-- Messreihe: bisherige Werte + Eingabe -->
+    <section class="flex flex-col gap-2.5 border-t border-line py-3.5 px-gutter *:min-w-0 *:max-w-full">
+      <label class="flex items-center justify-between gap-2 text-[17px] font-bold" for="f-feuchte">Holzfeuchte</label>
+      <div class="flex flex-col">
+        <!-- neu erfasster, noch nicht gespeicherter Wert: Markierung „neu“ + Entfernen (zur Ansicht ergänzt) -->
+        <div class="flex min-h-10 items-center justify-between gap-2.5 border-b border-soft py-1 text-[15px]">
+          <strong>28,5 %</strong>
+          <span class="flex items-center gap-2 text-right text-[13px] text-mute">
+            <span class="rounded-xl border-[1.5px] border-current px-2 py-[3px] text-xs font-semibold whitespace-nowrap text-ink">neu</span>
+            <button type="button" class="flex size-9 items-center justify-center rounded-md border-2 border-ink bg-paper text-ink" aria-label="Wert entfernen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+          </span>
+        </div>
+      </div>
+      <div class="flex gap-2">
+        <!-- Rahmen sitzt am Wrapper; Fokusring über focus-within, das Input selbst ohne Outline -->
+        <div class="flex h-[52px] min-w-0 flex-1 items-center rounded-lg border-2 border-ink bg-paper px-3 focus-within:outline-3 focus-within:outline-offset-2 focus-within:outline-ink">
+          <input id="f-feuchte" class="min-w-0 flex-1 bg-transparent outline-none" type="text" inputmode="decimal" placeholder="Wert" autocomplete="off">
+          <span class="font-semibold">%</span>
+        </div>
+        <button type="button" class="min-h-11 shrink-0 rounded-lg border-2 border-ink bg-paper px-3.5 text-[15px] font-semibold">Hinzufügen</button>
+      </div>
+      <!-- Fehler: <span class="text-sm font-semibold" role="alert">Bitte eine Zahl eingeben, zum Beispiel 34,5.</span> -->
+    </section>
+
+    <!-- Neu aufgenommenes Foto: gestrichelter Rand bis zum Sync, Entfernen-Knopf oben rechts -->
+    <section class="flex flex-col gap-2.5 border-t border-line py-3.5 px-gutter *:min-w-0 *:max-w-full">
+      <span class="flex items-center justify-between gap-2 text-[17px] font-bold">Fotos <span class="text-sm font-semibold text-mute">· 1</span></span>
+      <div class="grid grid-cols-4 gap-2">
+        <div class="relative">
+          <div class="flex aspect-square w-full items-center justify-center overflow-hidden rounded-md bg-soft outline-2 -outline-offset-2 outline-ink outline-dashed">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="text-dim" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="1"/><path d="M3 16l5-5 4 4 3-3 6 6"/></svg>
+          </div>
+          <button type="button" class="absolute top-1 right-1 flex size-[30px] items-center justify-center rounded-md border-2 border-ink bg-paper text-ink" aria-label="Foto entfernen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+        </div>
+        <label class="flex aspect-square cursor-pointer items-center justify-center rounded-md border-2 border-ink bg-paper text-ink" for="f-foto">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 8h4l2-3h6l2 3h4v12H3z"/><circle cx="12" cy="13" r="4"/></svg>
+          <span class="sr-only">Foto aufnehmen</span>
+        </label>
+      </div>
+      <input id="f-foto" class="sr-only" type="file" accept="image/*" capture="environment">
+      <span class="text-[13px] text-mute">Gestrichelt = nur auf diesem Gerät, bis zum Sync</span>
+    </section>
+    <section class="flex flex-col gap-2.5 border-t border-line py-3.5 px-gutter *:min-w-0 *:max-w-full border-b">
+      <label class="flex items-center justify-between gap-2 text-[17px] font-bold" for="f-kommentar">Kommentar</label>
+      <textarea id="f-kommentar" class="min-h-[84px] w-full resize-y rounded-lg border-2 border-ink bg-paper px-3 py-2.5 leading-[1.4]" rows="3" placeholder="Beobachtung, Auffälligkeit …"></textarea>
+    </section>
+  </div>
+
+  <div class="flex-auto"></div>
+
+  <!-- Speicherleiste: klebt unten -->
+  <div class="sticky bottom-0 z-5 border-t border-line bg-well pt-3 pb-safe-4 px-gutter">
+    <button type="button" class="flex h-[88px] w-full items-center justify-center gap-2.5 rounded-lg bg-ink text-lg font-bold text-paper short:h-16">Speichern</button>
+  </div>
+</div>
+</body>
+</html>

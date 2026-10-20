@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Prototyp Tailwind – 07 Sync leer</title>
+<link rel="stylesheet" href="build.css">
+</head>
+<body>
+<div class="mx-auto flex min-h-full max-w-[430px] flex-col bg-paper min-[480px]:border-x min-[480px]:border-line">
+  <!-- Kopfzeile Unterseite: Zurück links, Titel mittig, rechts Platzhalter gleicher Breite für echte Zentrierung -->
+  <header class="flex items-center gap-3 border-b-2 border-ink py-3 px-gutter">
+    <button type="button" class="flex size-11 items-center justify-center rounded-lg border-2 border-current" aria-label="Zurück">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+    </button>
+    <h1 class="flex-1 text-center text-xl font-bold">Synchronisierung</h1>
+    <span class="w-11 shrink-0"></span>
+  </header>
+  <p class="border-b border-line py-2 text-center text-[13px] text-mute px-gutter">Zuletzt synchronisiert: 15.10., 18:42</p>
+
+  <div class="flex flex-auto flex-col items-center justify-center gap-4 py-8 text-center px-gutter">
+    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.5 2.5L16 9.5"/></svg>
+    <h2 class="text-[26px] font-bold text-balance">Alles auf dem neuesten Stand</h2>
+    <p class="max-w-[32ch] leading-[1.45] text-mute">Auf diesem Gerät gibt es keine offenen Änderungen.</p>
+  </div>
+  <div class="sticky bottom-0 z-5 border-t border-line bg-well pt-3 pb-safe-4 px-gutter">
+    <button type="button" class="flex h-[88px] w-full items-center justify-center gap-2.5 rounded-lg bg-ink text-lg font-bold text-paper short:h-16">Zurück zum Start</button>
+  </div>
+</div>
+</body>
+</html>

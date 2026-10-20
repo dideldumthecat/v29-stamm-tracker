@@ -1,0 +1,75 @@
+/*
+ * Tailwind-Einstieg für die Erfassungs-App.
+ * Später 1:1 nach frontend/src/assets/main.css übernehmen (Tailwind 4 mit @tailwindcss/vite).
+ */
+@import "tailwindcss";
+
+/* Niedrige Bildschirme (kleine Handys, Browserleisten): Elemente etwas flacher */
+@custom-variant short (@media (max-height: 760px));
+@custom-variant shorter (@media (max-height: 700px));
+
+@theme {
+  /* Nur die eigenen Farben zulassen – die Standardpalette (red-500 usw.) ist abgeschaltet */
+  --color-*: initial;
+  --color-paper: #ffffff;    /* Hintergrund */
+  --color-ink: #111111;      /* Text, Rahmen, gefüllte Flächen */
+  --color-mute: #555555;     /* Nebentext */
+  --color-body: #333333;     /* Beschreibungstexte */
+  --color-dim: #777777;      /* gesetzter Haken in gesperrten Feldern, Platzhalter-Icon */
+  --color-faint: #9a9a9a;    /* führende Nullen im Ziffernfeld */
+  --color-line: #cccccc;     /* Trennlinien */
+  --color-soft: #dddddd;     /* feine Trennlinien, Foto-Platzhalter */
+  --color-well: #f2f2f2;     /* hinterlegte Flächen: Tasten, Speicherleiste, Hinweise */
+  --color-locked: #e8e8e8;   /* gesperrtes Feld */
+  --color-lockline: #b0b0b0; /* Rahmen gesperrtes Feld */
+  --color-desk: #e4e4e2;     /* Fläche neben der App-Spalte (Desktop) */
+  --color-disabled: #cccccc;
+
+  --font-sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+/* Seitenabstand 16px, aber mindestens so breit wie die Aussparung (Notch) im Querformat */
+@utility px-gutter {
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+@utility mx-gutter {
+  margin-left: max(16px, env(safe-area-inset-left, 0px));
+  margin-right: max(16px, env(safe-area-inset-right, 0px));
+}
+/* Abstand plus Home-Indikator-Bereich: pb-safe-4 = 16px + Aussparung unten */
+@utility pb-safe-* {
+  padding-bottom: calc(--value(integer) * var(--spacing) + env(safe-area-inset-bottom, 0px));
+}
+@utility top-safe-* {
+  top: calc(--value(integer) * var(--spacing) + env(safe-area-inset-top, 0px));
+}
+/* Start-Screen: genau eine Bildschirmhöhe, nie scrollen */
+@utility h-screen-safe {
+  height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+}
+
+@layer base {
+  :root {
+    color-scheme: light; /* bewusst nur helles Thema – Ablesbarkeit im Freien */
+  }
+  html {
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  html,
+  body {
+    height: 100%;
+  }
+  body {
+    @apply bg-desk font-sans text-base text-ink;
+    -webkit-tap-highlight-color: transparent;
+  }
+  button {
+    cursor: pointer; /* Tailwind 4 setzt bei Buttons standardmäßig den normalen Pfeil */
+  }
+  :focus-visible {
+    outline: 3px solid var(--color-ink);
+    outline-offset: 2px;
+  }
+}

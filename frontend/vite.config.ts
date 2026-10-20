@@ -2,6 +2,7 @@ import { fileURLToPath, URL } from 'node:url'
 
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import tailwindcss from '@tailwindcss/vite'
 import vueDevTools from 'vite-plugin-vue-devtools'
 import { VitePWA } from 'vite-plugin-pwa'
 
@@ -12,6 +13,7 @@ const { DDEV_PRIMARY_URL, DDEV_HOSTNAME } = process.env
 export default defineConfig({
   plugins: [
     vue(),
+    tailwindcss(),
     vueDevTools(),
     VitePWA({
       // 'prompt' instead of 'autoUpdate': a new version must never reload the app in the middle

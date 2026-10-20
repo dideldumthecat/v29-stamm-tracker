@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Prototyp Tailwind – 08 Dialoge</title>
+<link rel="stylesheet" href="build.css">
+</head>
+<body>
+<!-- Hintergrund: irgendein Screen, hier nur angedeutet -->
+<div class="mx-auto flex min-h-full max-w-[430px] flex-col bg-paper min-[480px]:border-x min-[480px]:border-line">
+  <div class="p-8 text-mute">(Stamm-Ansicht im Hintergrund)</div>
+</div>
+
+<!-- Hinweis (Toast) oben: verschwindet nach 3 s, mit Aktion nach 5 s; Wegwischen per JavaScript -->
+<div class="fixed top-safe-3 left-1/2 z-60 flex w-[calc(100%-32px)] max-w-[398px] -translate-x-1/2 touch-none items-center justify-between gap-3 rounded-lg border-2 border-ink bg-paper py-2.5 pr-1.5 pl-4 text-[15px] leading-[1.35] font-semibold text-ink shadow-lg select-none" role="status">
+  <span class="min-w-0 flex-1">Balken <span class="opacity-40">00</span>456-C angelegt</span>
+  <button type="button" class="shrink-0 p-1.5 font-bold text-ink underline">Öffnen</button>
+  <button type="button" class="flex size-11 shrink-0 items-center justify-center text-ink" aria-label="Hinweis schließen"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+</div>
+
+<!-- Abfrage von unten (Bottom Sheet) über abgedunkeltem Hintergrund -->
+<div class="fixed inset-0 z-40 flex items-end justify-center bg-ink/50">
+  <div class="flex max-h-[90%] w-full max-w-[430px] flex-col gap-3.5 overflow-auto rounded-t-[14px] bg-paper pt-5 pb-safe-5 px-gutter" role="dialog" aria-modal="true" aria-labelledby="sh-t">
+    <h2 id="sh-t" class="text-xl font-bold text-balance">Änderungen verwerfen?</h2>
+    <p class="text-[15px] leading-[1.45]">Deine Eingaben für Stamm <span class="opacity-40">00</span>777 sind noch nicht gespeichert.</p>
+    <div class="mt-1 flex flex-col gap-2">
+      <button type="button" class="flex h-14 w-full items-center justify-center gap-2.5 rounded-lg bg-ink text-lg font-bold text-paper">Weiter bearbeiten</button>
+      <button type="button" class="h-14 w-full rounded-lg border-2 border-ink bg-paper text-[17px] font-bold">Verwerfen</button>
+    </div>
+  </div>
+</div>
+</body>
+</html>
