@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import NumPad from '@/components/NumPad.vue'
 import TagNumberDisplay from '@/components/TagNumberDisplay.vue'
+import AppHeader from '@/components/AppHeader.vue'
 import { TAG_DIGITS, TAG_MIN_NUMBER, TAG_MAX_NUMBER } from '@/config/constants'
 import { ref, computed } from 'vue'
 import OpenButton from '@/components/OpenButton.vue'
@@ -42,10 +43,14 @@ function onOpen() {
 
 <template>
   <div
-    class="mx-auto flex min-h-full max-w-[430px] flex-col justify-end bg-paper pb-3 min-[480px]:border-x min-[480px]:border-line"
+    class="mx-auto grid h-screen-safe max-w-[430px] grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-paper min-[480px]:border-x min-[480px]:border-line"
   >
-    <TagNumberDisplay :tag-input="tagInput" :has-error="isTagNumberTooHigh" />
-    <OpenButton :is-disabled="!isValidTagNumber" @open="onOpen" />
-    <NumPad @digit="onDigit" @clear="onClear" @delete="onDelete" />
+    <AppHeader />
+
+    <div class="flex min-h-0 flex-col justify-end overflow-hidden pb-3">
+      <TagNumberDisplay :tag-input="tagInput" :has-error="isTagNumberTooHigh" />
+      <OpenButton :is-disabled="!isValidTagNumber" @open="onOpen" />
+      <NumPad @digit="onDigit" @clear="onClear" @delete="onDelete" />
+    </div>
   </div>
 </template>

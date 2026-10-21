@@ -20,9 +20,7 @@ const boxes = computed(() => {
 </script>
 
 <template>
-  <section class="mb-auto flex flex-col py-3 px-gutter">
-    <p class="mb-2 text-[15px] font-semibold">Stammnummer</p>
-
+  <section class="mb-auto flex flex-col py-3 px-gutter my-3">
     <div
       class="grid gap-2"
       role="status"
