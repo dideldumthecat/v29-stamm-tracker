@@ -2,7 +2,7 @@
  * Tailwind entry point (Tailwind 4 via @tailwindcss/vite).
  * Design tokens and custom utilities; template screens: docs/prototyp-tailwind/
  */
-@import "tailwindcss";
+@import 'tailwindcss';
 
 /* Low screens (small phones, browser bars): slightly flatter elements */
 @custom-variant short (@media (max-height: 760px));
@@ -11,21 +11,21 @@
 @theme {
   /* Only our own colors – the default palette (red-500 etc.) is switched off */
   --color-*: initial;
-  --color-paper: #ffffff;    /* background */
-  --color-ink: #111111;      /* text, borders, filled areas */
-  --color-mute: #555555;     /* secondary text */
-  --color-body: #333333;     /* description texts */
-  --color-dim: #777777;      /* checked box in locked fields, placeholder icon */
-  --color-faint: #9a9a9a;    /* leading zeros in the digit display */
-  --color-line: #cccccc;     /* dividers */
-  --color-soft: #dddddd;     /* subtle dividers, photo placeholder */
-  --color-well: #f2f2f2;     /* tinted areas: keys, save bar, notes */
-  --color-locked: #e8e8e8;   /* locked field */
+  --color-paper: #ffffff; /* background */
+  --color-ink: #111111; /* text, borders, filled areas */
+  --color-mute: #555555; /* secondary text */
+  --color-body: #333333; /* description texts */
+  --color-dim: #777777; /* checked box in locked fields, placeholder icon */
+  --color-faint: #9a9a9a; /* leading zeros in the digit display */
+  --color-line: #cccccc; /* dividers */
+  --color-soft: #dddddd; /* subtle dividers, photo placeholder */
+  --color-well: #f2f2f2; /* tinted areas: keys, save bar, notes */
+  --color-locked: #e8e8e8; /* locked field */
   --color-lockline: #b0b0b0; /* locked field border */
-  --color-desk: #e4e4e2;     /* area beside the app column (desktop) */
+  --color-desk: #e4e4e2; /* area beside the app column (desktop) */
   --color-disabled: #cccccc;
 
-  --font-sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-sans: 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }
 
 /* 16px side gutter, but at least as wide as the notch cutout in landscape */
