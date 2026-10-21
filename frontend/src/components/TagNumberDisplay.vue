@@ -20,7 +20,7 @@ const boxes = computed(() => {
 </script>
 
 <template>
-  <section class="mb-auto flex flex-col py-3 px-gutter my-3">
+  <section class="my-3 mb-auto flex flex-col py-3 px-gutter">
     <div
       class="grid gap-2"
       role="status"
@@ -36,7 +36,7 @@ const boxes = computed(() => {
         :class="[
           box.isLeadingZero
             ? 'border-line bg-well text-faint opacity-40'
-            : 'bg-ink text-paper border-ink',
+            : 'border-ink bg-ink text-paper',
         ]"
         aria-hidden="true"
       >
@@ -44,7 +44,7 @@ const boxes = computed(() => {
       </div>
     </div>
     <div role="alert">
-      <p v-if="hasError" class="mt-2 text-sm text-center">
+      <p v-if="hasError" class="mt-2 text-center text-sm">
         Ungültige Nummer. Bitte gib eine Zahl zwischen {{ TAG_MIN_NUMBER }} und
         {{ TAG_MAX_NUMBER }} ein.
       </p>

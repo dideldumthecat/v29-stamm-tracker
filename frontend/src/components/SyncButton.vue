@@ -8,7 +8,7 @@ defineProps<{
 <template>
   <button
     type="button"
-    class="flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-paper text-[15px] font-semibold pl-2"
+    class="flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-paper pl-2 text-[15px] font-semibold"
     :class="pendingCount > 0 ? 'pr-1.5' : 'pr-2.5'"
     :aria-label="`Synchronisieren, ${pendingCount} offene Einträge`"
   >

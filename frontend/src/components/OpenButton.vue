@@ -6,7 +6,7 @@ const emit = defineEmits<{ open: [] }>()
 </script>
 
 <template>
-  <div class="pb-3 px-gutter">
+  <div class="px-gutter pb-3">
     <button
       type="button"
       class="flex h-[72px] w-full items-center justify-center gap-2.5 rounded-lg bg-ink text-lg font-bold text-paper disabled:cursor-default disabled:bg-disabled disabled:text-mute shorter:h-[60px]"

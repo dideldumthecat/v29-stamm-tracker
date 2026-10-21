@@ -10,7 +10,7 @@ const emit = defineEmits<{
 
 <template>
   <div
-    class="grid min-h-0 touch-manipulation auto-rows-[minmax(52px,72px)] grid-cols-3 content-end gap-2 select-none px-gutter"
+    class="grid min-h-0 touch-manipulation auto-rows-[minmax(52px,72px)] grid-cols-3 content-end gap-2 px-gutter select-none"
     role="group"
     aria-label="Ziffernfeld"
   >
