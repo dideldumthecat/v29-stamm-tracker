@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import { RefreshCwIcon } from '@lucide/vue'
 defineProps<{
   pendingCount: number
 }>()
@@ -11,18 +12,7 @@ defineProps<{
     :class="pendingCount > 0 ? 'pr-1.5' : 'pr-2.5'"
     :aria-label="`Synchronisieren, ${pendingCount} offene Einträge`"
   >
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-      aria-hidden="true"
-    >
-      <path d="M21 12a9 9 0 0 1-15.5 6.2M3 12a9 9 0 0 1 15.5-6.2" />
-      <path d="M21 4v5h-5M3 20v-5h5" />
-    </svg>
+    <RefreshCwIcon :size="20" aria-hidden="true" />
     <span class="flex items-center gap-1">
       <span>Sync</span>
       <span

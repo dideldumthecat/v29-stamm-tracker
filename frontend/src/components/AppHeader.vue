@@ -9,7 +9,7 @@ import SyncButton from '@/components/SyncButton.vue'
       <span class="text-xs text-mute">Zuletzt synchronisiert: 15.10., 18:42</span>
     </div>
     <div class="flex items-center gap-1.5">
-      <SyncButton :pending-count="876" />
+      <SyncButton :pending-count="29" />
     </div>
   </header>
 </template>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { DeleteIcon } from '@lucide/vue'
 const digits = ['1', '2', '3', '4', '5', '6', '7', '8', '9']
 const emit = defineEmits<{
   digit: [value: string]
@@ -43,18 +44,7 @@ const emit = defineEmits<{
       aria-label="Letzte Ziffer löschen"
       @click="emit('delete')"
     >
-      <svg
-        width="26"
-        height="26"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        aria-hidden="true"
-      >
-        <path d="M21 5H9l-6 7 6 7h12z" />
-        <path d="M17 9l-6 6M11 9l6 6" />
-      </svg>
+      <DeleteIcon :size="30" aria-hidden="true" />
     </button>
   </div>
 </template>
