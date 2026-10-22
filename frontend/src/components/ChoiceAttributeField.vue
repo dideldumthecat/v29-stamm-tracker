@@ -1,14 +1,20 @@
 <script setup lang="ts">
 import { computed, ref, useId } from 'vue'
 import { PencilIcon } from '@lucide/vue'
-import type { Attribute, RecordedValue } from '@/stores/timberItems'
+import type { Attribute, AttributeValueRecord } from '@/stores/timberItems'
 import { formatShortDate } from '@/utils/date'
+import { useTimberItemStore } from '@/stores/timberItems'
 
 const props = defineProps<{
   attribute: Attribute
-  // Value already recorded for this item, if any.
-  recorded: RecordedValue | undefined
+  // Recordings for this attribute from the timber item, if any (always an array, oldest first).
+  recorded: AttributeValueRecord[] | undefined
 }>()
+
+const store = useTimberItemStore()
+
+// A choice attribute is never a series, so the last entry is the current value.
+const current = computed(() => props.recorded?.slice(-1)[0])
 
 // Draft selection (option id). undefined = untouched; the parent compares it with `recorded`.
 const draft = defineModel<string | undefined>()
@@ -17,14 +23,16 @@ const selectId = useId()
 
 // A recorded value is locked against accidental changes; the pencil unlocks it.
 const isUnlocked = ref(false)
-const isLocked = computed(() => props.recorded !== undefined && !isUnlocked.value)
+const isLocked = computed(() => current.value !== undefined && !isUnlocked.value)
 
 const recordedLabel = computed(
-  () => props.attribute.options.find((option) => option.id === props.recorded?.optionId)?.label,
+  () => props.attribute.options.find((option) => option.id === current.value?.value)?.label,
 )
 
 // What the select shows: the draft if touched, otherwise the recorded value.
-const selectedOptionId = computed(() => draft.value ?? props.recorded?.optionId ?? '')
+const selectedOptionId = computed(
+  () => draft.value ?? (current.value?.value as string | undefined) ?? '',
+)
 
 function unlock() {
   isUnlocked.value = true
@@ -54,8 +62,8 @@ function onChange(event: Event) {
         <PencilIcon :size="22" aria-hidden="true" />
       </button>
     </div>
-    <span v-if="recorded" class="text-[13px] text-mute"
-      >{{ formatShortDate(recorded.recordedAt) }} · {{ recorded.recordedBy }}</span
+    <span v-if="current" class="text-[13px] text-mute"
+      >{{ formatShortDate(current.recorded_at) }} · {{ store.userName(current.user_id) }}</span
     >
   </section>
 

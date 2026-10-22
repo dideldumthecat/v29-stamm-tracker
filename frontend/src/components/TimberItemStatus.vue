@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import type { TimberItem } from '@/stores/timberItems'
 import { formatShortDate } from '@/utils/date'
+import { useTimberItemStore } from '@/stores/timberItems'
 
 defineProps<{
   // undefined = not recorded yet, will be created on save
   item: TimberItem | undefined
 }>()
+
+const store = useTimberItemStore()
 </script>
 
 <template>
@@ -16,7 +19,10 @@ defineProps<{
     role="status"
   >
     <strong class="text-base">Bereits erfasst</strong>
-    <span>Angelegt {{ formatShortDate(item.createdAt) }} von {{ item.createdBy }}</span>
+    <span
+      >Angelegt {{ formatShortDate(item.created_at) }} von
+      {{ store.userName(item.created_by) }}</span
+    >
   </div>
   <div
     v-else
