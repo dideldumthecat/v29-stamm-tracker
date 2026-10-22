@@ -37,7 +37,8 @@ describe('App', () => {
     const { wrapper } = await mountAt('/timber-item/123')
     expect(wrapper.text()).toContain('Bereits erfasst')
     expect(wrapper.text()).toContain('Traubeneiche')
-    expect(wrapper.find('select').exists()).toBe(false)
+    // Holzart is recorded → locked with a pencil button instead of a select.
+    expect(wrapper.find('button[aria-label="Holzart ändern"]').exists()).toBe(true)
   })
 
   it('redirects invalid tag numbers to the start screen', async () => {

@@ -86,10 +86,10 @@ export interface TimberItem {
    * Always an array, oldest first: series (is_series) carry every recording,
    * all other attributes exactly one (the current value).
    */
-  values: Record<Uuid, Recording[]>
+  values: Record<Uuid, AttributeValueRecord[]>
 }
 
-export interface Recording {
+export interface AttributeValueRecord {
   value: AttributeValue
   recorded_at: Timestamp
   user_id: Uuid

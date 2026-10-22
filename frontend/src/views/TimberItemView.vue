@@ -33,8 +33,8 @@ const formKey = ref(0)
 const changes = computed(() =>
   store.attributes.flatMap((attribute) => {
     const value = draft.value[attribute.id]
-    const recorded = item.value?.values[attribute.id]?.optionId
-    return value && value !== recorded ? [{ attributeId: attribute.id, optionId: value }] : []
+    const recorded = item.value?.values[attribute.id]?.slice(-1)[0]?.value
+    return value && value !== recorded ? [{ attributeId: attribute.id, value }] : []
   }),
 )
 const isDirty = computed(() => changes.value.length > 0)
@@ -46,7 +46,7 @@ function onSave() {
   // Like the click prototype: a new item is created even without values.
   const target = item.value ?? store.createTimberItem(tagNumber.value)
   for (const change of changes.value) {
-    store.recordValue(target.id, change.attributeId, change.optionId)
+    store.recordAttribute(target.id, change.attributeId, change.value)
   }
 
   const hasSaved = isNew || changes.value.length > 0
