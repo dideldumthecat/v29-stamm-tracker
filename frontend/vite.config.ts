@@ -18,14 +18,16 @@ export default defineConfig({
     vueDevTools(),
     // Type and lint errors while the dev server runs: in the terminal and as browser overlay.
     // Dev only – `npm run build` already type-checks via vue-tsc, lint runs separately.
-    checker({
-      enableBuild: false,
-      vueTsc: { tsconfigPath: 'tsconfig.app.json' },
-      eslint: {
-        lintCommand: 'eslint "./src/**/*.{ts,vue}"',
-        watchPath: './src',
-      },
-    }),
+    // Not under Vitest: the test run doesn't need it, and it would type-check the whole project on every run.
+    !process.env.VITEST &&
+      checker({
+        enableBuild: false,
+        vueTsc: { tsconfigPath: 'tsconfig.app.json' },
+        eslint: {
+          lintCommand: 'eslint "./src/**/*.{ts,vue}"',
+          watchPath: './src',
+        },
+      }),
     VitePWA({
       // 'prompt' instead of 'autoUpdate': a new version must never reload the app in the middle
       // of a data entry. The user confirms the update (UI via `useRegisterSW` still to be built).
@@ -45,7 +47,12 @@ export default defineConfig({
         icons: [
           { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
           { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' },
-          { src: 'maskable-icon-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          {
+            src: 'maskable-icon-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
+          },
         ],
       },
       workbox: {
@@ -73,7 +80,9 @@ export default defineConfig({
     strictPort: true,
     allowedHosts: DDEV_HOSTNAME ? DDEV_HOSTNAME.split(',') : [],
     origin: DDEV_PRIMARY_URL ? `${DDEV_PRIMARY_URL}:5173` : undefined,
-    hmr: DDEV_HOSTNAME ? { host: DDEV_HOSTNAME.split(',')[0], protocol: 'wss', clientPort: 5173 } : undefined,
+    hmr: DDEV_HOSTNAME
+      ? { host: DDEV_HOSTNAME.split(',')[0], protocol: 'wss', clientPort: 5173 }
+      : undefined,
     // Symfony läuft im selben Container auf Port 80 → gleiche Origin, kein CORS
     proxy: { '/api': 'http://localhost' },
   },
