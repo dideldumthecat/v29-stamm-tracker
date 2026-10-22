@@ -1,0 +1,46 @@
+{
+  "events": [
+    {
+      "id": "f0e1eb8e-01e4-4349-9eda-33d14ecf6b71",
+      "schema_version": 1,
+      "type": "created",
+      "timber_item_id": "a561559a-c281-4b25-8a1a-0a8ab97931f9",
+      "data": {
+        "parent_id": null
+      },
+      "recorded_at": "2026-10-22T09:41:10Z"
+    },
+    {
+      "id": "0efbee9c-e1d9-46a7-84ad-88b9a0bcf6dd",
+      "schema_version": 1,
+      "type": "tag_assigned",
+      "timber_item_id": "a561559a-c281-4b25-8a1a-0a8ab97931f9",
+      "data": {
+        "tag_number": "1042"
+      },
+      "recorded_at": "2026-10-22T09:41:10Z"
+    },
+    {
+      "id": "c3cef810-83cb-4035-89de-e492f2edfb37",
+      "schema_version": 1,
+      "type": "attribute_recorded",
+      "timber_item_id": "a561559a-c281-4b25-8a1a-0a8ab97931f9",
+      "data": {
+        "attribute_id": "0847b35f-f94e-4f68-84c6-63426a5dcf77",
+        "value": "af0c94b3-caef-4a22-ac9d-32b76876a0d1"
+      },
+      "recorded_at": "2026-10-22T09:41:30Z"
+    },
+    {
+      "id": "b73f1927-2ca2-4846-a6bc-cdb30223f437",
+      "schema_version": 1,
+      "type": "attribute_recorded",
+      "timber_item_id": "9e12e819-ef6e-45c7-8801-494177724c56",
+      "data": {
+        "attribute_id": "d609577e-6b6c-42ce-8ad2-17729b975338",
+        "value": 37.2
+      },
+      "recorded_at": "2026-10-22T09:45:02Z"
+    }
+  ]
+}
