@@ -39,14 +39,14 @@ describe('ChoiceAttributeField with inactive options', () => {
   it('still shows the label of an inactive recorded option', () => {
     const { wrapper, inactive } = setup(setupInactiveId())
     expect(wrapper.find('select').exists()).toBe(false)
-    expect(wrapper.text()).toContain(`${inactive.label} (nicht mehr wählbar)`)
+    expect(wrapper.text()).toContain(`${inactive.label} (deaktiviert)`)
   })
 
   it('keeps the recorded inactive option selectable-as-shown after unlocking, offers no other inactive one', async () => {
     const { wrapper, attribute, inactive } = setup(setupInactiveId())
     await wrapper.find(`button[aria-label="${attribute.name} ändern"]`).trigger('click')
     expect((wrapper.find('select').element as HTMLSelectElement).value).toBe(inactive.id)
-    expect(optionLabels(wrapper)).toContain(`${inactive.label} (nicht mehr wählbar)`)
+    expect(optionLabels(wrapper)).toContain(`${inactive.label} (deaktiviert)`)
     // Active options carry no addition.
     expect(optionLabels(wrapper)).toContain('Traubeneiche')
   })

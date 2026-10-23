@@ -67,7 +67,7 @@ describe('BooleanAttributeField', () => {
         recorded: store.findByTagNumber(789)?.values[attribute.id],
       },
     })
-    expect(wrapper.text()).toContain('wird nicht mehr erfasst')
+    expect(wrapper.text()).toContain('deaktiviert')
     expect(wrapper.find('button').exists()).toBe(false)
   })
 })
