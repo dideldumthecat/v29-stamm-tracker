@@ -194,4 +194,48 @@ describe('App', () => {
     expect(wrapper.text()).toContain('40 %')
     expect(wrapper.text()).not.toContain('neu')
   })
+
+  describe('inactive attributes', () => {
+    const deactivate = (type: string) => {
+      const store = useTimberItemStore()
+      store.attributes
+        .filter((attribute) => attribute.type === type)
+        .forEach((attribute) => {
+          attribute.active = false
+        })
+      return store
+    }
+
+    it('hides an inactive attribute without a recorded value', async () => {
+      const store = deactivate('date')
+      const name = store.attributes.find((attribute) => attribute.type === 'date')!.name
+      const { wrapper } = await mountAt('/timber-item/456')
+      expect(wrapper.text()).not.toContain(name)
+      expect(wrapper.find('input[type="date"]').exists()).toBe(false)
+    })
+
+    it('shows recorded values of inactive attributes read-only, whatever the type', async () => {
+      const store = deactivate('date')
+      deactivate('number')
+      deactivate('choice')
+      deactivate('boolean')
+      // Item 123: choice, date and series recorded. Item 789: boolean recorded.
+      const first = await mountAt('/timber-item/123')
+      expect(first.wrapper.text()).toContain('28.09.2026')
+      expect(first.wrapper.text()).toContain('48,5 %')
+      expect(first.wrapper.text()).toContain('Traubeneiche')
+      const second = await mountAt('/timber-item/789')
+      expect(second.wrapper.text()).toContain(
+        store.attributes.find((a) => a.type === 'boolean')!.name,
+      )
+      for (const { wrapper } of [first, second]) {
+        expect(wrapper.find('input').exists()).toBe(false)
+        expect(wrapper.find('select').exists()).toBe(false)
+        expect(wrapper.find('button[aria-pressed]').exists()).toBe(false)
+        // No pencil and no "Hinzufügen".
+        expect(wrapper.findAll('button[aria-label$="ändern"]')).toHaveLength(0)
+        expect(wrapper.findAll('button').filter((b) => b.text() === 'Hinzufügen')).toHaveLength(0)
+      }
+    })
+  })
 })
