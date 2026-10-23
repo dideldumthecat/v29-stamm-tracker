@@ -123,4 +123,23 @@ describe('App', () => {
       expect(document.body.textContent).toContain('Änderungen verwerfen?')
     })
   })
+
+  it('records added series values and the pending input on save', async () => {
+    const { wrapper } = await mountAt('/timber-item/456')
+    const store = useTimberItemStore()
+    const attribute = store.attributes.find((candidate) => candidate.type === 'number')!
+    const input = wrapper.find('input[inputmode="decimal"]')
+    await input.setValue('40')
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'Hinzufügen')!
+      .trigger('click')
+    // Typed but not added: saved too, so it is not lost.
+    await input.setValue('41,5')
+    await wrapper.find('button.bg-ink.text-lg').trigger('click')
+    await flushPromises()
+    expect(store.findByTagNumber(456)?.values[attribute.id]?.map((record) => record.value)).toEqual(
+      [40, 41.5],
+    )
+  })
 })

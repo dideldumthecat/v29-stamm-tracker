@@ -20,7 +20,7 @@ export interface CollectedDraft {
 }
 
 const DATE_ERROR = 'Bitte als TT.MM.JJJJ eingeben, zum Beispiel 28.09.2026.'
-const NUMBER_ERROR = 'Bitte eine Zahl eingeben, zum Beispiel 34,5.'
+export const NUMBER_ERROR = 'Bitte eine Zahl eingeben, zum Beispiel 34,5.'
 
 /**
  * Strict on purpose: parseFloat would turn "34abc" into 34. The log is append-only,
@@ -29,6 +29,11 @@ const NUMBER_ERROR = 'Bitte eine Zahl eingeben, zum Beispiel 34,5.'
 export function parseNumber(text: string): number | null {
   const trimmed = text.trim()
   return /^-?\d+([.,]\d+)?$/.test(trimmed) ? Number(trimmed.replace(',', '.')) : null
+}
+
+/** Number as V29 writes it: decimal comma. */
+export function formatNumber(value: number): string {
+  return String(value).replace('.', ',')
 }
 
 type Parsed = { value: AttributeValue } | { error: string } | undefined
