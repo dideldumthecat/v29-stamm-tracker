@@ -8,7 +8,7 @@
       "data": {
         "parent_id": null
       },
-      "recorded_at": "2026-10-22T09:41:10Z"
+      "recorded_at": "2026-10-22T09:41:10.000Z"
     },
     {
       "id": "0efbee9c-e1d9-46a7-84ad-88b9a0bcf6dd",
@@ -18,7 +18,7 @@
       "data": {
         "tag_number": "1042"
       },
-      "recorded_at": "2026-10-22T09:41:10Z"
+      "recorded_at": "2026-10-22T09:41:10.000Z"
     },
     {
       "id": "c3cef810-83cb-4035-89de-e492f2edfb37",
@@ -29,7 +29,7 @@
         "attribute_id": "0847b35f-f94e-4f68-84c6-63426a5dcf77",
         "value": "af0c94b3-caef-4a22-ac9d-32b76876a0d1"
       },
-      "recorded_at": "2026-10-22T09:41:30Z"
+      "recorded_at": "2026-10-22T09:41:30.000Z"
     },
     {
       "id": "b73f1927-2ca2-4846-a6bc-cdb30223f437",
@@ -40,7 +40,7 @@
         "attribute_id": "d609577e-6b6c-42ce-8ad2-17729b975338",
         "value": 37.2
       },
-      "recorded_at": "2026-10-22T09:45:02Z"
+      "recorded_at": "2026-10-22T09:45:02.000Z"
     }
   ]
 }
