@@ -56,4 +56,18 @@ describe('BooleanAttributeField', () => {
     const { wrapper } = setup(456)
     expect(wrapper.find('button[aria-pressed]').exists()).toBe(true)
   })
+
+  it('marks a read-only (inactive) attribute and drops the pencil', () => {
+    const store = useTimberItemStore()
+    const attribute = store.attributes.find((candidate) => candidate.type === 'boolean')!
+    const wrapper = mount(BooleanAttributeField, {
+      props: {
+        attribute,
+        readonly: true,
+        recorded: store.findByTagNumber(789)?.values[attribute.id],
+      },
+    })
+    expect(wrapper.text()).toContain('wird nicht mehr erfasst')
+    expect(wrapper.find('button').exists()).toBe(false)
+  })
 })

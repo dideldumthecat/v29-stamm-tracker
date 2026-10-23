@@ -60,6 +60,37 @@
       "options": []
     },
     {
+      "id": "1903019a-8027-4e12-8bc1-e1db3e08f803",
+      "name": "Lagerplatz",
+      "description": "Wo der Stamm im Wald liegt",
+      "type": "choice",
+      "unit": null,
+      "is_series": false,
+      "is_inheritable": false,
+      "sort_order": 25,
+      "active": true,
+      "options": [
+        {
+          "id": "85c9b9d6-6714-4416-a91e-21efd4e4adfd",
+          "label": "Polter Nord",
+          "sort_order": 10,
+          "active": true
+        },
+        {
+          "id": "b0f84f80-f4da-4e13-8466-10b9f3d27915",
+          "label": "Polter Süd",
+          "sort_order": 20,
+          "active": true
+        },
+        {
+          "id": "c294ee90-4481-45e2-8173-21ddfee05416",
+          "label": "Waldweg Ost",
+          "sort_order": 30,
+          "active": false
+        }
+      ]
+    },
+    {
       "id": "15e4afde-597d-41c4-8d96-45cc398cfd10",
       "name": "Gesägt",
       "description": "Stamm ist im Sägewerk aufgeteilt",
@@ -69,6 +100,18 @@
       "is_inheritable": true,
       "sort_order": 30,
       "active": true,
+      "options": []
+    },
+    {
+      "id": "a0a9d407-ab96-4080-aaac-a95fc7c61032",
+      "name": "Entlastungsschnitt",
+      "description": "Längsschnitt gegen Rissbildung",
+      "type": "boolean",
+      "unit": null,
+      "is_series": false,
+      "is_inheritable": true,
+      "sort_order": 35,
+      "active": false,
       "options": []
     },
     {
@@ -192,6 +235,22 @@
             "recorded_at": "2026-10-02T07:16:00Z",
             "user_id": "993955be-5888-4f39-937c-56af8c5187c1",
             "event_id": "6d0e7b78-a7c4-49c1-a00b-f9536a433eca"
+          }
+        ],
+        "1903019a-8027-4e12-8bc1-e1db3e08f803": [
+          {
+            "value": "c294ee90-4481-45e2-8173-21ddfee05416",
+            "recorded_at": "2026-10-02T07:13:00Z",
+            "user_id": "993955be-5888-4f39-937c-56af8c5187c1",
+            "event_id": "b012db2e-307f-4def-9762-d7f726240aa0"
+          }
+        ],
+        "a0a9d407-ab96-4080-aaac-a95fc7c61032": [
+          {
+            "value": true,
+            "recorded_at": "2026-10-02T07:13:30Z",
+            "user_id": "993955be-5888-4f39-937c-56af8c5187c1",
+            "event_id": "31a3b1d5-07e5-4c16-a0d8-5be588a7ccc1"
           }
         ]
       }
