@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, useId } from 'vue'
-import type { Attribute, AttributeValueRecord } from '@/stores/timberItems'
+import type { Attribute, AttributeOption, AttributeValueRecord } from '@/stores/timberItems'
 import AttributeField from '@/components/AttributeField.vue'
 import { bySortOrder } from '@/utils/sort'
 
@@ -19,9 +19,15 @@ const draft = defineModel<string | undefined>()
 
 const selectId = useId()
 
-const recordedLabel = computed(
-  () => props.attribute.options.find((option) => option.id === current.value?.value)?.label,
-)
+// An inactive option that is recorded stays readable, marked as no longer selectable.
+// Plain text: <option> takes nothing else.
+const labelOf = (option: AttributeOption) =>
+  option.active ? option.label : `${option.label} (nicht mehr wählbar)`
+
+const recordedLabel = computed(() => {
+  const option = props.attribute.options.find((candidate) => candidate.id === current.value?.value)
+  return option && labelOf(option)
+})
 
 // Inactive options are no longer offered. Exception: the recorded one, otherwise the unlocked
 // select would show nothing although a value exists.
@@ -59,7 +65,7 @@ function onChange(event: Event) {
     >
       <option value="">{{ attribute.name }} wählen …</option>
       <option v-for="option in sortedOptions" :key="option.id" :value="option.id">
-        {{ option.label }}
+        {{ labelOf(option) }}
       </option>
     </select>
   </AttributeField>

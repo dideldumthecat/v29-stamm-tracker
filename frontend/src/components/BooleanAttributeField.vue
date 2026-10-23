@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { CheckIcon, PencilIcon } from '@lucide/vue'
 import type { Attribute, AttributeValueRecord } from '@/stores/timberItems'
+import InactiveHint from '@/components/InactiveHint.vue'
 import { formatShortDate } from '@/utils/date'
 import { useTimberItemStore } from '@/stores/timberItems'
 
@@ -51,7 +52,10 @@ function toggle() {
         <CheckIcon :size="20" :stroke-width="3" aria-hidden="true" />
       </span>
       <span v-else class="size-[30px] rounded-md border-2 border-lockline"></span>
-      <span class="min-w-0 flex-1">{{ attribute.name }}{{ current?.value ? '' : ': Nein' }}</span>
+      <span class="min-w-0 flex-1"
+        >{{ attribute.name }}{{ current?.value ? '' : ': Nein' }}
+        <InactiveHint v-if="readonly" class="block"
+      /></span>
       <button
         v-if="!readonly"
         type="button"

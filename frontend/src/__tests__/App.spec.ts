@@ -145,6 +145,8 @@ describe('App', () => {
     const text = wrapper.text()
     const names = [...store.attributes].sort((a, b) => a.sort_order - b.sort_order)
     const positions = names
+      // Inactive attributes without a value are hidden, so they have no position.
+      .filter((attribute) => attribute.active)
       .filter((attribute) => ['choice', 'date', 'boolean', 'number'].includes(attribute.type))
       .map((attribute) => text.indexOf(attribute.name))
     expect(positions).toEqual([...positions].sort((a, b) => a - b))
@@ -159,10 +161,11 @@ describe('App', () => {
   it('walks through a known item: one value per type, saved, locked, counted', async () => {
     const { wrapper } = await mountAt('/timber-item/456')
     const store = useTimberItemStore()
+    // First option after the placeholder of each select (Holzart, Lagerplatz, Sortierklasse).
     const selects = wrapper.findAll('select')
-    // First option after the placeholder of each select (Holzart, Sortierklasse).
-    await selects[0]!.setValue(selects[0]!.findAll('option')[1]!.element.value)
-    await selects[1]!.setValue(selects[1]!.findAll('option')[1]!.element.value)
+    for (const select of selects) {
+      await select.setValue(select.findAll('option')[1]!.element.value)
+    }
     await wrapper.find('input[type="date"]').setValue('2026-09-08')
     await wrapper.find('button[aria-pressed]').trigger('click')
     const measurement = wrapper.find('input[inputmode="decimal"]')
@@ -178,11 +181,11 @@ describe('App', () => {
     await wrapper.find('button.bg-ink.text-lg').trigger('click')
     await flushPromises()
 
-    // One attribute_recorded event per value: 4 single values + 2 measurements.
-    expect(store.pendingCount).toBe(6)
+    // One attribute_recorded event per value: 5 single values + 2 measurements.
+    expect(store.pendingCount).toBe(7)
     expect(document.body.textContent).toContain('gespeichert')
     // Everything recorded is locked now (pencil instead of input), the series shows as a list.
-    const names = ['Holzart', 'Sortierklasse', 'Fälldatum', 'Gesägt']
+    const names = ['Holzart', 'Lagerplatz', 'Sortierklasse', 'Fälldatum', 'Gesägt']
     const pencils = names.filter((name) =>
       wrapper.find(`button[aria-label="${name} ändern"]`).exists(),
     )
@@ -205,6 +208,20 @@ describe('App', () => {
         })
       return store
     }
+
+    it('marks inactive values on item 123 and nothing else', async () => {
+      const { wrapper } = await mountAt('/timber-item/123')
+      const text = wrapper.text()
+      // Lagerplatz is active, but its recorded option is not: the option is marked, the attribute is not.
+      expect(text).toContain('Waldweg Ost (nicht mehr wählbar)')
+      expect(text.match(/nicht mehr wählbar/g)).toHaveLength(1)
+      // Entlastungsschnitt is inactive and recorded: read-only with the hint.
+      expect(text).toContain('Entlastungsschnitt')
+      expect(text.match(/wird nicht mehr erfasst/g)).toHaveLength(1)
+      // Active values carry nothing.
+      expect(text).toContain('Traubeneiche')
+      expect(text).not.toContain('Traubeneiche (nicht')
+    })
 
     it('hides an inactive attribute without a recorded value', async () => {
       const store = deactivate('date')

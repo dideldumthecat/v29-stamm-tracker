@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { PencilIcon } from '@lucide/vue'
 import type { AttributeValueRecord } from '@/stores/timberItems'
+import InactiveHint from '@/components/InactiveHint.vue'
 import { formatShortDate } from '@/utils/date'
 import { useTimberItemStore } from '@/stores/timberItems'
 
@@ -34,7 +35,9 @@ const isLocked = computed(() => props.record !== undefined && (props.readonly ||
     v-if="isLocked && record"
     class="flex flex-col gap-2.5 border-t border-line bg-locked py-3.5 px-gutter text-mute *:max-w-full *:min-w-0"
   >
-    <span class="flex items-center justify-between gap-2 text-[17px] font-bold">{{ name }}</span>
+    <span class="flex items-baseline gap-2 text-[17px] font-bold"
+      >{{ name }}<InactiveHint v-if="readonly"
+    /></span>
     <div class="flex min-h-[52px] items-center gap-3 rounded-lg border-2 border-lockline pl-3">
       <span class="min-w-0 flex-1 wrap-anywhere whitespace-pre-line">{{ lockedText }}</span>
       <button
@@ -57,7 +60,7 @@ const isLocked = computed(() => props.record !== undefined && (props.readonly ||
     class="flex flex-col gap-2.5 border-t border-line py-3.5 px-gutter *:max-w-full *:min-w-0"
   >
     <div class="flex items-center justify-between gap-2 text-[17px] font-bold">
-      <span v-if="readonly">{{ name }}</span>
+      <span v-if="readonly" class="flex items-baseline gap-2">{{ name }}<InactiveHint /></span>
       <label v-else :for="labelFor">{{ name }}</label>
     </div>
     <slot />

@@ -40,4 +40,15 @@ describe('DateAttributeField', () => {
     // The input itself uses the contract format; only the locked display is TT.MM.JJJJ.
     expect((wrapper.find('input').element as HTMLInputElement).value).toBe('2026-09-28')
   })
+
+  it('marks a read-only (inactive) attribute – the hint comes from AttributeField', () => {
+    const store = useTimberItemStore()
+    const attribute = store.attributes.find((candidate) => candidate.type === 'date')!
+    const props = { attribute, recorded: store.findByTagNumber(123)?.values[attribute.id] }
+    expect(mount(DateAttributeField, { props }).text()).not.toContain('wird nicht mehr erfasst')
+
+    const readonly = mount(DateAttributeField, { props: { ...props, readonly: true } })
+    expect(readonly.text()).toContain('wird nicht mehr erfasst')
+    expect(readonly.find('button').exists()).toBe(false)
+  })
 })
