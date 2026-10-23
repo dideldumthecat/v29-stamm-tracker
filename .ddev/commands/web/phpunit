@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+## Description: Run PHPUnit in backend/ from anywhere
+## Usage: phpunit [args]
+## Example: "ddev phpunit" or "ddev phpunit --filter UserCommandsTest"
+
+cd /var/www/html/backend && php bin/phpunit "$@"
