@@ -33,4 +33,13 @@ class User
     ) {
         $this->id = $id ?? Uuid::v7();
     }
+
+    /**
+     * A fast hash is enough: the token is 32 random bytes, so it cannot be guessed or looked up in a
+     * table of known passwords. It has to be searchable by its hash, which rules out bcrypt-style hashes.
+     */
+    public static function hashToken(string $token): string
+    {
+        return hash('sha256', $token);
+    }
 }
