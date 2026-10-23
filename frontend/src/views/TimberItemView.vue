@@ -163,7 +163,6 @@ function onDiscard() {
           :model-value="draftText(attribute.id)"
           :attribute="attribute"
           :recorded="item?.values[attribute.id]"
-          :error="shownErrors[attribute.id]"
           @update:model-value="draft[attribute.id] = $event"
         />
         <NumberAttributeField

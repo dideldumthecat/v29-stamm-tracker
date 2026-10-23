@@ -8,20 +8,17 @@ const props = defineProps<{
   attribute: Attribute
   // Recordings for this attribute from the timber item, if any (always an array, oldest first).
   recorded: AttributeValueRecord[] | undefined
-  // Shown below the input; set by the parent after a failed save.
-  error?: string
 }>()
 
 // A date attribute is never a series, so the last entry is the current value.
 const current = computed(() => props.recorded?.slice(-1)[0])
+// Shown as TT.MM.JJJJ while locked; the date input itself uses the contract format.
 const recordedText = computed(() => (current.value ? formatDate(String(current.value.value)) : ''))
 
-// Draft = the text as typed ("8.9.2026"). It is parsed by the parent, so half-typed input survives.
-// undefined = untouched.
+// Draft = "YYYY-MM-DD", straight from the date input ("" while cleared or incomplete). undefined = untouched.
 const draft = defineModel<string | undefined>()
 
 const inputId = useId()
-const errorId = useId()
 
 function onInput(event: Event) {
   draft.value = (event.target as HTMLInputElement).value
@@ -35,18 +32,13 @@ function onInput(event: Event) {
     :record="current"
     :locked-text="recordedText"
   >
+    <!-- Native picker: no own parsing or validation. h-[52px] is as tall as the other fields (gloves). -->
     <input
       :id="inputId"
-      class="h-[52px] w-full rounded-lg border-2 border-ink bg-paper px-3"
-      type="text"
-      inputmode="numeric"
-      autocomplete="off"
-      placeholder="TT.MM.JJJJ"
-      :value="draft ?? recordedText"
-      :aria-invalid="error ? true : undefined"
-      :aria-describedby="error ? errorId : undefined"
+      class="h-[52px] w-full rounded-lg border-2 border-ink bg-paper px-3 [&::-webkit-date-and-time-value]:text-left"
+      type="date"
+      :value="draft ?? String(current?.value ?? '')"
       @input="onInput"
     />
-    <span v-if="error" :id="errorId" class="text-sm font-semibold" role="alert">{{ error }}</span>
   </AttributeField>
 </template>

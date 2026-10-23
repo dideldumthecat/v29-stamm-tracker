@@ -1,9 +1,8 @@
 import type { Attribute, AttributeValue, AttributeValueRecord } from '@/api/contract'
-import { parseDate } from '@/utils/date'
 
 /**
  * Raw input of one field, as the field holds it: choice → option id, boolean → true/false,
- * date/number/text → the text as typed. Parsed only when collecting, so half-typed input survives.
+ * date → "YYYY-MM-DD", number/text → the text as typed. Parsed only when collecting, so half-typed input survives.
  */
 export type DraftInput = string | boolean
 
@@ -19,7 +18,6 @@ export interface CollectedDraft {
   errors: Record<string, string>
 }
 
-const DATE_ERROR = 'Bitte als TT.MM.JJJJ eingeben, zum Beispiel 28.09.2026.'
 export const NUMBER_ERROR = 'Bitte eine Zahl eingeben, zum Beispiel 34,5.'
 
 /**
@@ -50,11 +48,9 @@ function parseInput(attribute: Attribute, input: DraftInput): Parsed {
   switch (attribute.type) {
     case 'choice':
     case 'text':
+    // <input type="date"> already delivers "YYYY-MM-DD" (or "" while incomplete), nothing to parse.
+    case 'date':
       return { value: text }
-    case 'date': {
-      const date = parseDate(text)
-      return date ? { value: date } : { error: DATE_ERROR }
-    }
     case 'number': {
       const number = parseNumber(text)
       return number === null ? { error: NUMBER_ERROR } : { value: number }
