@@ -8,6 +8,7 @@ const props = defineProps<{
   attribute: Attribute
   // Recordings for this attribute from the timber item, if any (always an array, oldest first).
   recorded: AttributeValueRecord[] | undefined
+  readonly?: boolean
 }>()
 
 // A date attribute is never a series, so the last entry is the current value.
@@ -31,6 +32,7 @@ function onInput(event: Event) {
     :label-for="inputId"
     :record="current"
     :locked-text="recordedText"
+    :readonly="readonly"
   >
     <!-- Native picker: no own parsing or validation. h-[52px] is as tall as the other fields (gloves). -->
     <input

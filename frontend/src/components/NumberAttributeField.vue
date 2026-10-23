@@ -18,6 +18,8 @@ const props = defineProps<{
   recorded: AttributeValueRecord[] | undefined
   // Set by the parent after a failed save.
   error?: string
+  // Inactive attribute: shows what was recorded, no input.
+  readonly?: boolean
 }>()
 
 const store = useTimberItemStore()
@@ -80,6 +82,7 @@ function remove(index: number) {
     :label-for="inputId"
     :record="attribute.is_series ? undefined : current"
     :locked-text="withUnit(current?.value ?? '')"
+    :readonly="readonly"
   >
     <div v-if="newValues.length > 0 || oldValues.length > 0" class="flex flex-col">
       <div
@@ -115,7 +118,7 @@ function remove(index: number) {
       </div>
     </div>
 
-    <div class="flex gap-2">
+    <div v-if="!readonly" class="flex gap-2">
       <!-- The border sits on the wrapper; the focus ring via focus-within, the input itself has no outline. -->
       <div
         class="flex h-[52px] min-w-0 flex-1 items-center rounded-lg border-2 border-ink bg-paper px-3 focus-within:outline-3 focus-within:outline-offset-2 focus-within:outline-ink"
@@ -145,7 +148,7 @@ function remove(index: number) {
         Hinzufügen
       </button>
     </div>
-    <span v-if="shownError" :id="errorId" class="text-sm font-semibold" role="alert">{{
+    <span v-if="shownError && !readonly" :id="errorId" class="text-sm font-semibold" role="alert">{{
       shownError
     }}</span>
   </AttributeField>

@@ -9,6 +9,8 @@ const props = defineProps<{
   attribute: Attribute
   // Recordings for this attribute from the timber item, if any (always an array, oldest first).
   recorded: AttributeValueRecord[] | undefined
+  // Inactive attribute: shows the recorded value, but no pencil.
+  readonly?: boolean
 }>()
 
 const store = useTimberItemStore()
@@ -21,7 +23,9 @@ const draft = defineModel<boolean | undefined>()
 
 // A recorded value is locked against accidental changes; the pencil unlocks it.
 const isUnlocked = ref(false)
-const isLocked = computed(() => current.value !== undefined && !isUnlocked.value)
+const isLocked = computed(
+  () => current.value !== undefined && (props.readonly || !isUnlocked.value),
+)
 
 // What the button shows: the draft if touched, otherwise the recorded value. Nothing recorded = unticked.
 const isChecked = computed(() => draft.value ?? current.value?.value === true)
@@ -49,6 +53,7 @@ function toggle() {
       <span v-else class="size-[30px] rounded-md border-2 border-lockline"></span>
       <span class="min-w-0 flex-1">{{ attribute.name }}{{ current?.value ? '' : ': Nein' }}</span>
       <button
+        v-if="!readonly"
         type="button"
         class="mr-0.5 flex size-11 items-center justify-center rounded-md text-ink"
         :aria-label="`${attribute.name} ändern`"

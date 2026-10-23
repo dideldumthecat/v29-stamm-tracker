@@ -8,6 +8,7 @@ const props = defineProps<{
   attribute: Attribute
   // Recordings for this attribute from the timber item, if any (always an array, oldest first).
   recorded: AttributeValueRecord[] | undefined
+  readonly?: boolean
 }>()
 
 // A choice attribute is never a series, so the last entry is the current value.
@@ -22,7 +23,13 @@ const recordedLabel = computed(
   () => props.attribute.options.find((option) => option.id === current.value?.value)?.label,
 )
 
-const sortedOptions = computed(() => [...props.attribute.options].sort(bySortOrder))
+// Inactive options are no longer offered. Exception: the recorded one, otherwise the unlocked
+// select would show nothing although a value exists.
+const sortedOptions = computed(() =>
+  props.attribute.options
+    .filter((option) => option.active || option.id === current.value?.value)
+    .sort(bySortOrder),
+)
 
 // What the select shows: the draft if touched, otherwise the recorded value.
 const selectedOptionId = computed(
@@ -40,6 +47,7 @@ function onChange(event: Event) {
     :label-for="selectId"
     :record="current"
     :locked-text="recordedLabel ?? ''"
+    :readonly="readonly"
   >
     <!-- Muted text while nothing is selected, like a placeholder. -->
     <select

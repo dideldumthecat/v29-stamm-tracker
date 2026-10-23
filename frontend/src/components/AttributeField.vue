@@ -18,13 +18,15 @@ const props = defineProps<{
   record?: AttributeValueRecord
   // The recorded value as displayed (option label, formatted date, …)
   lockedText?: string
+  // Inactive attribute: shown for the value already recorded, but no pencil and no input.
+  readonly?: boolean
 }>()
 
 const store = useTimberItemStore()
 
 // A recorded value is locked against accidental changes; the pencil unlocks it.
 const isUnlocked = ref(false)
-const isLocked = computed(() => props.record !== undefined && !isUnlocked.value)
+const isLocked = computed(() => props.record !== undefined && (props.readonly || !isUnlocked.value))
 </script>
 
 <template>
@@ -36,6 +38,7 @@ const isLocked = computed(() => props.record !== undefined && !isUnlocked.value)
     <div class="flex min-h-[52px] items-center gap-3 rounded-lg border-2 border-lockline pl-3">
       <span class="min-w-0 flex-1">{{ lockedText }}</span>
       <button
+        v-if="!readonly"
         type="button"
         class="mr-0.5 flex size-11 items-center justify-center rounded-md text-ink"
         :aria-label="`${name} ändern`"
@@ -54,7 +57,8 @@ const isLocked = computed(() => props.record !== undefined && !isUnlocked.value)
     class="flex flex-col gap-2.5 border-t border-line py-3.5 px-gutter *:max-w-full *:min-w-0"
   >
     <div class="flex items-center justify-between gap-2 text-[17px] font-bold">
-      <label :for="labelFor">{{ name }}</label>
+      <span v-if="readonly">{{ name }}</span>
+      <label v-else :for="labelFor">{{ name }}</label>
     </div>
     <slot />
   </section>

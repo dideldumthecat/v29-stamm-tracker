@@ -30,7 +30,12 @@ const tagNumber = computed(() => Number(props.tagNumber))
 const item = computed(() => store.findByTagNumber(tagNumber.value))
 
 // Fields in the order V29 set. Types without a field (photo) are skipped by the v-if chain in the template.
-const attributes = computed(() => [...store.attributes].sort(bySortOrder))
+// Inactive attributes stay visible only for an existing value (the snapshot keeps them for that), read-only.
+const attributes = computed(() =>
+  store.attributes
+    .filter((attribute) => attribute.active || item.value?.values[attribute.id])
+    .sort(bySortOrder),
+)
 
 // Raw input per attribute id (see DraftInput). Only touched attributes have an entry.
 const draft = ref<Record<string, DraftInput | undefined>>({})
@@ -153,6 +158,7 @@ function onDiscard() {
           :model-value="draftText(attribute.id)"
           :attribute="attribute"
           :recorded="item?.values[attribute.id]"
+          :readonly="!attribute.active"
           @update:model-value="draft[attribute.id] = $event"
         />
         <BooleanAttributeField
@@ -160,6 +166,7 @@ function onDiscard() {
           :model-value="draftFlag(attribute.id)"
           :attribute="attribute"
           :recorded="item?.values[attribute.id]"
+          :readonly="!attribute.active"
           @update:model-value="draft[attribute.id] = $event"
         />
         <DateAttributeField
@@ -167,6 +174,7 @@ function onDiscard() {
           :model-value="draftText(attribute.id)"
           :attribute="attribute"
           :recorded="item?.values[attribute.id]"
+          :readonly="!attribute.active"
           @update:model-value="draft[attribute.id] = $event"
         />
         <NumberAttributeField
@@ -175,6 +183,7 @@ function onDiscard() {
           :added="added[attribute.id]"
           :attribute="attribute"
           :recorded="item?.values[attribute.id]"
+          :readonly="!attribute.active"
           :error="shownErrors[attribute.id]"
           @update:model-value="draft[attribute.id] = $event"
           @update:added="added[attribute.id] = $event"
