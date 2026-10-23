@@ -85,43 +85,37 @@ describe('App', () => {
     expect(store.findByTagNumber(456)?.values[attribute.id]?.[0]?.value).toBe(true)
   })
 
-  describe('date attribute', () => {
-    const dateAttribute = () =>
-      useTimberItemStore().attributes.find((candidate) => candidate.type === 'date')!
-    const saveButton = (wrapper: Awaited<ReturnType<typeof mountAt>>['wrapper']) =>
-      wrapper.find('button.bg-ink.text-lg')
+  it('records a picked date in contract format', async () => {
+    const { wrapper } = await mountAt('/timber-item/456')
+    const store = useTimberItemStore()
+    const attribute = store.attributes.find((candidate) => candidate.type === 'date')!
+    await wrapper.find('input[type="date"]').setValue('2026-09-08')
+    await wrapper.find('button.bg-ink.text-lg').trigger('click')
+    await flushPromises()
+    expect(store.findByTagNumber(456)?.values[attribute.id]?.[0]?.value).toBe('2026-09-08')
+  })
 
-    it('records a valid date in contract format', async () => {
-      const { wrapper } = await mountAt('/timber-item/456')
-      await wrapper.find('input[inputmode="numeric"]').setValue('8.9.2026')
-      await saveButton(wrapper).trigger('click')
-      await flushPromises()
-      const values = useTimberItemStore().findByTagNumber(456)?.values[dateAttribute().id]
-      expect(values?.[0]?.value).toBe('2026-09-08')
-    })
+  it('blocks saving invalid number input, shows the error and protects the input', async () => {
+    const { wrapper, router } = await mountAt('/timber-item/42')
+    const input = wrapper.find('input[inputmode="decimal"]')
+    await input.setValue('34abc')
+    // No message while typing – only after the save attempt.
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
 
-    it('blocks saving an impossible date, shows the error and protects the input', async () => {
-      const { wrapper, router } = await mountAt('/timber-item/42')
-      const input = wrapper.find('input[inputmode="numeric"]')
-      await input.setValue('31.02.2026')
-      // No message while typing – only after the save attempt.
-      expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+    await wrapper.find('button.bg-ink.text-lg').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[role="alert"]').text()).toContain('Zahl')
+    expect(useTimberItemStore().findByTagNumber(42)).toBeUndefined()
 
-      await saveButton(wrapper).trigger('click')
-      await flushPromises()
-      expect(wrapper.find('[role="alert"]').text()).toContain('TT.MM.JJJJ')
-      expect(useTimberItemStore().findByTagNumber(42)).toBeUndefined()
+    // Changing the input hides the message again.
+    await input.setValue('34abcd')
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
 
-      // Changing the input hides the message again.
-      await input.setValue('31.02.202')
-      expect(wrapper.find('[role="alert"]').exists()).toBe(false)
-
-      // Half-typed input is unsaved work: closing asks first.
-      await wrapper.find('button[aria-label="Schließen"]').trigger('click')
-      await flushPromises()
-      expect(router.currentRoute.value.name).toBe('timber-item')
-      expect(document.body.textContent).toContain('Änderungen verwerfen?')
-    })
+    // Invalid input is unsaved work: closing asks first.
+    await wrapper.find('button[aria-label="Schließen"]').trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.name).toBe('timber-item')
+    expect(document.body.textContent).toContain('Änderungen verwerfen?')
   })
 
   it('records added series values and the pending input on save', async () => {

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import type { Attribute, AttributeType, AttributeValueRecord } from '@/api/contract'
 import { collectDraft, parseNumber } from '@/utils/attributeDraft'
-import { formatDate, parseDate } from '@/utils/date'
+import { formatDate } from '@/utils/date'
 
 function attribute(id: string, type: AttributeType, overrides: Partial<Attribute> = {}): Attribute {
   return {
@@ -23,22 +23,9 @@ function record(value: AttributeValueRecord['value']): AttributeValueRecord[] {
   return [{ value, recorded_at: '2026-10-02T07:12:00Z', user_id: 'u', event_id: 'e' }]
 }
 
-describe('parseDate', () => {
-  it('accepts TT.MM.JJJJ and one-digit day and month', () => {
-    expect(parseDate('28.09.2026')).toBe('2026-09-28')
-    expect(parseDate(' 8.9.2026 ')).toBe('2026-09-08')
-  })
-
-  it('rejects half-typed, wrongly formatted and impossible dates', () => {
-    const texts = ['', '28.09.', '28.09.26', '2026-09-28', '31.02.2026', '00.01.2026']
-    expect(texts.map(parseDate)).toEqual(texts.map(() => null))
-  })
-})
-
 describe('formatDate', () => {
-  it('writes the contract date the way V29 does, and parseDate reads it back', () => {
+  it('writes the contract date the way V29 does', () => {
     expect(formatDate('2026-09-08')).toBe('08.09.2026')
-    expect(parseDate(formatDate('2026-09-08'))).toBe('2026-09-08')
   })
 })
 
@@ -67,9 +54,9 @@ describe('collectDraft', () => {
   it('ignores untouched, empty and unchanged input', () => {
     const result = collectDraft(
       all,
-      { choice: '', date: '  ', note: ' ', flag: false, number: '5' },
+      { choice: '', date: '2026-09-28', note: ' ', flag: false, number: '5' },
       {},
-      { number: record(5) },
+      { number: record(5), date: record('2026-09-28') },
     )
     expect(result).toEqual({ changes: [], errors: {} })
   })
@@ -77,7 +64,7 @@ describe('collectDraft', () => {
   it('collects values in contract format', () => {
     const { changes, errors } = collectDraft(
       all,
-      { choice: 'opt-1', flag: true, date: '8.9.2026', number: '34,5', note: ' hi ' },
+      { choice: 'opt-1', flag: true, date: '2026-09-08', number: '34,5', note: ' hi ' },
       {},
       undefined,
     )
@@ -105,14 +92,9 @@ describe('collectDraft', () => {
   })
 
   it('reports invalid input as error without a change', () => {
-    const { changes, errors } = collectDraft(
-      all,
-      { date: '28.09.', number: '34abc' },
-      {},
-      undefined,
-    )
+    const { changes, errors } = collectDraft(all, { number: '34abc' }, {}, undefined)
     expect(changes).toEqual([])
-    expect(Object.keys(errors)).toEqual(['date', 'number'])
+    expect(Object.keys(errors)).toEqual(['number'])
   })
 
   it('adds the pending series input after the values already added', () => {
