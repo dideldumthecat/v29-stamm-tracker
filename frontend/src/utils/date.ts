@@ -23,3 +23,8 @@ export function parseDate(text: string): string | null {
   }
   return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
 }
+
+/** Contract date "2026-09-28" → "28.09.2026", the way V29 writes dates. */
+export function formatDate(calendarDate: string): string {
+  return calendarDate.split('-').reverse().join('.')
+}

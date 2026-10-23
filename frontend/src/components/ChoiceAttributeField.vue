@@ -1,17 +1,13 @@
 <script setup lang="ts">
-import { computed, ref, useId } from 'vue'
-import { PencilIcon } from '@lucide/vue'
+import { computed, useId } from 'vue'
 import type { Attribute, AttributeValueRecord } from '@/stores/timberItems'
-import { formatShortDate } from '@/utils/date'
-import { useTimberItemStore } from '@/stores/timberItems'
+import AttributeField from '@/components/AttributeField.vue'
 
 const props = defineProps<{
   attribute: Attribute
   // Recordings for this attribute from the timber item, if any (always an array, oldest first).
   recorded: AttributeValueRecord[] | undefined
 }>()
-
-const store = useTimberItemStore()
 
 // A choice attribute is never a series, so the last entry is the current value.
 const current = computed(() => props.recorded?.slice(-1)[0])
@@ -20,10 +16,6 @@ const current = computed(() => props.recorded?.slice(-1)[0])
 const draft = defineModel<string | undefined>()
 
 const selectId = useId()
-
-// A recorded value is locked against accidental changes; the pencil unlocks it.
-const isUnlocked = ref(false)
-const isLocked = computed(() => current.value !== undefined && !isUnlocked.value)
 
 const recordedLabel = computed(
   () => props.attribute.options.find((option) => option.id === current.value?.value)?.label,
@@ -34,46 +26,18 @@ const selectedOptionId = computed(
   () => draft.value ?? (current.value?.value as string | undefined) ?? '',
 )
 
-function unlock() {
-  isUnlocked.value = true
-}
-
 function onChange(event: Event) {
   draft.value = (event.target as HTMLSelectElement).value
 }
 </script>
 
 <template>
-  <section
-    v-if="isLocked"
-    class="flex flex-col gap-2.5 border-t border-line bg-locked py-3.5 px-gutter text-mute *:max-w-full *:min-w-0"
+  <AttributeField
+    :name="attribute.name"
+    :label-for="selectId"
+    :record="current"
+    :locked-text="recordedLabel ?? ''"
   >
-    <span class="flex items-center justify-between gap-2 text-[17px] font-bold">{{
-      attribute.name
-    }}</span>
-    <div class="flex min-h-[52px] items-center gap-3 rounded-lg border-2 border-lockline pl-3">
-      <span class="min-w-0 flex-1">{{ recordedLabel }}</span>
-      <button
-        type="button"
-        class="mr-0.5 flex size-11 items-center justify-center rounded-md text-ink"
-        :aria-label="`${attribute.name} ändern`"
-        @click="unlock"
-      >
-        <PencilIcon :size="22" aria-hidden="true" />
-      </button>
-    </div>
-    <span v-if="current" class="text-[13px] text-mute"
-      >{{ formatShortDate(current.recorded_at) }} · {{ store.userName(current.user_id) }}</span
-    >
-  </section>
-
-  <section
-    v-else
-    class="flex flex-col gap-2.5 border-t border-line py-3.5 px-gutter *:max-w-full *:min-w-0"
-  >
-    <div class="flex items-center justify-between gap-2 text-[17px] font-bold">
-      <label :for="selectId">{{ attribute.name }}</label>
-    </div>
     <!-- Muted text while nothing is selected, like a placeholder. -->
     <select
       :id="selectId"
@@ -87,5 +51,5 @@ function onChange(event: Event) {
         {{ option.label }}
       </option>
     </select>
-  </section>
+  </AttributeField>
 </template>

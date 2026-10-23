@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import { createPinia, setActivePinia } from 'pinia'
@@ -21,6 +21,8 @@ async function mountAt(path: string) {
 
 describe('App', () => {
   beforeEach(() => {
+    // jsdom does not implement scrollIntoView.
+    Element.prototype.scrollIntoView = vi.fn()
     setActivePinia(createPinia())
     document.body.innerHTML = ''
   })
@@ -81,5 +83,44 @@ describe('App', () => {
     const store = useTimberItemStore()
     const attribute = store.attributes.find((candidate) => candidate.type === 'boolean')!
     expect(store.findByTagNumber(456)?.values[attribute.id]?.[0]?.value).toBe(true)
+  })
+
+  describe('date attribute', () => {
+    const dateAttribute = () =>
+      useTimberItemStore().attributes.find((candidate) => candidate.type === 'date')!
+    const saveButton = (wrapper: Awaited<ReturnType<typeof mountAt>>['wrapper']) =>
+      wrapper.find('button.bg-ink.text-lg')
+
+    it('records a valid date in contract format', async () => {
+      const { wrapper } = await mountAt('/timber-item/456')
+      await wrapper.find('input[inputmode="numeric"]').setValue('8.9.2026')
+      await saveButton(wrapper).trigger('click')
+      await flushPromises()
+      const values = useTimberItemStore().findByTagNumber(456)?.values[dateAttribute().id]
+      expect(values?.[0]?.value).toBe('2026-09-08')
+    })
+
+    it('blocks saving an impossible date, shows the error and protects the input', async () => {
+      const { wrapper, router } = await mountAt('/timber-item/42')
+      const input = wrapper.find('input[inputmode="numeric"]')
+      await input.setValue('31.02.2026')
+      // No message while typing – only after the save attempt.
+      expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+
+      await saveButton(wrapper).trigger('click')
+      await flushPromises()
+      expect(wrapper.find('[role="alert"]').text()).toContain('TT.MM.JJJJ')
+      expect(useTimberItemStore().findByTagNumber(42)).toBeUndefined()
+
+      // Changing the input hides the message again.
+      await input.setValue('31.02.202')
+      expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+
+      // Half-typed input is unsaved work: closing asks first.
+      await wrapper.find('button[aria-label="Schließen"]').trigger('click')
+      await flushPromises()
+      expect(router.currentRoute.value.name).toBe('timber-item')
+      expect(document.body.textContent).toContain('Änderungen verwerfen?')
+    })
   })
 })
