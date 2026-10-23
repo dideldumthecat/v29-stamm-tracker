@@ -2,6 +2,7 @@
 import { computed, useId } from 'vue'
 import type { Attribute, AttributeValueRecord } from '@/stores/timberItems'
 import AttributeField from '@/components/AttributeField.vue'
+import { bySortOrder } from '@/utils/sort'
 
 const props = defineProps<{
   attribute: Attribute
@@ -20,6 +21,8 @@ const selectId = useId()
 const recordedLabel = computed(
   () => props.attribute.options.find((option) => option.id === current.value?.value)?.label,
 )
+
+const sortedOptions = computed(() => [...props.attribute.options].sort(bySortOrder))
 
 // What the select shows: the draft if touched, otherwise the recorded value.
 const selectedOptionId = computed(
@@ -47,7 +50,7 @@ function onChange(event: Event) {
       @change="onChange"
     >
       <option value="">{{ attribute.name }} wählen …</option>
-      <option v-for="option in attribute.options" :key="option.id" :value="option.id">
+      <option v-for="option in sortedOptions" :key="option.id" :value="option.id">
         {{ option.label }}
       </option>
     </select>

@@ -1,6 +1,6 @@
 /*
  * Tailwind entry point (Tailwind 4 via @tailwindcss/vite).
- * Design tokens and custom utilities; template screens: docs/prototyp-tailwind/
+ * Design tokens and custom utilities; template screens: docs/prototype-static/
  */
 @import 'tailwindcss';
 

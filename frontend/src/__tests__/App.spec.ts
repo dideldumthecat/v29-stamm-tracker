@@ -136,4 +136,62 @@ describe('App', () => {
       [40, 41.5],
     )
   })
+
+  it('orders attributes and options by sort_order, not by position in the snapshot', async () => {
+    const store = useTimberItemStore()
+    store.attributes.reverse()
+    store.attributes.forEach((attribute) => attribute.options.reverse())
+    const { wrapper } = await mountAt('/timber-item/456')
+    const text = wrapper.text()
+    const names = [...store.attributes].sort((a, b) => a.sort_order - b.sort_order)
+    const positions = names
+      .filter((attribute) => ['choice', 'date', 'boolean', 'number'].includes(attribute.type))
+      .map((attribute) => text.indexOf(attribute.name))
+    expect(positions).toEqual([...positions].sort((a, b) => a - b))
+
+    const labels = wrapper
+      .findAll('select')[0]!
+      .findAll('option')
+      .map((option) => option.text())
+    expect(labels.slice(1, 3)).toEqual(['Traubeneiche', 'Stieleiche'])
+  })
+
+  it('walks through a known item: one value per type, saved, locked, counted', async () => {
+    const { wrapper } = await mountAt('/timber-item/456')
+    const store = useTimberItemStore()
+    const selects = wrapper.findAll('select')
+    // First option after the placeholder of each select (Holzart, Sortierklasse).
+    await selects[0]!.setValue(selects[0]!.findAll('option')[1]!.element.value)
+    await selects[1]!.setValue(selects[1]!.findAll('option')[1]!.element.value)
+    await wrapper.find('input[type="date"]').setValue('2026-09-08')
+    await wrapper.find('button[aria-pressed]').trigger('click')
+    const measurement = wrapper.find('input[inputmode="decimal"]')
+    await measurement.setValue('40')
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'Hinzufügen')!
+      .trigger('click')
+    // Typed but not added: saved with the rest.
+    await measurement.setValue('41,5')
+    expect(store.pendingCount).toBe(0)
+
+    await wrapper.find('button.bg-ink.text-lg').trigger('click')
+    await flushPromises()
+
+    // One attribute_recorded event per value: 4 single values + 2 measurements.
+    expect(store.pendingCount).toBe(6)
+    expect(document.body.textContent).toContain('gespeichert')
+    // Everything recorded is locked now (pencil instead of input), the series shows as a list.
+    const names = ['Holzart', 'Sortierklasse', 'Fälldatum', 'Gesägt']
+    const pencils = names.filter((name) =>
+      wrapper.find(`button[aria-label="${name} ändern"]`).exists(),
+    )
+    expect(pencils).toEqual(names)
+    expect(wrapper.find('select').exists()).toBe(false)
+    expect(wrapper.find('input[type="date"]').exists()).toBe(false)
+    expect(wrapper.text()).toContain('08.09.2026')
+    expect(wrapper.text()).toContain('41,5 %')
+    expect(wrapper.text()).toContain('40 %')
+    expect(wrapper.text()).not.toContain('neu')
+  })
 })
