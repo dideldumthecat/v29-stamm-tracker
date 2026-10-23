@@ -13,10 +13,11 @@ const props = defineProps<{
   name: string
   // id of the input in the slot, for the <label>
   labelFor: string
-  // Current recording of a single-value attribute; undefined = nothing recorded, never locked.
-  record: AttributeValueRecord | undefined
+  // Current recording of a single-value attribute; undefined = nothing recorded, never locked
+  // (series pass nothing: they only append).
+  record?: AttributeValueRecord
   // The recorded value as displayed (option label, formatted date, …)
-  lockedText: string
+  lockedText?: string
 }>()
 
 const store = useTimberItemStore()

@@ -10,6 +10,7 @@ import TimberItemStatus from '@/components/TimberItemStatus.vue'
 import ChoiceAttributeField from '@/components/ChoiceAttributeField.vue'
 import BooleanAttributeField from '@/components/BooleanAttributeField.vue'
 import DateAttributeField from '@/components/DateAttributeField.vue'
+import NumberAttributeField from '@/components/NumberAttributeField.vue'
 import SaveBar from '@/components/SaveBar.vue'
 import ConfirmSheet from '@/components/ConfirmSheet.vue'
 import FormattedTag from '@/components/FormattedTag.vue'
@@ -29,7 +30,7 @@ const item = computed(() => store.findByTagNumber(tagNumber.value))
 
 // Raw input per attribute id (see DraftInput). Only touched attributes have an entry.
 const draft = ref<Record<string, DraftInput | undefined>>({})
-// Series only: values already added with "Hinzufügen". Nothing sets this until the series field exists.
+// Series only: values already added with "Hinzufügen".
 const added = ref<Record<string, AttributeValue[]>>({})
 
 // The draft holds string | boolean; fields read it through the accessor of their type.
@@ -164,6 +165,16 @@ function onDiscard() {
           :recorded="item?.values[attribute.id]"
           :error="shownErrors[attribute.id]"
           @update:model-value="draft[attribute.id] = $event"
+        />
+        <NumberAttributeField
+          v-else-if="attribute.type === 'number'"
+          :model-value="draftText(attribute.id)"
+          :added="added[attribute.id]"
+          :attribute="attribute"
+          :recorded="item?.values[attribute.id]"
+          :error="shownErrors[attribute.id]"
+          @update:model-value="draft[attribute.id] = $event"
+          @update:added="added[attribute.id] = $event"
         />
       </template>
     </div>
