@@ -8,6 +8,7 @@ import { useToast } from '@/composables/useToast'
 import TimberItemHeader from '@/components/TimberItemHeader.vue'
 import TimberItemStatus from '@/components/TimberItemStatus.vue'
 import ChoiceAttributeField from '@/components/ChoiceAttributeField.vue'
+import BooleanAttributeField from '@/components/BooleanAttributeField.vue'
 import SaveBar from '@/components/SaveBar.vue'
 import ConfirmSheet from '@/components/ConfirmSheet.vue'
 import FormattedTag from '@/components/FormattedTag.vue'
@@ -30,10 +31,14 @@ const draft = ref<Record<string, DraftInput | undefined>>({})
 // Series only: values already added with "Hinzufügen". Nothing sets this until the series field exists.
 const added = ref<Record<string, AttributeValue[]>>({})
 
-// The draft holds string | boolean; fields that only deal in text read it through this.
+// The draft holds string | boolean; fields read it through the accessor of their type.
 // (A cast in the template would trip the Vue lint rule, which reads `|` as a filter.)
 function draftText(attributeId: string): string | undefined {
   return draft.value[attributeId] as string | undefined
+}
+
+function draftFlag(attributeId: string): boolean | undefined {
+  return draft.value[attributeId] as boolean | undefined
 }
 
 // Incremented after saving to remount the fields: resets their local "unlocked" state.
@@ -124,6 +129,13 @@ function onDiscard() {
         <ChoiceAttributeField
           v-if="attribute.type === 'choice'"
           :model-value="draftText(attribute.id)"
+          :attribute="attribute"
+          :recorded="item?.values[attribute.id]"
+          @update:model-value="draft[attribute.id] = $event"
+        />
+        <BooleanAttributeField
+          v-else-if="attribute.type === 'boolean'"
+          :model-value="draftFlag(attribute.id)"
           :attribute="attribute"
           :recorded="item?.values[attribute.id]"
           @update:model-value="draft[attribute.id] = $event"
