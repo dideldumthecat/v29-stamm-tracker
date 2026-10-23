@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import { onBeforeRouteLeave, useRouter, type RouteLocationRaw } from 'vue-router'
 import { useTimberItemStore } from '@/stores/timberItems'
 import type { AttributeValue } from '@/api/contract'
@@ -9,6 +9,7 @@ import TimberItemHeader from '@/components/TimberItemHeader.vue'
 import TimberItemStatus from '@/components/TimberItemStatus.vue'
 import ChoiceAttributeField from '@/components/ChoiceAttributeField.vue'
 import BooleanAttributeField from '@/components/BooleanAttributeField.vue'
+import DateAttributeField from '@/components/DateAttributeField.vue'
 import SaveBar from '@/components/SaveBar.vue'
 import ConfirmSheet from '@/components/ConfirmSheet.vue'
 import FormattedTag from '@/components/FormattedTag.vue'
@@ -54,11 +55,26 @@ const isDirty = computed(
   () => changes.value.length > 0 || Object.keys(collected.value.errors).length > 0,
 )
 
+// An error appears only after a failed save and disappears once the input changes (as in the click prototype):
+// remember the input each error was shown for.
+const failedInputs = ref<Record<string, DraftInput | undefined>>({})
+const shownErrors = computed(() =>
+  Object.fromEntries(
+    Object.entries(collected.value.errors).filter(
+      ([id]) => id in failedInputs.value && failedInputs.value[id] === draft.value[id],
+    ),
+  ),
+)
+
 const saveLabel = computed(() => (item.value ? 'Speichern' : 'Stamm anlegen & speichern'))
 
-function onSave() {
-  // Invalid input blocks saving. The message at the field comes with the field components.
-  if (Object.keys(collected.value.errors).length > 0) {
+async function onSave() {
+  const errorIds = Object.keys(collected.value.errors)
+  if (errorIds.length > 0) {
+    failedInputs.value = Object.fromEntries(errorIds.map((id) => [id, draft.value[id]]))
+    // The save bar sticks to the bottom; without this the error may be off screen and "nothing happens".
+    await nextTick()
+    document.querySelector('[role="alert"]')?.scrollIntoView({ block: 'center' })
     return
   }
   // Take the list before writing: afterwards the draft equals the store and `changes` would be empty.
@@ -79,6 +95,7 @@ function onSave() {
 
   draft.value = {}
   added.value = {}
+  failedInputs.value = {}
   formKey.value++
 }
 
@@ -138,6 +155,14 @@ function onDiscard() {
           :model-value="draftFlag(attribute.id)"
           :attribute="attribute"
           :recorded="item?.values[attribute.id]"
+          @update:model-value="draft[attribute.id] = $event"
+        />
+        <DateAttributeField
+          v-else-if="attribute.type === 'date'"
+          :model-value="draftText(attribute.id)"
+          :attribute="attribute"
+          :recorded="item?.values[attribute.id]"
+          :error="shownErrors[attribute.id]"
           @update:model-value="draft[attribute.id] = $event"
         />
       </template>

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import type { Attribute, AttributeType, AttributeValueRecord } from '@/api/contract'
 import { collectDraft, parseNumber } from '@/utils/attributeDraft'
-import { parseDate } from '@/utils/date'
+import { formatDate, parseDate } from '@/utils/date'
 
 function attribute(id: string, type: AttributeType, overrides: Partial<Attribute> = {}): Attribute {
   return {
@@ -32,6 +32,13 @@ describe('parseDate', () => {
   it('rejects half-typed, wrongly formatted and impossible dates', () => {
     const texts = ['', '28.09.', '28.09.26', '2026-09-28', '31.02.2026', '00.01.2026']
     expect(texts.map(parseDate)).toEqual(texts.map(() => null))
+  })
+})
+
+describe('formatDate', () => {
+  it('writes the contract date the way V29 does, and parseDate reads it back', () => {
+    expect(formatDate('2026-09-08')).toBe('08.09.2026')
+    expect(parseDate(formatDate('2026-09-08'))).toBe('2026-09-08')
   })
 })
 
