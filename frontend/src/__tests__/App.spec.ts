@@ -4,6 +4,7 @@ import { createRouter, createMemoryHistory } from 'vue-router'
 import { createPinia, setActivePinia } from 'pinia'
 import App from '../App.vue'
 import { routes } from '../router'
+import { useTimberItemStore } from '@/stores/timberItems'
 
 const mounted: { unmount: () => void }[] = []
 
@@ -70,5 +71,15 @@ describe('App', () => {
     await flushPromises()
     expect(document.body.textContent).toContain('gespeichert')
     expect(document.body.textContent).not.toContain('Keine Änderungen')
+  })
+
+  it('records a ticked boolean attribute on save', async () => {
+    const { wrapper } = await mountAt('/timber-item/456')
+    await wrapper.find('button[aria-pressed]').trigger('click')
+    await wrapper.find('button.bg-ink.text-lg').trigger('click')
+    await flushPromises()
+    const store = useTimberItemStore()
+    const attribute = store.attributes.find((candidate) => candidate.type === 'boolean')!
+    expect(store.findByTagNumber(456)?.values[attribute.id]?.[0]?.value).toBe(true)
   })
 })
