@@ -45,10 +45,10 @@ describe('DateAttributeField', () => {
     const store = useTimberItemStore()
     const attribute = store.attributes.find((candidate) => candidate.type === 'date')!
     const props = { attribute, recorded: store.findByTagNumber(123)?.values[attribute.id] }
-    expect(mount(DateAttributeField, { props }).text()).not.toContain('wird nicht mehr erfasst')
+    expect(mount(DateAttributeField, { props }).text()).not.toContain('deaktiviert')
 
     const readonly = mount(DateAttributeField, { props: { ...props, readonly: true } })
-    expect(readonly.text()).toContain('wird nicht mehr erfasst')
+    expect(readonly.text()).toContain('deaktiviert')
     expect(readonly.find('button').exists()).toBe(false)
   })
 })

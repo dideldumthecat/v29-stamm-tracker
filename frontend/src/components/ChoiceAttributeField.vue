@@ -22,7 +22,7 @@ const selectId = useId()
 // An inactive option that is recorded stays readable, marked as no longer selectable.
 // Plain text: <option> takes nothing else.
 const labelOf = (option: AttributeOption) =>
-  option.active ? option.label : `${option.label} (nicht mehr wählbar)`
+  option.active ? option.label : `${option.label} (deaktiviert)`
 
 const recordedLabel = computed(() => {
   const option = props.attribute.options.find((candidate) => candidate.id === current.value?.value)
