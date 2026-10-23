@@ -238,4 +238,37 @@ describe('App', () => {
       }
     })
   })
+
+  describe('text series', () => {
+    const notes = () => {
+      const store = useTimberItemStore()
+      const attribute = store.attributes.find((candidate) => candidate.type === 'text')!
+      return store.findByTagNumber(123)?.values[attribute.id]?.map((record) => record.value)
+    }
+
+    it('appends a new entry on save', async () => {
+      const { wrapper } = await mountAt('/timber-item/123')
+      await wrapper.find('textarea').setValue('  Astloch  ')
+      await wrapper.find('button.bg-ink.text-lg').trigger('click')
+      await flushPromises()
+      expect(notes()).toEqual(['Leichter Drehwuchs', 'Astloch'])
+      // The new entry is part of the list now, the textarea is empty again.
+      expect(wrapper.text()).toContain('Astloch')
+      expect((wrapper.find('textarea').element as HTMLTextAreaElement).value).toBe('')
+    })
+
+    it('treats whitespace as no change: nothing saved, nothing to confirm when leaving', async () => {
+      const { wrapper, router } = await mountAt('/timber-item/123')
+      await wrapper.find('textarea').setValue('   ')
+      await wrapper.find('button.bg-ink.text-lg').trigger('click')
+      await flushPromises()
+      expect(document.body.textContent).toContain('Keine Änderungen')
+      expect(notes()).toEqual(['Leichter Drehwuchs'])
+
+      await wrapper.find('textarea').setValue('  ')
+      await wrapper.find('button[aria-label="Schließen"]').trigger('click')
+      await flushPromises()
+      expect(router.currentRoute.value.name).toBe('start')
+    })
+  })
 })

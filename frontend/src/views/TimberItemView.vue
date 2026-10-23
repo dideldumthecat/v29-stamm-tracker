@@ -12,6 +12,7 @@ import ChoiceAttributeField from '@/components/ChoiceAttributeField.vue'
 import BooleanAttributeField from '@/components/BooleanAttributeField.vue'
 import DateAttributeField from '@/components/DateAttributeField.vue'
 import NumberAttributeField from '@/components/NumberAttributeField.vue'
+import TextAttributeField from '@/components/TextAttributeField.vue'
 import SaveBar from '@/components/SaveBar.vue'
 import ConfirmSheet from '@/components/ConfirmSheet.vue'
 import FormattedTag from '@/components/FormattedTag.vue'
@@ -187,6 +188,14 @@ function onDiscard() {
           :error="shownErrors[attribute.id]"
           @update:model-value="draft[attribute.id] = $event"
           @update:added="added[attribute.id] = $event"
+        />
+        <TextAttributeField
+          v-else-if="attribute.type === 'text'"
+          :model-value="draftText(attribute.id)"
+          :attribute="attribute"
+          :recorded="item?.values[attribute.id]"
+          :readonly="!attribute.active"
+          @update:model-value="draft[attribute.id] = $event"
         />
       </template>
     </div>

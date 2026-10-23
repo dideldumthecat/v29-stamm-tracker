@@ -114,6 +114,17 @@ describe('collectDraft', () => {
     expect(changes).toEqual([{ attributeId: 'series', value: 41 }])
   })
 
+  it('ignores a whitespace-only entry and trims a real one, also in a text series', () => {
+    const notes = attribute('notes', 'text', { is_series: true })
+    expect(collectDraft([notes], { notes: ' \n  ' }, {}, undefined)).toEqual({
+      changes: [],
+      errors: {},
+    })
+    expect(
+      collectDraft([notes], { notes: ' Drehwuchs \n' }, {}, { notes: record('Alt') }).changes,
+    ).toEqual([{ attributeId: 'notes', value: 'Drehwuchs' }])
+  })
+
   it('keeps added series values when the pending input is invalid', () => {
     const { changes, errors } = collectDraft([series], { series: 'x' }, { series: [38] }, undefined)
     expect(changes).toEqual([{ attributeId: 'series', value: 38 }])
