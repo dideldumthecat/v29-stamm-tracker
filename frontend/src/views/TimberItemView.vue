@@ -2,6 +2,8 @@
 import { computed, ref } from 'vue'
 import { onBeforeRouteLeave, useRouter, type RouteLocationRaw } from 'vue-router'
 import { useTimberItemStore } from '@/stores/timberItems'
+import type { AttributeValue } from '@/api/contract'
+import { collectDraft, type DraftInput } from '@/utils/attributeDraft'
 import { useToast } from '@/composables/useToast'
 import TimberItemHeader from '@/components/TimberItemHeader.vue'
 import TimberItemStatus from '@/components/TimberItemStatus.vue'
@@ -23,33 +25,47 @@ const toast = useToast()
 const tagNumber = computed(() => Number(props.tagNumber))
 const item = computed(() => store.findByTagNumber(tagNumber.value))
 
-// Draft per attribute id. Only touched attributes have an entry.
-const draft = ref<Record<string, string | undefined>>({})
+// Raw input per attribute id (see DraftInput). Only touched attributes have an entry.
+const draft = ref<Record<string, DraftInput | undefined>>({})
+// Series only: values already added with "Hinzufügen". Nothing sets this until the series field exists.
+const added = ref<Record<string, AttributeValue[]>>({})
+
+// The draft holds string | boolean; fields that only deal in text read it through this.
+// (A cast in the template would trip the Vue lint rule, which reads `|` as a filter.)
+function draftText(attributeId: string): string | undefined {
+  return draft.value[attributeId] as string | undefined
+}
 
 // Incremented after saving to remount the fields: resets their local "unlocked" state.
 const formKey = ref(0)
 
-// Draft values that actually differ from what is recorded.
-const changes = computed(() =>
-  store.attributes.flatMap((attribute) => {
-    const value = draft.value[attribute.id]
-    const recorded = item.value?.values[attribute.id]?.slice(-1)[0]?.value
-    return value && value !== recorded ? [{ attributeId: attribute.id, value }] : []
-  }),
+// Draft values that differ from what is recorded, plus input that cannot be recorded yet.
+const collected = computed(() =>
+  collectDraft(store.attributes, draft.value, added.value, item.value?.values),
 )
-const isDirty = computed(() => changes.value.length > 0)
+const changes = computed(() => collected.value.changes)
+// Invalid input counts as unsaved, so the leave dialog still protects it.
+const isDirty = computed(
+  () => changes.value.length > 0 || Object.keys(collected.value.errors).length > 0,
+)
 
 const saveLabel = computed(() => (item.value ? 'Speichern' : 'Stamm anlegen & speichern'))
 
 function onSave() {
+  // Invalid input blocks saving. The message at the field comes with the field components.
+  if (Object.keys(collected.value.errors).length > 0) {
+    return
+  }
+  // Take the list before writing: afterwards the draft equals the store and `changes` would be empty.
+  const toSave = changes.value
   const isNew = !item.value
   // Like the click prototype: a new item is created even without values.
   const target = item.value ?? store.createTimberItem(tagNumber.value)
-  for (const change of changes.value) {
+  for (const change of toSave) {
     store.recordAttribute(target.id, change.attributeId, change.value)
   }
 
-  const hasSaved = isNew || changes.value.length > 0
+  const hasSaved = isNew || toSave.length > 0
   toast.show(
     hasSaved
       ? { before: 'Stamm', tagNumber: tagNumber.value, after: 'gespeichert' }
@@ -57,6 +73,7 @@ function onSave() {
   )
 
   draft.value = {}
+  added.value = {}
   formKey.value++
 }
 
@@ -106,9 +123,10 @@ function onDiscard() {
       <template v-for="attribute in store.attributes" :key="attribute.id">
         <ChoiceAttributeField
           v-if="attribute.type === 'choice'"
-          v-model="draft[attribute.id]"
+          :model-value="draftText(attribute.id)"
           :attribute="attribute"
           :recorded="item?.values[attribute.id]"
+          @update:model-value="draft[attribute.id] = $event"
         />
       </template>
     </div>
