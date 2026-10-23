@@ -36,7 +36,7 @@ const isLocked = computed(() => props.record !== undefined && (props.readonly ||
   >
     <span class="flex items-center justify-between gap-2 text-[17px] font-bold">{{ name }}</span>
     <div class="flex min-h-[52px] items-center gap-3 rounded-lg border-2 border-lockline pl-3">
-      <span class="min-w-0 flex-1">{{ lockedText }}</span>
+      <span class="min-w-0 flex-1 wrap-anywhere whitespace-pre-line">{{ lockedText }}</span>
       <button
         v-if="!readonly"
         type="button"
