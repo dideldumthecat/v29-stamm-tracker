@@ -9,6 +9,13 @@ class Kernel extends BaseKernel
 {
     use MicroKernelTrait;
 
+    public function boot(): void
+    {
+        // All stored and exchanged times are UTC, whatever the server's php.ini says (shared hosting).
+        date_default_timezone_set('UTC');
+        parent::boot();
+    }
+
     /**
      * @return list<string> An array of allowed values for APP_ENV
      */
