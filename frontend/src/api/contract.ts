@@ -2,7 +2,7 @@
  * API contract between the capture app and the Symfony API (schema_version 1).
  *
  * Describes the JSON exactly as it travels over the wire: snake_case keys, timestamps as
- * ISO 8601 in UTC ("2026-10-22T09:41:10Z"), dates without time ("2026-09-28").
+ * ISO 8601 in UTC with milliseconds ("2026-10-22T09:41:10.000Z"), dates without time ("2026-09-28").
  * Examples: ./fixtures/*.json – the backend uses the same files as test expectations.
  *
  * These types are a promise, not a check: TypeScript does not validate responses at runtime.
@@ -10,7 +10,7 @@
  */
 
 export type Uuid = string
-/** ISO 8601 timestamp in UTC, e.g. "2026-10-22T09:41:10Z". */
+/** ISO 8601 timestamp in UTC with milliseconds, as Date#toISOString() writes it: "2026-10-22T09:41:10.000Z". */
 export type Timestamp = string
 /** Calendar date without time, e.g. "2026-09-28". */
 export type CalendarDate = string

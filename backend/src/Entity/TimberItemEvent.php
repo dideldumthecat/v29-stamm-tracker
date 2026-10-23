@@ -2,6 +2,7 @@
 
 namespace App\Entity;
 
+use App\Repository\TimberItemEventRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
@@ -10,8 +11,11 @@ use Symfony\Component\Uid\Uuid;
 /**
  * Append-only: rows are only ever inserted. All properties are readonly and the entity is
  * marked read-only for Doctrine, so it never issues an UPDATE. Corrections and voids are new events.
+ *
+ * Order for projections: received_at, then id (TimberItemEventRepository::findInReceiptOrder()).
+ * Never the device time recorded_at: of conflicting values the one that reached the server last wins.
  */
-#[ORM\Entity(readOnly: true)]
+#[ORM\Entity(repositoryClass: TimberItemEventRepository::class, readOnly: true)]
 #[ORM\Table(name: 'timber_item_events')]
 #[ORM\Index(name: 'idx_events_item_received', columns: ['timber_item_id', 'received_at'])]
 #[ORM\Index(name: 'idx_events_reference', columns: ['reference_id'])]

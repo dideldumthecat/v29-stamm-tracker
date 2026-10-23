@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-10-22T10:00:00Z",
+  "generated_at": "2026-10-22T10:00:00.000Z",
   "users": [
     {
       "id": "993955be-5888-4f39-937c-56af8c5187c1",
@@ -188,13 +188,13 @@
       "parent_id": null,
       "tag_number": "123",
       "has_children": false,
-      "created_at": "2026-10-02T07:12:00Z",
+      "created_at": "2026-10-02T07:12:00.000Z",
       "created_by": "993955be-5888-4f39-937c-56af8c5187c1",
       "values": {
         "0847b35f-f94e-4f68-84c6-63426a5dcf77": [
           {
             "value": "af0c94b3-caef-4a22-ac9d-32b76876a0d1",
-            "recorded_at": "2026-10-02T07:12:00Z",
+            "recorded_at": "2026-10-02T07:12:00.000Z",
             "user_id": "993955be-5888-4f39-937c-56af8c5187c1",
             "event_id": "d22a8a62-65b4-4589-b8ad-c6eca5293a5b"
           }
@@ -202,7 +202,7 @@
         "a6f6626b-71d8-4316-98f0-89c71a8e39a0": [
           {
             "value": "2026-09-28",
-            "recorded_at": "2026-10-02T07:12:00Z",
+            "recorded_at": "2026-10-02T07:12:00.000Z",
             "user_id": "993955be-5888-4f39-937c-56af8c5187c1",
             "event_id": "e5308181-c6f9-48bc-9933-a5c99e321a50"
           }
@@ -210,13 +210,13 @@
         "d609577e-6b6c-42ce-8ad2-17729b975338": [
           {
             "value": 48.5,
-            "recorded_at": "2026-10-02T07:14:00Z",
+            "recorded_at": "2026-10-02T07:14:00.000Z",
             "user_id": "993955be-5888-4f39-937c-56af8c5187c1",
             "event_id": "e3c041be-f008-4304-bb26-d5d9196419e4"
           },
           {
             "value": 41,
-            "recorded_at": "2026-10-16T09:03:00Z",
+            "recorded_at": "2026-10-16T09:03:00.000Z",
             "user_id": "64961c01-5804-4666-ad60-f36482a5f8b3",
             "event_id": "439aff79-239c-457f-9b82-71a35e0345c9"
           }
@@ -224,7 +224,7 @@
         "fa227274-727c-411f-b308-0f0ebaff0221": [
           {
             "value": "Leichter Drehwuchs",
-            "recorded_at": "2026-10-02T07:15:00Z",
+            "recorded_at": "2026-10-02T07:15:00.000Z",
             "user_id": "993955be-5888-4f39-937c-56af8c5187c1",
             "event_id": "cd4cd58f-5736-4a18-b045-f6dd26666a1c"
           }
@@ -232,7 +232,7 @@
         "c8bcdbf8-6f14-46e2-b82d-b6962ba1ae10": [
           {
             "value": "29cee26c-65da-483b-8d56-e05211bb691e",
-            "recorded_at": "2026-10-02T07:16:00Z",
+            "recorded_at": "2026-10-02T07:16:00.000Z",
             "user_id": "993955be-5888-4f39-937c-56af8c5187c1",
             "event_id": "6d0e7b78-a7c4-49c1-a00b-f9536a433eca"
           }
@@ -240,7 +240,7 @@
         "1903019a-8027-4e12-8bc1-e1db3e08f803": [
           {
             "value": "c294ee90-4481-45e2-8173-21ddfee05416",
-            "recorded_at": "2026-10-02T07:13:00Z",
+            "recorded_at": "2026-10-02T07:13:00.000Z",
             "user_id": "993955be-5888-4f39-937c-56af8c5187c1",
             "event_id": "b012db2e-307f-4def-9762-d7f726240aa0"
           }
@@ -248,7 +248,7 @@
         "a0a9d407-ab96-4080-aaac-a95fc7c61032": [
           {
             "value": true,
-            "recorded_at": "2026-10-02T07:13:30Z",
+            "recorded_at": "2026-10-02T07:13:30.000Z",
             "user_id": "993955be-5888-4f39-937c-56af8c5187c1",
             "event_id": "31a3b1d5-07e5-4c16-a0d8-5be588a7ccc1"
           }
@@ -260,7 +260,7 @@
       "parent_id": null,
       "tag_number": "456",
       "has_children": false,
-      "created_at": "2026-10-08T12:30:00Z",
+      "created_at": "2026-10-08T12:30:00.000Z",
       "created_by": "993955be-5888-4f39-937c-56af8c5187c1",
       "values": {}
     },
@@ -269,13 +269,13 @@
       "parent_id": null,
       "tag_number": "789",
       "has_children": true,
-      "created_at": "2026-10-03T08:40:00Z",
+      "created_at": "2026-10-03T08:40:00.000Z",
       "created_by": "64961c01-5804-4666-ad60-f36482a5f8b3",
       "values": {
         "0847b35f-f94e-4f68-84c6-63426a5dcf77": [
           {
             "value": "8b2b5909-3247-4abe-8604-08909006f9e9",
-            "recorded_at": "2026-10-03T08:40:00Z",
+            "recorded_at": "2026-10-03T08:40:00.000Z",
             "user_id": "64961c01-5804-4666-ad60-f36482a5f8b3",
             "event_id": "f92af21f-b2f4-41a4-982d-50ffdff93389"
           }
@@ -283,7 +283,7 @@
         "a6f6626b-71d8-4316-98f0-89c71a8e39a0": [
           {
             "value": "2026-09-30",
-            "recorded_at": "2026-10-03T08:40:00Z",
+            "recorded_at": "2026-10-03T08:40:00.000Z",
             "user_id": "64961c01-5804-4666-ad60-f36482a5f8b3",
             "event_id": "bb175c8c-bbfd-4f56-a291-19e1f7a223df"
           }
@@ -291,7 +291,7 @@
         "15e4afde-597d-41c4-8d96-45cc398cfd10": [
           {
             "value": true,
-            "recorded_at": "2026-10-14T10:05:00Z",
+            "recorded_at": "2026-10-14T10:05:00.000Z",
             "user_id": "1634106f-49e1-459f-9b11-bf0cd848292d",
             "event_id": "abf04acb-3489-4c84-aca1-9e43f73326fb"
           }
@@ -303,13 +303,13 @@
       "parent_id": "b53d4566-964b-41d0-8c9f-5e6dc1b9aecf",
       "tag_number": "789-A",
       "has_children": false,
-      "created_at": "2026-10-14T10:06:00Z",
+      "created_at": "2026-10-14T10:06:00.000Z",
       "created_by": "1634106f-49e1-459f-9b11-bf0cd848292d",
       "values": {
         "eade4845-544c-4fd3-bf75-b7e0ffad6e8b": [
           {
             "value": "d1999ef1-3848-4fe1-801f-f328830b46ac",
-            "recorded_at": "2026-10-14T10:07:00Z",
+            "recorded_at": "2026-10-14T10:07:00.000Z",
             "user_id": "1634106f-49e1-459f-9b11-bf0cd848292d",
             "event_id": "c14aa21f-f8e9-4f2b-83e5-27ea47429478"
           }
@@ -317,7 +317,7 @@
         "0847b35f-f94e-4f68-84c6-63426a5dcf77": [
           {
             "value": "8b2b5909-3247-4abe-8604-08909006f9e9",
-            "recorded_at": "2026-10-03T08:40:00Z",
+            "recorded_at": "2026-10-03T08:40:00.000Z",
             "user_id": "64961c01-5804-4666-ad60-f36482a5f8b3",
             "event_id": "f92af21f-b2f4-41a4-982d-50ffdff93389"
           }
@@ -325,7 +325,7 @@
         "a6f6626b-71d8-4316-98f0-89c71a8e39a0": [
           {
             "value": "2026-09-30",
-            "recorded_at": "2026-10-03T08:40:00Z",
+            "recorded_at": "2026-10-03T08:40:00.000Z",
             "user_id": "64961c01-5804-4666-ad60-f36482a5f8b3",
             "event_id": "bb175c8c-bbfd-4f56-a291-19e1f7a223df"
           }
@@ -337,13 +337,13 @@
       "parent_id": "b53d4566-964b-41d0-8c9f-5e6dc1b9aecf",
       "tag_number": "789-B",
       "has_children": false,
-      "created_at": "2026-10-14T10:06:00Z",
+      "created_at": "2026-10-14T10:06:00.000Z",
       "created_by": "1634106f-49e1-459f-9b11-bf0cd848292d",
       "values": {
         "eade4845-544c-4fd3-bf75-b7e0ffad6e8b": [
           {
             "value": "78f588b9-c93e-45e4-b568-863b692734d6",
-            "recorded_at": "2026-10-14T10:08:00Z",
+            "recorded_at": "2026-10-14T10:08:00.000Z",
             "user_id": "1634106f-49e1-459f-9b11-bf0cd848292d",
             "event_id": "6fba26bf-22ca-40da-8c6d-7589e90ff1b2"
           }
@@ -351,7 +351,7 @@
         "a6f6626b-71d8-4316-98f0-89c71a8e39a0": [
           {
             "value": "2026-10-01",
-            "recorded_at": "2026-10-14T10:09:00Z",
+            "recorded_at": "2026-10-14T10:09:00.000Z",
             "user_id": "1634106f-49e1-459f-9b11-bf0cd848292d",
             "event_id": "026db6cf-ea7b-46cf-8a4b-d6b5269926f0"
           }
@@ -359,7 +359,7 @@
         "0847b35f-f94e-4f68-84c6-63426a5dcf77": [
           {
             "value": "8b2b5909-3247-4abe-8604-08909006f9e9",
-            "recorded_at": "2026-10-03T08:40:00Z",
+            "recorded_at": "2026-10-03T08:40:00.000Z",
             "user_id": "64961c01-5804-4666-ad60-f36482a5f8b3",
             "event_id": "f92af21f-b2f4-41a4-982d-50ffdff93389"
           }
