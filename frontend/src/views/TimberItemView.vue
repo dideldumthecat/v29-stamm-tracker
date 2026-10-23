@@ -4,6 +4,7 @@ import { onBeforeRouteLeave, useRouter, type RouteLocationRaw } from 'vue-router
 import { useTimberItemStore } from '@/stores/timberItems'
 import type { AttributeValue } from '@/api/contract'
 import { collectDraft, type DraftInput } from '@/utils/attributeDraft'
+import { bySortOrder } from '@/utils/sort'
 import { useToast } from '@/composables/useToast'
 import TimberItemHeader from '@/components/TimberItemHeader.vue'
 import TimberItemStatus from '@/components/TimberItemStatus.vue'
@@ -27,6 +28,9 @@ const toast = useToast()
 
 const tagNumber = computed(() => Number(props.tagNumber))
 const item = computed(() => store.findByTagNumber(tagNumber.value))
+
+// Fields in the order V29 set. Types without a field (photo) are skipped by the v-if chain in the template.
+const attributes = computed(() => [...store.attributes].sort(bySortOrder))
 
 // Raw input per attribute id (see DraftInput). Only touched attributes have an entry.
 const draft = ref<Record<string, DraftInput | undefined>>({})
@@ -143,7 +147,7 @@ function onDiscard() {
     <TimberItemStatus :item="item" />
 
     <div :key="formKey" class="border-b border-line">
-      <template v-for="attribute in store.attributes" :key="attribute.id">
+      <template v-for="attribute in attributes" :key="attribute.id">
         <ChoiceAttributeField
           v-if="attribute.type === 'choice'"
           :model-value="draftText(attribute.id)"
