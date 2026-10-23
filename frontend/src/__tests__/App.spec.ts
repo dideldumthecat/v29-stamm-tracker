@@ -1,9 +1,11 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import { createPinia, setActivePinia } from 'pinia'
 import App from '../App.vue'
 import { routes } from '../router'
+
+const mounted: { unmount: () => void }[] = []
 
 // Memory history: no browser URL needed in the test environment.
 async function mountAt(path: string) {
@@ -12,6 +14,7 @@ async function mountAt(path: string) {
   await router.isReady()
   const wrapper = mount(App, { global: { plugins: [router] }, attachTo: document.body })
   await flushPromises()
+  mounted.push(wrapper)
   return { wrapper, router }
 }
 
@@ -19,6 +22,11 @@ describe('App', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     document.body.innerHTML = ''
+  })
+
+  // Unmount first: the toast state is global, a leftover app would re-render into the cleared body.
+  afterEach(() => {
+    mounted.splice(0).forEach((wrapper) => wrapper.unmount())
   })
 
   it('renders the start screen on /', async () => {
@@ -53,5 +61,14 @@ describe('App', () => {
     await flushPromises()
     expect(router.currentRoute.value.name).toBe('timber-item')
     expect(document.body.textContent).toContain('Änderungen verwerfen?')
+  })
+
+  it('reports a saved change on a known timber item', async () => {
+    const { wrapper } = await mountAt('/timber-item/456')
+    await wrapper.find('select').setValue(wrapper.findAll('option')[1]!.element.value)
+    await wrapper.find('button.bg-ink.text-lg').trigger('click')
+    await flushPromises()
+    expect(document.body.textContent).toContain('gespeichert')
+    expect(document.body.textContent).not.toContain('Keine Änderungen')
   })
 })
