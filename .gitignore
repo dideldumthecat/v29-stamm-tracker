@@ -21,6 +21,11 @@ dist/
 # PWA stuff
 /frontend/dev-dist/
 
+# Built app, copied into backend/public by `npm run build` (index.php and .htaccess stay tracked)
+/backend/public/*
+!/backend/public/index.php
+!/backend/public/.htaccess
+
 # AI agent instructions (local only)
 CLAUDE.md
 AGENTS.md

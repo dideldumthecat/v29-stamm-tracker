@@ -5,11 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "run-p type-check \"build-only {@}\" --",
+    "build": "run-p type-check \"build-only -- {@}\" --",
     "preview": "vite preview",
     "test:unit": "vitest",
     "tests": "vitest run",
     "build-only": "vite build",
+    "postbuild": "rsync -rt --omit-dir-times --delete --exclude=/index.php --exclude=/.htaccess --exclude=/bundles dist/ ../backend/public/",
     "type-check": "vue-tsc --build",
     "test:e2e": "playwright test",
     "lint": "eslint . --fix --cache",
