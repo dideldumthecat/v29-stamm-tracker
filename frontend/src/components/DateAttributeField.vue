@@ -39,6 +39,7 @@ function onInput(event: Event) {
     :record="current"
     :locked-text="recordedText"
     :readonly="readonly"
+    :inactive="!attribute.active"
     :inherited="inherited"
   >
     <!-- Native picker: no own parsing or validation. appearance-none makes iOS Safari respect the
