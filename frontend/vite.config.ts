@@ -11,7 +11,7 @@ import checker from 'vite-plugin-checker'
 const { DDEV_PRIMARY_URL, DDEV_HOSTNAME } = process.env
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [
     vue(),
     tailwindcss(),
@@ -31,7 +31,8 @@ export default defineConfig({
     VitePWA({
       // 'prompt' instead of 'autoUpdate': a new version must never reload the app in the middle
       // of a data entry. The user confirms the update (UI via `useRegisterSW` still to be built).
-      registerType: 'prompt',
+      // `--mode share` (phone testing via `ddev share`) skips the waiting state instead.
+      registerType: mode === 'share' ? 'autoUpdate' : 'prompt',
       includeAssets: ['favicon.ico', 'apple-touch-icon-180x180.png'],
       manifest: {
         name: 'V29 Stamm-Tracker',
@@ -86,4 +87,4 @@ export default defineConfig({
     // Symfony läuft im selben Container auf Port 80 → gleiche Origin, kein CORS
     proxy: { '/api': 'http://localhost' },
   },
-})
+}))
