@@ -20,6 +20,8 @@ const props = defineProps<{
   error?: string
   // Inactive attribute: shows what was recorded, no input.
   readonly?: boolean
+  // Beam only: the value comes from the parent (shown as a hint, still overwritable).
+  inherited?: boolean
 }>()
 
 const store = useTimberItemStore()
@@ -83,6 +85,7 @@ function remove(index: number) {
     :record="attribute.is_series ? undefined : current"
     :locked-text="withUnit(current?.value ?? '')"
     :readonly="readonly"
+    :inherited="inherited"
   >
     <div v-if="newValues.length > 0 || oldValues.length > 0" class="flex flex-col">
       <div
@@ -113,7 +116,8 @@ function remove(index: number) {
       >
         <strong>{{ withUnit(record.value) }}</strong>
         <span class="text-right text-[13px] text-mute"
-          >{{ formatShortDate(record.recorded_at) }} · {{ store.userName(record.user_id) }}</span
+          >{{ formatShortDate(record.recorded_at) }} · {{ store.userName(record.user_id)
+          }}{{ inherited ? " · vom Stamm" : "" }}</span
         >
       </div>
     </div>

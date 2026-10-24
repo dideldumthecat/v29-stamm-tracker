@@ -4,7 +4,8 @@ import { formatTag } from '@/utils/tag'
 
 const props = withDefaults(
   defineProps<{
-    tagNumber: number
+    // Plain number or a beam tag ("789-A": the number part is padded, the suffix kept).
+    tagNumber: number | string
     // How strongly the leading zeros fade; the header uses a lighter fade on dark ground.
     zeroOpacity?: 40 | 50
   }>(),
@@ -12,9 +13,12 @@ const props = withDefaults(
 )
 
 const parts = computed(() => {
-  const formatted = formatTag(props.tagNumber)
-  const significant = String(props.tagNumber)
-  return { zeros: formatted.slice(0, formatted.length - significant.length), significant }
+  const number = parseInt(String(props.tagNumber))
+  const formatted = formatTag(number)
+  return {
+    zeros: formatted.slice(0, formatted.length - String(number).length),
+    significant: String(props.tagNumber),
+  }
 })
 </script>
 

@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import StartView from '@/views/StartView.vue'
-import { isValidTagNumber } from '@/utils/tag'
+import { isValidTag } from '@/utils/tag'
+import { useTimberItemStore } from '@/stores/timberItems'
 
 // Exported so tests can build a router with memory history from the same routes.
 export const routes: RouteRecordRaw[] = [
@@ -13,8 +14,13 @@ export const routes: RouteRecordRaw[] = [
     name: 'timber-item',
     component: () => import('@/views/TimberItemView.vue'),
     props: true,
+    // Beams use their derived tag (/timber-item/85-A) and must exist: they are created from the parent only.
     // Hand-edited or stale URLs (/timber-item/abc, /timber-item/5000) go back to the start screen.
-    beforeEnter: (to) => isValidTagNumber(Number(to.params.tagNumber)) || { name: 'start' },
+    beforeEnter: (to) => {
+      const tag = String(to.params.tagNumber)
+      const isKnownOrPlain = !tag.includes('-') || useTimberItemStore().findByTag(tag)
+      return (isValidTag(tag) && isKnownOrPlain) || { name: 'start' }
+    },
   },
   // Unknown paths (e.g. old bookmarks) fall back to the start screen.
   { path: '/:pathMatch(.*)*', redirect: { name: 'start' } },
