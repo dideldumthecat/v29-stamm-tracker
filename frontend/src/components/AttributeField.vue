@@ -19,6 +19,8 @@ const props = defineProps<{
   record?: AttributeValueRecord
   // The recorded value as displayed (option label, formatted date, …)
   lockedText?: string
+  // The recorded option is inactive: struck through and marked.
+  lockedInactive?: boolean
   // Inactive attribute: shown for the value already recorded, but no pencil and no input.
   readonly?: boolean
 }>()
@@ -35,11 +37,15 @@ const isLocked = computed(() => props.record !== undefined && (props.readonly ||
     v-if="isLocked && record"
     class="flex flex-col gap-2.5 border-t border-line bg-locked py-3.5 px-gutter text-mute *:max-w-full *:min-w-0"
   >
-    <span class="flex items-baseline gap-2 text-[17px] font-bold"
-      >{{ name }}<InactiveHint v-if="readonly"
+    <span class="flex items-baseline gap-2 text-[17px] font-bold">
+      <span :class="{ 'line-through': readonly }">{{ name }}</span
+      ><InactiveHint v-if="readonly"
     /></span>
     <div class="flex min-h-[52px] items-center gap-3 rounded-lg border-2 border-lockline pl-3">
-      <span class="min-w-0 flex-1 wrap-anywhere whitespace-pre-line">{{ lockedText }}</span>
+      <span class="min-w-0 flex-1 wrap-anywhere whitespace-pre-line"
+        ><span :class="{ 'line-through': lockedInactive }">{{ lockedText }}</span
+        ><InactiveHint v-if="lockedInactive" class="ml-2"
+      /></span>
       <button
         v-if="!readonly"
         type="button"
@@ -60,7 +66,10 @@ const isLocked = computed(() => props.record !== undefined && (props.readonly ||
     class="flex flex-col gap-2.5 border-t border-line py-3.5 px-gutter *:max-w-full *:min-w-0"
   >
     <div class="flex items-center justify-between gap-2 text-[17px] font-bold">
-      <span v-if="readonly" class="flex items-baseline gap-2">{{ name }}<InactiveHint /></span>
+      <span v-if="readonly" class="flex items-baseline gap-2"
+        ><span class="line-through">{{ name }}</span
+        ><InactiveHint
+      /></span>
       <label v-else :for="labelFor">{{ name }}</label>
     </div>
     <slot />

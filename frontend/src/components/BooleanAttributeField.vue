@@ -52,9 +52,9 @@ function toggle() {
         <CheckIcon :size="20" :stroke-width="3" aria-hidden="true" />
       </span>
       <span v-else class="size-[30px] rounded-md border-2 border-lockline"></span>
-      <span class="min-w-0 flex-1"
-        >{{ attribute.name }}{{ current?.value ? '' : ': Nein' }}
-        <InactiveHint v-if="readonly" class="block"
+      <span class="min-w-0 flex-1">
+        <span :class="{ 'line-through': readonly }">{{ attribute.name }}</span
+        >{{ current?.value ? '' : ': Nein' }} <InactiveHint v-if="readonly" class="block"
       /></span>
       <button
         v-if="!readonly"
