@@ -76,7 +76,7 @@ export interface TimberItem {
   parent_id: Uuid | null
   /** Latest tag ("123", beams "123-A"). Without leading zeros, not unique, null if none assigned yet. */
   tag_number: string | null
-  /** Split into beams: read-only, accepts no more recordings. */
+  /** Split into beams: the app records nothing more on it; the server still accepts late events from other devices. */
   has_children: boolean
   created_at: Timestamp
   created_by: Uuid

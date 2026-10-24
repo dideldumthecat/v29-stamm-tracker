@@ -117,6 +117,7 @@ final class TimberItemProjector
                     break;
                 default:
                     // TODO: apply corrected and voided events (voided items disappear from the snapshot).
+                    //  A voided beam must still tell the app the stem's highest beam letter, or the app hands it out again.
             }
         }
 
