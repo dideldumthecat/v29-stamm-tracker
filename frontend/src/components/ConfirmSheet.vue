@@ -2,7 +2,8 @@
 import { onMounted, onUnmounted, useId, useTemplateRef } from 'vue'
 
 defineProps<{
-  title: string
+  // Plain text; use the `title` slot instead for a formatted tag.
+  title?: string
   primaryLabel: string
   secondaryLabel: string
 }>()
@@ -39,7 +40,9 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
         aria-modal="true"
         :aria-labelledby="titleId"
       >
-        <h2 :id="titleId" class="text-xl font-bold text-balance">{{ title }}</h2>
+        <h2 :id="titleId" class="text-xl font-bold text-balance">
+          <slot name="title">{{ title }}</slot>
+        </h2>
         <div class="text-[15px] leading-[1.45]"><slot /></div>
         <div class="mt-1 flex flex-col gap-2">
           <button

@@ -39,7 +39,11 @@ test('beam inherits a stem value and can override it', async ({ page }) => {
   await page.getByRole('button', { name: 'Stamm anlegen & speichern' }).click()
   await expect(page.getByText('Traubeneiche')).toBeVisible()
 
-  await page.getByRole('button', { name: 'Balken hinzufügen' }).click()
+  // Adding stays on the stem; the toast action opens the beam.
+  await page.getByRole('button', { name: 'Balken 01777-A hinzufügen' }).click()
+  await expect(page.getByText('Balken 01777-A angelegt')).toBeVisible()
+  await expect(page.locator('h1')).toContainText('STAMM')
+  await page.getByRole('button', { name: 'Öffnen', exact: true }).click()
   await expect(page.locator('h1')).toContainText('BALKEN')
   await expect(page.locator('h1')).toContainText('01777-A')
   const holzartField = page.locator('section', { hasText: 'Holzart' }).first()
@@ -54,7 +58,23 @@ test('beam inherits a stem value and can override it', async ({ page }) => {
 
   // The stem lists the beam and is read-only now.
   await page.getByRole('link', { name: /Aus Stamm/ }).click()
-  await expect(page.getByRole('link', { name: '01777-A' })).toBeVisible()
-  await expect(page.getByText('In Balken aufgeteilt')).toBeVisible()
+  await expect(page.getByRole('link', { name: /01777-A/ })).toContainText('Stieleiche')
+  await expect(page.getByText('Aufgeteilter Stamm')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Holzart ändern' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Speichern', exact: true })).toHaveCount(0)
+})
+
+test('beam letters run to Z, are never reused, and stop after 26', async ({ page }) => {
+  await page.goto('/timber-item/1888')
+  await page.getByRole('button', { name: 'Balken 01888-A hinzufügen' }).click()
+  await page.getByRole('button', { name: 'Balken 1888-A entfernen' }).click()
+  await page.getByRole('button', { name: 'Balken entfernen', exact: true }).click()
+  await expect(page.getByRole('link', { name: /01888-A/ })).toHaveCount(0)
+
+  for (let count = 1; count < 25; count++) {
+    await page.getByRole('button', { name: /^Balken \d+-[A-Z] hinzufügen$/ }).click()
+  }
+  await page.getByRole('button', { name: 'Balken 01888-Z hinzufügen' }).click()
+  await expect(page.getByRole('button', { name: 'Balken hinzufügen' })).toBeDisabled()
+  await expect(page.getByText('Höchstens 26 Balken je Stamm')).toBeVisible()
 })

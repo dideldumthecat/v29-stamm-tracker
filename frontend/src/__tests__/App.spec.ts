@@ -288,4 +288,92 @@ describe('App', () => {
       expect(router.currentRoute.value.name).toBe('start')
     })
   })
+
+  describe('beams', () => {
+    const buttonByText = (text: RegExp) =>
+      [...document.body.querySelectorAll('button')].find((button) =>
+        text.test(button.textContent ?? ''),
+      )!
+
+    it('adds a beam on the stem screen and opens it from the toast', async () => {
+      const { router } = await mountAt('/timber-item/42')
+      buttonByText(/Balken 00042-A hinzufügen/).click()
+      await flushPromises()
+      expect(router.currentRoute.value.params.tagNumber).toBe('42')
+      expect(document.body.textContent).toContain('Balken 00042-A angelegt')
+      expect(document.body.textContent).toContain('noch keine eigenen Angaben')
+
+      buttonByText(/^\s*Öffnen\s*$/).click()
+      await flushPromises()
+      expect(router.currentRoute.value.params.tagNumber).toBe('42-A')
+    })
+
+    it('summarises own values only, first two in sort order', async () => {
+      const { wrapper } = await mountAt('/timber-item/789')
+      const rows = wrapper.findAll('a[href^="/timber-item/789-"]').map((row) => row.text())
+      // 789-A: Holzart and Fälldatum are inherited, only Sortierklasse is its own.
+      expect(rows).toEqual(['00789-AA', '00789-B01.10.2026 · B'])
+      expect(rows.join()).not.toContain('nicht synchronisiert')
+      expect(wrapper.text()).toContain('Übertragene Balken kann nur die Administration entfernen.')
+    })
+
+    it('stops at Z: the 26th beam is "-Z", then adding is disabled', async () => {
+      await mountAt('/timber-item/42')
+      for (let count = 0; count < 25; count++) {
+        buttonByText(/hinzufügen/).click()
+        await flushPromises()
+      }
+      buttonByText(/Balken 00042-Z hinzufügen/).click()
+      await flushPromises()
+      expect(buttonByText(/Balken hinzufügen/).disabled).toBe(true)
+      expect(document.body.textContent).toContain('Höchstens 26 Balken je Stamm')
+    })
+
+    const optionLabel = (name: string, label: string) =>
+      useTimberItemStore()
+        .attributes.find((attribute) => attribute.name === name)!
+        .options.find((option) => option.label === label)!.id
+
+    it('keeps a split stem fully read-only, without save bar', async () => {
+      const { wrapper } = await mountAt('/timber-item/789')
+      expect(wrapper.text()).toContain('Aufgeteilter Stamm')
+      expect(wrapper.text()).not.toContain('Speichern')
+      expect(wrapper.find('button[aria-label$=" ändern"]').exists()).toBe(false)
+      expect(wrapper.findAll('select, textarea, input').length).toBe(0)
+    })
+
+    it('saves a valid draft before adding a beam', async () => {
+      const { wrapper, router } = await mountAt('/timber-item/42')
+      await wrapper.find('select').setValue(optionLabel('Holzart', 'Stieleiche'))
+      buttonByText(/00042-A hinzufügen/).click()
+      await flushPromises()
+      expect(router.currentRoute.value.params.tagNumber).toBe('42')
+      expect(document.body.textContent).toContain(
+        'Stamm 00042 gespeichert · Balken 00042-A angelegt',
+      )
+      expect(wrapper.text()).toContain('Stieleiche')
+      expect(useTimberItemStore().findByTag('42-A')).toBeDefined()
+    })
+
+    it('adds no beam while the draft is invalid', async () => {
+      const { wrapper } = await mountAt('/timber-item/42')
+      await wrapper.find('input[inputmode="decimal"]').setValue('abc')
+      buttonByText(/00042-A hinzufügen/).click()
+      await flushPromises()
+      expect(wrapper.find('[role="alert"]').exists()).toBe(true)
+      expect(useTimberItemStore().findByTag('42')).toBeUndefined()
+      expect(useTimberItemStore().findByTag('42-A')).toBeUndefined()
+    })
+
+    it('does not reuse the letter of a removed beam', async () => {
+      const { wrapper } = await mountAt('/timber-item/42')
+      buttonByText(/00042-A hinzufügen/).click()
+      await flushPromises()
+      await wrapper.find('button[aria-label="Balken 42-A entfernen"]').trigger('click')
+      buttonByText(/^Balken entfernen$/).click()
+      await flushPromises()
+      expect(wrapper.find('a[href="/timber-item/42-A"]').exists()).toBe(false)
+      expect(buttonByText(/hinzufügen/).textContent).toContain('00042-B')
+    })
+  })
 })

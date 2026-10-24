@@ -6,10 +6,12 @@ import {
   useRouter,
   type RouteLocationRaw,
 } from 'vue-router'
-import { useTimberItemStore } from '@/stores/timberItems'
+import { ChevronRightIcon, PlusIcon, XIcon } from '@lucide/vue'
+import { useTimberItemStore, type TimberItem } from '@/stores/timberItems'
 import type { AttributeValue } from '@/api/contract'
-import { collectDraft, type DraftInput } from '@/utils/attributeDraft'
+import { collectDraft, formatValue, type DraftInput } from '@/utils/attributeDraft'
 import { bySortOrder } from '@/utils/sort'
+import { MAX_BEAMS } from '@/config/constants'
 import { useToast } from '@/composables/useToast'
 import TimberItemHeader from '@/components/TimberItemHeader.vue'
 import TimberItemStatus from '@/components/TimberItemStatus.vue'
@@ -42,10 +44,10 @@ const kind = computed(() => (parent.value ? 'Balken' : 'Stamm'))
 const isSplit = computed(() => item.value?.has_children ?? false)
 
 // Fields in the order V29 set. Types without a field (photo) are skipped by the v-if chain in the template.
-// Inactive attributes stay visible only for an existing value (the snapshot keeps them for that), read-only.
+// Read-only attributes (inactive, or all on a split stem) stay visible only for an existing value.
 const attributes = computed(() =>
   store.attributes
-    .filter((attribute) => attribute.active || item.value?.values[attribute.id])
+    .filter((attribute) => (attribute.active && !isSplit.value) || item.value?.values[attribute.id])
     .sort(bySortOrder),
 )
 
@@ -90,14 +92,15 @@ const shownErrors = computed(() =>
 
 const saveLabel = computed(() => (item.value ? 'Speichern' : 'Stamm anlegen & speichern'))
 
-async function onSave() {
+// Records the draft and resets the form. null = invalid input blocks it; the errors are shown.
+async function saveDraft(): Promise<{ target: TimberItem; hasSaved: boolean } | null> {
   const errorIds = Object.keys(collected.value.errors)
   if (errorIds.length > 0) {
     failedInputs.value = Object.fromEntries(errorIds.map((id) => [id, draft.value[id]]))
     // The save bar sticks to the bottom; without this the error may be off screen and "nothing happens".
     await nextTick()
     document.querySelector('[role="alert"]')?.scrollIntoView({ block: 'center' })
-    return
+    return null
   }
   // Take the list before writing: afterwards the draft equals the store and `changes` would be empty.
   const toSave = changes.value
@@ -109,41 +112,83 @@ async function onSave() {
     store.recordAttribute(target.id, change.attributeId, change.value)
   }
 
-  const hasSaved = isNew || toSave.length > 0
-  toast.show(
-    hasSaved
-      ? { before: kind.value, tagNumber: props.tagNumber, after: 'gespeichert' }
-      : { before: `Keine Änderungen an ${kind.value}`, tagNumber: props.tagNumber },
-  )
-
   draft.value = {}
   added.value = {}
   failedInputs.value = {}
   formKey.value++
+  return { target, hasSaved: isNew || toSave.length > 0 }
+}
+
+const savedMessage = () => ({
+  before: kind.value,
+  tagNumber: props.tagNumber,
+  after: 'gespeichert',
+})
+
+async function onSave() {
+  const saved = await saveDraft()
+  if (saved) {
+    toast.show(
+      saved.hasSaved
+        ? savedMessage()
+        : { before: `Keine Änderungen an ${kind.value}`, tagNumber: props.tagNumber },
+    )
+  }
 }
 
 // --- Beams ---------------------------------------------------------------
-function onAddBeam() {
-  // Adding a beam locks this item, so unsaved input could never be saved afterwards.
-  if (isDirty.value) {
-    toast.show({ before: 'Bitte erst speichern oder Eingaben verwerfen' })
-    return
-  }
-  const beam = store.addBeam(item.value!.id)
-  toast.show({ before: 'Balken', tagNumber: beam.tag_number!, after: 'angelegt' })
-  router.push({ name: 'timber-item', params: { tagNumber: beam.tag_number } })
+const nextBeam = computed(() => store.nextBeamTagOf(item.value, props.tagNumber))
+
+// First two own values in the order V29 set; inherited ones are the stem's, not worth repeating.
+function beamSummary(beam: TimberItem): string {
+  const parts = [...store.attributes]
+    .sort(bySortOrder)
+    .filter((attribute) => beam.values[attribute.id] && !store.isInherited(beam.id, attribute.id))
+    .map((attribute) => formatValue(attribute, beam.values[attribute.id]!.slice(-1)[0]!.value))
+    .filter((text) => text !== null)
+    .slice(0, 2)
+  return parts.length > 0 ? parts.join(' · ') : 'noch keine eigenen Angaben'
 }
 
-const isRemoveAsked = ref(false)
+function openItem(tag: string) {
+  router.push({ name: 'timber-item', params: { tagNumber: tag } })
+}
+
+async function onAddBeam() {
+  // Save first: once split, the stem is read-only and the draft could never be saved.
+  const saved = isDirty.value ? await saveDraft() : undefined
+  if (saved === null) {
+    return
+  }
+  // Like the click prototype: a stem not recorded yet is created by its first beam.
+  const stem = saved?.target ?? item.value ?? store.createTimberItem(Number(props.tagNumber))
+  const tag = store.addBeam(stem.id).tag_number!
+  const beamMessage = { before: 'Balken', tagNumber: tag, after: 'angelegt' }
+  toast.show({
+    ...(saved?.hasSaved ? { ...savedMessage(), more: beamMessage } : beamMessage),
+    action: { label: 'Öffnen', run: () => openItem(tag) },
+  })
+}
+
+const beamToRemove = ref<TimberItem | null>(null)
+// Own recordings only: `store.items` holds no inherited values.
+const ownRecordingCount = computed(
+  () =>
+    Object.values(
+      store.items.find((candidate) => candidate.id === beamToRemove.value?.id)?.values ?? {},
+    ).flat().length,
+)
 
 async function onRemove() {
-  isRemoveAsked.value = false
-  const beamId = item.value!.id
-  // Leave first: removing it while the screen is still open would flash "Noch nicht erfasst".
-  isLeaveConfirmed = true
-  await router.push({ name: 'timber-item', params: { tagNumber: parent.value!.tag_number } })
-  store.removeTimberItem(beamId)
-  toast.show({ before: 'Balken', tagNumber: props.tagNumber, after: 'entfernt' })
+  const beam = beamToRemove.value!
+  beamToRemove.value = null
+  if (beam.id === item.value?.id) {
+    // Leave first: removing it while the screen is still open would flash "Noch nicht erfasst".
+    isLeaveConfirmed = true
+    await router.push({ name: 'timber-item', params: { tagNumber: parent.value!.tag_number } })
+  }
+  store.removeTimberItem(beam.id)
+  toast.show({ before: 'Balken', tagNumber: beam.tag_number!, after: 'entfernt' })
 }
 
 // --- Leaving with unsaved changes ---------------------------------------
@@ -192,6 +237,66 @@ function onDiscard() {
 
     <TimberItemStatus :item="item" />
 
+    <!-- Beams are cut from a stem only, never from another beam. -->
+    <section
+      v-if="!parent"
+      class="flex flex-col gap-2.5 border-t border-line py-3.5 px-gutter *:max-w-full *:min-w-0"
+    >
+      <h2 class="flex items-center gap-2 text-[17px] font-bold">
+        Balken<template v-if="beams.length > 0"> ({{ beams.length }})</template>
+      </h2>
+      <div v-if="beams.length > 0">
+        <div
+          v-for="beam in beams"
+          :key="beam.id"
+          class="flex items-center gap-2 border-b border-line"
+        >
+          <RouterLink
+            :to="{ name: 'timber-item', params: { tagNumber: beam.tag_number } }"
+            class="flex min-h-[60px] min-w-0 flex-1 items-center gap-3 py-1.5 text-left"
+          >
+            <strong class="text-xl whitespace-nowrap tabular-nums"
+              ><FormattedTag :tag-number="beam.tag_number!"
+            /></strong>
+            <span class="flex min-w-0 flex-1 flex-col gap-0.5 text-[13px] text-mute">
+              <span>{{ beamSummary(beam) }}</span>
+              <span v-if="store.canRemove(beam.id)">nicht synchronisiert</span>
+            </span>
+            <ChevronRightIcon :size="22" aria-hidden="true" />
+          </RouterLink>
+          <button
+            v-if="store.canRemove(beam.id)"
+            type="button"
+            class="flex size-9 shrink-0 items-center justify-center rounded-md border-2 border-ink bg-paper text-ink"
+            :aria-label="`Balken ${beam.tag_number} entfernen`"
+            @click="beamToRemove = beam"
+          >
+            <XIcon :size="16" :stroke-width="2.5" aria-hidden="true" />
+          </button>
+        </div>
+      </div>
+      <button
+        type="button"
+        class="flex h-14 w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-ink bg-paper text-[17px] font-bold disabled:border-lockline disabled:text-mute"
+        :disabled="!nextBeam"
+        @click="onAddBeam"
+      >
+        <PlusIcon :size="22" :stroke-width="2.5" aria-hidden="true" />
+        <span v-if="nextBeam">Balken <FormattedTag :tag-number="nextBeam" /> hinzufügen</span>
+        <span v-else>Balken hinzufügen</span>
+      </button>
+      <span v-if="!nextBeam" class="text-[13px] text-mute"
+        >Höchstens {{ MAX_BEAMS }} Balken je Stamm</span
+      >
+      <p v-if="beams.length === 0" class="text-sm leading-[1.4] text-body">
+        Nur wenn der Stamm in mehrere Balken gesägt wird: je Balken einmal tippen und die Kennung
+        mit Filzstift auf den Balken schreiben.
+      </p>
+      <span v-if="beams.some((beam) => !store.canRemove(beam.id))" class="text-[13px] text-mute"
+        >Übertragene Balken kann nur die Administration entfernen.</span
+      >
+    </section>
+
     <RouterLink
       v-if="parent?.tag_number"
       :to="{ name: 'timber-item', params: { tagNumber: parent.tag_number } }"
@@ -199,8 +304,9 @@ function onDiscard() {
     >
       Aus Stamm <FormattedTag :tag-number="parent.tag_number" />
     </RouterLink>
-    <p v-if="isSplit" class="mx-gutter mb-2 text-sm">
-      In Balken aufgeteilt – Werte sind nicht mehr änderbar.
+    <p v-if="isSplit" class="my-2 mx-gutter rounded-lg bg-well p-3 text-sm leading-[1.4]">
+      Aufgeteilter Stamm: Angaben am jeweiligen Balken erfassen. Angaben, die an alle Balken gehen,
+      vor dem ersten Balken setzen.
     </p>
 
     <div :key="formKey" class="border-b border-line">
@@ -256,31 +362,11 @@ function onDiscard() {
       </template>
     </div>
 
-    <!-- Beams are cut from a stem only, never from another beam. -->
-    <section v-if="item && !parent" class="flex flex-col gap-2.5 py-3.5 px-gutter">
-      <h2 class="text-[17px] font-bold">Balken</h2>
-      <RouterLink
-        v-for="beam in beams"
-        :key="beam.id"
-        :to="{ name: 'timber-item', params: { tagNumber: beam.tag_number } }"
-        class="flex min-h-11 items-center rounded-lg border-2 border-line px-3 font-semibold"
-      >
-        <FormattedTag :tag-number="beam.tag_number!" />
-      </RouterLink>
-      <button
-        type="button"
-        class="h-14 w-full rounded-lg border-2 border-ink bg-paper text-[17px] font-bold"
-        @click="onAddBeam"
-      >
-        Balken hinzufügen
-      </button>
-    </section>
-
     <section v-if="item && store.canRemove(item.id)" class="py-3.5 px-gutter">
       <button
         type="button"
         class="h-14 w-full rounded-lg border-2 border-ink bg-paper text-[17px] font-bold"
-        @click="isRemoveAsked = true"
+        @click="beamToRemove = item"
       >
         Balken entfernen
       </button>
@@ -291,17 +377,24 @@ function onDiscard() {
 
     <SaveBar v-if="!isSplit" :label="saveLabel" @save="onSave" />
 
+    <!-- Wording as in the click prototype (confirmRemoveBeam). -->
     <ConfirmSheet
-      v-if="isRemoveAsked"
-      title="Balken entfernen?"
-      primary-label="Behalten"
-      secondary-label="Entfernen"
-      @primary="isRemoveAsked = false"
+      v-if="beamToRemove"
+      primary-label="Abbrechen"
+      secondary-label="Balken entfernen"
+      @primary="beamToRemove = null"
       @secondary="onRemove"
     >
+      <template #title>
+        Balken <FormattedTag :tag-number="beamToRemove.tag_number!" /> entfernen?
+      </template>
       <p>
-        Balken <FormattedTag :tag-number="tagNumber" /> ist noch nicht synchronisiert und wird mit
-        allen Werten gelöscht.
+        <template v-if="ownRecordingCount === 1">Seine Angabe wird mit entfernt. </template>
+        <template v-else-if="ownRecordingCount > 1"
+          >Seine {{ ownRecordingCount }} Angaben werden mit entfernt.
+        </template>
+        Die Kennung <FormattedTag :tag-number="beamToRemove.tag_number!" /> wird nicht neu vergeben,
+        der nächste Balken bekommt den nächsten Buchstaben.
       </p>
     </ConfirmSheet>
 
