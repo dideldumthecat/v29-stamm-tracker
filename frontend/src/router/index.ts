@@ -18,7 +18,7 @@ export const routes: RouteRecordRaw[] = [
     // Hand-edited or stale URLs (/timber-item/abc, /timber-item/5000) go back to the start screen.
     beforeEnter: (to) => {
       const tag = String(to.params.tagNumber)
-      const isKnownOrPlain = !tag.includes('-') || useTimberItemStore().findByTag(tag)
+      const isKnownOrPlain = !tag.includes('-') || useTimberItemStore().findByTag(tag) !== undefined
       return (isValidTag(tag) && isKnownOrPlain) || { name: 'start' }
     },
   },

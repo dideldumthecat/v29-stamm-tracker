@@ -58,7 +58,7 @@ function onInput(event: Event) {
         </p>
         <span class="text-[13px] text-mute"
           >{{ formatShortDate(record.recorded_at) }} · {{ store.userName(record.user_id)
-          }}{{ inherited ? " · vom Stamm" : "" }}</span
+          }}{{ inherited ? ' · vom Stamm' : '' }}</span
         >
       </div>
     </div>

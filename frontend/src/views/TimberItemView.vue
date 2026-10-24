@@ -33,7 +33,9 @@ const store = useTimberItemStore()
 const toast = useToast()
 
 const item = computed(() => store.findByTag(props.tagNumber))
-const parent = computed(() => store.items.find((candidate) => candidate.id === item.value?.parent_id))
+const parent = computed(() =>
+  store.items.find((candidate) => candidate.id === item.value?.parent_id),
+)
 const beams = computed(() => (item.value ? store.childrenOf(item.value.id) : []))
 const kind = computed(() => (parent.value ? 'Balken' : 'Stamm'))
 // Split into beams: the values stay visible, but nothing can be recorded any more.
@@ -298,8 +300,8 @@ function onDiscard() {
       @secondary="onRemove"
     >
       <p>
-        Balken <FormattedTag :tag-number="tagNumber" /> ist noch nicht synchronisiert und wird
-        mit allen Werten gelöscht.
+        Balken <FormattedTag :tag-number="tagNumber" /> ist noch nicht synchronisiert und wird mit
+        allen Werten gelöscht.
       </p>
     </ConfirmSheet>
 
