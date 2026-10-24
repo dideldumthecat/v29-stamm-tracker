@@ -23,6 +23,8 @@ const props = defineProps<{
   lockedInactive?: boolean
   // Inactive attribute: shown for the value already recorded, but no pencil and no input.
   readonly?: boolean
+  // Beam only: the value comes from the parent (shown as a hint, still overwritable).
+  inherited?: boolean
 }>()
 
 const store = useTimberItemStore()
@@ -57,7 +59,8 @@ const isLocked = computed(() => props.record !== undefined && (props.readonly ||
       </button>
     </div>
     <span class="text-[13px] text-mute"
-      >{{ formatShortDate(record.recorded_at) }} · {{ store.userName(record.user_id) }}</span
+      >{{ formatShortDate(record.recorded_at) }} · {{ store.userName(record.user_id)
+      }}{{ inherited ? ' · vom Stamm' : '' }}</span
     >
   </section>
 

@@ -3,7 +3,7 @@ import { ref } from 'vue'
 export interface ToastMessage {
   // Text before and after the tag, so the tag can be rendered with faded leading zeros.
   before: string
-  tagNumber?: number
+  tagNumber?: number | string
   after?: string
 }
 

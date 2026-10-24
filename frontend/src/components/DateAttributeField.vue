@@ -10,6 +10,8 @@ const props = defineProps<{
   // Recordings for this attribute from the timber item, if any (always an array, oldest first).
   recorded: AttributeValueRecord[] | undefined
   readonly?: boolean
+  // Beam only: the value comes from the parent (shown as a hint, still overwritable).
+  inherited?: boolean
 }>()
 
 // A date attribute is never a series, so the last entry is the current value.
@@ -37,6 +39,7 @@ function onInput(event: Event) {
     :record="current"
     :locked-text="recordedText"
     :readonly="readonly"
+    :inherited="inherited"
   >
     <!-- Native picker: no own parsing or validation. appearance-none makes iOS Safari respect the
          width (otherwise it keeps its own minimum width and overflows the page). The picker indicator

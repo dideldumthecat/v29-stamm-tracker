@@ -8,7 +8,10 @@ import AppToast from '@/components/AppToast.vue'
   <div
     class="mx-auto grid h-screen-safe max-w-[430px] grid-rows-[minmax(0,1fr)] overflow-hidden bg-paper min-[480px]:border-x min-[480px]:border-line"
   >
-    <RouterView />
+    <!-- Keyed by path: parent → beam stays on the same route, but each item needs a fresh screen. -->
+    <RouterView v-slot="{ Component, route }">
+      <component :is="Component" :key="route.fullPath" />
+    </RouterView>
   </div>
   <AppToast />
 </template>

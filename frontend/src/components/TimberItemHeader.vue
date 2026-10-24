@@ -4,7 +4,9 @@ import FormattedTag from '@/components/FormattedTag.vue'
 import SyncButton from '@/components/SyncButton.vue'
 
 defineProps<{
-  tagNumber: number
+  tagNumber: number | string
+  // "STAMM" or "BALKEN"
+  kind: string
   pendingCount: number
 }>()
 const emit = defineEmits<{ close: [] }>()
@@ -24,7 +26,7 @@ const emit = defineEmits<{ close: [] }>()
       <XIcon :size="22" aria-hidden="true" />
     </button>
     <h1 class="flex flex-1 flex-col items-center gap-0.5 text-center">
-      <small class="text-[13px] font-semibold tracking-[.06em]">STAMM</small>
+      <small class="text-[13px] font-semibold tracking-[.06em]">{{ kind }}</small>
       <!-- Letter spacing also adds space after the last digit; the negative right margin
            of the same size takes it back out, so the number stays centred. -->
       <FormattedTag

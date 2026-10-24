@@ -10,6 +10,8 @@ const props = defineProps<{
   // Recordings for this attribute from the timber item, if any (always an array, oldest first).
   recorded: AttributeValueRecord[] | undefined
   readonly?: boolean
+  // Beam only: the value comes from the parent (shown as a hint, still overwritable).
+  inherited?: boolean
 }>()
 
 // A choice attribute is never a series, so the last entry is the current value.
@@ -55,6 +57,7 @@ function onChange(event: Event) {
     :locked-text="recordedOption?.label ?? ''"
     :locked-inactive="recordedOption !== undefined && !recordedOption.active"
     :readonly="readonly"
+    :inherited="inherited"
   >
     <!-- Native arrow removed (appearance-none) so the icon set's chevron can replace it. -->
     <div class="relative">

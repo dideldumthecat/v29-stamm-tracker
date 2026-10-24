@@ -16,6 +16,8 @@ const props = defineProps<{
   recorded: AttributeValueRecord[] | undefined
   // Inactive attribute: shows what was recorded, no input.
   readonly?: boolean
+  // Beam only: the value comes from the parent (shown as a hint, still overwritable).
+  inherited?: boolean
 }>()
 
 const store = useTimberItemStore()
@@ -43,6 +45,7 @@ function onInput(event: Event) {
     :record="attribute.is_series ? undefined : current"
     :locked-text="currentText"
     :readonly="readonly"
+    :inherited="inherited"
   >
     <div v-if="attribute.is_series && entries.length > 0" class="flex flex-col">
       <div
@@ -54,7 +57,8 @@ function onInput(event: Event) {
           {{ record.value }}
         </p>
         <span class="text-[13px] text-mute"
-          >{{ formatShortDate(record.recorded_at) }} · {{ store.userName(record.user_id) }}</span
+          >{{ formatShortDate(record.recorded_at) }} · {{ store.userName(record.user_id)
+          }}{{ inherited ? " · vom Stamm" : "" }}</span
         >
       </div>
     </div>

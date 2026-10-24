@@ -248,6 +248,29 @@ class ApiTest extends WebTestCase
         }
     }
 
+    public function testBeamShowsTheParentsSeriesUntilItHasOwnRecordingsThenOnlyItsOwn(): void
+    {
+        $series = new Attribute('Rissbreite', AttributeType::Number, isSeries: true, isInheritable: true);
+        $this->em->persist($series);
+        $this->em->flush();
+        $attributeId = $series->id->toRfc4122();
+        [$log, $beam] = [Uuid::v4()->toRfc4122(), Uuid::v4()->toRfc4122()];
+        $reading = static fn (string $item, float $value) => self::event('attribute_recorded', $item, ['attribute_id' => $attributeId, 'value' => $value]);
+
+        $this->request('POST', '/api/sync', ['events' => [
+            self::event('created', $log, ['parent_id' => null]),
+            $reading($log, 1.5),
+            $reading($log, 2.5),
+            self::event('created', $beam, ['parent_id' => $log]),
+        ]]);
+        self::assertResponseIsSuccessful();
+        self::assertSame($this->values($log)[$attributeId], $this->values($beam)[$attributeId]);
+
+        $this->request('POST', '/api/sync', ['events' => [$reading($beam, 4.5), $reading($log, 3.5)]]);
+        self::assertResponseIsSuccessful();
+        self::assertSame([4.5], array_column($this->values($beam)[$attributeId], 'value'));
+    }
+
     public function testInheritedValuesDoNotDependOnTheOrderInWhichParentAndBeamEventsArrive(): void
     {
         $beamValues = function (bool $parentValuesFirst): array {

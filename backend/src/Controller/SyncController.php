@@ -40,6 +40,8 @@ final class SyncController extends AbstractController
             throw new BadRequestHttpException('events must be a list.');
         }
 
+        // TODO: any invalid event rejects the whole batch with a 400; the future sync client must show that to the user
+        //  instead of retrying silently, or the pending events never leave the device.
         $known = $this->knownEventIds($events);
         $existingItems = [];
         $new = [];

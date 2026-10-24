@@ -12,6 +12,8 @@ const props = defineProps<{
   recorded: AttributeValueRecord[] | undefined
   // Inactive attribute: shows the recorded value, but no pencil.
   readonly?: boolean
+  // Beam only: the value comes from the parent (shown as a hint, still overwritable).
+  inherited?: boolean
 }>()
 
 const store = useTimberItemStore()
@@ -67,7 +69,8 @@ function toggle() {
       </button>
     </div>
     <span v-if="current" class="text-[13px] text-mute"
-      >{{ formatShortDate(current.recorded_at) }} · {{ store.userName(current.user_id) }}</span
+      >{{ formatShortDate(current.recorded_at) }} · {{ store.userName(current.user_id)
+      }}{{ inherited ? ' · vom Stamm' : '' }}</span
     >
   </section>
 
