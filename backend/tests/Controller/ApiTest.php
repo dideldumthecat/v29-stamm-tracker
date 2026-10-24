@@ -294,6 +294,22 @@ class ApiTest extends WebTestCase
         self::assertSame($values, $beamValues(false));
     }
 
+    /** Another device recorded offline before the split and syncs after it: the app's read-only rule must not block that queue. */
+    public function testSplitItemStillAcceptsLateValuesAndPassesInheritableOnesOn(): void
+    {
+        [$log, $beam] = [Uuid::v4()->toRfc4122(), Uuid::v4()->toRfc4122()];
+        $this->request('POST', '/api/sync', ['events' => [self::event('created', $log, ['parent_id' => null]), self::event('created', $beam, ['parent_id' => $log])]]);
+
+        $species = self::event('attribute_recorded', $log, ['attribute_id' => self::HOLZART, 'value' => self::STIELEICHE]);
+        $storagePlace = self::event('attribute_recorded', $log, ['attribute_id' => self::LAGERPLATZ, 'value' => '85c9b9d6-6714-4416-a91e-21efd4e4adfd']);
+        $this->request('POST', '/api/sync', ['events' => [$species, $storagePlace]], 'Kerstin');
+        self::assertResponseIsSuccessful();
+
+        self::assertEqualsCanonicalizing([self::HOLZART, self::LAGERPLATZ], array_keys($this->values($log)));
+        self::assertSame([self::HOLZART], array_keys($this->values($beam)));
+        self::assertSame($species['id'], $this->values($beam)[self::HOLZART][0]['event_id']);
+    }
+
     public function testRebuildGivesTheSameSnapshotAsTheLiveProjections(): void
     {
         $this->syncItem123();
