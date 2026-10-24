@@ -19,7 +19,8 @@ class TimberItemEventRepository extends ServiceEntityRepository
 
     /**
      * The one way to read events for projections: oldest receipt first, so the last event wins.
-     * Ties on received_at are broken by id, which makes the order the same on every rebuild.
+     * Within a sync received_at is strictly increasing in the order sent (SyncController), so there
+     * are no ties; the id only keeps the order stable should two syncs ever share a microsecond.
      *
      * @param Uuid|null $timberItemId only this item's events; null = all (full rebuild)
      *
