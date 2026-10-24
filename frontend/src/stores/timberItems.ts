@@ -3,8 +3,8 @@
  *
  * Replaced later by the real store: snapshot + own pending events → projected state,
  * persisted in IndexedDB (built in learning mode). The public surface (findByTagNumber, findByTag,
- * childrenOf, isInherited, createTimberItem, addBeam, canRemove, removeTimberItem, recordAttribute,
- * pendingCount) is what the views rely on, so keep it stable or adjust the views together with it.
+ * childrenOf, beamCount, nextBeamTagOf, isInherited, createTimberItem, addBeam, canRemove, removeTimberItem,
+ * recordAttribute, pendingCount) is what the views rely on, so keep it stable or adjust the views together with it.
  *
  * `items` holds own values only; inherited values are added at read time (withInherited).
  */
@@ -40,6 +40,9 @@ export const useTimberItemStore = defineStore('timberItems', () => {
   // Items created in this session with their number of events: still in the queue, so removable.
   // Placeholder for "has unsynced created event".
   const unsynced = ref(new Map<string, number>())
+  // Unsynced beams removed in this session, still counted for the next letter.
+  // TODO: the real store must keep this trace persistently (the removed events never reach the server).
+  const removedBeams = ref<TimberItem[]>([])
 
   const findById = (id: string | null) => items.value.find((item) => item.id === id)
   const lastEventId = (records: AttributeValueRecord[] | undefined) =>
@@ -84,6 +87,17 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     return items.value.filter((item) => item.parent_id === itemId).map(withInherited)
   }
 
+  // Every beam ever created on this parent, removed unsynced ones included: letters are never reused.
+  function beamCount(parentId: string): number {
+    return [...items.value, ...removedBeams.value].filter((item) => item.parent_id === parentId)
+      .length
+  }
+
+  // undefined parent = stem not created yet, so no beams either.
+  function nextBeamTagOf(parent: TimberItem | undefined, parentTag: string): string | null {
+    return nextBeamTag(parentTag, parent ? beamCount(parent.id) : 0)
+  }
+
   // Inherited = the beam shows the very recording its parent holds.
   function isInherited(itemId: string, attributeId: string): boolean {
     const item = findById(itemId)
@@ -109,9 +123,12 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     if (!parent?.tag_number || parent.parent_id) {
       throw new Error(`Cannot add a beam to timber item ${parentId}`)
     }
-    const siblingTags = childrenOf(parentId).map((child) => child.tag_number)
+    const tag = nextBeamTagOf(parent, parent.tag_number)
+    if (!tag) {
+      throw new Error(`Timber item ${parentId} has no beam letters left`)
+    }
     parent.has_children = true
-    return create(nextBeamTag(parent.tag_number, siblingTags), parentId)
+    return create(tag, parentId)
   }
 
   function create(tagNumber: string, parentId: string | null): TimberItem {
@@ -140,7 +157,9 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     if (!canRemove(itemId)) {
       throw new Error(`Timber item ${itemId} cannot be removed`)
     }
-    const parentId = findById(itemId)!.parent_id
+    const beam = findById(itemId)!
+    const parentId = beam.parent_id
+    removedBeams.value.push(beam)
     items.value = items.value.filter((item) => item.id !== itemId)
     pendingCount.value -= unsynced.value.get(itemId)!
     unsynced.value.delete(itemId)
@@ -156,6 +175,7 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     if (!item) {
       throw new Error(`Unknown timber item ${itemId}`)
     }
+    // App-only rule: the server still accepts late events from other devices.
     if (item.has_children) {
       throw new Error(`Timber item ${itemId} is split into beams and read-only`)
     }
@@ -184,6 +204,8 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     findByTagNumber,
     findByTag,
     childrenOf,
+    beamCount,
+    nextBeamTagOf,
     isInherited,
     userName,
     createTimberItem,

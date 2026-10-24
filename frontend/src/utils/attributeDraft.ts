@@ -1,4 +1,5 @@
 import type { Attribute, AttributeValue, AttributeValueRecord } from '@/api/contract'
+import { formatDate } from '@/utils/date'
 
 /**
  * Raw input of one field, as the field holds it: choice → option id, boolean → true/false,
@@ -32,6 +33,24 @@ export function parseNumber(text: string): number | null {
 /** Number as V29 writes it: decimal comma. */
 export function formatNumber(value: number): string {
   return String(value).replace('.', ',')
+}
+
+/** Short text of a recorded value, e.g. for the beam summary. null for types without text (photo). */
+export function formatValue(attribute: Attribute, value: AttributeValue): string | null {
+  switch (attribute.type) {
+    case 'choice':
+      return attribute.options.find((option) => option.id === value)?.label ?? null
+    case 'boolean':
+      return value ? attribute.name : `${attribute.name}: Nein`
+    case 'number':
+      return [formatNumber(Number(value)), attribute.unit ?? ''].join(' ').trim()
+    case 'date':
+      return formatDate(String(value))
+    case 'text':
+      return String(value)
+    default:
+      return null
+  }
 }
 
 type Parsed = { value: AttributeValue } | { error: string } | undefined

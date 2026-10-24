@@ -86,5 +86,8 @@ describe('timber item store: beams and inheritance', () => {
     expect(store.findByTag('6')!.has_children).toBe(false)
     // Only the stem's created event is left.
     expect(store.pendingCount).toBe(before + 1)
+
+    // The removed beam's letter stays taken.
+    expect(store.addBeam(fresh.id).tag_number).toBe('6-B')
   })
 })

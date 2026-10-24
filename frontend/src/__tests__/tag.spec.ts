@@ -23,7 +23,7 @@ describe('isValidTag', () => {
   it('accepts plain and beam tags within the plaque range', () => {
     expect(isValidTag('85')).toBe(true)
     expect(isValidTag('85-A')).toBe(true)
-    expect(isValidTag('85-AB')).toBe(true)
+    expect(isValidTag('85-AB')).toBe(false)
     expect(isValidTag('5000-A')).toBe(false)
     expect(isValidTag('85-a')).toBe(false)
     expect(isValidTag('85-')).toBe(false)
@@ -32,19 +32,10 @@ describe('isValidTag', () => {
 })
 
 describe('nextBeamTag', () => {
-  it('letters beams in order, starting with A', () => {
-    expect(nextBeamTag('123', [])).toBe('123-A')
-    expect(nextBeamTag('123', ['123-A', '123-B'])).toBe('123-C')
-  })
-
-  it('reuses the first free letter and ignores relabelled siblings', () => {
-    expect(nextBeamTag('123', ['123-A', '123-C'])).toBe('123-B')
-    expect(nextBeamTag('123', ['1500', null])).toBe('123-A')
-  })
-
-  it('continues after Z with two letters', () => {
-    const used = Array.from({ length: 26 }, (_, index) => `7-${String.fromCharCode(65 + index)}`)
-    expect(nextBeamTag('7', used)).toBe('7-AA')
-    expect(nextBeamTag('7', [...used, '7-AA'])).toBe('7-AB')
+  it('letters beams by the number ever created, A to Z, then none', () => {
+    expect(nextBeamTag('123', 0)).toBe('123-A')
+    expect(nextBeamTag('123', 2)).toBe('123-C')
+    expect(nextBeamTag('7', 25)).toBe('7-Z')
+    expect(nextBeamTag('7', 26)).toBeNull()
   })
 })

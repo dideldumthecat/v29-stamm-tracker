@@ -1,4 +1,4 @@
-import { TAG_DIGITS, TAG_MIN_NUMBER, TAG_MAX_NUMBER } from '@/config/constants'
+import { MAX_BEAMS, TAG_DIGITS, TAG_MIN_NUMBER, TAG_MAX_NUMBER } from '@/config/constants'
 
 /**
  * Formats a tag number like the printed plaque: zero-padded to TAG_DIGITS (42 → "00042").
@@ -15,25 +15,14 @@ export function isValidTagNumber(tagNumber: number): boolean {
 
 /** True for a tag as it appears in URLs and the contract: "85" or a beam tag like "85-A". */
 export function isValidTag(tag: string): boolean {
-  const match = /^(\d+)(-[A-Z]+)?$/.exec(tag)
+  const match = /^(\d+)(-[A-Z])?$/.exec(tag)
   return match !== null && isValidTagNumber(Number(match[1]))
 }
 
-/** Spreadsheet-style column letters: 0 → "A", 25 → "Z", 26 → "AA". */
-function beamLetters(index: number): string {
-  const letter = String.fromCharCode(65 + (index % 26))
-  return index < 26 ? letter : beamLetters(Math.floor(index / 26) - 1) + letter
-}
-
 /**
- * Derived tag for the next beam of a parent: "123-A", "123-B", …, the first one not taken by a sibling.
- * A letter freed by removing an unsynced beam is reused.
+ * Derived tag for the next beam of a parent: "123-A" … "123-Z", null once all 26 letters are used.
+ * `beamCount` counts every beam ever created on the parent, so a letter is never handed out twice.
  */
-export function nextBeamTag(parentTag: string, siblingTags: (string | null)[]): string {
-  for (let index = 0; ; index++) {
-    const tag = `${parentTag}-${beamLetters(index)}`
-    if (!siblingTags.includes(tag)) {
-      return tag
-    }
-  }
+export function nextBeamTag(parentTag: string, beamCount: number): string | null {
+  return beamCount < MAX_BEAMS ? `${parentTag}-${String.fromCharCode(65 + beamCount)}` : null
 }

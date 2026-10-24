@@ -4,6 +4,12 @@ import FormattedTag from '@/components/FormattedTag.vue'
 import { useToast } from '@/composables/useToast'
 
 const { current, hide } = useToast()
+
+function onAction() {
+  const run = current.value!.action!.run
+  hide()
+  run()
+}
 </script>
 
 <template>
@@ -17,8 +23,24 @@ const { current, hide } = useToast()
       <span class="min-w-0 flex-1"
         >{{ current.before }}
         <FormattedTag v-if="current.tagNumber !== undefined" :tag-number="current.tagNumber" />
-        {{ current.after }}</span
+        {{ current.after
+        }}<template v-if="current.more">
+          · {{ current.more.before }}
+          <FormattedTag
+            v-if="current.more.tagNumber !== undefined"
+            :tag-number="current.more.tagNumber"
+          />
+          {{ current.more.after }}</template
+        ></span
       >
+      <button
+        v-if="current.action"
+        type="button"
+        class="shrink-0 p-1.5 font-bold text-ink underline"
+        @click="onAction"
+      >
+        {{ current.action.label }}
+      </button>
       <button
         type="button"
         class="flex size-11 shrink-0 items-center justify-center text-ink"
