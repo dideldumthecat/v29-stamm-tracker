@@ -24,9 +24,70 @@ final class TimberItemProjector
     }
 
     /**
-     * Recomputes the item's rows in both tables from its events and replaces the old ones.
+     * Recomputes the item's rows in both tables from its events and replaces the old ones, then does the same
+     * for its children, whose inherited values may have changed.
      */
     public function project(Uuid $timberItemId): void
+    {
+        ['item' => $item, 'tag_number' => $tagNumber, 'values' => $values] = $this->fromOwnEvents($timberItemId);
+        if ($item['parent_id'] ?? null) {
+            // Per attribute the own value wins; a series counts as one value, so own recordings replace the parent's.
+            $values += $this->passedOnValues($item['parent_id']);
+        }
+
+        $db = $this->em->getConnection();
+        $db->delete('timber_item_state', ['timber_item_id' => $timberItemId], [UuidType::NAME]);
+        $db->delete('timber_items', ['id' => $timberItemId], [UuidType::NAME]);
+        if (!$item) {
+            return;
+        }
+
+        $hasChildren = (bool) $db->fetchOne(
+            'SELECT 1 FROM timber_item_events WHERE type = ? AND JSON_VALUE(data, ?) = ? LIMIT 1',
+            [EventType::Created->value, '$.parent_id', $timberItemId->toRfc4122()],
+        );
+        $db->insert('timber_items', [
+            'id' => $timberItemId,
+            'parent_id' => $item['parent_id'],
+            'tag_number' => $tagNumber,
+            'has_children' => $hasChildren,
+            'created_at' => $item['created_at'],
+            'created_by' => $item['created_by'],
+        ], [UuidType::NAME, UuidType::NAME, Types::STRING, Types::BOOLEAN, Types::DATETIME_IMMUTABLE, UuidType::NAME]);
+        foreach ($values as $attributeId => $records) {
+            $db->insert('timber_item_state', [
+                'timber_item_id' => $timberItemId,
+                'attribute_id' => Uuid::fromString($attributeId),
+                'value_records' => $records,
+            ], [UuidType::NAME, UuidType::NAME, Types::JSON]);
+        }
+
+        // Children not projected yet (during a rebuild) compute their inherited values from events when their turn comes.
+        // Terminates: SyncController only accepts an existing parent, so parent_id never points to a later item.
+        $children = $db->fetchFirstColumn('SELECT id FROM timber_items WHERE parent_id = ?', [$timberItemId], [UuidType::NAME]);
+        foreach ($children as $childId) {
+            $this->project(Uuid::fromBinary($childId));
+        }
+    }
+
+    /**
+     * What the item passes on to its children: its own values of inheritable attributes, otherwise what it inherits itself.
+     * Read from events, not from the parent's projection rows, so the result does not depend on projection order.
+     *
+     * @return array<string, list<array>> records per attribute id
+     */
+    private function passedOnValues(Uuid $timberItemId): array
+    {
+        ['item' => $item, 'values' => $values] = $this->fromOwnEvents($timberItemId);
+        $values = array_filter($values, fn (string $attributeId) => $this->em->find(Attribute::class, Uuid::fromString($attributeId))->isInheritable, \ARRAY_FILTER_USE_KEY);
+
+        return $values + (($item['parent_id'] ?? null) ? $this->passedOnValues($item['parent_id']) : []);
+    }
+
+    /**
+     * @return array{item: ?array, tag_number: ?string, values: array<string, list<array>>} item is null without a created event
+     */
+    private function fromOwnEvents(Uuid $timberItemId): array
     {
         $item = null;
         $tagNumber = null;
@@ -58,34 +119,7 @@ final class TimberItemProjector
                     // TODO: apply corrected and voided events (voided items disappear from the snapshot).
             }
         }
-        // TODO: inherit values of is_inheritable attributes from the parent (own value wins), and re-project
-        //  the children when a parent changes.
 
-        $db = $this->em->getConnection();
-        $db->delete('timber_item_state', ['timber_item_id' => $timberItemId], [UuidType::NAME]);
-        $db->delete('timber_items', ['id' => $timberItemId], [UuidType::NAME]);
-        if (!$item) {
-            return;
-        }
-
-        $hasChildren = (bool) $db->fetchOne(
-            'SELECT 1 FROM timber_item_events WHERE type = ? AND JSON_VALUE(data, ?) = ? LIMIT 1',
-            [EventType::Created->value, '$.parent_id', $timberItemId->toRfc4122()],
-        );
-        $db->insert('timber_items', [
-            'id' => $timberItemId,
-            'parent_id' => $item['parent_id'],
-            'tag_number' => $tagNumber,
-            'has_children' => $hasChildren,
-            'created_at' => $item['created_at'],
-            'created_by' => $item['created_by'],
-        ], [UuidType::NAME, UuidType::NAME, Types::STRING, Types::BOOLEAN, Types::DATETIME_IMMUTABLE, UuidType::NAME]);
-        foreach ($values as $attributeId => $records) {
-            $db->insert('timber_item_state', [
-                'timber_item_id' => $timberItemId,
-                'attribute_id' => Uuid::fromString($attributeId),
-                'value_records' => $records,
-            ], [UuidType::NAME, UuidType::NAME, Types::JSON]);
-        }
+        return ['item' => $item, 'tag_number' => $tagNumber, 'values' => $values];
     }
 }

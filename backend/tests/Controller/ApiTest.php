@@ -28,6 +28,10 @@ class ApiTest extends WebTestCase
     private const ITEM_123 = '9e12e819-ef6e-45c7-8801-494177724c56';
     private const HOLZART = '0847b35f-f94e-4f68-84c6-63426a5dcf77';
     private const HOLZFEUCHTE = 'd609577e-6b6c-42ce-8ad2-17729b975338';
+    private const FAELLDATUM = 'a6f6626b-71d8-4316-98f0-89c71a8e39a0';
+    private const LAGERPLATZ = '1903019a-8027-4e12-8bc1-e1db3e08f803';
+    private const TRAUBENEICHE = 'af0c94b3-caef-4a22-ac9d-32b76876a0d1';
+    private const STIELEICHE = '8b2b5909-3247-4abe-8604-08909006f9e9';
 
     private KernelBrowser $client;
     private EntityManagerInterface $em;
@@ -158,6 +162,7 @@ class ApiTest extends WebTestCase
             'voided from the app' => self::event('voided', $item, []),
             'missing recorded_at' => array_diff_key(self::event('tag_assigned', $item, ['tag_number' => '7']), ['recorded_at' => true]),
             'unknown item' => self::event('tag_assigned', Uuid::v4()->toRfc4122(), ['tag_number' => '7']),
+            'unknown parent' => self::event('created', Uuid::v4()->toRfc4122(), ['parent_id' => Uuid::v4()->toRfc4122()]),
         ];
 
         foreach ($invalid as $case => $event) {
@@ -218,17 +223,68 @@ class ApiTest extends WebTestCase
         self::assertStringContainsString('"values":{}', $this->client->getResponse()->getContent());
     }
 
+    public function testBeamInheritsInheritableValuesThroughAllLevelsAndItsOwnValueWins(): void
+    {
+        [$log, $beam, $beamOfBeam] = [Uuid::v4()->toRfc4122(), Uuid::v4()->toRfc4122(), Uuid::v4()->toRfc4122()];
+        $species = self::event('attribute_recorded', $log, ['attribute_id' => self::HOLZART, 'value' => self::TRAUBENEICHE], '2026-10-01T08:00:00.000Z');
+        $ownFellingDate = self::event('attribute_recorded', $beam, ['attribute_id' => self::FAELLDATUM, 'value' => '2026-02-02']);
+        $this->request('POST', '/api/sync', ['events' => [
+            self::event('created', $log, ['parent_id' => null]),
+            $species,
+            self::event('attribute_recorded', $log, ['attribute_id' => self::FAELLDATUM, 'value' => '2026-01-01']),
+            self::event('attribute_recorded', $log, ['attribute_id' => self::LAGERPLATZ, 'value' => '85c9b9d6-6714-4416-a91e-21efd4e4adfd']),
+            self::event('created', $beam, ['parent_id' => $log]),
+            $ownFellingDate,
+            self::event('created', $beamOfBeam, ['parent_id' => $beam]),
+        ]], 'Kerstin');
+        self::assertResponseIsSuccessful();
+
+        $inheritedSpecies = [['value' => self::TRAUBENEICHE, 'recorded_at' => '2026-10-01T08:00:00.000Z', 'user_id' => self::KERSTIN, 'event_id' => $species['id']]];
+        foreach ([$beam, $beamOfBeam] as $item) {
+            $values = $this->values($item);
+            self::assertEqualsCanonicalizing([self::HOLZART, self::FAELLDATUM], array_keys($values));
+            self::assertSame($inheritedSpecies, $values[self::HOLZART]);
+            self::assertSame($ownFellingDate['id'], $values[self::FAELLDATUM][0]['event_id']);
+        }
+    }
+
+    public function testInheritedValuesDoNotDependOnTheOrderInWhichParentAndBeamEventsArrive(): void
+    {
+        $beamValues = function (bool $parentValuesFirst): array {
+            [$log, $beam] = [Uuid::v4()->toRfc4122(), Uuid::v4()->toRfc4122()];
+            $parentValues = [
+                self::event('attribute_recorded', $log, ['attribute_id' => self::HOLZART, 'value' => self::TRAUBENEICHE]),
+                self::event('attribute_recorded', $log, ['attribute_id' => self::HOLZART, 'value' => self::STIELEICHE]),
+            ];
+            $beamEvents = [self::event('created', $beam, ['parent_id' => $log])];
+            $this->request('POST', '/api/sync', ['events' => [self::event('created', $log, ['parent_id' => null])]]);
+            foreach ($parentValuesFirst ? [$parentValues, $beamEvents] : [$beamEvents, $parentValues] as $events) {
+                $this->request('POST', '/api/sync', ['events' => $events]);
+                self::assertResponseIsSuccessful();
+            }
+
+            return array_map(static fn (array $records) => array_map(static fn (array $r) => array_diff_key($r, ['event_id' => true]), $records), $this->values($beam));
+        };
+
+        $values = $beamValues(true);
+        self::assertSame(self::STIELEICHE, $values[self::HOLZART][0]['value']);
+        self::assertSame($values, $beamValues(false));
+    }
+
     public function testRebuildGivesTheSameSnapshotAsTheLiveProjections(): void
     {
         $this->syncItem123();
         $this->request('POST', '/api/sync', self::fixture('sync-request'));
-        $beam = Uuid::v4()->toRfc4122();
+        [$beam, $beamOfBeam] = [Uuid::v4()->toRfc4122(), Uuid::v4()->toRfc4122()];
         $this->request('POST', '/api/sync', ['events' => [
             self::event('created', $beam, ['parent_id' => self::ITEM_123]),
             self::event('tag_assigned', $beam, ['tag_number' => '123-A']),
+            self::event('created', $beamOfBeam, ['parent_id' => $beam]),
+            self::event('attribute_recorded', self::ITEM_123, ['attribute_id' => self::HOLZART, 'value' => self::STIELEICHE]),
         ]]);
         $live = $this->request('GET', '/api/snapshot');
         self::assertTrue(array_column($live['timber_items'], 'has_children', 'id')[self::ITEM_123]);
+        self::assertSame(self::STIELEICHE, $this->values($beamOfBeam)[self::HOLZART][0]['value']);
 
         $tester = new CommandTester((new Application($this->client->getKernel()))->find('app:projections:rebuild'));
         self::assertSame(0, $tester->execute([]));
