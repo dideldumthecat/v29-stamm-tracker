@@ -39,7 +39,8 @@ describe('ChoiceAttributeField with inactive options', () => {
   it('still shows the label of an inactive recorded option', () => {
     const { wrapper, inactive } = setup(setupInactiveId())
     expect(wrapper.find('select').exists()).toBe(false)
-    expect(wrapper.text()).toContain(`${inactive.label} (deaktiviert)`)
+    expect(wrapper.find('.line-through').text()).toBe(inactive.label)
+    expect(wrapper.text()).toContain('(deaktiviert)')
   })
 
   it('keeps the recorded inactive option selectable-as-shown after unlocking, offers no other inactive one', async () => {

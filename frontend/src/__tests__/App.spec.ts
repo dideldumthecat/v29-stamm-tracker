@@ -213,11 +213,11 @@ describe('App', () => {
       const { wrapper } = await mountAt('/timber-item/123')
       const text = wrapper.text()
       // Lagerplatz is active, but its recorded option is not: the option is marked, the attribute is not.
-      expect(text).toContain('Waldweg Ost (deaktiviert)')
-      expect(text.match(/\(deaktiviert\)/g)).toHaveLength(1)
-      // Entlastungsschnitt is inactive and recorded: read-only with the hint next to the name (no brackets).
+      expect(text).toContain('Waldweg Ost')
+      // Entlastungsschnitt is inactive and recorded: read-only with the hint next to the name.
       expect(text).toContain('Entlastungsschnitt')
-      expect(text.match(/deaktiviert(?!\))/g)).toHaveLength(1)
+      // One hint for the option, one for the attribute.
+      expect(text.match(/\(deaktiviert\)/g)).toHaveLength(2)
       // Active values carry nothing.
       expect(text).toContain('Traubeneiche')
       expect(text).not.toContain('Traubeneiche (deaktiviert')

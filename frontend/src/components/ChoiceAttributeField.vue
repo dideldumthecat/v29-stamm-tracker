@@ -25,10 +25,9 @@ const selectId = useId()
 const labelOf = (option: AttributeOption) =>
   option.active ? option.label : `${option.label} (deaktiviert)`
 
-const recordedLabel = computed(() => {
-  const option = props.attribute.options.find((candidate) => candidate.id === current.value?.value)
-  return option && labelOf(option)
-})
+const recordedOption = computed(() =>
+  props.attribute.options.find((candidate) => candidate.id === current.value?.value),
+)
 
 // Inactive options are no longer offered. Exception: the recorded one, otherwise the unlocked
 // select would show nothing although a value exists.
@@ -53,7 +52,8 @@ function onChange(event: Event) {
     :name="attribute.name"
     :label-for="selectId"
     :record="current"
-    :locked-text="recordedLabel ?? ''"
+    :locked-text="recordedOption?.label ?? ''"
+    :locked-inactive="recordedOption !== undefined && !recordedOption.active"
     :readonly="readonly"
   >
     <!-- Native arrow removed (appearance-none) so the icon set's chevron can replace it. -->
@@ -67,7 +67,12 @@ function onChange(event: Event) {
         @change="onChange"
       >
         <option value="">{{ attribute.name }} wählen …</option>
-        <option v-for="option in sortedOptions" :key="option.id" :value="option.id">
+        <option
+          v-for="option in sortedOptions"
+          :key="option.id"
+          :value="option.id"
+          :class="{ 'line-through': !option.active }"
+        >
           {{ labelOf(option) }}
         </option>
       </select>
