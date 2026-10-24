@@ -57,6 +57,7 @@ function onChange(event: Event) {
     :locked-text="recordedOption?.label ?? ''"
     :locked-inactive="recordedOption !== undefined && !recordedOption.active"
     :readonly="readonly"
+    :inactive="!attribute.active"
     :inherited="inherited"
   >
     <!-- Native arrow removed (appearance-none) so the icon set's chevron can replace it. -->

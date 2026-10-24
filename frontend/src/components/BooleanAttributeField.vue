@@ -10,7 +10,7 @@ const props = defineProps<{
   attribute: Attribute
   // Recordings for this attribute from the timber item, if any (always an array, oldest first).
   recorded: AttributeValueRecord[] | undefined
-  // Inactive attribute: shows the recorded value, but no pencil.
+  // No pencil and no input: inactive attribute, or a stem split into beams.
   readonly?: boolean
   // Beam only: the value comes from the parent (shown as a hint, still overwritable).
   inherited?: boolean
@@ -55,8 +55,8 @@ function toggle() {
       </span>
       <span v-else class="size-[30px] rounded-md border-2 border-lockline"></span>
       <span class="min-w-0 flex-1">
-        <span :class="{ 'line-through': readonly }">{{ attribute.name }}</span
-        >{{ current?.value ? '' : ': Nein' }} <InactiveHint v-if="readonly" class="block"
+        <span :class="{ 'line-through': !attribute.active }">{{ attribute.name }}</span
+        >{{ current?.value ? '' : ': Nein' }} <InactiveHint v-if="!attribute.active" class="block"
       /></span>
       <button
         v-if="!readonly"

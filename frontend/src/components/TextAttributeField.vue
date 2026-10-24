@@ -14,7 +14,7 @@ const props = defineProps<{
   attribute: Attribute
   // Recordings for this attribute from the timber item, if any (always an array, oldest first).
   recorded: AttributeValueRecord[] | undefined
-  // Inactive attribute: shows what was recorded, no input.
+  // No pencil and no input: inactive attribute, or a stem split into beams.
   readonly?: boolean
   // Beam only: the value comes from the parent (shown as a hint, still overwritable).
   inherited?: boolean
@@ -45,6 +45,7 @@ function onInput(event: Event) {
     :record="attribute.is_series ? undefined : current"
     :locked-text="currentText"
     :readonly="readonly"
+    :inactive="!attribute.active"
     :inherited="inherited"
   >
     <div v-if="attribute.is_series && entries.length > 0" class="flex flex-col">

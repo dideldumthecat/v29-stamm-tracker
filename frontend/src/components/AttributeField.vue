@@ -21,8 +21,10 @@ const props = defineProps<{
   lockedText?: string
   // The recorded option is inactive: struck through and marked.
   lockedInactive?: boolean
-  // Inactive attribute: shown for the value already recorded, but no pencil and no input.
+  // No pencil and no input: inactive attribute, or a stem split into beams.
   readonly?: boolean
+  // Inactive attribute: name struck through and marked.
+  inactive?: boolean
   // Beam only: the value comes from the parent (shown as a hint, still overwritable).
   inherited?: boolean
 }>()
@@ -40,8 +42,8 @@ const isLocked = computed(() => props.record !== undefined && (props.readonly ||
     class="flex flex-col gap-2.5 border-t border-line bg-locked py-3.5 px-gutter text-mute *:max-w-full *:min-w-0"
   >
     <span class="flex items-baseline gap-2 text-[17px] font-bold">
-      <span :class="{ 'line-through': readonly }">{{ name }}</span
-      ><InactiveHint v-if="readonly"
+      <span :class="{ 'line-through': inactive }">{{ name }}</span
+      ><InactiveHint v-if="inactive"
     /></span>
     <div class="flex min-h-[52px] items-center gap-3 rounded-lg border-2 border-lockline pl-3">
       <span class="min-w-0 flex-1 wrap-anywhere whitespace-pre-line"
@@ -70,8 +72,8 @@ const isLocked = computed(() => props.record !== undefined && (props.readonly ||
   >
     <div class="flex items-center justify-between gap-2 text-[17px] font-bold">
       <span v-if="readonly" class="flex items-baseline gap-2"
-        ><span class="line-through">{{ name }}</span
-        ><InactiveHint
+        ><span :class="{ 'line-through': inactive }">{{ name }}</span
+        ><InactiveHint v-if="inactive"
       /></span>
       <label v-else :for="labelFor">{{ name }}</label>
     </div>

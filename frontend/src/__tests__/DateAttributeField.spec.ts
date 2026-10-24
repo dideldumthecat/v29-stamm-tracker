@@ -41,14 +41,18 @@ describe('DateAttributeField', () => {
     expect((wrapper.find('input').element as HTMLInputElement).value).toBe('2026-09-28')
   })
 
-  it('marks a read-only (inactive) attribute – the hint comes from AttributeField', () => {
+  it('marks an inactive attribute – the hint comes from AttributeField', () => {
     const store = useTimberItemStore()
     const attribute = store.attributes.find((candidate) => candidate.type === 'date')!
     const props = { attribute, recorded: store.findByTagNumber(123)?.values[attribute.id] }
     expect(mount(DateAttributeField, { props }).text()).not.toContain('deaktiviert')
 
-    const readonly = mount(DateAttributeField, { props: { ...props, readonly: true } })
-    expect(readonly.text()).toContain('deaktiviert')
-    expect(readonly.find('button').exists()).toBe(false)
+    // Read-only on a split stem: no pencil, but not marked inactive.
+    const split = mount(DateAttributeField, { props: { ...props, readonly: true } })
+    expect(split.text()).not.toContain('deaktiviert')
+    expect(split.find('button').exists()).toBe(false)
+
+    const inactive = { ...props, attribute: { ...attribute, active: false }, readonly: true }
+    expect(mount(DateAttributeField, { props: inactive }).text()).toContain('deaktiviert')
   })
 })
