@@ -30,6 +30,7 @@ class TimberItemEvent
      * @param Uuid                 $timberItemId no foreign key: timber_items is a projection of these events
      * @param array<string, mixed> $data         payload per type, see Event in contract.ts
      * @param Uuid|null            $referenceId  the event a "corrected" or "voided" event refers to
+     * @param \DateTimeImmutable   $receivedAt   strictly increasing within a sync, see SyncController
      */
     public function __construct(
         #[ORM\Id]
@@ -49,7 +50,8 @@ class TimberItemEvent
         public readonly User $user,
         #[ORM\Column(type: UuidType::NAME, nullable: true)]
         public readonly ?Uuid $referenceId = null,
+        \DateTimeImmutable $receivedAt = new \DateTimeImmutable(),
     ) {
-        $this->receivedAt = new \DateTimeImmutable();
+        $this->receivedAt = $receivedAt;
     }
 }
