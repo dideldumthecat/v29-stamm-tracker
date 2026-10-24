@@ -49,6 +49,11 @@ final class SyncController extends AbstractController
             $event = $this->parse($event, $user, $receivedAt->modify('+'.\count($new).' microseconds'), $index);
             $itemId = $event->timberItemId->toRfc4122();
             if (EventType::Created === $event->type) {
+                // Also keeps parent chains free of cycles, which the recursive inheritance in the projector relies on.
+                $parentId = $event->data['parent_id'];
+                if ($parentId && !($existingItems[$parentId] ??= null !== $this->em->find(TimberItem::class, Uuid::fromString($parentId)))) {
+                    throw new BadRequestHttpException(\sprintf('events[%d]: unknown parent timber item.', $index));
+                }
                 $existingItems[$itemId] = true;
             } elseif (!($existingItems[$itemId] ??= null !== $this->em->find(TimberItem::class, $event->timberItemId))) {
                 throw new BadRequestHttpException(\sprintf('events[%d]: unknown timber item without a preceding created event.', $index));
