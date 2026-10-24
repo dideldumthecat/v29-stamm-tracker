@@ -6,7 +6,7 @@ import {
   useRouter,
   type RouteLocationRaw,
 } from 'vue-router'
-import { ChevronRightIcon, PlusIcon, XIcon } from '@lucide/vue'
+import { ChevronRightIcon, PlusIcon, Trash2Icon } from '@lucide/vue'
 import { useTimberItemStore, type TimberItem } from '@/stores/timberItems'
 import type { AttributeValue } from '@/api/contract'
 import { collectDraft, formatValue, type DraftInput } from '@/utils/attributeDraft'
@@ -267,11 +267,11 @@ function onDiscard() {
           <button
             v-if="store.canRemove(beam.id)"
             type="button"
-            class="flex size-9 shrink-0 items-center justify-center rounded-md border-2 border-ink bg-paper text-ink"
+            class="flex size-11 shrink-0 items-center justify-center rounded-md border-2 border-ink bg-paper text-ink"
             :aria-label="`Balken ${beam.tag_number} entfernen`"
             @click="beamToRemove = beam"
           >
-            <XIcon :size="16" :stroke-width="2.5" aria-hidden="true" />
+            <Trash2Icon :size="20" :stroke-width="2.5" aria-hidden="true" />
           </button>
         </div>
       </div>
@@ -365,9 +365,10 @@ function onDiscard() {
     <section v-if="item && store.canRemove(item.id)" class="py-3.5 px-gutter">
       <button
         type="button"
-        class="h-14 w-full rounded-lg border-2 border-ink bg-paper text-[17px] font-bold"
+        class="flex h-14 w-full items-center justify-center gap-2 rounded-lg border-2 border-ink bg-paper text-[17px] font-bold"
         @click="beamToRemove = item"
       >
+        <Trash2Icon :size="22" :stroke-width="2.5" aria-hidden="true" />
         Balken entfernen
       </button>
     </section>
