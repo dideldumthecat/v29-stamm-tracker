@@ -117,7 +117,7 @@ function remove(index: number) {
         <strong>{{ withUnit(record.value) }}</strong>
         <span class="text-right text-[13px] text-mute"
           >{{ formatShortDate(record.recorded_at) }} · {{ store.userName(record.user_id)
-          }}{{ inherited ? " · vom Stamm" : "" }}</span
+          }}{{ inherited ? ' · vom Stamm' : '' }}</span
         >
       </div>
     </div>

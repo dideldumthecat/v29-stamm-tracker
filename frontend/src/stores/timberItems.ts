@@ -42,7 +42,8 @@ export const useTimberItemStore = defineStore('timberItems', () => {
   const unsynced = ref(new Map<string, number>())
 
   const findById = (id: string | null) => items.value.find((item) => item.id === id)
-  const lastEventId = (records: AttributeValueRecord[] | undefined) => records?.at(-1)?.event_id
+  const lastEventId = (records: AttributeValueRecord[] | undefined) =>
+    records?.slice(-1)[0]?.event_id
 
   // The snapshot delivers beams with their inherited values (as timber_item_state does).
   // Strip those, so a parent changed offline is followed by its beams.

@@ -25,3 +25,36 @@ test('stamm screen has no horizontal scroll and equal date/choice fields', async
   expect(d!.height).toBeCloseTo(52, 0)
   expect(c!.height).toBeCloseTo(52, 0)
 })
+
+// Flow: create a stem, record an inheritable value, add a beam, see it inherited, override it.
+test('beam inherits a stem value and can override it', async ({ page }) => {
+  await page.goto('/')
+  for (const digit of '1777') {
+    await page.getByRole('button', { name: digit, exact: true }).click()
+  }
+  await page.getByRole('button', { name: /öffnen/i }).click()
+
+  const holzart = page.getByLabel('Holzart')
+  await holzart.selectOption({ label: 'Traubeneiche' })
+  await page.getByRole('button', { name: 'Stamm anlegen & speichern' }).click()
+  await expect(page.getByText('Traubeneiche')).toBeVisible()
+
+  await page.getByRole('button', { name: 'Balken hinzufügen' }).click()
+  await expect(page.locator('h1')).toContainText('BALKEN')
+  await expect(page.locator('h1')).toContainText('01777-A')
+  const holzartField = page.locator('section', { hasText: 'Holzart' }).first()
+  await expect(holzartField).toContainText('Traubeneiche')
+  await expect(holzartField).toContainText('vom Stamm')
+
+  await page.getByRole('button', { name: 'Holzart ändern' }).click()
+  await page.getByLabel('Holzart').selectOption({ label: 'Stieleiche' })
+  await page.getByRole('button', { name: 'Speichern', exact: true }).click()
+  await expect(holzartField).toContainText('Stieleiche')
+  await expect(holzartField).not.toContainText('vom Stamm')
+
+  // The stem lists the beam and is read-only now.
+  await page.getByRole('link', { name: /Aus Stamm/ }).click()
+  await expect(page.getByRole('link', { name: '01777-A' })).toBeVisible()
+  await expect(page.getByText('In Balken aufgeteilt')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Holzart ändern' })).toHaveCount(0)
+})
