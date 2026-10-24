@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, useId } from 'vue'
+import { ChevronDownIcon } from '@lucide/vue'
 import type { Attribute, AttributeOption, AttributeValueRecord } from '@/stores/timberItems'
 import AttributeField from '@/components/AttributeField.vue'
 import { bySortOrder } from '@/utils/sort'
@@ -55,18 +56,25 @@ function onChange(event: Event) {
     :locked-text="recordedLabel ?? ''"
     :readonly="readonly"
   >
-    <!-- Muted text while nothing is selected, like a placeholder. -->
-    <select
-      :id="selectId"
-      class="h-[52px] w-full rounded-lg border-2 border-ink bg-paper px-3 font-semibold"
-      :class="selectedOptionId === '' ? 'text-mute' : 'text-ink'"
-      :value="selectedOptionId"
-      @change="onChange"
-    >
-      <option value="">{{ attribute.name }} wählen …</option>
-      <option v-for="option in sortedOptions" :key="option.id" :value="option.id">
-        {{ labelOf(option) }}
-      </option>
-    </select>
+    <!-- Native arrow removed (appearance-none) so the icon set's chevron can replace it. -->
+    <div class="relative">
+      <!-- Muted text while nothing is selected, like a placeholder. -->
+      <select
+        :id="selectId"
+        class="h-[52px] w-full appearance-none rounded-lg border-2 border-ink bg-paper pr-12 pl-3 font-semibold"
+        :class="selectedOptionId === '' ? 'text-mute' : 'text-ink'"
+        :value="selectedOptionId"
+        @change="onChange"
+      >
+        <option value="">{{ attribute.name }} wählen …</option>
+        <option v-for="option in sortedOptions" :key="option.id" :value="option.id">
+          {{ labelOf(option) }}
+        </option>
+      </select>
+      <ChevronDownIcon
+        class="pointer-events-none absolute top-1/2 right-3 size-6 -translate-y-1/2 text-ink"
+        aria-hidden="true"
+      />
+    </div>
   </AttributeField>
 </template>
