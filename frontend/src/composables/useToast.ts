@@ -10,6 +10,8 @@ export interface ToastMessage {
 }
 
 const TOAST_DURATION_MS = 1500
+// Slide-in time of the <Transition> in AppToast; the display time starts once the toast is fully out.
+const TOAST_ENTER_MS = 200
 
 // Module-level state: one toast for the whole app, shown by <AppToast /> in App.vue.
 const current = ref<ToastMessage | null>(null)
@@ -18,8 +20,10 @@ let hideTimer: ReturnType<typeof setTimeout> | undefined
 export function useToast() {
   function show(message: ToastMessage) {
     clearTimeout(hideTimer)
+    // Already visible: only the text changes, nothing slides in again.
+    const delay = current.value ? TOAST_DURATION_MS : TOAST_ENTER_MS + TOAST_DURATION_MS
     current.value = message
-    hideTimer = setTimeout(hide, TOAST_DURATION_MS)
+    hideTimer = setTimeout(hide, delay)
   }
 
   function hide() {

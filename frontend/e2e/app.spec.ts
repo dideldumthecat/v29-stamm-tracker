@@ -50,7 +50,7 @@ test('beam inherits a stem value and can override it', async ({ page }) => {
   await page.getByRole('button', { name: 'Balken 01777-A hinzufügen' }).click()
   await expect(page.locator('a[href="/timber-item/1777-A"]')).toBeVisible()
   await expect(page.locator('h1')).toContainText('STAMM')
-  await expect(page.locator('body > [role="status"]')).toHaveCount(0)
+  await expect(page.locator('body > div > [role="status"]')).toHaveCount(0)
   await page.locator('a[href="/timber-item/1777-A"]').click()
   await expect(page.locator('h1')).toContainText('BALKEN')
   await expect(page.locator('h1')).toContainText('01777-A')
