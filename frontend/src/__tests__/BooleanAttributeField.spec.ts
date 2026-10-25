@@ -52,6 +52,14 @@ describe('BooleanAttributeField', () => {
     expect(wrapper.emitted('update:modelValue')).toEqual([[false]])
   })
 
+  it('shows the description locked and unlocked', () => {
+    for (const tagNumber of [789, null]) {
+      const { wrapper, attribute } = setup(tagNumber)
+      expect(attribute.description).not.toBe('')
+      expect(wrapper.text()).toContain(attribute.description)
+    }
+  })
+
   it('does not lock an item without a recorded value', () => {
     const { wrapper } = setup(456)
     expect(wrapper.find('button[aria-pressed]').exists()).toBe(true)

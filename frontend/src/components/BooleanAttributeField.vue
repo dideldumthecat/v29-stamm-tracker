@@ -68,6 +68,9 @@ function toggle() {
         <PencilIcon :size="22" aria-hidden="true" />
       </button>
     </div>
+    <p v-if="attribute.description" class="text-sm leading-[1.4] text-body">
+      {{ attribute.description }}
+    </p>
     <span v-if="current" class="text-[13px] text-mute"
       >{{ formatShortDate(current.recorded_at) }} · {{ store.userName(current.user_id)
       }}{{ inherited ? ' · vom Stamm' : '' }}</span

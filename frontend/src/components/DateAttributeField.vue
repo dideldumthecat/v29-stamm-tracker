@@ -35,6 +35,8 @@ function onInput(event: Event) {
 <template>
   <AttributeField
     :name="attribute.name"
+    :description="attribute.description"
+    description-above
     :label-for="inputId"
     :record="current"
     :locked-text="recordedText"
