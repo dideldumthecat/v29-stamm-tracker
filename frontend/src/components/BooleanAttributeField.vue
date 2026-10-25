@@ -83,7 +83,7 @@ function toggle() {
   >
     <button
       type="button"
-      class="group flex min-h-[60px] w-full items-center gap-3.5 rounded-lg border-2 border-ink bg-paper px-3.5 text-left text-[17px] font-bold active:bg-ink active:text-paper"
+      class="group flex min-h-[60px] w-full items-center gap-3.5 rounded-lg border-2 border-ink bg-paper px-3.5 text-left text-[17px] font-bold active:bg-ink active:text-paper active:opacity-100"
       :aria-pressed="isChecked"
       @click="toggle"
     >
