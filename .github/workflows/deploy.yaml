@@ -1,0 +1,67 @@
+name: Deploy
+
+# Manual only: main receives many small commits, and every deploy runs migrations against the live database.
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: IONOS
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # --no-scripts: the Symfony auto-scripts would clear the cache in the dev environment,
+      # whose bundles are missing without dev dependencies. The cache is cleared on the server instead.
+      - name: Install Composer dependencies
+        working-directory: backend
+        run: composer install --no-dev --optimize-autoloader --no-scripts --no-interaction
+
+      # The build includes the type check and copies the app into backend/public.
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Prepare SSH
+        env:
+          KNOWN_HOST_KEY: ${{ secrets.KNOWN_HOST_KEY }}
+          SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+        run: |
+          echo "$KNOWN_HOST_KEY" > known_hosts
+          chmod 644 known_hosts
+          echo "$SSH_PRIVATE_KEY" > key.pem
+          chmod 600 key.pem
+
+      - name: Upload and migrate
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
+          REMOTE_PATH: ${{ secrets.REMOTE_PATH }}
+          # `php` alone is PHP 4.4 on IONOS; the path depends on the contract date (php8.4-cli or php8.4).
+          PHP_BIN: ${{ vars.PHP_BIN }}
+        run: |
+          SSH="ssh -i key.pem -o UserKnownHostsFile=known_hosts"
+          # --delete keeps the server in step with the repo; .rsync-exclude protects .env.local and var/.
+          rsync -avz --delete --exclude-from='.rsync-exclude' -e "$SSH" backend/ "$SSH_USERNAME@$SSH_HOST:$REMOTE_PATH/"
+          $SSH "$SSH_USERNAME@$SSH_HOST" "cd $REMOTE_PATH && $PHP_BIN bin/console cache:clear && $PHP_BIN bin/console doctrine:migrations:migrate --no-interaction --allow-no-migration"
+
+      - name: Clean up
+        if: always()
+        run: rm -f key.pem known_hosts
