@@ -5,8 +5,6 @@ export interface ToastMessage {
   before: string
   tagNumber?: number | string
   after?: string
-  // A second sentence, joined with " · " (e.g. "Stamm … gespeichert · Balken … angelegt").
-  more?: Omit<ToastMessage, 'more' | 'kind'>
   // Success unless stated otherwise; decides the icon.
   kind?: 'success' | 'warning'
 }
