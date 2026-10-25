@@ -18,7 +18,7 @@ const emit = defineEmits<{
       v-for="digit in digits"
       :key="digit"
       type="button"
-      class="flex touch-manipulation items-center justify-center rounded-[10px] border-2 border-ink bg-well text-3xl font-semibold active:bg-ink active:text-paper"
+      class="flex touch-manipulation items-center justify-center rounded-[10px] border-2 border-ink bg-well text-3xl font-semibold active:bg-ink active:text-paper active:opacity-100"
       @click="emit('digit', digit)"
     >
       {{ digit }}
@@ -26,21 +26,21 @@ const emit = defineEmits<{
 
     <button
       type="button"
-      class="flex touch-manipulation items-center justify-center rounded-[10px] border-2 border-ink bg-paper text-base font-semibold active:bg-ink active:text-paper"
+      class="flex touch-manipulation items-center justify-center rounded-[10px] border-2 border-ink bg-paper text-base font-semibold active:bg-ink active:text-paper active:opacity-100"
       @click="emit('clear')"
     >
       Leeren
     </button>
     <button
       type="button"
-      class="flex touch-manipulation items-center justify-center rounded-[10px] border-2 border-ink bg-well text-3xl font-semibold active:bg-ink active:text-paper"
+      class="flex touch-manipulation items-center justify-center rounded-[10px] border-2 border-ink bg-well text-3xl font-semibold active:bg-ink active:text-paper active:opacity-100"
       @click="emit('digit', '0')"
     >
       0
     </button>
     <button
       type="button"
-      class="flex touch-manipulation items-center justify-center rounded-[10px] border-2 border-ink bg-paper text-base font-semibold active:bg-ink active:text-paper"
+      class="flex touch-manipulation items-center justify-center rounded-[10px] border-2 border-ink bg-paper text-base font-semibold active:bg-ink active:text-paper active:opacity-100"
       aria-label="Letzte Ziffer löschen"
       @click="emit('delete')"
     >

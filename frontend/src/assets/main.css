@@ -72,6 +72,12 @@
   button {
     cursor: pointer; /* Tailwind 4 defaults buttons to the regular arrow cursor */
   }
+  /* Pressed feedback for every tappable element (touch needs the listener in main.ts).
+     Base layer: a component's own active: classes (e.g. the inverted keypad keys) win. */
+  button:not(:disabled):active,
+  a:active {
+    opacity: 0.6;
+  }
   :focus-visible {
     outline: 3px solid var(--color-ink);
     outline-offset: 2px;
