@@ -28,7 +28,8 @@ class ApiTest extends WebTestCase
     private const ITEM_123 = '9e12e819-ef6e-45c7-8801-494177724c56';
     private const HOLZART = '0847b35f-f94e-4f68-84c6-63426a5dcf77';
     private const HOLZFEUCHTE = 'd609577e-6b6c-42ce-8ad2-17729b975338';
-    private const FAELLDATUM = 'a6f6626b-71d8-4316-98f0-89c71a8e39a0';
+    private const LIEFERDATUM = 'a6f6626b-71d8-4316-98f0-89c71a8e39a0';
+    private const FAELLDATUM = 'a222dbf7-15cd-44cd-92c9-18969c610238';
     private const LAGERPLATZ = '1903019a-8027-4e12-8bc1-e1db3e08f803';
     private const TRAUBENEICHE = 'af0c94b3-caef-4a22-ac9d-32b76876a0d1';
     private const STIELEICHE = '8b2b5909-3247-4abe-8604-08909006f9e9';
@@ -157,7 +158,9 @@ class ApiTest extends WebTestCase
         $invalid = [
             'option of another attribute' => self::event('attribute_recorded', $item, ['attribute_id' => self::HOLZART, 'value' => $lagerplatzOption]),
             'text for a number' => self::event('attribute_recorded', $item, ['attribute_id' => self::HOLZFEUCHTE, 'value' => '41']),
-            'malformed date' => self::event('attribute_recorded', $item, ['attribute_id' => 'a6f6626b-71d8-4316-98f0-89c71a8e39a0', 'value' => '2026-02-30']),
+            'malformed date' => self::event('attribute_recorded', $item, ['attribute_id' => self::LIEFERDATUM, 'value' => '2026-02-30']),
+            'malformed month' => self::event('attribute_recorded', $item, ['attribute_id' => self::FAELLDATUM, 'value' => '2026-13']),
+            'date for a month' => self::event('attribute_recorded', $item, ['attribute_id' => self::FAELLDATUM, 'value' => '2026-10-01']),
             'unknown attribute' => self::event('attribute_recorded', $item, ['attribute_id' => Uuid::v4()->toRfc4122(), 'value' => true]),
             'voided from the app' => self::event('voided', $item, []),
             'missing recorded_at' => array_diff_key(self::event('tag_assigned', $item, ['tag_number' => '7']), ['recorded_at' => true]),
@@ -171,6 +174,17 @@ class ApiTest extends WebTestCase
             self::assertSame(0, $this->eventCount(), $case);
         }
         self::assertSame([], $this->request('GET', '/api/snapshot')['timber_items']);
+    }
+
+    public function testMonthValueIsAccepted(): void
+    {
+        $item = Uuid::v4()->toRfc4122();
+        $this->request('POST', '/api/sync', ['events' => [
+            self::event('created', $item, ['parent_id' => null]),
+            self::event('attribute_recorded', $item, ['attribute_id' => self::FAELLDATUM, 'value' => '2026-10']),
+        ]]);
+        self::assertResponseIsSuccessful();
+        self::assertSame('2026-10', $this->values($item)[self::FAELLDATUM][0]['value']);
     }
 
     public function testTheLaterOfTwoValuesInOneRequestWinsRegardlessOfDeviceTime(): void
@@ -227,14 +241,14 @@ class ApiTest extends WebTestCase
     {
         [$log, $beam, $beamOfBeam] = [Uuid::v4()->toRfc4122(), Uuid::v4()->toRfc4122(), Uuid::v4()->toRfc4122()];
         $species = self::event('attribute_recorded', $log, ['attribute_id' => self::HOLZART, 'value' => self::TRAUBENEICHE], '2026-10-01T08:00:00.000Z');
-        $ownFellingDate = self::event('attribute_recorded', $beam, ['attribute_id' => self::FAELLDATUM, 'value' => '2026-02-02']);
+        $ownDeliveryDate = self::event('attribute_recorded', $beam, ['attribute_id' => self::LIEFERDATUM, 'value' => '2026-02-02']);
         $this->request('POST', '/api/sync', ['events' => [
             self::event('created', $log, ['parent_id' => null]),
             $species,
-            self::event('attribute_recorded', $log, ['attribute_id' => self::FAELLDATUM, 'value' => '2026-01-01']),
+            self::event('attribute_recorded', $log, ['attribute_id' => self::LIEFERDATUM, 'value' => '2026-01-01']),
             self::event('attribute_recorded', $log, ['attribute_id' => self::LAGERPLATZ, 'value' => '85c9b9d6-6714-4416-a91e-21efd4e4adfd']),
             self::event('created', $beam, ['parent_id' => $log]),
-            $ownFellingDate,
+            $ownDeliveryDate,
             self::event('created', $beamOfBeam, ['parent_id' => $beam]),
         ]], 'Kerstin');
         self::assertResponseIsSuccessful();
@@ -242,9 +256,9 @@ class ApiTest extends WebTestCase
         $inheritedSpecies = [['value' => self::TRAUBENEICHE, 'recorded_at' => '2026-10-01T08:00:00.000Z', 'user_id' => self::KERSTIN, 'event_id' => $species['id']]];
         foreach ([$beam, $beamOfBeam] as $item) {
             $values = $this->values($item);
-            self::assertEqualsCanonicalizing([self::HOLZART, self::FAELLDATUM], array_keys($values));
+            self::assertEqualsCanonicalizing([self::HOLZART, self::LIEFERDATUM], array_keys($values));
             self::assertSame($inheritedSpecies, $values[self::HOLZART]);
-            self::assertSame($ownFellingDate['id'], $values[self::FAELLDATUM][0]['event_id']);
+            self::assertSame($ownDeliveryDate['id'], $values[self::LIEFERDATUM][0]['event_id']);
         }
     }
 

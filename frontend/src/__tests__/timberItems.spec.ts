@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { useTimberItemStore } from '@/stores/timberItems'
 
-// Fixture: stem 789 with Holzart, Fälldatum, Gesägt; beam 789-A inherits Holzart and Fälldatum,
-// beam 789-B inherits Holzart but has its own Fälldatum.
+// Fixture: stem 789 with Holzart, Lieferdatum, Gesägt; beam 789-A inherits Holzart and Lieferdatum,
+// beam 789-B inherits Holzart but has its own Lieferdatum.
 const attributeId = (name: string) =>
   useTimberItemStore().attributes.find((attribute) => attribute.name === name)!.id
 
@@ -26,8 +26,8 @@ describe('timber item store: beams and inheritance', () => {
   it('lets an own value win and never inherits non-inheritable attributes', () => {
     const store = useTimberItemStore()
     const beam = store.findByTag('789-B')!
-    expect(beam.values[attributeId('Fälldatum')]![0]!.value).toBe('2026-10-01')
-    expect(store.isInherited(beam.id, attributeId('Fälldatum'))).toBe(false)
+    expect(beam.values[attributeId('Lieferdatum')]![0]!.value).toBe('2026-10-01')
+    expect(store.isInherited(beam.id, attributeId('Lieferdatum'))).toBe(false)
 
     const stem = store.createTimberItem(5)
     store.recordAttribute(stem.id, attributeId('Lagerplatz'), 'any-option')

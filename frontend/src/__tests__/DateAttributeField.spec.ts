@@ -4,7 +4,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import DateAttributeField from '@/components/DateAttributeField.vue'
 import { useTimberItemStore } from '@/stores/timberItems'
 
-// Item 123 has Fälldatum 2026-09-28 recorded (by Kerstin, 02.10.); item 456 has nothing.
+// Item 123 has Lieferdatum 2026-09-28 recorded (by Kerstin, 02.10.); item 456 has nothing.
 function setup(tagNumber: number) {
   const store = useTimberItemStore()
   const attribute = store.attributes.find((candidate) => candidate.type === 'date')!

@@ -14,6 +14,8 @@ export type Uuid = string
 export type Timestamp = string
 /** Calendar date without time, e.g. "2026-09-28". */
 export type CalendarDate = string
+/** Calendar month without day, e.g. "2026-10". */
+export type CalendarMonth = string
 
 // --- Status codes (all endpoints) ---------------------------------------------
 // 200 OK
@@ -46,7 +48,7 @@ export interface Snapshot {
   timber_items: TimberItem[]
 }
 
-export type AttributeType = 'boolean' | 'choice' | 'number' | 'text' | 'date' | 'photo'
+export type AttributeType = 'boolean' | 'choice' | 'number' | 'text' | 'date' | 'month' | 'photo'
 
 export interface Attribute {
   id: Uuid
@@ -98,7 +100,7 @@ export interface AttributeValueRecord {
 }
 
 /** boolean → true/false, choice → option id (never the label), number → number,
- *  text → string, date → CalendarDate, photo → photo id. */
+ *  text → string, date → CalendarDate, month → CalendarMonth, photo → photo id. */
 export type AttributeValue = boolean | number | string
 
 // --- POST /api/sync ----------------------------------------------------------
