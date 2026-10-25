@@ -7,25 +7,40 @@ const { current } = useToast()
 </script>
 
 <template>
-  <!-- Not clickable (pointer-events-none): taps go through to the content below. -->
+  <!-- Not clickable (pointer-events-none): taps go through to the content below.
+       The wrapper starts at the header's lower edge and clips, so the toast slides out from under
+       the header without being drawn over it. Same width as the header: the app frame including its
+       transparent stand-in for the frame's side borders. Bottom padding keeps the shadow from being clipped. -->
   <Teleport to="body">
     <div
-      v-if="current"
-      class="pointer-events-none fixed top-1/2 left-1/2 z-60 flex w-[calc(100%-32px)] max-w-[398px] -translate-1/2 items-center gap-3 rounded-lg border-2 border-ink bg-paper px-4 py-3.5 text-xl leading-[1.3] font-semibold text-ink shadow-lg select-none"
-      role="status"
+      class="pointer-events-none fixed inset-x-0 top-[calc(var(--spacing-header)+env(safe-area-inset-top,0px))] z-60 mx-auto max-w-[430px] overflow-hidden pb-4 min-[480px]:border-x min-[480px]:border-transparent"
     >
-      <TriangleAlertIcon
-        v-if="current.kind === 'warning'"
-        class="shrink-0"
-        :size="28"
-        aria-hidden="true"
-      />
-      <CircleCheckIcon v-else class="shrink-0" :size="28" aria-hidden="true" />
-      <span class="min-w-0 flex-1"
-        >{{ current.before }}
-        <FormattedTag v-if="current.tagNumber !== undefined" :tag-number="current.tagNumber" />
-        {{ current.after }}</span
+      <!-- Durations match TOAST_ENTER_MS in useToast. No key: a new message swaps the text in place. -->
+      <Transition
+        enter-active-class="transition duration-200 ease-out"
+        leave-active-class="transition duration-150 ease-in"
+        enter-from-class="-translate-y-full motion-reduce:translate-y-0 motion-reduce:opacity-0"
+        leave-to-class="-translate-y-full motion-reduce:translate-y-0 motion-reduce:opacity-0"
       >
+        <div
+          v-if="current"
+          class="flex items-center gap-3 rounded-b-lg border-2 border-t-0 border-ink bg-paper py-3.5 px-gutter text-xl leading-[1.3] font-semibold text-ink shadow-lg select-none"
+          role="status"
+        >
+          <TriangleAlertIcon
+            v-if="current.kind === 'warning'"
+            class="shrink-0"
+            :size="28"
+            aria-hidden="true"
+          />
+          <CircleCheckIcon v-else class="shrink-0" :size="28" aria-hidden="true" />
+          <span class="min-w-0 flex-1"
+            >{{ current.before }}
+            <FormattedTag v-if="current.tagNumber !== undefined" :tag-number="current.tagNumber" />
+            {{ current.after }}</span
+          >
+        </div>
+      </Transition>
     </div>
   </Teleport>
 </template>

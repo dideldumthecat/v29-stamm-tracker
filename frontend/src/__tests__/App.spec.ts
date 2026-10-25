@@ -14,7 +14,11 @@ async function mountAt(path: string) {
   const router = createRouter({ history: createMemoryHistory(), routes })
   router.push(path)
   await router.isReady()
-  const wrapper = mount(App, { global: { plugins: [router] }, attachTo: document.body })
+  const wrapper = mount(App, {
+    // Real <Transition>: the stub would wrap the toast in an extra element.
+    global: { plugins: [router], stubs: { transition: false } },
+    attachTo: document.body,
+  })
   await flushPromises()
   mounted.push(wrapper)
   return { wrapper, router }
@@ -31,7 +35,7 @@ describe('App', () => {
   // Unmount first: the toast state is global, a leftover app would re-render into the cleared body.
   afterEach(() => {
     mounted.splice(0).forEach((wrapper) => wrapper.unmount())
-    // Saving shows a toast for 1.5 s; it must not leak into the next test.
+    // Saving shows a toast for 1.7 s; it must not leak into the next test.
     useToast().hide()
   })
 
@@ -92,23 +96,54 @@ describe('App', () => {
     expect(saveButton(unknown.wrapper).disabled).toBe(false)
   })
 
-  it('shows a toast in the centre that lets taps through and hides after 1.5 s', async () => {
+  it('shows a toast below the header that lets taps through and hides after 1.5 s', async () => {
     vi.useFakeTimers()
     try {
       const { wrapper } = await mountAt('/timber-item/42')
       await wrapper.find('button.bg-ink.text-lg').trigger('click')
       await flushPromises()
-      // Teleported to the end of <body>; TimberItemStatus also has role="status".
-      const toast = document.body.querySelector(':scope > [role="status"]')!
+      // Teleported to the end of <body> inside its clipping wrapper; TimberItemStatus also has role="status".
+      const toast = document.body.querySelector(':scope > div > [role="status"]')!
       expect(toast.textContent).toContain('Stamm 00042 gespeichert')
-      expect(toast.classList).toContain('pointer-events-none')
-      expect(toast.classList).toContain('top-1/2')
+      const clip = toast.parentElement!
+      expect(clip.className).toContain('top-[calc(var(--spacing-header)')
+      expect(clip.classList).toContain('overflow-hidden')
+      expect(clip.classList).toContain('pointer-events-none')
       expect(toast.querySelector('button')).toBeNull()
       expect(toast.querySelector('svg')).not.toBeNull()
 
+      // Slide-in (200 ms) does not count towards the 1.5 s.
       vi.advanceTimersByTime(1500)
       await flushPromises()
-      expect(document.body.querySelector(':scope > [role="status"]')).toBeNull()
+      expect(document.body.querySelector(':scope > div > [role="status"]')).not.toBeNull()
+      vi.advanceTimersByTime(200)
+      await flushPromises()
+      // Slide-out (150 ms), then the element is removed.
+      vi.advanceTimersByTime(150)
+      await flushPromises()
+      expect(document.body.querySelector(':scope > div > [role="status"]')).toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('swaps the text of a visible toast and restarts its timer', async () => {
+    vi.useFakeTimers()
+    try {
+      await mountAt('/')
+      const toast = useToast()
+      toast.show({ before: 'Erster' })
+      vi.advanceTimersByTime(1000)
+      toast.show({ before: 'Zweiter' })
+      await flushPromises()
+      const status = () => document.body.querySelector(':scope > div > [role="status"]')
+      expect(status()?.textContent).toContain('Zweiter')
+      vi.advanceTimersByTime(1499)
+      await flushPromises()
+      expect(status()).not.toBeNull()
+      vi.advanceTimersByTime(1)
+      await flushPromises()
+      expect(toast.current.value).toBeNull()
     } finally {
       vi.useRealTimers()
     }
