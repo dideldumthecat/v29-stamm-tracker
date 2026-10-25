@@ -12,6 +12,10 @@ import { useTimberItemStore } from '@/stores/timberItems'
  */
 const props = defineProps<{
   name: string
+  // Shown below the field in every state (empty, editing, locked, read-only).
+  description?: string
+  // Description right below the heading instead (choice: read before picking an option).
+  descriptionAbove?: boolean
   // id of the input in the slot, for the <label>
   labelFor: string
   // Current recording of a single-value attribute; undefined = nothing recorded, never locked
@@ -45,6 +49,9 @@ const isLocked = computed(() => props.record !== undefined && (props.readonly ||
       <span :class="{ 'line-through': inactive }">{{ name }}</span
       ><InactiveHint v-if="inactive"
     /></span>
+    <p v-if="description && descriptionAbove" class="text-sm leading-[1.4] text-body">
+      {{ description }}
+    </p>
     <div class="flex min-h-[52px] items-center gap-3 rounded-lg border-2 border-lockline pl-3">
       <span class="min-w-0 flex-1 wrap-anywhere whitespace-pre-line"
         ><span :class="{ 'line-through': lockedInactive }">{{ lockedText }}</span
@@ -60,6 +67,9 @@ const isLocked = computed(() => props.record !== undefined && (props.readonly ||
         <PencilIcon :size="22" aria-hidden="true" />
       </button>
     </div>
+    <p v-if="description && !descriptionAbove" class="text-sm leading-[1.4] text-body">
+      {{ description }}
+    </p>
     <span class="text-[13px] text-mute"
       >{{ formatShortDate(record.recorded_at) }} · {{ store.userName(record.user_id)
       }}{{ inherited ? ' · vom Stamm' : '' }}</span
@@ -77,6 +87,12 @@ const isLocked = computed(() => props.record !== undefined && (props.readonly ||
       /></span>
       <label v-else :for="labelFor">{{ name }}</label>
     </div>
+    <p v-if="description && descriptionAbove" class="text-sm leading-[1.4] text-body">
+      {{ description }}
+    </p>
     <slot />
+    <p v-if="description && !descriptionAbove" class="text-sm leading-[1.4] text-body">
+      {{ description }}
+    </p>
   </section>
 </template>

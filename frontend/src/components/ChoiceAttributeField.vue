@@ -52,6 +52,8 @@ function onChange(event: Event) {
 <template>
   <AttributeField
     :name="attribute.name"
+    :description="attribute.description"
+    description-above
     :label-for="selectId"
     :record="current"
     :locked-text="recordedOption?.label ?? ''"

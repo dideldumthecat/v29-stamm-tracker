@@ -41,6 +41,20 @@ describe('DateAttributeField', () => {
     expect((wrapper.find('input').element as HTMLInputElement).value).toBe('2026-09-28')
   })
 
+  it('shows the description in every state: empty, editing, locked, read-only', async () => {
+    const empty = setup(456)
+    expect(empty.wrapper.text()).toContain(empty.attribute.description)
+
+    const { wrapper, attribute } = setup(123)
+    expect(wrapper.text()).toContain(attribute.description)
+    await wrapper.find(`button[aria-label="${attribute.name} ändern"]`).trigger('click')
+    expect(wrapper.text()).toContain(attribute.description)
+
+    const recorded = useTimberItemStore().findByTagNumber(123)?.values[attribute.id]
+    const readonly = mount(DateAttributeField, { props: { attribute, recorded, readonly: true } })
+    expect(readonly.text()).toContain(attribute.description)
+  })
+
   it('marks an inactive attribute – the hint comes from AttributeField', () => {
     const store = useTimberItemStore()
     const attribute = store.attributes.find((candidate) => candidate.type === 'date')!

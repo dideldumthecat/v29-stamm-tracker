@@ -30,6 +30,19 @@ const optionLabels = (wrapper: ReturnType<typeof setup>['wrapper']) =>
 describe('ChoiceAttributeField with inactive options', () => {
   beforeEach(() => setActivePinia(createPinia()))
 
+  it('shows the description right below the heading, before the select or locked value', () => {
+    const empty = setup()
+    const description = empty.wrapper.find('p').element
+    expect(description.textContent).toContain(empty.attribute.description)
+    const follows = description.compareDocumentPosition(empty.wrapper.find('select').element)
+    expect(follows & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+
+    const locked = setup(empty.attribute.options[0]!.id)
+    expect(locked.wrapper.find('section > p').element.previousElementSibling?.textContent).toBe(
+      locked.attribute.name,
+    )
+  })
+
   it('does not offer an inactive option for a new value', () => {
     const { wrapper, inactive } = setup()
     expect(optionLabels(wrapper)).not.toContain(inactive.label)

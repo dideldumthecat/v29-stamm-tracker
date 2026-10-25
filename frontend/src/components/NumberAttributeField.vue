@@ -81,6 +81,7 @@ function remove(index: number) {
 <template>
   <AttributeField
     :name="attribute.name"
+    :description="attribute.description"
     :label-for="inputId"
     :record="attribute.is_series ? undefined : current"
     :locked-text="withUnit(current?.value ?? '')"

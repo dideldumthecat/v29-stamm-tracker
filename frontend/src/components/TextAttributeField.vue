@@ -41,6 +41,7 @@ function onInput(event: Event) {
 <template>
   <AttributeField
     :name="attribute.name"
+    :description="attribute.description"
     :label-for="textareaId"
     :record="attribute.is_series ? undefined : current"
     :locked-text="currentText"
