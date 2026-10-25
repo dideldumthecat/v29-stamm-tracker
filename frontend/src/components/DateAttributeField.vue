@@ -47,11 +47,12 @@ function onInput(event: Event) {
     <!-- Native picker: no own parsing or validation. appearance-none makes iOS Safari respect the
          width (otherwise it keeps its own minimum width and overflows the page). The picker indicator
          of Chrome is stretched over the whole field (invisible) so a tap anywhere opens the picker;
-         the icon sits on top and lets taps through. -->
+         the icon sits on top and lets taps through. iOS Safari puts the value at the top with its own
+         margin; no margin plus a line height of the inner height (52px minus border) centres it. -->
     <div class="relative">
       <input
         :id="inputId"
-        class="block h-[52px] w-full max-w-full min-w-0 appearance-none rounded-lg border-2 border-ink bg-paper pr-12 pl-3 font-semibold [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:size-full [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-date-and-time-value]:text-left"
+        class="block h-[52px] w-full max-w-full min-w-0 appearance-none rounded-lg border-2 border-ink bg-paper py-0 pr-12 pl-3 leading-[48px] font-semibold [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:size-full [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-date-and-time-value]:m-0 [&::-webkit-date-and-time-value]:text-left"
         :class="inputValue === '' ? 'text-transparent' : 'text-ink'"
         type="date"
         :value="inputValue"
