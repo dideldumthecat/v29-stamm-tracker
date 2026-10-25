@@ -1,0 +1,14 @@
+# Paths relative to backend/. Excluded paths are neither uploaded nor deleted on the server.
+/.env.local
+/.env.local.php
+/.env.*.local
+/.env.test
+/var/
+/tests/
+/phpunit.dist.xml
+/.phpunit.cache/
+/.php-cs-fixer.dist.php
+/.php-cs-fixer.cache
+CLAUDE.md
+AGENTS.md
+/.env.local.example
