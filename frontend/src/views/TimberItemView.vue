@@ -93,7 +93,8 @@ const shownErrors = computed(() =>
 const saveLabel = computed(() => (item.value ? 'Speichern' : 'Stamm anlegen & speichern'))
 
 // Records the draft and resets the form. null = invalid input blocks it; the errors are shown.
-async function saveDraft(): Promise<{ target: TimberItem; hasSaved: boolean } | null> {
+// Only called with something to save: a dirty draft or a stem not recorded yet.
+async function saveDraft(): Promise<TimberItem | null> {
   const errorIds = Object.keys(collected.value.errors)
   if (errorIds.length > 0) {
     failedInputs.value = Object.fromEntries(errorIds.map((id) => [id, draft.value[id]]))
@@ -104,7 +105,6 @@ async function saveDraft(): Promise<{ target: TimberItem; hasSaved: boolean } | 
   }
   // Take the list before writing: afterwards the draft equals the store and `changes` would be empty.
   const toSave = changes.value
-  const isNew = !item.value
   // Like the click prototype: a new item is created even without values.
   // Only plain tags get here without an item: unknown beams are sent back by the router guard.
   const target = item.value ?? store.createTimberItem(Number(props.tagNumber))
@@ -116,7 +116,7 @@ async function saveDraft(): Promise<{ target: TimberItem; hasSaved: boolean } | 
   added.value = {}
   failedInputs.value = {}
   formKey.value++
-  return { target, hasSaved: isNew || toSave.length > 0 }
+  return target
 }
 
 const savedMessage = () => ({
@@ -126,13 +126,8 @@ const savedMessage = () => ({
 })
 
 async function onSave() {
-  const saved = await saveDraft()
-  if (saved) {
-    toast.show(
-      saved.hasSaved
-        ? savedMessage()
-        : { before: `Keine Änderungen an ${kind.value}`, tagNumber: props.tagNumber },
-    )
+  if (await saveDraft()) {
+    toast.show(savedMessage())
   }
 }
 
@@ -150,10 +145,6 @@ function beamSummary(beam: TimberItem): string {
   return parts.length > 0 ? parts.join(' · ') : 'noch keine eigenen Angaben'
 }
 
-function openItem(tag: string) {
-  router.push({ name: 'timber-item', params: { tagNumber: tag } })
-}
-
 async function onAddBeam() {
   // Save first: once split, the stem is read-only and the draft could never be saved.
   const saved = isDirty.value ? await saveDraft() : undefined
@@ -161,13 +152,10 @@ async function onAddBeam() {
     return
   }
   // Like the click prototype: a stem not recorded yet is created by its first beam.
-  const stem = saved?.target ?? item.value ?? store.createTimberItem(Number(props.tagNumber))
+  const stem = saved ?? item.value ?? store.createTimberItem(Number(props.tagNumber))
   const tag = store.addBeam(stem.id).tag_number!
   const beamMessage = { before: 'Balken', tagNumber: tag, after: 'angelegt' }
-  toast.show({
-    ...(saved?.hasSaved ? { ...savedMessage(), more: beamMessage } : beamMessage),
-    action: { label: 'Öffnen', run: () => openItem(tag) },
-  })
+  toast.show(saved ? { ...savedMessage(), more: beamMessage } : beamMessage)
 }
 
 const beamToRemove = ref<TimberItem | null>(null)
@@ -376,7 +364,8 @@ function onDiscard() {
     <!-- Pushes the save bar down when the content is shorter than the screen. -->
     <div class="flex-auto"></div>
 
-    <SaveBar v-if="!isSplit" :label="saveLabel" @save="onSave" />
+    <!-- A stem not recorded yet can always be saved: creating it is the change. -->
+    <SaveBar v-if="!isSplit" :label="saveLabel" :disabled="!!item && !isDirty" @save="onSave" />
 
     <!-- Wording as in the click prototype (confirmRemoveBeam). -->
     <ConfirmSheet

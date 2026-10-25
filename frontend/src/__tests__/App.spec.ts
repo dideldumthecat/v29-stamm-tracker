@@ -72,7 +72,41 @@ describe('App', () => {
     await wrapper.find('button.bg-ink.text-lg').trigger('click')
     await flushPromises()
     expect(document.body.textContent).toContain('gespeichert')
-    expect(document.body.textContent).not.toContain('Keine Änderungen')
+  })
+
+  it('enables saving only with changes, but always for a stem not recorded yet', async () => {
+    const saveButton = (wrapper: { find: (selector: string) => { element: Element } }) =>
+      wrapper.find('button.bg-ink.text-lg').element as HTMLButtonElement
+
+    const known = await mountAt('/timber-item/456')
+    expect(saveButton(known.wrapper).disabled).toBe(true)
+    await known.wrapper.find('select').setValue(known.wrapper.findAll('option')[1]!.element.value)
+    expect(saveButton(known.wrapper).disabled).toBe(false)
+
+    const unknown = await mountAt('/timber-item/42')
+    expect(saveButton(unknown.wrapper).disabled).toBe(false)
+  })
+
+  it('shows a toast in the centre that lets taps through and hides after 1.5 s', async () => {
+    vi.useFakeTimers()
+    try {
+      const { wrapper } = await mountAt('/timber-item/42')
+      await wrapper.find('button.bg-ink.text-lg').trigger('click')
+      await flushPromises()
+      // Teleported to the end of <body>; TimberItemStatus also has role="status".
+      const toast = document.body.querySelector(':scope > [role="status"]')!
+      expect(toast.textContent).toContain('Stamm 00042 gespeichert')
+      expect(toast.classList).toContain('pointer-events-none')
+      expect(toast.classList).toContain('top-1/2')
+      expect(toast.querySelector('button')).toBeNull()
+      expect(toast.querySelector('svg')).not.toBeNull()
+
+      vi.advanceTimersByTime(1500)
+      await flushPromises()
+      expect(document.body.querySelector(':scope > [role="status"]')).toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('records a ticked boolean attribute on save', async () => {
@@ -274,15 +308,12 @@ describe('App', () => {
       expect((wrapper.find('textarea').element as HTMLTextAreaElement).value).toBe('')
     })
 
-    it('treats whitespace as no change: nothing saved, nothing to confirm when leaving', async () => {
+    it('treats whitespace as no change: nothing to save, nothing to confirm when leaving', async () => {
       const { wrapper, router } = await mountAt('/timber-item/123')
       await wrapper.find('textarea').setValue('   ')
-      await wrapper.find('button.bg-ink.text-lg').trigger('click')
-      await flushPromises()
-      expect(document.body.textContent).toContain('Keine Änderungen')
+      expect(wrapper.find('button.bg-ink.text-lg').attributes('disabled')).toBeDefined()
       expect(notes()).toEqual(['Leichter Drehwuchs'])
 
-      await wrapper.find('textarea').setValue('  ')
       await wrapper.find('button[aria-label="Schließen"]').trigger('click')
       await flushPromises()
       expect(router.currentRoute.value.name).toBe('start')
@@ -295,17 +326,16 @@ describe('App', () => {
         text.test(button.textContent ?? ''),
       )!
 
-    it('adds a beam on the stem screen and opens it from the toast', async () => {
-      const { router } = await mountAt('/timber-item/42')
+    it('adds a beam on the stem screen and lists it right there', async () => {
+      const { wrapper, router } = await mountAt('/timber-item/42')
       buttonByText(/Balken 00042-A hinzufügen/).click()
       await flushPromises()
       expect(router.currentRoute.value.params.tagNumber).toBe('42')
       expect(document.body.textContent).toContain('Balken 00042-A angelegt')
-      expect(document.body.textContent).toContain('noch keine eigenen Angaben')
-
-      buttonByText(/^\s*Öffnen\s*$/).click()
-      await flushPromises()
-      expect(router.currentRoute.value.params.tagNumber).toBe('42-A')
+      expect(document.body.querySelector(':scope > [role="status"] button')).toBeNull()
+      expect(wrapper.find('a[href="/timber-item/42-A"]').text()).toContain(
+        'noch keine eigenen Angaben',
+      )
     })
 
     it('summarises own values only, first two in sort order', async () => {

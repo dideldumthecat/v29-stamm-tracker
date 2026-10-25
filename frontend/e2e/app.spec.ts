@@ -39,11 +39,11 @@ test('beam inherits a stem value and can override it', async ({ page }) => {
   await page.getByRole('button', { name: 'Stamm anlegen & speichern' }).click()
   await expect(page.getByText('Traubeneiche')).toBeVisible()
 
-  // Adding stays on the stem; the toast action opens the beam.
+  // Adding stays on the stem; the new beam is listed right below.
   await page.getByRole('button', { name: 'Balken 01777-A hinzufügen' }).click()
   await expect(page.getByText('Balken 01777-A angelegt')).toBeVisible()
   await expect(page.locator('h1')).toContainText('STAMM')
-  await page.getByRole('button', { name: 'Öffnen', exact: true }).click()
+  await page.locator('a[href="/timber-item/1777-A"]').click()
   await expect(page.locator('h1')).toContainText('BALKEN')
   await expect(page.locator('h1')).toContainText('01777-A')
   const holzartField = page.locator('section', { hasText: 'Holzart' }).first()
