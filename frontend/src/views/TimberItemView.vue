@@ -91,7 +91,9 @@ const shownErrors = computed(() =>
   ),
 )
 
-const saveLabel = computed(() => (item.value ? 'Speichern' : 'Stamm anlegen & speichern'))
+const saveLabel = computed(() =>
+  item.value ? 'Speichern & schließen' : 'Stamm anlegen & schließen',
+)
 
 // Records the draft and resets the form. null = invalid input blocks it; the errors are shown.
 // Only called with something to save: a dirty draft or a stem not recorded yet.
@@ -120,15 +122,15 @@ async function saveDraft(): Promise<TimberItem | null> {
   return target
 }
 
-const savedMessage = () => ({
-  before: kind.value,
-  tagNumber: props.tagNumber,
-  after: 'gespeichert',
-})
-
+// Saving closes the item: a beam goes back to its stem, a stem to the start screen.
 async function onSave() {
   if (await saveDraft()) {
-    toast.show(savedMessage())
+    toast.show({ before: kind.value, tagNumber: props.tagNumber, after: 'gespeichert' })
+    await router.push(
+      parent.value
+        ? { name: 'timber-item', params: { tagNumber: parent.value.tag_number } }
+        : { name: 'start' },
+    )
   }
 }
 
@@ -153,10 +155,9 @@ async function onAddBeam() {
     return
   }
   // Like the click prototype: a stem not recorded yet is created by its first beam.
+  // No toast: the new beam appears in the list right away.
   const stem = saved ?? item.value ?? store.createTimberItem(Number(props.tagNumber))
-  const tag = store.addBeam(stem.id).tag_number!
-  const beamMessage = { before: 'Balken', tagNumber: tag, after: 'angelegt' }
-  toast.show(saved ? { ...savedMessage(), more: beamMessage } : beamMessage)
+  store.addBeam(stem.id)
 }
 
 const beamToRemove = ref<TimberItem | null>(null)

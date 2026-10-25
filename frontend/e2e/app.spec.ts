@@ -36,13 +36,21 @@ test('beam inherits a stem value and can override it', async ({ page }) => {
 
   const holzart = page.getByLabel('Holzart')
   await holzart.selectOption({ label: 'Traubeneiche' })
-  await page.getByRole('button', { name: 'Stamm anlegen & speichern' }).click()
+  await page.getByRole('button', { name: 'Stamm anlegen & schließen' }).click()
+  // Saving closes the stem: back on the start screen, the toast is still visible.
+  await expect(page.getByText('Stamm 01777 gespeichert')).toBeVisible()
+  await expect(page.locator('h1')).toHaveText('V29 Stamm-Tracker')
+  for (const digit of '1777') {
+    await page.getByRole('button', { name: digit, exact: true }).click()
+  }
+  await page.getByRole('button', { name: /öffnen/i }).click()
   await expect(page.getByText('Traubeneiche')).toBeVisible()
 
   // Adding stays on the stem; the new beam is listed right below.
   await page.getByRole('button', { name: 'Balken 01777-A hinzufügen' }).click()
-  await expect(page.getByText('Balken 01777-A angelegt')).toBeVisible()
+  await expect(page.locator('a[href="/timber-item/1777-A"]')).toBeVisible()
   await expect(page.locator('h1')).toContainText('STAMM')
+  await expect(page.locator('body > [role="status"]')).toHaveCount(0)
   await page.locator('a[href="/timber-item/1777-A"]').click()
   await expect(page.locator('h1')).toContainText('BALKEN')
   await expect(page.locator('h1')).toContainText('01777-A')
@@ -52,16 +60,15 @@ test('beam inherits a stem value and can override it', async ({ page }) => {
 
   await page.getByRole('button', { name: 'Holzart ändern' }).click()
   await page.getByLabel('Holzart').selectOption({ label: 'Stieleiche' })
-  await page.getByRole('button', { name: 'Speichern', exact: true }).click()
-  await expect(holzartField).toContainText('Stieleiche')
-  await expect(holzartField).not.toContainText('vom Stamm')
+  await page.getByRole('button', { name: 'Speichern & schließen' }).click()
 
-  // The stem lists the beam and is read-only now.
-  await page.getByRole('link', { name: /Aus Stamm/ }).click()
+  // Saving closes the beam: back on its stem, which lists the beam and is read-only now.
+  await expect(page.getByText('Balken 01777-A gespeichert')).toBeVisible()
+  await expect(page.locator('h1')).toContainText('STAMM')
   await expect(page.getByRole('link', { name: /01777-A/ })).toContainText('Stieleiche')
   await expect(page.getByText('Aufgeteilter Stamm')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Holzart ändern' })).toHaveCount(0)
-  await expect(page.getByRole('button', { name: 'Speichern', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /Speichern/ })).toHaveCount(0)
 })
 
 test('beam letters run to Z, are never reused, and stop after 26', async ({ page }) => {
@@ -77,4 +84,31 @@ test('beam letters run to Z, are never reused, and stop after 26', async ({ page
   await page.getByRole('button', { name: 'Balken 01888-Z hinzufügen' }).click()
   await expect(page.getByRole('button', { name: 'Balken hinzufügen' })).toBeDisabled()
   await expect(page.getByText('Höchstens 26 Balken je Stamm')).toBeVisible()
+})
+
+// Narrowest supported phone: both save labels stay on one line.
+test('save labels fit on one line at 320 px', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 640 })
+  for (const [path, label] of [
+    ['/timber-item/42', 'Stamm anlegen & schließen'],
+    ['/timber-item/123', 'Speichern & schließen'],
+  ]) {
+    await page.goto(path)
+    const button = page.getByRole('button', { name: label })
+    await expect(button).toBeVisible()
+    const lines = await button.evaluate((element) => {
+      const range = element.ownerDocument.createRange()
+      range.selectNodeContents(element)
+      return range.getClientRects().length
+    })
+    expect(lines).toBe(1)
+  }
+})
+
+test('invalid input keeps the item open and shows the error', async ({ page }) => {
+  await page.goto('/timber-item/43')
+  await page.locator('input[inputmode="decimal"]').fill('34abc')
+  await page.getByRole('button', { name: 'Stamm anlegen & schließen' }).click()
+  await expect(page.getByRole('alert')).toBeVisible()
+  await expect(page.locator('h1')).toContainText('STAMM')
 })

@@ -24,15 +24,7 @@ const { current } = useToast()
       <span class="min-w-0 flex-1"
         >{{ current.before }}
         <FormattedTag v-if="current.tagNumber !== undefined" :tag-number="current.tagNumber" />
-        {{ current.after
-        }}<template v-if="current.more">
-          · {{ current.more.before }}
-          <FormattedTag
-            v-if="current.more.tagNumber !== undefined"
-            :tag-number="current.more.tagNumber"
-          />
-          {{ current.more.after }}</template
-        ></span
+        {{ current.after }}</span
       >
     </div>
   </Teleport>

@@ -5,6 +5,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import App from '../App.vue'
 import { routes } from '../router'
 import { useTimberItemStore } from '@/stores/timberItems'
+import { useToast } from '@/composables/useToast'
 
 const mounted: { unmount: () => void }[] = []
 
@@ -30,6 +31,8 @@ describe('App', () => {
   // Unmount first: the toast state is global, a leftover app would re-render into the cleared body.
   afterEach(() => {
     mounted.splice(0).forEach((wrapper) => wrapper.unmount())
+    // Saving shows a toast for 1.5 s; it must not leak into the next test.
+    useToast().hide()
   })
 
   it('renders the start screen on /', async () => {
@@ -41,7 +44,7 @@ describe('App', () => {
     const { wrapper } = await mountAt('/timber-item/42')
     expect(wrapper.text()).toContain('00042')
     expect(wrapper.text()).toContain('Noch nicht erfasst')
-    expect(wrapper.text()).toContain('Stamm anlegen & speichern')
+    expect(wrapper.text()).toContain('Stamm anlegen & schließen')
   })
 
   it('shows a known timber item with its recorded value locked', async () => {
@@ -66,12 +69,14 @@ describe('App', () => {
     expect(document.body.textContent).toContain('Änderungen verwerfen?')
   })
 
-  it('reports a saved change on a known timber item', async () => {
-    const { wrapper } = await mountAt('/timber-item/456')
+  it('closes a saved stem to the start screen and still shows the toast there', async () => {
+    const { wrapper, router } = await mountAt('/timber-item/456')
     await wrapper.find('select').setValue(wrapper.findAll('option')[1]!.element.value)
     await wrapper.find('button.bg-ink.text-lg').trigger('click')
     await flushPromises()
-    expect(document.body.textContent).toContain('gespeichert')
+    expect(router.currentRoute.value.name).toBe('start')
+    expect(document.body.textContent).toContain('Stamm 00456 gespeichert')
+    expect(document.body.textContent).not.toContain('Änderungen verwerfen?')
   })
 
   it('enables saving only with changes, but always for a stem not recorded yet', async () => {
@@ -130,13 +135,15 @@ describe('App', () => {
   })
 
   it('records a picked month and shows it as MM/JJJJ', async () => {
-    const { wrapper } = await mountAt('/timber-item/456')
+    const { wrapper, router } = await mountAt('/timber-item/456')
     const store = useTimberItemStore()
     const attribute = store.attributes.find((candidate) => candidate.type === 'month')!
     await wrapper.find('input[type="month"]').setValue('2026-10')
     await wrapper.find('button.bg-ink.text-lg').trigger('click')
     await flushPromises()
     expect(store.findByTagNumber(456)?.values[attribute.id]?.[0]?.value).toBe('2026-10')
+    await router.push('/timber-item/456')
+    await flushPromises()
     expect(wrapper.text()).toContain('10/2026')
   })
 
@@ -149,6 +156,7 @@ describe('App', () => {
 
     await wrapper.find('button.bg-ink.text-lg').trigger('click')
     await flushPromises()
+    expect(router.currentRoute.value.name).toBe('timber-item')
     expect(wrapper.find('[role="alert"]').text()).toContain('Zahl')
     expect(useTimberItemStore().findByTagNumber(42)).toBeUndefined()
 
@@ -204,7 +212,7 @@ describe('App', () => {
   })
 
   it('walks through a known item: one value per type, saved, locked, counted', async () => {
-    const { wrapper } = await mountAt('/timber-item/456')
+    const { wrapper, router } = await mountAt('/timber-item/456')
     const store = useTimberItemStore()
     // First option after the placeholder of each select (Holzart, Lagerplatz, Sortierklasse).
     const selects = wrapper.findAll('select')
@@ -229,6 +237,8 @@ describe('App', () => {
     // One attribute_recorded event per value: 5 single values + 2 measurements.
     expect(store.pendingCount).toBe(7)
     expect(document.body.textContent).toContain('gespeichert')
+    await router.push('/timber-item/456')
+    await flushPromises()
     // Everything recorded is locked now (pencil instead of input), the series shows as a list.
     const names = ['Holzart', 'Lagerplatz', 'Sortierklasse', 'Lieferdatum', 'Gesägt']
     const pencils = names.filter((name) =>
@@ -310,12 +320,14 @@ describe('App', () => {
     }
 
     it('appends a new entry on save', async () => {
-      const { wrapper } = await mountAt('/timber-item/123')
+      const { wrapper, router } = await mountAt('/timber-item/123')
       await wrapper.find('textarea').setValue('  Astloch  ')
       await wrapper.find('button.bg-ink.text-lg').trigger('click')
       await flushPromises()
       expect(notes()).toEqual(['Leichter Drehwuchs', 'Astloch'])
-      // The new entry is part of the list now, the textarea is empty again.
+      // Reopened: the new entry is part of the list, the textarea is empty.
+      await router.push('/timber-item/123')
+      await flushPromises()
       expect(wrapper.text()).toContain('Astloch')
       expect((wrapper.find('textarea').element as HTMLTextAreaElement).value).toBe('')
     })
@@ -343,11 +355,20 @@ describe('App', () => {
       buttonByText(/Balken 00042-A hinzufügen/).click()
       await flushPromises()
       expect(router.currentRoute.value.params.tagNumber).toBe('42')
-      expect(document.body.textContent).toContain('Balken 00042-A angelegt')
-      expect(document.body.querySelector(':scope > [role="status"] button')).toBeNull()
+      expect(document.body.querySelector(':scope > [role="status"]')).toBeNull()
       expect(wrapper.find('a[href="/timber-item/42-A"]').text()).toContain(
         'noch keine eigenen Angaben',
       )
+    })
+
+    it('closes a saved beam to its stem and still shows the toast there', async () => {
+      const { wrapper, router } = await mountAt('/timber-item/789-A')
+      await wrapper.find('textarea').setValue('Riss')
+      await wrapper.find('button.bg-ink.text-lg').trigger('click')
+      await flushPromises()
+      expect(router.currentRoute.value.params.tagNumber).toBe('789')
+      expect(document.body.textContent).toContain('Balken 00789-A gespeichert')
+      expect(document.body.textContent).not.toContain('Änderungen verwerfen?')
     })
 
     it('summarises own values only, first two in sort order', async () => {
@@ -390,9 +411,7 @@ describe('App', () => {
       buttonByText(/00042-A hinzufügen/).click()
       await flushPromises()
       expect(router.currentRoute.value.params.tagNumber).toBe('42')
-      expect(document.body.textContent).toContain(
-        'Stamm 00042 gespeichert · Balken 00042-A angelegt',
-      )
+      expect(document.body.querySelector(':scope > [role="status"]')).toBeNull()
       expect(wrapper.text()).toContain('Stieleiche')
       expect(useTimberItemStore().findByTag('42-A')).toBeDefined()
     })
