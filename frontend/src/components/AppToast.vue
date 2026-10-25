@@ -1,25 +1,26 @@
 <script setup lang="ts">
-import { XIcon } from '@lucide/vue'
+import { CircleCheckIcon, TriangleAlertIcon } from '@lucide/vue'
 import FormattedTag from '@/components/FormattedTag.vue'
 import { useToast } from '@/composables/useToast'
 
-const { current, hide } = useToast()
-
-function onAction() {
-  const run = current.value!.action!.run
-  hide()
-  run()
-}
+const { current } = useToast()
 </script>
 
 <template>
-  <!-- Swipe-to-dismiss from the click prototype comes later. -->
+  <!-- Not clickable (pointer-events-none): taps go through to the content below. -->
   <Teleport to="body">
     <div
       v-if="current"
-      class="fixed top-safe-3 left-1/2 z-60 flex w-[calc(100%-32px)] max-w-[398px] -translate-x-1/2 items-center justify-between gap-3 rounded-lg border-2 border-ink bg-paper py-2.5 pr-1.5 pl-4 text-[15px] leading-[1.35] font-semibold text-ink shadow-lg select-none"
+      class="pointer-events-none fixed top-1/2 left-1/2 z-60 flex w-[calc(100%-32px)] max-w-[398px] -translate-1/2 items-center gap-3 rounded-lg border-2 border-ink bg-paper px-4 py-3.5 text-xl leading-[1.3] font-semibold text-ink shadow-lg select-none"
       role="status"
     >
+      <TriangleAlertIcon
+        v-if="current.kind === 'warning'"
+        class="shrink-0"
+        :size="28"
+        aria-hidden="true"
+      />
+      <CircleCheckIcon v-else class="shrink-0" :size="28" aria-hidden="true" />
       <span class="min-w-0 flex-1"
         >{{ current.before }}
         <FormattedTag v-if="current.tagNumber !== undefined" :tag-number="current.tagNumber" />
@@ -33,22 +34,6 @@ function onAction() {
           {{ current.more.after }}</template
         ></span
       >
-      <button
-        v-if="current.action"
-        type="button"
-        class="shrink-0 p-1.5 font-bold text-ink underline"
-        @click="onAction"
-      >
-        {{ current.action.label }}
-      </button>
-      <button
-        type="button"
-        class="flex size-11 shrink-0 items-center justify-center text-ink"
-        aria-label="Hinweis schließen"
-        @click="hide"
-      >
-        <XIcon :size="22" aria-hidden="true" />
-      </button>
     </div>
   </Teleport>
 </template>

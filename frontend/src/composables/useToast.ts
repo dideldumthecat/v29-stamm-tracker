@@ -6,13 +6,12 @@ export interface ToastMessage {
   tagNumber?: number | string
   after?: string
   // A second sentence, joined with " · " (e.g. "Stamm … gespeichert · Balken … angelegt").
-  more?: Omit<ToastMessage, 'action' | 'more'>
-  action?: { label: string; run: () => void }
+  more?: Omit<ToastMessage, 'more' | 'kind'>
+  // Success unless stated otherwise; decides the icon.
+  kind?: 'success' | 'warning'
 }
 
-const TOAST_DURATION_MS = 3000
-// Longer with an action, so there is time to tap it (as in the click prototype).
-const TOAST_WITH_ACTION_DURATION_MS = 5000
+const TOAST_DURATION_MS = 1500
 
 // Module-level state: one toast for the whole app, shown by <AppToast /> in App.vue.
 const current = ref<ToastMessage | null>(null)
@@ -22,7 +21,7 @@ export function useToast() {
   function show(message: ToastMessage) {
     clearTimeout(hideTimer)
     current.value = message
-    hideTimer = setTimeout(hide, message.action ? TOAST_WITH_ACTION_DURATION_MS : TOAST_DURATION_MS)
+    hideTimer = setTimeout(hide, TOAST_DURATION_MS)
   }
 
   function hide() {
