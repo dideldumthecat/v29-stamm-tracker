@@ -10,3 +10,8 @@ export function formatShortDate(isoDate: string): string {
 export function formatDate(calendarDate: string): string {
   return calendarDate.split('-').reverse().join('.')
 }
+
+/** Contract month "2026-10" → "10/2026", the way V29 writes it. */
+export function formatMonth(calendarMonth: string): string {
+  return calendarMonth.split('-').reverse().join('/')
+}

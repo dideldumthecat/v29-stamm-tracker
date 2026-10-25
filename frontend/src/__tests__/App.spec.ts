@@ -129,6 +129,17 @@ describe('App', () => {
     expect(store.findByTagNumber(456)?.values[attribute.id]?.[0]?.value).toBe('2026-09-08')
   })
 
+  it('records a picked month and shows it as MM/JJJJ', async () => {
+    const { wrapper } = await mountAt('/timber-item/456')
+    const store = useTimberItemStore()
+    const attribute = store.attributes.find((candidate) => candidate.type === 'month')!
+    await wrapper.find('input[type="month"]').setValue('2026-10')
+    await wrapper.find('button.bg-ink.text-lg').trigger('click')
+    await flushPromises()
+    expect(store.findByTagNumber(456)?.values[attribute.id]?.[0]?.value).toBe('2026-10')
+    expect(wrapper.text()).toContain('10/2026')
+  })
+
   it('blocks saving invalid number input, shows the error and protects the input', async () => {
     const { wrapper, router } = await mountAt('/timber-item/42')
     const input = wrapper.find('input[inputmode="decimal"]')
@@ -219,7 +230,7 @@ describe('App', () => {
     expect(store.pendingCount).toBe(7)
     expect(document.body.textContent).toContain('gespeichert')
     // Everything recorded is locked now (pencil instead of input), the series shows as a list.
-    const names = ['Holzart', 'Lagerplatz', 'Sortierklasse', 'Fälldatum', 'Gesägt']
+    const names = ['Holzart', 'Lagerplatz', 'Sortierklasse', 'Lieferdatum', 'Gesägt']
     const pencils = names.filter((name) =>
       wrapper.find(`button[aria-label="${name} ändern"]`).exists(),
     )
@@ -270,6 +281,7 @@ describe('App', () => {
       deactivate('number')
       deactivate('choice')
       deactivate('boolean')
+      deactivate('month')
       // Item 123: choice, date and series recorded. Item 789: boolean recorded.
       const first = await mountAt('/timber-item/123')
       expect(first.wrapper.text()).toContain('28.09.2026')
@@ -341,7 +353,7 @@ describe('App', () => {
     it('summarises own values only, first two in sort order', async () => {
       const { wrapper } = await mountAt('/timber-item/789')
       const rows = wrapper.findAll('a[href^="/timber-item/789-"]').map((row) => row.text())
-      // 789-A: Holzart and Fälldatum are inherited, only Sortierklasse is its own.
+      // 789-A: Holzart and Lieferdatum are inherited, only Sortierklasse is its own.
       expect(rows).toEqual(['00789-AA', '00789-B01.10.2026 · B'])
       expect(rows.join()).not.toContain('nicht synchronisiert')
       expect(wrapper.text()).toContain('Übertragene Balken kann nur die Administration entfernen.')

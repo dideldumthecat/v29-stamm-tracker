@@ -48,9 +48,21 @@
       ]
     },
     {
-      "id": "a6f6626b-71d8-4316-98f0-89c71a8e39a0",
+      "id": "a222dbf7-15cd-44cd-92c9-18969c610238",
       "name": "Fälldatum",
-      "description": "Tag der Fällung",
+      "description": "Monat der Fällung",
+      "type": "month",
+      "unit": null,
+      "is_series": false,
+      "is_inheritable": true,
+      "sort_order": 15,
+      "active": true,
+      "options": []
+    },
+    {
+      "id": "a6f6626b-71d8-4316-98f0-89c71a8e39a0",
+      "name": "Lieferdatum",
+      "description": "Tag der Anlieferung am Sägewerk",
       "type": "date",
       "unit": null,
       "is_series": false,

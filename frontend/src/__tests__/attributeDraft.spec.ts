@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import type { Attribute, AttributeType, AttributeValueRecord } from '@/api/contract'
 import { collectDraft, parseNumber } from '@/utils/attributeDraft'
-import { formatDate } from '@/utils/date'
+import { formatDate, formatMonth } from '@/utils/date'
 
 function attribute(id: string, type: AttributeType, overrides: Partial<Attribute> = {}): Attribute {
   return {
@@ -26,6 +26,12 @@ function record(value: AttributeValueRecord['value']): AttributeValueRecord[] {
 describe('formatDate', () => {
   it('writes the contract date the way V29 does', () => {
     expect(formatDate('2026-09-08')).toBe('08.09.2026')
+  })
+})
+
+describe('formatMonth', () => {
+  it('writes the contract month the way V29 does', () => {
+    expect(formatMonth('2026-10')).toBe('10/2026')
   })
 })
 
@@ -123,6 +129,21 @@ describe('collectDraft', () => {
     expect(
       collectDraft([notes], { notes: ' Drehwuchs \n' }, {}, { notes: record('Alt') }).changes,
     ).toEqual([{ attributeId: 'notes', value: 'Drehwuchs' }])
+  })
+
+  it('collects a month in contract format and rejects anything else', () => {
+    const month = attribute('month', 'month')
+    expect(collectDraft([month], { month: '2026-10' }, {}, undefined)).toEqual({
+      changes: [{ attributeId: 'month', value: '2026-10' }],
+      errors: {},
+    })
+    expect(collectDraft([month], { month: '' }, {}, undefined)).toEqual({ changes: [], errors: {} })
+    // Typed into the plain text field of desktop Firefox and Safari.
+    for (const text of ['10/2026', '2026-1', '2026-13', '2026-10-01']) {
+      const { changes, errors } = collectDraft([month], { month: text }, {}, undefined)
+      expect(changes).toEqual([])
+      expect(Object.keys(errors)).toEqual(['month'])
+    }
   })
 
   it('keeps added series values when the pending input is invalid', () => {

@@ -12,5 +12,6 @@ enum AttributeType: string
     case Number = 'number';
     case Text = 'text';
     case Date = 'date';
+    case Month = 'month';
     case Photo = 'photo';
 }

@@ -149,6 +149,7 @@ final class SyncController extends AbstractController
             AttributeType::Number => \is_int($value) || \is_float($value),
             AttributeType::Text => \is_string($value),
             AttributeType::Date => \is_string($value) && (\DateTimeImmutable::createFromFormat('!Y-m-d', $value) ?: null)?->format('Y-m-d') === $value,
+            AttributeType::Month => \is_string($value) && (\DateTimeImmutable::createFromFormat('!Y-m', $value) ?: null)?->format('Y-m') === $value,
             AttributeType::Choice => \is_string($value) && Uuid::isValid($value)
                 && $this->em->find(AttributeOption::class, Uuid::fromString($value))?->attribute === $attribute,
             // TODO: check that the photo exists once photos are uploaded.

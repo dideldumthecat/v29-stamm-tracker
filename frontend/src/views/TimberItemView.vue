@@ -18,6 +18,7 @@ import TimberItemStatus from '@/components/TimberItemStatus.vue'
 import ChoiceAttributeField from '@/components/ChoiceAttributeField.vue'
 import BooleanAttributeField from '@/components/BooleanAttributeField.vue'
 import DateAttributeField from '@/components/DateAttributeField.vue'
+import MonthAttributeField from '@/components/MonthAttributeField.vue'
 import NumberAttributeField from '@/components/NumberAttributeField.vue'
 import TextAttributeField from '@/components/TextAttributeField.vue'
 import SaveBar from '@/components/SaveBar.vue'
@@ -324,6 +325,16 @@ function onDiscard() {
           :recorded="item?.values[attribute.id]"
           :readonly="!attribute.active || isSplit"
           :inherited="item && store.isInherited(item.id, attribute.id)"
+          @update:model-value="draft[attribute.id] = $event"
+        />
+        <MonthAttributeField
+          v-else-if="attribute.type === 'month'"
+          :model-value="draftText(attribute.id)"
+          :attribute="attribute"
+          :recorded="item?.values[attribute.id]"
+          :readonly="!attribute.active || isSplit"
+          :inherited="item && store.isInherited(item.id, attribute.id)"
+          :error="shownErrors[attribute.id]"
           @update:model-value="draft[attribute.id] = $event"
         />
         <NumberAttributeField

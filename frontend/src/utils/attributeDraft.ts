@@ -1,9 +1,9 @@
 import type { Attribute, AttributeValue, AttributeValueRecord } from '@/api/contract'
-import { formatDate } from '@/utils/date'
+import { formatDate, formatMonth } from '@/utils/date'
 
 /**
  * Raw input of one field, as the field holds it: choice → option id, boolean → true/false,
- * date → "YYYY-MM-DD", number/text → the text as typed. Parsed only when collecting, so half-typed input survives.
+ * date → "YYYY-MM-DD", month → "YYYY-MM", number/text → the text as typed. Parsed only when collecting, so half-typed input survives.
  */
 export type DraftInput = string | boolean
 
@@ -20,6 +20,7 @@ export interface CollectedDraft {
 }
 
 export const NUMBER_ERROR = 'Bitte eine Zahl eingeben, zum Beispiel 34,5.'
+export const MONTH_ERROR = 'Bitte Jahr und Monat als JJJJ-MM eingeben, zum Beispiel 2026-10.'
 
 /**
  * Strict on purpose: parseFloat would turn "34abc" into 34. The log is append-only,
@@ -46,6 +47,8 @@ export function formatValue(attribute: Attribute, value: AttributeValue): string
       return [formatNumber(Number(value)), attribute.unit ?? ''].join(' ').trim()
     case 'date':
       return formatDate(String(value))
+    case 'month':
+      return formatMonth(String(value))
     case 'text':
       return String(value)
     default:
@@ -74,6 +77,9 @@ function parseInput(attribute: Attribute, input: DraftInput): Parsed {
       const number = parseNumber(text)
       return number === null ? { error: NUMBER_ERROR } : { value: number }
     }
+    // Native month pickers deliver "YYYY-MM" or "", but desktop Firefox and Safari show a plain text field.
+    case 'month':
+      return /^\d{4}-(0[1-9]|1[0-2])$/.test(text) ? { value: text } : { error: MONTH_ERROR }
     default:
       return undefined
   }
