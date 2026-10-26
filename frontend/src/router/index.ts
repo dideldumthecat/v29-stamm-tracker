@@ -23,6 +23,7 @@ export const routes: RouteRecordRaw[] = [
     },
   },
   { path: '/sync', name: 'sync', component: () => import('@/views/SyncView.vue') },
+  { path: '/help', name: 'help', component: () => import('@/views/HelpView.vue') },
   {
     // /invite#<code>: the fragment never reaches the server, so the code stays out of access logs.
     path: '/invite',

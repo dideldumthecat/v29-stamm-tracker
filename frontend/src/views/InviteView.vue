@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { LoaderCircleIcon, ShareIcon, TriangleAlertIcon } from '@lucide/vue'
+import { LoaderCircleIcon, TriangleAlertIcon } from '@lucide/vue'
 import { ApiError } from '@/api/client'
+import IosInstallSteps from '@/components/IosInstallSteps.vue'
 import { useTimberItemStore } from '@/stores/timberItems'
 
 const props = defineProps<{
@@ -52,11 +53,7 @@ onMounted(() => isIosBrowser || redeem())
         App zum Home-Bildschirm hinzufügen
       </h1>
       <ol class="flex list-decimal flex-col gap-3 pl-6 text-lg leading-[1.4]">
-        <li>
-          Unten auf <ShareIcon :size="20" class="inline align-text-bottom" aria-hidden="true" />
-          <b>Teilen</b> tippen, dann <b>„Zum Home-Bildschirm“</b>.
-        </li>
-        <li>Die App vom Home-Bildschirm aus öffnen.</li>
+        <IosInstallSteps />
         <li>Diesen Code kopieren und dort einfügen:</li>
       </ol>
       <p
