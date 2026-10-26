@@ -1,9 +1,13 @@
 import { defineConfig, devices } from '@playwright/test'
 
 /**
- * E2E tests run inside the DDEV web container against the Vite dev server,
- * which already runs there as a daemon (see .ddev/config.vite.yaml) – so no `webServer` here.
+ * E2E tests run inside the DDEV web container against a production build (`vite preview`), not the dev server:
+ * no on-demand compiling, so the first test after a start is as fast as the last. Built with `--mode test`
+ * (.env.test: fake API) into its own folder, so it never ends up in backend/public like `npm run build`.
+ * Playwright builds and starts it itself and stops it after the run.
  * localhost counts as a secure context, so service worker and camera APIs are available.
+ * The service worker stays on, as in production: every test gets a fresh browser context, so no new version is ever
+ * waiting and the update prompt never appears.
  */
 export default defineConfig({
   testDir: './e2e',
@@ -14,8 +18,17 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   reporter: 'html',
   use: {
-    baseURL: 'http://localhost:5173',
+    baseURL: 'http://localhost:4173',
     trace: 'on-first-retry',
+  },
+
+  webServer: {
+    command:
+      'npx vite build --mode test --outDir dist-e2e --emptyOutDir && npx vite preview --outDir dist-e2e --port 4173 --strictPort',
+    url: 'http://localhost:4173',
+    // Always a fresh build: a server left running could serve an outdated one.
+    reuseExistingServer: false,
+    timeout: 120 * 1000,
   },
 
   // Target devices: iPhone (WebKit as closest approximation of iOS Safari) and Android (Chromium)
