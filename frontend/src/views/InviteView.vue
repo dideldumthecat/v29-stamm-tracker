@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { LoaderCircleIcon, TriangleAlertIcon } from '@lucide/vue'
+import { LoaderCircleIcon, ShareIcon, TriangleAlertIcon } from '@lucide/vue'
 import { ApiError } from '@/api/client'
 import { useTimberItemStore } from '@/stores/timberItems'
 
 const props = defineProps<{
-  // From the personal invite link /invite/<token>.
+  // From the personal invite link /invite#<code>.
   token: string
 }>()
 
@@ -14,6 +14,18 @@ const router = useRouter()
 const store = useTimberItemStore()
 
 const error = ref<'revoked' | 'offline' | null>(null)
+
+// The home screen app on iOS has its own cookies and storage, separate from Safari: redeeming here would
+// sign in Safari only. So Safari (and other iOS browsers) only explains how to add the app and shows the code.
+const isIosBrowser =
+  /iPhone|iPad|iPod/.test(navigator.userAgent) &&
+  !(navigator as Navigator & { standalone?: boolean }).standalone
+const isCopied = ref(false)
+
+async function copyCode() {
+  await navigator.clipboard.writeText(props.token)
+  isCopied.value = true
+}
 
 async function redeem() {
   error.value = null
@@ -30,11 +42,38 @@ async function redeem() {
   await router.replace({ name: 'start' })
 }
 
-onMounted(redeem)
+onMounted(() => isIosBrowser || redeem())
 </script>
 
 <template>
-  <div class="flex min-h-0 flex-col">
+  <div v-if="isIosBrowser" class="flex min-h-0 flex-col overflow-y-auto">
+    <div class="flex flex-auto flex-col gap-5 py-8 px-gutter">
+      <h1 class="text-center text-[26px] font-bold text-balance">
+        App zum Home-Bildschirm hinzufügen
+      </h1>
+      <ol class="flex list-decimal flex-col gap-3 pl-6 text-lg leading-[1.4]">
+        <li>
+          Unten auf <ShareIcon :size="20" class="inline align-text-bottom" aria-hidden="true" />
+          <b>Teilen</b> tippen, dann <b>„Zum Home-Bildschirm“</b>.
+        </li>
+        <li>Die App vom Home-Bildschirm aus öffnen.</li>
+        <li>Diesen Code kopieren und dort einfügen:</li>
+      </ol>
+      <p
+        class="rounded-lg border-2 border-ink py-4 text-center text-3xl font-bold tracking-wider break-all select-all"
+      >
+        {{ token }}
+      </p>
+      <button
+        type="button"
+        class="flex h-[88px] w-full items-center justify-center rounded-lg bg-ink text-lg font-bold text-paper short:h-16"
+        @click="copyCode"
+      >
+        {{ isCopied ? 'Code kopiert' : 'Code kopieren' }}
+      </button>
+    </div>
+  </div>
+  <div v-else class="flex min-h-0 flex-col">
     <div
       class="flex flex-auto flex-col items-center justify-center gap-4 py-8 px-gutter text-center"
     >

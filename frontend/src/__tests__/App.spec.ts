@@ -477,18 +477,60 @@ describe('App', () => {
   describe('invite link', () => {
     it('redeems the token and goes to the start screen', async () => {
       useTimberItemStore().currentUser = null
-      const { router } = await mountAt('/invite/abc')
+      const { router } = await mountAt('/invite#abc')
       await flushPromises()
       expect(router.currentRoute.value.name).toBe('start')
       expect(useTimberItemStore().currentUser?.name).toBe('Alexander')
     })
 
     it('shows "Kein Zugang" for an unknown or revoked token', async () => {
-      const { wrapper, router } = await mountAt('/invite/invalid')
+      const { wrapper, router } = await mountAt('/invite#invalid')
       await flushPromises()
       expect(router.currentRoute.value.name).toBe('invite')
       expect(wrapper.text()).toContain('Kein Zugang')
       expect(wrapper.text()).toContain('widerrufen')
+    })
+  })
+
+  describe('sign-in field', () => {
+    it('replaces the number pad while no user is stored and shows the name right after', async () => {
+      useTimberItemStore().currentUser = null
+      const { wrapper } = await mountAt('/')
+      expect(wrapper.text()).toContain('Einladungscode oder Link')
+      expect(wrapper.text()).not.toContain('Alexander')
+
+      await wrapper
+        .find('input#invite-code')
+        .setValue('Hallo, dein Zugang: https://x.example/invite#k7qm-4xht-9rdp.')
+      await wrapper.find('form').trigger('submit')
+      await flushPromises()
+      expect(wrapper.find('input#invite-code').exists()).toBe(false)
+      expect(wrapper.text()).toContain('Alexander')
+    })
+
+    it('sends nothing when no code is recognised', async () => {
+      useTimberItemStore().currentUser = null
+      const redeem = vi.spyOn(api, 'redeemInvite')
+      const { wrapper } = await mountAt('/')
+      await wrapper.find('input#invite-code').setValue('Hallo Jana!')
+      await wrapper.find('form').trigger('submit')
+      await flushPromises()
+      expect(wrapper.text()).toContain('Kein Einladungscode erkannt')
+      expect(redeem).not.toHaveBeenCalled()
+      vi.restoreAllMocks()
+    })
+
+    it('reports an invalid or revoked invite', async () => {
+      useTimberItemStore().currentUser = null
+      vi.spyOn(api, 'redeemInvite').mockRejectedValue(new ApiError(401, 'revoked'))
+      const { wrapper } = await mountAt('/')
+      await wrapper.find('input#invite-code').setValue('K7QM-4XHT-9RDP')
+      await wrapper.find('form').trigger('submit')
+      await flushPromises()
+      expect(wrapper.text()).toContain(
+        'Einladung ungültig oder widerrufen – bitte bei V29 nachfragen.',
+      )
+      vi.restoreAllMocks()
     })
   })
 

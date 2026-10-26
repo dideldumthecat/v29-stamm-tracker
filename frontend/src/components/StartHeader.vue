@@ -12,8 +12,8 @@ const store = useTimberItemStore()
   >
     <div class="flex min-w-0 flex-col gap-0.5">
       <h1 class="text-[17px] font-bold">V29 Stamm-Tracker</h1>
-      <span class="text-xs text-mute"
-        >Letzter Sync:
+      <span class="truncate text-xs text-mute"
+        ><template v-if="store.currentUser">{{ store.currentUser.name }} · </template>Letzter Sync:
         {{ store.lastSyncedAt ? formatShortDateTime(store.lastSyncedAt) : 'noch nie' }}</span
       >
     </div>

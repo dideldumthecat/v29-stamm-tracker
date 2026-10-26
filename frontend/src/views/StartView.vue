@@ -1,14 +1,18 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { KeyRoundIcon } from '@lucide/vue'
 import NumPad from '@/components/NumPad.vue'
 import TagNumberDisplay from '@/components/TagNumberDisplay.vue'
 import StartHeader from '@/components/StartHeader.vue'
 import OpenButton from '@/components/OpenButton.vue'
+import SignInForm from '@/components/SignInForm.vue'
 import { TAG_DIGITS, TAG_MAX_NUMBER } from '@/config/constants'
 import { isValidTagNumber as checkTagNumber } from '@/utils/tag'
+import { useTimberItemStore } from '@/stores/timberItems'
 
 const router = useRouter()
+const store = useTimberItemStore()
 
 const tagInput = ref('')
 
@@ -39,6 +43,11 @@ function onDelete() {
   tagInput.value = tagInput.value.slice(0, -1)
 }
 
+// A new device has no attributes yet. Best effort: the sync page shows any problem later.
+function onSignedIn() {
+  store.sync().catch(() => {})
+}
+
 function onOpen() {
   if (!isValidTagNumber.value) {
     return
@@ -54,7 +63,18 @@ function onOpen() {
   <div class="grid min-h-0 grid-rows-[auto_minmax(0,1fr)]">
     <StartHeader />
 
-    <div class="flex min-h-0 flex-col justify-end overflow-hidden pb-3">
+    <div
+      v-if="!store.currentUser"
+      class="flex flex-col items-center justify-center gap-4 overflow-y-auto py-8 px-gutter text-center"
+    >
+      <KeyRoundIcon :size="64" :stroke-width="1.5" aria-hidden="true" />
+      <h2 class="text-[26px] font-bold text-balance">Willkommen</h2>
+      <p class="max-w-[32ch] leading-[1.45] text-mute">
+        Melde dich mit dem Einladungscode an, den du von V29 bekommen hast.
+      </p>
+      <SignInForm @signed-in="onSignedIn" />
+    </div>
+    <div v-else class="flex min-h-0 flex-col justify-end overflow-hidden pb-3">
       <TagNumberDisplay :tag-input="tagInput" :has-error="isTagNumberTooHigh" />
       <OpenButton :is-disabled="!isValidTagNumber" @open="onOpen" />
       <NumPad @digit="onDigit" @clear="onClear" @delete="onDelete" />
