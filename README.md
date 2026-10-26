@@ -92,6 +92,7 @@ ddev start
 ddev composer install
 ddev frontend install
 ddev console doctrine:migrations:migrate -n
+ddev console app:attributes:import data/attributes.example.yaml
 ddev frontend run dev        # Vite dev server, runs in the foreground
 ```
 
@@ -117,6 +118,7 @@ ddev console app:user:create "Name" [--admin]
 | Symfony console | `ddev console …` |
 | Users | `app:user:create`, `app:user:list`, `app:user:revoke` |
 | Rebuild projections from all events | `ddev console app:projections:rebuild` |
+| Import attributes from YAML (path relative to `backend/`) | `ddev console app:attributes:import data/attributes.example.yaml [--dry-run]` |
 
 The backend tests use a separate database. Create it once (and repeat the second command after new migrations):
 

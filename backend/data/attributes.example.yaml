@@ -1,0 +1,50 @@
+# Attributes ("Merkmale") and their options, imported with: ddev console app:attributes:import <file> [--dry-run] (path relative to backend/)
+# Order in this file = order in the app. Matched by name (attributes) and label (options): renaming creates a new one.
+#
+# Keys per attribute (defaults in brackets):
+#   name, type (boolean | choice | number | text | date | month | photo)
+#   description [''], unit [none, only for number], is_series [false], is_inheritable [false], active [true]
+#   options – only for choice, required there: a label, or { label: …, active: false }
+- name: Holzart
+  description: Eichenart laut Rinde und Blatt
+  type: choice
+  is_inheritable: true
+  options: [Traubeneiche, Stieleiche, { label: Roteiche, active: false }]
+- name: Fälldatum
+  description: Monat der Fällung
+  type: month
+  is_inheritable: true
+- name: Lieferdatum
+  description: Tag der Anlieferung am Sägewerk
+  type: date
+  is_inheritable: true
+- name: Lagerplatz
+  description: Wo der Stamm im Wald liegt
+  type: choice
+  options: [Polter Nord, Polter Süd, { label: Waldweg Ost, active: false }]
+- name: Gesägt
+  description: Stamm ist im Sägewerk aufgeteilt
+  type: boolean
+  is_inheritable: true
+- name: Entlastungsschnitt
+  description: Längsschnitt gegen Rissbildung
+  type: boolean
+  is_inheritable: true
+  active: false
+- name: Sortierklasse
+  description: Visuelle Sortierung
+  type: choice
+  options: [A, B, C]
+- name: Holzfeuchte
+  description: Messung mit Feuchtemessgerät
+  type: number
+  unit: '%'
+  is_series: true
+- name: Notiz
+  description: Freitext
+  type: text
+  is_series: true
+- name: Fotos
+  description: Übersichtsfotos
+  type: photo
+  is_series: true

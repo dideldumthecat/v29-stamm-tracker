@@ -24,6 +24,27 @@ final class TimberItemProjector
     }
 
     /**
+     * Empties both tables and projects every item that has events. Returns the number of items.
+     */
+    public function rebuildAll(): int
+    {
+        $db = $this->em->getConnection();
+
+        // One transaction: the API never sees half-empty tables. DELETE, not TRUNCATE, which would commit implicitly.
+        return $db->transactional(function () use ($db): int {
+            $db->executeStatement('DELETE FROM timber_item_state');
+            $db->executeStatement('DELETE FROM timber_items');
+            $ids = $db->fetchFirstColumn('SELECT DISTINCT timber_item_id FROM timber_item_events');
+            foreach ($ids as $id) {
+                $this->project(Uuid::fromBinary($id));
+                $this->em->clear();
+            }
+
+            return \count($ids);
+        });
+    }
+
+    /**
      * Recomputes the item's rows in both tables from its events and replaces the old ones, then does the same
      * for its children, whose inherited values may have changed.
      */
