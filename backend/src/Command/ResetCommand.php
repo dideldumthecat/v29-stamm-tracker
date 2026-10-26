@@ -13,7 +13,9 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
 /**
  * Deliberately breaks the append-only rule of timber_item_events: only for test data before go-live.
  *
- * TODO: remove this command or lock it (refuse whenever events exist) once real data is captured.
+ * Always refused in prod, so it cannot wipe real data there.
+ *
+ * TODO: remove this command once real data is captured and no test data needs resetting anymore.
  */
 #[AsCommand(name: 'app:reset', description: 'TEST DATA ONLY, breaks the append-only event log: delete all events and projections (with --attributes also attributes and options); users stay')]
 class ResetCommand
@@ -29,10 +31,10 @@ class ResetCommand
         SymfonyStyle $io,
         InputInterface $input,
         #[Option(description: 'Also delete attributes and their options')] bool $attributes = false,
-        #[Option(description: 'Required in prod and with --no-interaction')] bool $force = false,
+        #[Option(description: 'Required with --no-interaction')] bool $force = false,
     ): int {
-        if ('prod' === $this->environment && !$force) {
-            $io->error('This is the production environment (APP_ENV=prod). Add --force to delete the data anyway.');
+        if ('prod' === $this->environment) {
+            $io->error('Refused: this is the production environment (APP_ENV=prod).');
 
             return Command::FAILURE;
         }

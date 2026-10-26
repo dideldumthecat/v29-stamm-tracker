@@ -65,19 +65,18 @@ class ResetCommandTest extends KernelTestCase
         self::assertSame([0, 0, 1], [$this->rows('timber_item_events'), $this->rows('attributes'), $this->rows('users')]);
     }
 
-    public function testProdIsRefusedWithoutForce(): void
+    public function testProdIsAlwaysRefused(): void
     {
         $application = new Application(self::$kernel);
         $application->addCommand(new ResetCommand($this->em, 'prod'));
         $tester = new CommandTester($application->find('app:reset'));
 
         $tester->setInputs(['yes']);
-        $tester->execute([]);
+        $tester->execute(['--attributes' => true, '--force' => true]);
 
         self::assertSame(Command::FAILURE, $tester->getStatusCode());
         self::assertStringContainsString('APP_ENV=prod', $tester->getDisplay());
-        self::assertStringContainsString('--force', $tester->getDisplay());
-        self::assertSame(2, $this->rows('timber_item_events'));
+        self::assertSame([2, 1, 1, 1], [$this->rows('timber_item_events'), $this->rows('timber_items'), $this->rows('timber_item_state'), $this->rows('attributes')]);
     }
 
     public function testDeclinedConfirmationDeletesNothing(): void
