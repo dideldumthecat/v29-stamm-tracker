@@ -2,11 +2,18 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import { createPinia, setActivePinia } from 'pinia'
+import { ref } from 'vue'
 import App from '../App.vue'
 import { routes } from '../router'
 import { useTimberItemStore } from '@/stores/timberItems'
 import { useToast } from '@/composables/useToast'
 import { api, ApiError } from '@/api/client'
+
+const needRefresh = ref(false)
+const updateServiceWorker = vi.fn()
+vi.mock('virtual:pwa-register/vue', () => ({
+  useRegisterSW: () => ({ needRefresh, updateServiceWorker }),
+}))
 
 const mounted: { unmount: () => void }[] = []
 
@@ -54,6 +61,7 @@ describe('App', () => {
     mounted.splice(0).forEach((wrapper) => wrapper.unmount())
     // Saving shows a toast for 1.7 s; it must not leak into the next test.
     useToast().hide()
+    needRefresh.value = false
   })
 
   it('renders the start screen on /', async () => {
@@ -175,6 +183,69 @@ describe('App', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  describe('update hint', () => {
+    const hint = () =>
+      [...document.body.querySelectorAll(':scope > div > [role="status"]')].find((status) =>
+        status.textContent?.includes('Neue Version verfügbar'),
+      )
+
+    it('stays on the start screen without time limit and reloads on confirm', async () => {
+      vi.useFakeTimers()
+      try {
+        needRefresh.value = true
+        await mountAt('/')
+        vi.advanceTimersByTime(60_000)
+        await flushPromises()
+        expect(hint()?.classList).toContain('pointer-events-auto')
+        ;[...hint()!.querySelectorAll('button')]
+          .find((b) => b.textContent?.includes('Aktualisieren'))!
+          .click()
+        expect(updateServiceWorker).toHaveBeenCalledWith(true)
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('gives way to a toast and comes back after it', async () => {
+      vi.useFakeTimers()
+      try {
+        needRefresh.value = true
+        await mountAt('/')
+        useToast().show({ before: 'Gespeichert' })
+        await flushPromises()
+        vi.advanceTimersByTime(200)
+        await flushPromises()
+        expect(hint()).toBeUndefined()
+        expect(document.body.textContent).toContain('Gespeichert')
+
+        vi.advanceTimersByTime(1500)
+        await flushPromises()
+        // Toast slides out first (out-in), then the hint slides in.
+        vi.advanceTimersByTime(500)
+        await flushPromises()
+        expect(hint()).toBeDefined()
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('hides on close', async () => {
+      needRefresh.value = true
+      await mountAt('/')
+      ;(
+        hint()!.querySelector('button[aria-label="Hinweis schließen"]') as HTMLButtonElement
+      ).click()
+      expect(needRefresh.value).toBe(false)
+      await vi.waitFor(() => expect(hint()).toBeUndefined())
+    })
+
+    it('is not shown outside the start screen', async () => {
+      needRefresh.value = true
+      await mountAt('/timber-item/42')
+      expect(hint()).toBeUndefined()
+    })
   })
 
   it('records a ticked boolean attribute on save', async () => {
