@@ -117,7 +117,7 @@ async function onSync() {
     >
       <CircleCheckIcon :size="64" :stroke-width="1.5" aria-hidden="true" />
       <h2 class="text-[26px] font-bold text-balance">
-        {{ transferred !== null ? 'Synchronisiert' : 'Alles auf dem neuesten Stand' }}
+        {{ transferred !== null ? 'Synchronisiert' : 'Keine Änderungen auf diesem Gerät' }}
       </h2>
       <p class="max-w-[32ch] leading-[1.45] text-mute">
         <template v-if="transferred">
@@ -125,7 +125,7 @@ async function onSync() {
           Stand geladen.
         </template>
         <template v-else-if="transferred === 0">Aktueller Stand geladen.</template>
-        <template v-else>Auf diesem Gerät gibt es keine offenen Änderungen.</template>
+        <template v-else>Daten aktualisieren lädt den neuesten Stand vom Server.</template>
       </p>
     </div>
 
@@ -196,7 +196,15 @@ async function onSync() {
             ><RefreshCwIcon :size="18"
           /></span>
           {{
-            isSyncing ? 'Synchronisiere …' : failure ? 'Erneut versuchen' : 'Jetzt synchronisieren'
+            isSyncing
+              ? groups.length
+                ? 'Synchronisiere …'
+                : 'Aktualisiere …'
+              : failure
+                ? 'Erneut versuchen'
+                : groups.length
+                  ? 'Jetzt synchronisieren'
+                  : 'Daten aktualisieren'
           }}
         </button>
         <span class="text-center text-[13px] text-mute"

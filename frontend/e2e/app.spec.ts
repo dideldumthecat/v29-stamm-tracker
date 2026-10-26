@@ -170,3 +170,12 @@ test('invite link elsewhere is redeemed right away', async ({ page }, testInfo) 
   await expect(page.locator('h1')).toHaveText('V29 Stamm-Tracker')
   await expect(page.getByText('Alexander · Letzter Sync')).toBeVisible()
 })
+
+test('sync without pending changes offers to refresh the data', async ({ page }) => {
+  await page.goto('/sync')
+  await expect(
+    page.getByRole('heading', { name: 'Keine Änderungen auf diesem Gerät' }),
+  ).toBeVisible()
+  await page.getByRole('button', { name: 'Daten aktualisieren' }).click()
+  await expect(page.getByRole('heading', { name: 'Synchronisiert' })).toBeVisible()
+})
