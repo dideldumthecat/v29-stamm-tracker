@@ -24,7 +24,7 @@ Everything is stored on the device first. Out in the woods there is usually no n
 - **Append-only event log.** Nothing is ever updated or deleted. Every change is an event; corrections and voids are new events. The current state of each log is a projection computed from the events and can be rebuilt at any time. On conflicting values, the one that reached the server last wins.
 - **Attributes are configuration, not code.** Everything domain-specific – even the wood species – is an attribute V29 defines themselves. A new process step needs no deployment and no migration.
 - **Client-generated IDs.** Every log and every event gets a UUID on the device, so re-sending after a failed sync is harmless (idempotent). The tag number is a label, not the key.
-- **Personal invite links instead of passwords.** Each person gets a link that logs them in for good; it can be revoked individually.
+- **Personal invite codes instead of passwords.** Each person gets a code that signs them in for good; it can be revoked individually.
 - **Same origin for app and API.** The built app and the Symfony API are served from one host – no CORS, plain session cookies.
 - **Boring hosting.** Runs on standard shared hosting (Apache, PHP, MariaDB); no Node.js on the server.
 
@@ -46,7 +46,7 @@ flowchart LR
 
 Work in progress, targeting a first release in November 2026.
 
-- Done: capture app (number pad, logs, attributes, beams with inheritance), offline storage, manual sync, update prompt for new app versions, invite links, event log with projections, deployment.
+- Done: capture app (number pad, logs, attributes, beams with inheritance), offline storage, manual sync, update prompt for new app versions, invite codes, event log with projections, deployment.
 - Next: photos, administration, evaluation and export.
 
 ## Tech stack
@@ -99,11 +99,13 @@ ddev frontend run dev        # Vite dev server, runs in the foreground
 - App: https://v29-stamm-tracker.ddev.site:5173 (requests to `/api` are proxied to Symfony)
 - API: https://v29-stamm-tracker.ddev.site/api/ping
 
-By default the dev server uses a **fake API** with the fixtures, so the app works without any backend data. To use the real backend, create `frontend/.env.development.local` containing `VITE_API=` and restart Vite. Then create a user and open the printed invite link:
+By default the dev server uses a **fake API** with the fixtures, so the app works without any backend data. To use the real backend, create `frontend/.env.development.local` containing `VITE_API=` and restart Vite. Then create a user:
 
 ```sh
 ddev console app:user:create "Name" [--admin]
 ```
+
+The command prints a ready-to-send invite message with the address (from `DEFAULT_URI`), the personal code and install steps for iPhone and Android. The code is shown only once. A browser shows only the install steps; the sign-in form appears in the installed app (and, for local work, on the dev server and with the fake API).
 
 ### Commands
 

@@ -19,13 +19,13 @@ export type CalendarMonth = string
 
 // --- Status codes (all endpoints) ---------------------------------------------
 // 200 OK
-// 401 invite link unknown or revoked → app shows "Kein Zugang" (sitemap)
+// 401 invite code unknown or revoked → app shows "Kein Zugang" (sitemap)
 // 400 malformed request (bug in the app, not a user error)
 // 5xx / network error → sync failed, events stay in the local queue
 // Photo upload follows with the photo feature (not part of the MVP).
 
 // --- POST /api/session ------------------------------------------------------
-// Called once when the invite link is opened. Request: { "token": "<from the link>" }.
+// Called once when the invite code is entered. Request: { "token": "<the code>" }.
 // The server sets the session cookie; every later request is attributed via that cookie,
 // so the app never sends a user id itself.
 

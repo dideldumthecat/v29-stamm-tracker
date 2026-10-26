@@ -63,11 +63,7 @@ const signedIn = () => {
 
 // structuredClone: callers may mutate the result, the imported fixture must stay as it is.
 const fake: typeof real = {
-  // The invite link /invite#invalid shows the error page.
-  redeemInvite: async (token) => {
-    if (token === 'invalid') {
-      throw new ApiError(401, 'Unknown or revoked invite link.')
-    }
+  redeemInvite: async () => {
     localStorage.removeItem('fake-api')
     return structuredClone(sessionFixture)
   },

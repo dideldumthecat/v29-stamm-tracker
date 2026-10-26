@@ -24,14 +24,6 @@ export const routes: RouteRecordRaw[] = [
   },
   { path: '/sync', name: 'sync', component: () => import('@/views/SyncView.vue') },
   { path: '/help', name: 'help', component: () => import('@/views/HelpView.vue') },
-  {
-    // /invite#<code>: the fragment never reaches the server, so the code stays out of access logs.
-    path: '/invite',
-    name: 'invite',
-    component: () => import('@/views/InviteView.vue'),
-    props: (route) => ({ token: decodeURIComponent(route.hash.slice(1)) }),
-    beforeEnter: (to) => to.hash.length > 1 || { name: 'start' },
-  },
   // Unknown paths (e.g. old bookmarks) fall back to the start screen.
   { path: '/:pathMatch(.*)*', redirect: { name: 'start' } },
 ]

@@ -33,7 +33,7 @@ export type SyncResult = {
 
 export const useTimberItemStore = defineStore('timberItems', () => {
   const snapshot = ref(api.initialSnapshot())
-  // Set by the invite link; null until then.
+  // Set by signing in with the invite code; null until then.
   const currentUser = ref<User | null>(api.initialUser())
   const users = computed(() => snapshot.value.users)
   const attributes = computed(() => snapshot.value.attributes)
