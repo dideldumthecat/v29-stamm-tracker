@@ -30,3 +30,6 @@ dist/
 CLAUDE.md
 AGENTS.md
 /BRIEF.md
+
+# Claude output files (diagrams, exports)
+/Claude outputs/
