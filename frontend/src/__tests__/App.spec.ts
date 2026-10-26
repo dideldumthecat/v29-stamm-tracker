@@ -472,4 +472,22 @@ describe('App', () => {
       expect(buttonByText(/hinzufügen/).textContent).toContain('00042-B')
     })
   })
+
+  describe('invite link', () => {
+    it('redeems the token and goes to the start screen', async () => {
+      useTimberItemStore().currentUser = null
+      const { router } = await mountAt('/invite/abc')
+      await flushPromises()
+      expect(router.currentRoute.value.name).toBe('start')
+      expect(useTimberItemStore().currentUser?.name).toBe('Alexander')
+    })
+
+    it('shows "Kein Zugang" for an unknown or revoked token', async () => {
+      const { wrapper, router } = await mountAt('/invite/invalid')
+      await flushPromises()
+      expect(router.currentRoute.value.name).toBe('invite')
+      expect(wrapper.text()).toContain('Kein Zugang')
+      expect(wrapper.text()).toContain('widerrufen')
+    })
+  })
 })

@@ -22,6 +22,12 @@ export const routes: RouteRecordRaw[] = [
       return (isValidTag(tag) && isKnownOrPlain) || { name: 'start' }
     },
   },
+  {
+    path: '/invite/:token',
+    name: 'invite',
+    component: () => import('@/views/InviteView.vue'),
+    props: true,
+  },
   // Unknown paths (e.g. old bookmarks) fall back to the start screen.
   { path: '/:pathMatch(.*)*', redirect: { name: 'start' } },
 ]
