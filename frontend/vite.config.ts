@@ -8,7 +8,7 @@ import vueDevTools from 'vite-plugin-vue-devtools'
 import { VitePWA } from 'vite-plugin-pwa'
 import checker from 'vite-plugin-checker'
 
-// Im DDEV-Container gesetzt, z.B. https://v29-stamm-tracker.ddev.site / v29-stamm-tracker.ddev.site
+// Set inside the DDEV container, e.g. https://v29-stamm-tracker.ddev.site / v29-stamm-tracker.ddev.site
 const { DDEV_PRIMARY_URL, DDEV_HOSTNAME } = process.env
 
 // Build identifier on the help page instead of a hand-maintained version number nobody bumps.
@@ -49,7 +49,7 @@ export default defineConfig(({ mode }) => ({
       }),
     VitePWA({
       // 'prompt' instead of 'autoUpdate': a new version must never reload the app in the middle
-      // of a data entry. The user confirms the update (UpdatePrompt.vue).
+      // of a data entry. The user confirms the update (hint in components/AppToast.vue).
       // `--mode share` (phone testing via `ddev share`) skips the waiting state instead.
       registerType: mode === 'share' ? 'autoUpdate' : 'prompt',
       includeAssets: ['favicon.ico', 'apple-touch-icon-180x180.png'],
@@ -103,7 +103,7 @@ export default defineConfig(({ mode }) => ({
     hmr: DDEV_HOSTNAME
       ? { host: DDEV_HOSTNAME.split(',')[0], protocol: 'wss', clientPort: 5173 }
       : undefined,
-    // Symfony läuft im selben Container auf Port 80 → gleiche Origin, kein CORS
+    // Symfony runs in the same container on port 80 → same origin, no CORS
     proxy: { '/api': 'http://localhost' },
   },
 }))

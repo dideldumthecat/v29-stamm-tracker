@@ -44,8 +44,7 @@ final class SyncController extends AbstractController
             throw new BadRequestHttpException('events must be a list.');
         }
 
-        // TODO: any invalid event rejects the whole batch with a 400; the future sync client must show that to the user
-        //  instead of retrying silently, or the pending events never leave the device.
+        // Any invalid event rejects the whole batch with a 400, which the app shows to the user.
         $known = $this->knownEventIds($events);
         // Strictly increasing in the order sent: the last value sent wins even if the device times are equal.
         $receivedAt = new \DateTimeImmutable();
