@@ -7,9 +7,12 @@ import TagNumberDisplay from '@/components/TagNumberDisplay.vue'
 import StartHeader from '@/components/StartHeader.vue'
 import OpenButton from '@/components/OpenButton.vue'
 import SignInForm from '@/components/SignInForm.vue'
+import IosInstallSteps from '@/components/IosInstallSteps.vue'
+import AndroidInstallSteps from '@/components/AndroidInstallSteps.vue'
 import { TAG_DIGITS, TAG_MAX_NUMBER } from '@/config/constants'
 import { isValidTagNumber as checkTagNumber } from '@/utils/tag'
 import { useTimberItemStore } from '@/stores/timberItems'
+import { isInstalledApp, isIos } from '@/utils/platform'
 
 const router = useRouter()
 const store = useTimberItemStore()
@@ -17,6 +20,10 @@ const store = useTimberItemStore()
 const tagInput = ref('')
 // Not bound to store.currentUser directly: the form would be gone before it reports the sign-in.
 const isSignedIn = ref(store.currentUser !== null)
+const isInBrowser = !isInstalledApp()
+// The home screen app on iOS has its own cookies and storage, separate from the browser:
+// signing in here would sign in the browser only, so iOS browsers get no form at all.
+const showsSignIn = !isInBrowser || !isIos()
 
 const tagNumber = computed(() => {
   return Number(tagInput.value)
@@ -72,14 +79,28 @@ function onOpen() {
 
     <div
       v-if="!isSignedIn"
-      class="flex flex-col items-center justify-center gap-4 overflow-y-auto py-8 px-gutter text-center"
+      class="flex flex-col items-center justify-center-safe gap-4 overflow-y-auto py-8 px-gutter text-center"
     >
-      <KeyRoundIcon :size="64" :stroke-width="1.5" aria-hidden="true" />
-      <h2 class="text-[26px] font-bold text-balance">Willkommen</h2>
-      <p class="max-w-[32ch] leading-[1.45] text-mute">
-        Melde dich mit dem Einladungscode an, den du von V29 bekommen hast.
-      </p>
-      <SignInForm @signed-in="onSignedIn" />
+      <section
+        v-if="isInBrowser"
+        class="flex w-full flex-col gap-3 rounded-lg border-2 border-ink p-4 text-left"
+        role="note"
+      >
+        <h2 class="text-xl font-bold text-balance">Bitte zuerst die App installieren</h2>
+        <ol class="flex list-decimal flex-col gap-3 pl-6 text-lg leading-[1.4]">
+          <IosInstallSteps v-if="isIos()" />
+          <AndroidInstallSteps v-else />
+          <li>Dort mit dem Einladungscode anmelden.</li>
+        </ol>
+      </section>
+      <template v-if="showsSignIn">
+        <KeyRoundIcon :size="64" :stroke-width="1.5" aria-hidden="true" />
+        <h2 class="text-[26px] font-bold text-balance">Willkommen</h2>
+        <p class="max-w-[32ch] leading-[1.45] text-mute">
+          Melde dich mit dem Einladungscode an, den du von V29 bekommen hast.
+        </p>
+        <SignInForm @signed-in="onSignedIn" />
+      </template>
     </div>
     <div v-else class="flex min-h-0 flex-col justify-end overflow-hidden pb-3">
       <TagNumberDisplay :tag-input="tagInput" :has-error="isTagNumberTooHigh" />

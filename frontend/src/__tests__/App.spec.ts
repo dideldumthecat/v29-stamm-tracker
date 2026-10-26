@@ -523,12 +523,13 @@ describe('App', () => {
     it('replaces the number pad while no user is stored and shows the name right after', async () => {
       useTimberItemStore().currentUser = null
       const { wrapper } = await mountAt('/')
-      expect(wrapper.text()).toContain('Einladungscode oder Link')
+      expect(wrapper.text()).toContain('Einladungscode')
       expect(wrapper.text()).not.toContain('Alexander')
 
-      await wrapper
-        .find('input#invite-code')
-        .setValue('Hallo, dein Zugang: https://x.example/invite#k7qm-4xht-9rdp.')
+      await wrapper.find('input#invite-code').setValue('k7qm4xht9rdp')
+      expect((wrapper.find('input#invite-code').element as HTMLInputElement).value).toBe(
+        'K7QM-4XHT-9RDP',
+      )
       await wrapper.find('form').trigger('submit')
       await flushPromises()
       expect(wrapper.find('input#invite-code').exists()).toBe(false)
@@ -545,6 +546,31 @@ describe('App', () => {
       expect(wrapper.text()).toContain('Kein Einladungscode erkannt')
       expect(redeem).not.toHaveBeenCalled()
       vi.restoreAllMocks()
+    })
+
+    it('asks a browser to install the app first', async () => {
+      useTimberItemStore().currentUser = null
+      const { wrapper } = await mountAt('/')
+      expect(wrapper.find('[role="note"]').text()).toContain('Bitte zuerst die App installieren')
+      expect(wrapper.find('input#invite-code').exists()).toBe(true)
+    })
+
+    it('shows only the install steps in an iPhone browser', async () => {
+      useTimberItemStore().currentUser = null
+      vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue('Mozilla/5.0 (iPhone)')
+      const { wrapper } = await mountAt('/')
+      expect(wrapper.find('[role="note"]').text()).toContain('„Zum Home-Bildschirm“')
+      expect(wrapper.find('input#invite-code').exists()).toBe(false)
+      vi.restoreAllMocks()
+    })
+
+    it('shows no install hint in the installed app', async () => {
+      useTimberItemStore().currentUser = null
+      vi.stubGlobal('matchMedia', () => ({ matches: true }))
+      const { wrapper } = await mountAt('/')
+      expect(wrapper.find('[role="note"]').exists()).toBe(false)
+      expect(wrapper.find('input#invite-code').exists()).toBe(true)
+      vi.unstubAllGlobals()
     })
 
     it('reports an invalid or revoked invite', async () => {

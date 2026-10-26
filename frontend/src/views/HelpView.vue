@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
-import { ChevronLeftIcon, EllipsisVerticalIcon } from '@lucide/vue'
+import { ChevronLeftIcon } from '@lucide/vue'
+import AndroidInstallSteps from '@/components/AndroidInstallSteps.vue'
 import IosInstallSteps from '@/components/IosInstallSteps.vue'
 import { useStoragePersistence } from '@/composables/useStoragePersistence'
 
@@ -25,24 +26,6 @@ const { isPersisted } = useStoragePersistence()
 
     <div class="flex flex-col gap-8 py-6 px-gutter text-lg leading-[1.4]">
       <section class="flex flex-col gap-3">
-        <h2 class="text-[26px] font-bold text-balance">App installieren</h2>
-        <h3 class="font-bold">iPhone (Safari)</h3>
-        <ol class="flex list-decimal flex-col gap-3 pl-6">
-          <IosInstallSteps />
-        </ol>
-        <p>
-          Danach nur noch über das Symbol öffnen: Safari und die App auf dem Home-Bildschirm haben
-          getrennte Daten.
-        </p>
-        <h3 class="font-bold">Android (Chrome)</h3>
-        <p>
-          Oben rechts auf das Menü
-          <EllipsisVerticalIcon :size="20" class="inline align-text-bottom" aria-hidden="true" />
-          tippen, dann <b>„App installieren“</b> bzw. <b>„Zum Startbildschirm hinzufügen“</b>.
-        </p>
-      </section>
-
-      <section class="flex flex-col gap-3">
         <h2 class="text-[26px] font-bold text-balance">Synchronisieren</h2>
         <ul class="flex list-disc flex-col gap-3 pl-6">
           <li>Erfassen geht auch ohne Netz. Alles bleibt auf dem Handy, bis du synchronisierst.</li>
@@ -57,6 +40,23 @@ const { isPersisted } = useStoragePersistence()
           <b>Achtung:</b> Die App nicht löschen und keine Website-Daten entfernen, solange am
           Sync-Button eine Zahl steht. Sonst sind diese Einträge verloren.
         </p>
+      </section>
+
+      <section class="flex flex-col gap-3">
+        <h2 class="text-[26px] font-bold text-balance">App auf einem neuen Handy installieren</h2>
+        <p>Dafür brauchst du die Adresse und den Code aus deiner Einladung.</p>
+        <h3 class="font-bold">iPhone (Safari)</h3>
+        <ol class="flex list-decimal flex-col gap-3 pl-6">
+          <IosInstallSteps />
+        </ol>
+        <p>
+          Danach nur noch über das Symbol öffnen: Safari und die App auf dem Home-Bildschirm haben
+          getrennte Daten.
+        </p>
+        <h3 class="font-bold">Android (Chrome)</h3>
+        <ol class="flex list-decimal flex-col gap-3 pl-6">
+          <AndroidInstallSteps />
+        </ol>
       </section>
     </div>
 

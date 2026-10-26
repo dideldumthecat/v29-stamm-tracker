@@ -1,20 +1,21 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { ApiError } from '@/api/client'
 import { useTimberItemStore } from '@/stores/timberItems'
-import { extractInviteCode } from '@/utils/invite'
+import { formatInviteInput, isInviteCode } from '@/utils/invite'
 
 const emit = defineEmits<{ 'signed-in': [] }>()
 
 const store = useTimberItemStore()
 
 const input = ref('')
+watch(input, (text) => (input.value = formatInviteInput(text)))
 const error = ref<string | null>(null)
 const isBusy = ref(false)
 
 async function onSubmit() {
-  const code = extractInviteCode(input.value)
-  if (!code) {
+  const code = input.value
+  if (!isInviteCode(code)) {
     error.value = 'Kein Einladungscode erkannt'
     return
   }
@@ -37,13 +38,14 @@ async function onSubmit() {
 
 <template>
   <form class="flex w-full flex-col gap-3 text-center" @submit.prevent="onSubmit">
-    <label for="invite-code" class="font-bold">Einladungscode oder Link</label>
+    <label for="invite-code" class="font-bold">Einladungscode</label>
     <input
       id="invite-code"
       v-model="input"
       type="text"
-      autocapitalize="off"
+      autocapitalize="characters"
       autocomplete="off"
+      maxlength="14"
       autocorrect="off"
       spellcheck="false"
       enterkeyhint="go"

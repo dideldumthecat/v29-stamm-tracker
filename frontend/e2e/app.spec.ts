@@ -115,14 +115,26 @@ test('invalid input keeps the item open and shows the error', async ({ page }) =
 
 const SIGNED_OUT = () => localStorage.setItem('fake-api', 'signed-out')
 
-test('signs in with a code pasted from a messenger', async ({ page }) => {
+test('start page in the browser asks to install the app first', async ({ page }, testInfo) => {
+  await page.goto('/')
+  await page.evaluate(SIGNED_OUT)
+  await page.reload()
+  await expect(page.getByText('Bitte zuerst die App installieren')).toBeVisible()
+  // iPhone: the home screen app has its own storage, so no sign-in in the browser.
+  await expect(page.getByLabel('Einladungscode')).toHaveCount(
+    testInfo.project.name === 'iphone' ? 0 : 1,
+  )
+})
+
+test('signs in with a typed code', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name === 'iphone', 'iPhone browsers get no sign-in form')
   await page.goto('/')
   await page.evaluate(SIGNED_OUT)
   await page.reload()
   await expect(page.getByRole('button', { name: '1', exact: true })).toHaveCount(0)
-  await page
-    .getByLabel('Einladungscode oder Link')
-    .fill('Hallo Alexander,\ndein Zugang: https://v29.example/invite#k7qm–4xht–9rdp – viel Spaß')
+  const field = page.getByLabel('Einladungscode')
+  await field.pressSequentially('k7qm4xht9rdpxx')
+  await expect(field).toHaveValue('K7QM-4XHT-9RDP')
   await page.getByRole('button', { name: 'Anmelden' }).click()
   await expect(page.locator('header').getByText('Alexander', { exact: true })).toBeVisible()
   await expect(page.getByText('Letzter Sync:')).toBeVisible()
@@ -144,7 +156,7 @@ test('a 401 on sync keeps the queue and syncs after signing in again', async ({ 
   await expect(page.locator('h1')).toHaveText('Synchronisierung (2)')
   await page.getByRole('button', { name: 'Jetzt synchronisieren' }).click()
 
-  await page.getByLabel('Einladungscode oder Link').fill('K7QM-4XHT-9RDP')
+  await page.getByLabel('Einladungscode').fill('K7QM-4XHT-9RDP')
   await page.getByRole('button', { name: 'Anmelden' }).click()
   await expect(page.getByText('2 Einträge übertragen')).toBeVisible()
 })
