@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { ChevronLeftIcon, CircleCheckIcon, RefreshCwIcon } from '@lucide/vue'
 import { ApiError } from '@/api/client'
 import type { Event } from '@/api/contract'
-import { useTimberItemStore } from '@/stores/timberItems'
+import { useTimberItemStore, type SyncResult } from '@/stores/timberItems'
 import { formatValue } from '@/utils/attributeDraft'
 import { formatShortDateTime } from '@/utils/date'
 import FormattedTag from '@/components/FormattedTag.vue'
@@ -15,7 +15,9 @@ const store = useTimberItemStore()
 
 const isSyncing = ref(false)
 // Set after a successful sync: the page stays on the result until the user leaves.
-const transferred = ref<number | null>(null)
+// A sync right after sign-in elsewhere hands its result over when it rejected something.
+const result = ref((router.options.history.state.syncResult as SyncResult | undefined) ?? null)
+const transferred = computed(() => result.value?.transferred ?? null)
 const failure = ref<ApiError | null>(null)
 
 // Pending events grouped by item, in recording order; the tag belongs to "angelegt" and gets no row.
@@ -75,7 +77,7 @@ async function onSync() {
   isSyncing.value = true
   failure.value = null
   try {
-    transferred.value = await store.sync()
+    result.value = await store.sync()
   } catch (error) {
     if (!(error instanceof ApiError)) {
       throw error
@@ -127,6 +129,17 @@ async function onSync() {
         <template v-else-if="transferred === 0">Aktueller Stand geladen.</template>
         <template v-else>Daten aktualisieren lädt den neuesten Stand vom Server.</template>
       </p>
+      <div
+        v-for="{ tagNumber, isBeam } in result?.rejected"
+        :key="tagNumber"
+        class="max-w-[40ch] rounded-lg border-2 border-ink px-3.5 py-3 text-left text-sm leading-[1.4]"
+        role="alert"
+      >
+        {{ isBeam ? 'Balken' : 'Stamm' }}
+        <strong class="tabular-nums"><FormattedTag :tag-number="tagNumber" /></strong> war bereits
+        erfasst. Deine Angaben dazu wurden nicht übernommen. Bitte prüfe die Nummer und erfasse
+        fehlende Werte am bestehenden {{ isBeam ? 'Balken' : 'Stamm' }}.
+      </div>
     </div>
 
     <div v-else class="flex flex-col gap-5 py-4 px-gutter">

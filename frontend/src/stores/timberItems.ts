@@ -24,6 +24,13 @@ import { nextBeamTag } from '@/utils/tag'
 export type { Attribute, AttributeOption, AttributeValueRecord, TimberItem } from '@/api/contract'
 export type { User } from '@/api/client'
 
+// A type, not an interface: it travels as router history state, which needs an index signature.
+export type SyncResult = {
+  transferred: number
+  /** Tags that were already captured on the server; what this device recorded on them is gone. */
+  rejected: { tagNumber: string; isBeam: boolean }[]
+}
+
 export const useTimberItemStore = defineStore('timberItems', () => {
   const snapshot = ref(api.initialSnapshot())
   // Set by the invite link; null until then.
@@ -140,23 +147,46 @@ export const useTimberItemStore = defineStore('timberItems', () => {
 
   /**
    * Own events up, then the snapshot down. Throws ApiError on failure; the queue keeps whatever the
-   * server has not confirmed. Returns how many entries (as counted by pendingCount) were transferred.
+   * server has not confirmed. Returns how many entries (as counted by pendingCount) were transferred,
+   * and the duplicate captures the server rejected – their items are dropped from the device.
    */
-  async function sync(): Promise<number> {
+  async function sync(): Promise<SyncResult> {
     // Events recorded while the sync runs are not part of this batch and stay in the queue.
     const batch = [...toRaw(events.value)]
-    const accepted = new Set(batch.length > 0 ? (await api.sync(batch)).accepted_event_ids : [])
-    await downloadSnapshot(accepted)
+    const response = batch.length > 0 ? await api.sync(batch) : null
+    const accepted = new Set(response?.accepted_event_ids)
+    const rejectedEvents = new Set(response?.rejected.map((entry) => entry.event_id))
+    const rejectedItems = new Set(response?.rejected.map((entry) => entry.timber_item_id))
+    // Read before the queue changes: afterwards the rejected items are gone.
+    const rejected = [...new Set(response?.rejected.map((entry) => entry.tag_number))].map(
+      (tagNumber) => ({
+        tagNumber,
+        isBeam: items.value.some(
+          (item) => rejectedItems.has(item.id) && item.tag_number === tagNumber && item.parent_id,
+        ),
+      }),
+    )
+    // Later events on a rejected item would only be rejected with it next time.
+    await downloadSnapshot(
+      (event) =>
+        accepted.has(event.id) ||
+        rejectedEvents.has(event.id) ||
+        rejectedItems.has(event.timber_item_id),
+    )
     markSynced()
-    return batch.filter((event) => event.type !== 'tag_assigned' && accepted.has(event.id)).length
+    return {
+      transferred: batch.filter((event) => event.type !== 'tag_assigned' && accepted.has(event.id))
+        .length,
+      rejected,
+    }
   }
 
-  async function downloadSnapshot(accepted = new Set<Uuid>()) {
+  async function downloadSnapshot(isDone: (event: Event) => boolean = () => false) {
     const fresh = await api.loadSnapshot()
     // Accepted events leave the queue only together with the snapshot that contains them, so a failed
     // download hides nothing. Resending them next time is harmless: the server ignores known ids.
     snapshot.value = fresh
-    events.value = events.value.filter((event) => !accepted.has(event.id))
+    events.value = events.value.filter((event) => !isDone(event))
     persist({ snapshot: fresh, events: toRaw(events.value) })
   }
 

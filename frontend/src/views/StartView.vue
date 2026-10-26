@@ -15,6 +15,8 @@ const router = useRouter()
 const store = useTimberItemStore()
 
 const tagInput = ref('')
+// Not bound to store.currentUser directly: the form would be gone before it reports the sign-in.
+const isSignedIn = ref(store.currentUser !== null)
 
 const tagNumber = computed(() => {
   return Number(tagInput.value)
@@ -43,9 +45,14 @@ function onDelete() {
   tagInput.value = tagInput.value.slice(0, -1)
 }
 
-// A new device has no attributes yet. Best effort: the sync page shows any problem later.
-function onSignedIn() {
-  store.sync().catch(() => {})
+// A new device has no attributes yet. Best effort: the sync page shows any problem later,
+// except rejected duplicate captures, whose data is gone – those are shown right away.
+async function onSignedIn() {
+  isSignedIn.value = true
+  const result = await store.sync().catch(() => null)
+  if (result?.rejected.length) {
+    await router.push({ name: 'sync', state: { syncResult: result } })
+  }
 }
 
 function onOpen() {
@@ -64,7 +71,7 @@ function onOpen() {
     <StartHeader />
 
     <div
-      v-if="!store.currentUser"
+      v-if="!isSignedIn"
       class="flex flex-col items-center justify-center gap-4 overflow-y-auto py-8 px-gutter text-center"
     >
       <KeyRoundIcon :size="64" :stroke-width="1.5" aria-hidden="true" />

@@ -7,6 +7,7 @@ use App\Entity\Attribute;
 use App\Entity\AttributeOption;
 use App\Entity\AttributeType;
 use App\Entity\EventType;
+use App\Entity\RejectedSync;
 use App\Entity\TimberItem;
 use App\Entity\TimberItemEvent;
 use App\Entity\User;
@@ -22,10 +23,13 @@ use Symfony\Component\Uid\Uuid;
 
 /**
  * SyncRequest → SyncResponse in frontend/src/api/contract.ts. All events are checked before anything is
- * written, so a bad request (400) stores nothing.
+ * written, so a bad request (400) stores nothing. A duplicate capture is not a bad request: only its events are
+ * rejected (kept in rejected_syncs), the rest of the batch is stored.
  */
 final class SyncController extends AbstractController
 {
+    private const TAG_ALREADY_TAKEN = 'tag_already_taken';
+
     public function __construct(
         private readonly EntityManagerInterface $em,
         private readonly TimberItemProjector $projector,
@@ -43,13 +47,24 @@ final class SyncController extends AbstractController
         // TODO: any invalid event rejects the whole batch with a 400; the future sync client must show that to the user
         //  instead of retrying silently, or the pending events never leave the device.
         $known = $this->knownEventIds($events);
-        $existingItems = [];
-        $new = [];
         // Strictly increasing in the order sent: the last value sent wins even if the device times are equal.
         $receivedAt = new \DateTimeImmutable();
+        $parsed = [];
         foreach ($events as $index => $event) {
-            $event = $this->parse($event, $user, $receivedAt->modify('+'.\count($new).' microseconds'), $index);
+            $parsed[$index] = $this->parse($event, $user, $receivedAt->modify('+'.$index.' microseconds'), $index);
+        }
+
+        $takenTags = $this->takenTags($parsed);
+        $existingItems = [];
+        $new = [];
+        $accepted = [];
+        $rejected = [];
+        foreach ($parsed as $index => $event) {
             $itemId = $event->timberItemId->toRfc4122();
+            if (isset($takenTags[$itemId])) {
+                $rejected[$index] = ['event_id' => $event->id->toRfc4122(), 'timber_item_id' => $itemId, 'tag_number' => $takenTags[$itemId], 'reason' => self::TAG_ALREADY_TAKEN];
+                continue;
+            }
             if (EventType::Created === $event->type) {
                 // Also keeps parent chains free of cycles, which the recursive inheritance in the projector relies on.
                 $parentId = $event->data['parent_id'];
@@ -60,13 +75,17 @@ final class SyncController extends AbstractController
             } elseif (!($existingItems[$itemId] ??= null !== $this->em->find(TimberItem::class, $event->timberItemId))) {
                 throw new BadRequestHttpException(\sprintf('events[%d]: unknown timber item without a preceding created event.', $index));
             }
+            $accepted[] = $event->id->toRfc4122();
             if (!isset($known[$event->id->toRfc4122()])) {
                 $known[$event->id->toRfc4122()] = true;
                 $new[] = $event;
             }
         }
 
-        $this->em->wrapInTransaction(function () use ($new): void {
+        $this->em->wrapInTransaction(function () use ($new, $rejected, $events, $user): void {
+            if ($rejected) {
+                $this->em->persist(new RejectedSync($user, self::TAG_ALREADY_TAKEN, array_values(array_intersect_key($events, $rejected))));
+            }
             $affected = [];
             foreach ($new as $event) {
                 $this->em->persist($event);
@@ -81,7 +100,50 @@ final class SyncController extends AbstractController
             }
         });
 
-        return $this->json(['accepted_event_ids' => array_column($events, 'id')]);
+        return $this->json(['accepted_event_ids' => $accepted, 'rejected' => array_values($rejected)]);
+    }
+
+    /**
+     * Items whose created event comes with a tag (their first tag_assigned in the request) that another item already
+     * holds – on the server or earlier in this request – plus all beams below them. Duplicate captures of the same
+     * plate: the first one stays, the device of the second learns about it.
+     *
+     * @param array<int, TimberItemEvent> $events
+     *
+     * @return array<string, string> taken tag per rejected item id; beams carry the tag of their rejected parent
+     */
+    private function takenTags(array $events): array
+    {
+        $firstTags = [];
+        foreach ($events as $event) {
+            if (EventType::TagAssigned === $event->type) {
+                $firstTags[$event->timberItemId->toRfc4122()] ??= $event->data['tag_number'];
+            }
+        }
+
+        $taken = [];
+        $claimed = [];
+        foreach ($events as $event) {
+            $itemId = $event->timberItemId->toRfc4122();
+            $tag = $firstTags[$itemId] ?? null;
+            if (EventType::Created !== $event->type || isset($taken[$itemId])) {
+                continue;
+            }
+            $parentId = $event->data['parent_id'];
+            if ($parentId && isset($taken[$parentId])) {
+                $taken[$itemId] = $taken[$parentId];
+            } elseif (null !== $tag) {
+                // The projection holds the latest tag of every item that is not voided.
+                $holders = array_map(static fn (TimberItem $item) => $item->id->toRfc4122(), $this->em->getRepository(TimberItem::class)->findBy(['tagNumber' => $tag]));
+                if (array_diff([...$holders, $claimed[$tag] ?? $itemId], [$itemId])) {
+                    $taken[$itemId] = $tag;
+                } else {
+                    $claimed[$tag] = $itemId;
+                }
+            }
+        }
+
+        return $taken;
     }
 
     /**

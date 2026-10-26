@@ -17,7 +17,7 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
  *
  * TODO: remove this command once real data is captured and no test data needs resetting anymore.
  */
-#[AsCommand(name: 'app:reset', description: 'TEST DATA ONLY, breaks the append-only event log: delete all events and projections (with --attributes also attributes and options); users stay')]
+#[AsCommand(name: 'app:reset', description: 'TEST DATA ONLY, breaks the append-only event log: delete all events, rejected syncs and projections (with --attributes also attributes and options); users stay')]
 class ResetCommand
 {
     public function __construct(
@@ -40,7 +40,7 @@ class ResetCommand
         }
 
         // In deletion order: children before the tables their foreign keys point to.
-        $tables = ['timber_item_state', 'timber_items', 'timber_item_events', ...$attributes ? ['attribute_options', 'attributes'] : []];
+        $tables = ['timber_item_state', 'timber_items', 'timber_item_events', 'rejected_syncs', ...$attributes ? ['attribute_options', 'attributes'] : []];
         $db = $this->em->getConnection();
         $io->table(['Table', 'Rows'], array_map(static fn (string $table) => [$table, $db->fetchOne("SELECT COUNT(*) FROM $table")], $tables));
 
