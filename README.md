@@ -110,7 +110,7 @@ ddev console app:user:create "Name" [--admin]
 | Task | Command |
 |---|---|
 | Frontend unit tests | `ddev frontend run tests` (watch mode: `ddev frontend run test:unit`) |
-| End-to-end tests | `ddev frontend run test:e2e` |
+| End-to-end tests | `ddev frontend run test:e2e` (builds the app with the fake API and serves it itself, no dev server needed) |
 | Build incl. type check | `ddev frontend run build` |
 | Lint / format frontend | `ddev frontend run lint` / `ddev frontend run format` |
 | Backend tests | `ddev phpunit` |
