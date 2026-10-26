@@ -44,7 +44,7 @@ class ApiTest extends WebTestCase
 
         $snapshot = self::fixture('snapshot');
         foreach ($snapshot['users'] as $user) {
-            $this->em->persist(new User($user['name'], UserRole::User, User::hashToken($user['name'].'-token'), id: Uuid::fromString($user['id'])));
+            $this->em->persist(new User($user['name'], UserRole::User, User::hashToken(User::normalizeToken($user['name'].'-test-token')), id: Uuid::fromString($user['id'])));
         }
         foreach ($snapshot['attributes'] as $a) {
             $attribute = new Attribute($a['name'], AttributeType::from($a['type']), $a['description'], $a['unit'], $a['is_series'],
@@ -66,7 +66,7 @@ class ApiTest extends WebTestCase
     {
         $this->client->getCookieJar()->clear();
         if ($as) {
-            $this->client->getCookieJar()->set(new Cookie(SessionController::COOKIE, $as.'-token'));
+            $this->client->getCookieJar()->set(new Cookie(SessionController::COOKIE, $as.'-test-token'));
         }
         $this->client->jsonRequest($method, $uri, $body ?? []);
 
@@ -103,12 +103,12 @@ class ApiTest extends WebTestCase
 
     public function testSessionWithValidTokenAnswersLikeTheFixtureAndSetsTheCookie(): void
     {
-        $response = $this->request('POST', '/api/session', ['token' => 'Alexander-token'], as: null);
+        $response = $this->request('POST', '/api/session', ['token' => 'Alexander-test-token'], as: null);
 
         self::assertResponseIsSuccessful();
         self::assertSame(self::fixture('session-response'), $response);
         $cookie = array_find($this->client->getResponse()->headers->getCookies(), static fn ($c) => SessionController::COOKIE === $c->getName());
-        self::assertSame('Alexander-token', $cookie->getValue());
+        self::assertSame(User::normalizeToken('Alexander-test-token'), $cookie->getValue());
         self::assertSame('/api', $cookie->getPath());
         self::assertTrue($cookie->isHttpOnly());
         self::assertTrue($cookie->isSecure());
@@ -121,9 +121,37 @@ class ApiTest extends WebTestCase
         $this->em->find(User::class, Uuid::fromString(self::KERSTIN))->revokedAt = new \DateTimeImmutable();
         $this->em->flush();
 
-        foreach (['nope', 'Kerstin-token'] as $token) {
+        foreach (['nope', 'Kerstin-test-token'] as $token) {
             $this->request('POST', '/api/session', ['token' => $token], as: null);
             self::assertResponseStatusCodeSame(401, $token);
+        }
+    }
+
+    public function testSessionAcceptsACodeInAnySpellingAndStoresItNormalized(): void
+    {
+        $user = new User('Jana', UserRole::User, User::hashToken('K7QM4XHT9RD1'));
+        $this->em->persist($user);
+        $this->em->flush();
+
+        foreach (['K7QM-4XHT-9RD1', 'k7qm4xht9rdl', ' k7qm 4xht 9rdi '] as $code) {
+            $response = $this->request('POST', '/api/session', ['token' => $code], as: null);
+            self::assertResponseIsSuccessful($code);
+            self::assertSame('Jana', $response['user']['name']);
+            $cookie = array_find($this->client->getResponse()->headers->getCookies(), static fn ($c) => SessionController::COOKIE === $c->getName());
+            self::assertSame('K7QM4XHT9RD1', $cookie->getValue());
+        }
+    }
+
+    public function testCookieWithACodeIsCheckedNormalized(): void
+    {
+        $this->em->find(User::class, Uuid::fromString(self::KERSTIN))->tokenHash = User::hashToken('K7QM4XHT9RD1');
+        $this->em->flush();
+
+        foreach (['K7QM4XHT9RD1', 'k7qm-4xht-9rdl'] as $code) {
+            $this->client->getCookieJar()->clear();
+            $this->client->getCookieJar()->set(new Cookie(SessionController::COOKIE, $code));
+            $this->client->jsonRequest('GET', '/api/snapshot');
+            self::assertResponseIsSuccessful($code);
         }
     }
 

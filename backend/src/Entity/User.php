@@ -34,12 +34,24 @@ class User
         $this->id = $id ?? Uuid::v7();
     }
 
+    /** Crockford Base32: no I, L, O, U, so a code read aloud or typed off a screen cannot be mistaken. */
+    public const CODE_ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+    public const CODE_LENGTH = 12;
+
     /**
-     * A fast hash is enough: the token is 32 random bytes, so it cannot be guessed or looked up in a
-     * table of known passwords. It has to be searchable by its hash, which rules out bcrypt-style hashes.
+     * A fast hash is enough: a code carries 60 random bits, so it cannot be guessed or
+     * looked up in a table of known passwords. It has to be searchable by its hash, which rules out bcrypt-style hashes.
      */
     public static function hashToken(string $token): string
     {
         return hash('sha256', $token);
+    }
+
+    /**
+     * Invite codes are typed by hand: case, hyphens, spaces and the look-alikes O, I, L do not matter.
+     */
+    public static function normalizeToken(string $token): string
+    {
+        return strtr(strtoupper(str_replace(['-', ' '], '', $token)), 'OIL', '011');
     }
 }
