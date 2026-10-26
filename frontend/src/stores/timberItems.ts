@@ -32,7 +32,6 @@ export const useTimberItemStore = defineStore('timberItems', () => {
   const attributes = computed(() => snapshot.value.attributes)
   // Own events waiting for the sync, in the order they were recorded.
   const events = ref<Event[]>([])
-  const removedBeams = ref<StoredState['removedBeams']>([])
   const lastSyncedAt = ref<Timestamp | null>(null)
   // What the user did, not the wire format: the tag of a new item belongs to "created".
   const pendingCount = computed(
@@ -136,7 +135,6 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     currentUser.value = stored.user ?? currentUser.value
     snapshot.value = stored.snapshot ?? snapshot.value
     events.value = stored.events
-    removedBeams.value = stored.removedBeams
     lastSyncedAt.value = stored.lastSyncedAt
   }
 
@@ -194,15 +192,10 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     return items.value.filter((item) => item.parent_id === itemId).map(withInherited)
   }
 
-  // Every beam ever created on this parent, removed unsynced ones included: letters are never reused.
-  function beamCount(parentId: string): number {
-    return [...items.value, ...removedBeams.value].filter((item) => item.parent_id === parentId)
-      .length
-  }
-
-  // undefined parent = stem not created yet, so no beams either.
+  // undefined parent = stem not created yet, so no beams either. A removed unsynced beam frees its letter.
   function nextBeamTagOf(parent: TimberItem | undefined, parentTag: string): string | null {
-    return nextBeamTag(parentTag, parent ? beamCount(parent.id) : 0)
+    const beamTags = parent ? childrenOf(parent.id).map((beam) => beam.tag_number) : []
+    return nextBeamTag(parentTag, beamTags)
   }
 
   // Inherited = the beam shows the very recording its parent holds.
@@ -271,9 +264,8 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     if (!canRemove(itemId)) {
       throw new Error(`Timber item ${itemId} cannot be removed`)
     }
-    removedBeams.value.push({ id: itemId, parent_id: findById(itemId)!.parent_id! })
     events.value = events.value.filter((event) => event.timber_item_id !== itemId)
-    persist({ events: toRaw(events.value), removedBeams: toRaw(removedBeams.value) })
+    persist({ events: toRaw(events.value) })
   }
 
   function recordAttribute(itemId: string, attributeId: string, value: AttributeValue) {
@@ -300,7 +292,6 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     findByTagNumber,
     findByTag,
     childrenOf,
-    beamCount,
     nextBeamTagOf,
     isInherited,
     userName,

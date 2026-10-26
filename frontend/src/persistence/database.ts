@@ -6,7 +6,7 @@
  * values keeps the queue order without any index.
  */
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
-import type { Event, Snapshot, Timestamp, Uuid } from '@/api/contract'
+import type { Event, Snapshot, Timestamp } from '@/api/contract'
 import type { User } from '@/api/client'
 
 export interface StoredState {
@@ -15,8 +15,6 @@ export interface StoredState {
   snapshot: Snapshot | null
   /** Own events not yet confirmed by the server, in the order they were recorded. */
   events: Event[]
-  /** Unsynced beams removed on this device: their events never reach the server, but their letters stay taken. */
-  removedBeams: { id: Uuid; parent_id: Uuid }[]
   /** Device time of the last successful sync. */
   lastSyncedAt: Timestamp | null
 }
@@ -48,7 +46,6 @@ export async function load(): Promise<StoredState> {
     user: (await get('user')) ?? null,
     snapshot: (await get('snapshot')) ?? null,
     events: (await get('events')) ?? [],
-    removedBeams: (await get('removedBeams')) ?? [],
     lastSyncedAt: (await get('lastSyncedAt')) ?? null,
   }
 }

@@ -20,9 +20,15 @@ export function isValidTag(tag: string): boolean {
 }
 
 /**
- * Derived tag for the next beam of a parent: "123-A" … "123-Z", null once all 26 letters are used.
- * `beamCount` counts every beam ever created on the parent, so a letter is never handed out twice.
+ * Derived tag for the next beam of a parent: the first letter A … Z not among `beamTags`
+ * (the tags of the parent's existing beams), null once all 26 are taken.
  */
-export function nextBeamTag(parentTag: string, beamCount: number): string | null {
-  return beamCount < MAX_BEAMS ? `${parentTag}-${String.fromCharCode(65 + beamCount)}` : null
+export function nextBeamTag(parentTag: string, beamTags: (string | null)[]): string | null {
+  for (let index = 0; index < MAX_BEAMS; index++) {
+    const tag = `${parentTag}-${String.fromCharCode(65 + index)}`
+    if (!beamTags.includes(tag)) {
+      return tag
+    }
+  }
+  return null
 }

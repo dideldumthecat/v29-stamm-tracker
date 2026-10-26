@@ -462,7 +462,7 @@ describe('App', () => {
       expect(useTimberItemStore().findByTag('42-A')).toBeUndefined()
     })
 
-    it('does not reuse the letter of a removed beam', async () => {
+    it('reuses the letter of a removed beam', async () => {
       const { wrapper } = await mountAt('/timber-item/42')
       buttonByText(/00042-A hinzufügen/).click()
       await flushPromises()
@@ -470,7 +470,7 @@ describe('App', () => {
       buttonByText(/^Balken entfernen$/).click()
       await flushPromises()
       expect(wrapper.find('a[href="/timber-item/42-A"]').exists()).toBe(false)
-      expect(buttonByText(/hinzufügen/).textContent).toContain('00042-B')
+      expect(buttonByText(/hinzufügen/).textContent).toContain('00042-A')
     })
   })
 

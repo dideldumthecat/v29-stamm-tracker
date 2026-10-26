@@ -32,10 +32,22 @@ describe('isValidTag', () => {
 })
 
 describe('nextBeamTag', () => {
-  it('letters beams by the number ever created, A to Z, then none', () => {
-    expect(nextBeamTag('123', 0)).toBe('123-A')
-    expect(nextBeamTag('123', 2)).toBe('123-C')
-    expect(nextBeamTag('7', 25)).toBe('7-Z')
-    expect(nextBeamTag('7', 26)).toBeNull()
+  it('takes the first free letter, A to Z, then none', () => {
+    const letters = [...'ABCDEFGHIJKLMNOPQRSTUVWXYZ']
+    expect(nextBeamTag('123', [])).toBe('123-A')
+    expect(nextBeamTag('123', ['123-A', '123-B'])).toBe('123-C')
+    expect(nextBeamTag('123', ['123-A', '123-C'])).toBe('123-B')
+    expect(
+      nextBeamTag(
+        '7',
+        letters.slice(0, 25).map((letter) => `7-${letter}`),
+      ),
+    ).toBe('7-Z')
+    expect(
+      nextBeamTag(
+        '7',
+        letters.map((letter) => `7-${letter}`),
+      ),
+    ).toBeNull()
   })
 })
