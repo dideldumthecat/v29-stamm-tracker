@@ -91,3 +91,26 @@ describe('timber item store: beams and inheritance', () => {
     expect(store.addBeam(fresh.id).tag_number).toBe('6-B')
   })
 })
+
+describe('timber item store: event queue', () => {
+  beforeEach(() => setActivePinia(createPinia()))
+
+  it('queues created, tag_assigned and attribute_recorded in recording order', () => {
+    const store = useTimberItemStore()
+    const stem = store.createTimberItem(7)
+    store.recordAttribute(stem.id, attributeId('Holzart'), 'oak')
+    const beam = store.addBeam(stem.id)
+
+    expect(store.events.map((event) => [event.type, event.timber_item_id, event.data])).toEqual([
+      ['created', stem.id, { parent_id: null }],
+      ['tag_assigned', stem.id, { tag_number: '7' }],
+      ['attribute_recorded', stem.id, { attribute_id: attributeId('Holzart'), value: 'oak' }],
+      ['created', beam.id, { parent_id: stem.id }],
+      ['tag_assigned', beam.id, { tag_number: '7-A' }],
+    ])
+    expect(store.findByTag('7')!.values[attributeId('Holzart')]![0]!.event_id).toBe(
+      store.events[2]!.id,
+    )
+    expect(store.pendingCount).toBe(3)
+  })
+})
