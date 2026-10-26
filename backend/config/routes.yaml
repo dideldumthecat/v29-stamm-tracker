@@ -9,8 +9,3 @@
 
 controllers:
     resource: routing.controllers
-
-# The start page is the Vue app, which Apache serves itself (public/.htaccess), so requests never reach Symfony.
-# This route only lets commands generate its absolute URL from DEFAULT_URI.
-home:
-    path: /

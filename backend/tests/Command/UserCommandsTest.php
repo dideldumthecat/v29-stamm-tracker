@@ -55,7 +55,7 @@ class UserCommandsTest extends KernelTestCase
         self::assertSame(Command::SUCCESS, $tester->getStatusCode());
         $display = $tester->getDisplay();
         self::assertStringContainsString('Hallo Kerstin,', $display);
-        self::assertStringContainsString('Adresse: https://v29-stamm-tracker.ddev.site/'."\n", $display);
+        self::assertStringContainsString('Adresse: https://v29-stamm-tracker.ddev.site'."\n", $display);
         self::assertStringContainsString('Bitte immer über das Symbol öffnen', $display);
         $group = '[0-9A-HJKMNP-TV-Z]{4}';
         self::assertMatchesRegularExpression("~Dein Code: $group-$group-$group \\(nicht weitergeben\\)~", $display);
