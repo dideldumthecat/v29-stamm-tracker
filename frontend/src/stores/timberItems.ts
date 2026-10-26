@@ -70,6 +70,12 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     return event
   }
 
+  // Filter the raw array: filtering the reactive one yields proxies, which IndexedDB cannot store.
+  function dropEvents(isDropped: (event: Event) => boolean): Event[] {
+    events.value = toRaw(events.value).filter((event) => !isDropped(event))
+    return toRaw(events.value)
+  }
+
   const hasPendingCreated = (itemId: string) =>
     events.value.some((event) => event.type === 'created' && event.timber_item_id === itemId)
 
@@ -186,8 +192,7 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     // Accepted events leave the queue only together with the snapshot that contains them, so a failed
     // download hides nothing. Resending them next time is harmless: the server ignores known ids.
     snapshot.value = fresh
-    events.value = events.value.filter((event) => !isDone(event))
-    persist({ snapshot: fresh, events: toRaw(events.value) })
+    persist({ snapshot: fresh, events: dropEvents(isDone) })
   }
 
   function markSynced() {
@@ -294,8 +299,7 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     if (!canRemove(itemId)) {
       throw new Error(`Timber item ${itemId} cannot be removed`)
     }
-    events.value = events.value.filter((event) => event.timber_item_id !== itemId)
-    persist({ events: toRaw(events.value) })
+    persist({ events: dropEvents((event) => event.timber_item_id === itemId) })
   }
 
   function recordAttribute(itemId: string, attributeId: string, value: AttributeValue) {
