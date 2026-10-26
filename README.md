@@ -119,6 +119,20 @@ ddev console app:user:create "Name" [--admin]
 | Users | `app:user:create`, `app:user:list`, `app:user:revoke` |
 | Rebuild projections from all events | `ddev console app:projections:rebuild` |
 | Import attributes from YAML (path relative to `backend/`) | `ddev console app:attributes:import data/attributes.example.yaml [--dry-run]` |
+| Testing only: delete events and projections (users stay) | `ddev console app:reset [--attributes] [--force]` |
+
+### Starting a test over
+
+`app:reset` deletes all events and projections (with `--attributes` also attributes and options); users stay signed in. It breaks the append-only event log on purpose and is for test data only. In prod it refuses without `--force`.
+
+Locally, a database snapshot is quicker and also restores the data instead of only deleting it:
+
+```sh
+ddev snapshot --name before-test
+ddev snapshot restore before-test
+```
+
+After a reset, also clear the app's local data on every phone used for the test (delete the home screen app or the site data in the browser settings). Otherwise their pending events are uploaded again at the next sync.
 
 The backend tests use a separate database. Create it once (and repeat the second command after new migrations):
 
