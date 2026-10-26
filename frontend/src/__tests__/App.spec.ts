@@ -501,24 +501,6 @@ describe('App', () => {
     })
   })
 
-  describe('invite link', () => {
-    it('redeems the token and goes to the start screen', async () => {
-      useTimberItemStore().currentUser = null
-      const { router } = await mountAt('/invite#abc')
-      await flushPromises()
-      expect(router.currentRoute.value.name).toBe('start')
-      expect(useTimberItemStore().currentUser?.name).toBe('Alexander')
-    })
-
-    it('shows "Kein Zugang" for an unknown or revoked token', async () => {
-      const { wrapper, router } = await mountAt('/invite#invalid')
-      await flushPromises()
-      expect(router.currentRoute.value.name).toBe('invite')
-      expect(wrapper.text()).toContain('Kein Zugang')
-      expect(wrapper.text()).toContain('widerrufen')
-    })
-  })
-
   describe('sign-in field', () => {
     it('replaces the number pad while no user is stored and shows the name right after', async () => {
       useTimberItemStore().currentUser = null
@@ -548,19 +530,28 @@ describe('App', () => {
       vi.restoreAllMocks()
     })
 
-    it('asks a browser to install the app first', async () => {
+    it('asks a browser to install the app first, with the form only for the fake API', async () => {
       useTimberItemStore().currentUser = null
       const { wrapper } = await mountAt('/')
       expect(wrapper.find('[role="note"]').text()).toContain('Bitte zuerst die App installieren')
       expect(wrapper.find('input#invite-code').exists()).toBe(true)
     })
 
-    it('shows only the install steps in an iPhone browser', async () => {
+    it('shows no sign-in form in a production browser', async () => {
+      useTimberItemStore().currentUser = null
+      vi.stubEnv('DEV', false)
+      vi.stubEnv('VITE_API', '')
+      const { wrapper } = await mountAt('/')
+      expect(wrapper.find('[role="note"]').text()).toContain('Bitte zuerst die App installieren')
+      expect(wrapper.find('input#invite-code').exists()).toBe(false)
+      vi.unstubAllEnvs()
+    })
+
+    it('shows the iPhone install steps in an iPhone browser', async () => {
       useTimberItemStore().currentUser = null
       vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue('Mozilla/5.0 (iPhone)')
       const { wrapper } = await mountAt('/')
       expect(wrapper.find('[role="note"]').text()).toContain('„Zum Home-Bildschirm“')
-      expect(wrapper.find('input#invite-code').exists()).toBe(false)
       vi.restoreAllMocks()
     })
 
@@ -612,18 +603,6 @@ describe('App', () => {
       await flushPromises()
 
       expect(sync).toHaveBeenCalled()
-      expect(router.currentRoute.value.name).toBe('sync')
-      expect(wrapper.find('[role="alert"]').text()).toBe(DUPLICATE_HINT)
-    })
-
-    it('opens the result after an invite link whose sync rejected something', async () => {
-      const store = useTimberItemStore()
-      store.currentUser = null
-      store.createTimberItem(1555)
-      rejectAll()
-      const { wrapper, router } = await mountAt('/invite#abc')
-      await flushPromises()
-
       expect(router.currentRoute.value.name).toBe('sync')
       expect(wrapper.find('[role="alert"]').text()).toBe(DUPLICATE_HINT)
     })

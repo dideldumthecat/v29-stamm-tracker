@@ -34,6 +34,13 @@ class UserCommandsTest extends KernelTestCase
         return $tester;
     }
 
+    private function code(string $display): string
+    {
+        preg_match('~Dein Code: (\S+)~', $display, $match);
+
+        return $match[1];
+    }
+
     private function users(): array
     {
         $this->em->clear();
@@ -41,16 +48,18 @@ class UserCommandsTest extends KernelTestCase
         return $this->em->getRepository(User::class)->findAll();
     }
 
-    public function testCreatePrintsCodeAndInviteLinkAndStoresOnlyTheHash(): void
+    public function testCreatePrintsInviteMessageAndStoresOnlyTheHash(): void
     {
         $tester = $this->execute('app:user:create', ['name' => ' Kerstin ']);
 
         self::assertSame(Command::SUCCESS, $tester->getStatusCode());
-        // Code on its own line, then the link with the same code in the fragment, so it never reaches a server log.
+        $display = $tester->getDisplay();
+        self::assertStringContainsString('Hallo Kerstin,', $display);
+        self::assertStringContainsString('Adresse: https://v29-stamm-tracker.ddev.site/'."\n", $display);
+        self::assertStringContainsString('Bitte immer über das Symbol öffnen', $display);
         $group = '[0-9A-HJKMNP-TV-Z]{4}';
-        self::assertMatchesRegularExpression("~^ *($group-$group-$group)\n *https://\\S+/invite#\\1\\s~m", $tester->getDisplay());
-        preg_match("~/invite#($group-$group-$group)~", $tester->getDisplay(), $match);
-        $token = str_replace('-', '', $match[1]);
+        self::assertMatchesRegularExpression("~Dein Code: $group-$group-$group \\(nicht weitergeben\\)~", $display);
+        $token = str_replace('-', '', $this->code($display));
 
         $users = $this->users();
         self::assertCount(1, $users);
@@ -78,9 +87,9 @@ class UserCommandsTest extends KernelTestCase
     {
         $codes = '';
         foreach (range(1, 20) as $i) {
-            preg_match('~/invite#(\S+)~', $this->execute('app:user:create', ['name' => "User $i"])->getDisplay(), $match);
-            self::assertSame(14, \strlen($match[1]));
-            $codes .= str_replace('-', '', $match[1]);
+            $code = $this->code($this->execute('app:user:create', ['name' => "User $i"])->getDisplay());
+            self::assertSame(14, \strlen($code));
+            $codes .= str_replace('-', '', $code);
         }
         self::assertSame('', trim($codes, User::CODE_ALPHABET));
         self::assertCount(20, array_unique(array_column($this->em->getConnection()->fetchAllAssociative('SELECT token_hash FROM users'), 'token_hash')));

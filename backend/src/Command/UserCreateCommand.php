@@ -10,15 +10,14 @@ use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Attribute\Option;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Style\SymfonyStyle;
-use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
-#[AsCommand(name: 'app:user:create', description: 'Create a user and print their personal invite code and link')]
+#[AsCommand(name: 'app:user:create', description: 'Create a user and print the invite message with their personal code')]
 class UserCreateCommand
 {
     public function __construct(
         private readonly EntityManagerInterface $em,
-        #[Autowire(env: 'APP_PUBLIC_URL')]
-        private readonly string $publicUrl,
+        private readonly UrlGeneratorInterface $urlGenerator,
     ) {
     }
 
@@ -45,10 +44,27 @@ class UserCreateCommand
         $this->em->flush();
 
         $io->success(\sprintf('Created %s "%s" (%s).', $user->role->value, $user->name, $user->id->toRfc4122()));
-        $io->writeln($formatted);
-        // The code sits in the fragment (#): browsers never send it to the server, so it stays out of access logs.
-        $io->writeln(rtrim($this->publicUrl, '/').'/invite#'.$formatted);
-        $io->warning('Code and link are shown only now. They cannot be recovered; revoke the user and create a new one if they are lost.');
+        $address = $this->urlGenerator->generate('home', [], UrlGeneratorInterface::ABSOLUTE_URL);
+        $io->writeln(<<<MESSAGE
+            Hallo {$user->name},
+
+            hier dein Zugang zum V29 Stamm-Tracker:
+            Adresse: $address
+            Dein Code: $formatted (nicht weitergeben)
+
+            iPhone:
+            1. Adresse in Safari öffnen.
+            2. Unten auf „Teilen“ tippen, dann „Zum Home-Bildschirm“.
+            3. App über das neue Symbol öffnen und den Code eingeben.
+
+            Android:
+            1. Adresse in Chrome öffnen.
+            2. Oben rechts auf ⋮ tippen, dann „App installieren“ (oder „Zum Startbildschirm hinzufügen“).
+            3. App über das neue Symbol öffnen und den Code eingeben.
+
+            Bitte immer über das Symbol öffnen, nicht über den Browser.
+            MESSAGE);
+        $io->warning('The code is shown only now. They cannot be recovered; revoke the user and create a new one if it is lost.');
 
         return Command::SUCCESS;
     }

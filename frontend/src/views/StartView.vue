@@ -21,9 +21,9 @@ const tagInput = ref('')
 // Not bound to store.currentUser directly: the form would be gone before it reports the sign-in.
 const isSignedIn = ref(store.currentUser !== null)
 const isInBrowser = !isInstalledApp()
-// The home screen app on iOS has its own cookies and storage, separate from the browser:
-// signing in here would sign in the browser only, so iOS browsers get no form at all.
-const showsSignIn = !isInBrowser || !isIos()
+// The installed app has its own cookies and storage, separate from the browser (on iOS always):
+// signing in here would sign in the browser only. Dev server and fake API keep the form for local work and tests.
+const showsSignIn = !isInBrowser || import.meta.env.DEV || import.meta.env.VITE_API === 'fake'
 
 const tagNumber = computed(() => {
   return Number(tagInput.value)
@@ -79,8 +79,11 @@ function onOpen() {
 
     <div
       v-if="!isSignedIn"
-      class="flex flex-col items-center justify-center-safe gap-4 overflow-y-auto py-8 px-gutter text-center"
+      class="flex flex-col items-center gap-4 overflow-y-auto py-8 px-gutter text-center"
+      :class="isInBrowser ? 'justify-start' : 'justify-center-safe'"
     >
+      <KeyRoundIcon v-if="!isInBrowser" :size="64" :stroke-width="1.5" aria-hidden="true" />
+      <h2 class="text-[26px] font-bold text-balance">Willkommen</h2>
       <section
         v-if="isInBrowser"
         class="flex w-full flex-col gap-3 rounded-lg border-2 border-ink p-4 text-left"
@@ -90,12 +93,10 @@ function onOpen() {
         <ol class="flex list-decimal flex-col gap-3 pl-6 text-lg leading-[1.4]">
           <IosInstallSteps v-if="isIos()" />
           <AndroidInstallSteps v-else />
-          <li>Dort mit dem Einladungscode anmelden.</li>
+          <li>Dort mit dem Einladungscode anmelden, den du von V29 bekommen hast.</li>
         </ol>
       </section>
       <template v-if="showsSignIn">
-        <KeyRoundIcon :size="64" :stroke-width="1.5" aria-hidden="true" />
-        <h2 class="text-[26px] font-bold text-balance">Willkommen</h2>
         <p class="max-w-[32ch] leading-[1.45] text-mute">
           Melde dich mit dem Einladungscode an, den du von V29 bekommen hast.
         </p>

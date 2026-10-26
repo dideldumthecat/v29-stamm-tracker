@@ -115,19 +115,16 @@ test('invalid input keeps the item open and shows the error', async ({ page }) =
 
 const SIGNED_OUT = () => localStorage.setItem('fake-api', 'signed-out')
 
-test('start page in the browser asks to install the app first', async ({ page }, testInfo) => {
+// Production browsers get no form at all (unit test); the fake API keeps it for these tests.
+test('start page in the browser asks to install the app first', async ({ page }) => {
   await page.goto('/')
   await page.evaluate(SIGNED_OUT)
   await page.reload()
+  await expect(page.getByRole('heading', { name: 'Willkommen' })).toBeVisible()
   await expect(page.getByText('Bitte zuerst die App installieren')).toBeVisible()
-  // iPhone: the home screen app has its own storage, so no sign-in in the browser.
-  await expect(page.getByLabel('Einladungscode')).toHaveCount(
-    testInfo.project.name === 'iphone' ? 0 : 1,
-  )
 })
 
-test('signs in with a typed code', async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name === 'iphone', 'iPhone browsers get no sign-in form')
+test('signs in with a typed code', async ({ page }) => {
   await page.goto('/')
   await page.evaluate(SIGNED_OUT)
   await page.reload()
@@ -159,30 +156,6 @@ test('a 401 on sync keeps the queue and syncs after signing in again', async ({ 
   await page.getByLabel('Einladungscode').fill('K7QM-4XHT-9RDP')
   await page.getByRole('button', { name: 'Anmelden' }).click()
   await expect(page.getByText('2 Einträge übertragen')).toBeVisible()
-})
-
-test('invite link in iPhone Safari shows instructions instead of redeeming', async ({
-  page,
-}, testInfo) => {
-  test.skip(testInfo.project.name !== 'iphone', 'iPhone Safari only')
-  await page.goto('/')
-  await page.evaluate(SIGNED_OUT)
-  await page.goto('/invite#K7QM-4XHT-9RDP')
-  await expect(page.getByText('„Zum Home-Bildschirm“')).toBeVisible()
-  await expect(page.getByText('K7QM-4XHT-9RDP', { exact: true })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Code kopieren' })).toBeVisible()
-  // Not redeemed: the fake still has no session.
-  expect(await page.evaluate(() => localStorage.getItem('fake-api'))).toBe('signed-out')
-})
-
-test('invite link elsewhere is redeemed right away', async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name === 'iphone', 'not iPhone Safari')
-  await page.goto('/')
-  await page.evaluate(SIGNED_OUT)
-  await page.goto('/invite#K7QM-4XHT-9RDP')
-  await expect(page.locator('h1')).toHaveText('V29 Stamm-Tracker')
-  await expect(page.locator('header').getByText('Alexander', { exact: true })).toBeVisible()
-  await expect(page.getByText('Letzter Sync:')).toBeVisible()
 })
 
 test('sync without pending changes offers to refresh the data', async ({ page }) => {
