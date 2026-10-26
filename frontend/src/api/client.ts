@@ -53,21 +53,36 @@ const real = {
   initialUser: (): User | null => null,
 }
 
+// Test hook: localStorage "fake-api" = "signed-out" starts without a user and answers 401 until the next sign-in.
+const isSignedOut = () => localStorage.getItem('fake-api') === 'signed-out'
+const signedIn = () => {
+  if (isSignedOut()) {
+    throw new ApiError(401, 'Unknown or revoked invite link.')
+  }
+}
+
 // structuredClone: callers may mutate the result, the imported fixture must stay as it is.
 const fake: typeof real = {
-  // The invite link /invite/invalid shows the error page.
+  // The invite link /invite#invalid shows the error page.
   redeemInvite: async (token) => {
     if (token === 'invalid') {
       throw new ApiError(401, 'Unknown or revoked invite link.')
     }
+    localStorage.removeItem('fake-api')
     return structuredClone(sessionFixture)
   },
   // Always the fixture: events "synced" here are accepted and then gone.
-  loadSnapshot: async () => structuredClone(snapshotFixture as Snapshot),
-  sync: async (events) => ({ accepted_event_ids: events.map((event) => event.id) }),
+  loadSnapshot: async () => {
+    signedIn()
+    return structuredClone(snapshotFixture as Snapshot)
+  },
+  sync: async (events) => {
+    signedIn()
+    return { accepted_event_ids: events.map((event) => event.id) }
+  },
   // A fresh device starts with the fixture, so screens and tests have data without a sync.
   initialSnapshot: () => structuredClone(snapshotFixture as Snapshot),
-  initialUser: () => ({ ...sessionFixture.user }),
+  initialUser: () => (isSignedOut() ? null : { ...sessionFixture.user }),
 }
 
 export const api = import.meta.env.VITE_API === 'fake' ? fake : real

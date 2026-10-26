@@ -8,6 +8,7 @@ import { useTimberItemStore } from '@/stores/timberItems'
 import { formatValue } from '@/utils/attributeDraft'
 import { formatShortDateTime } from '@/utils/date'
 import FormattedTag from '@/components/FormattedTag.vue'
+import SignInForm from '@/components/SignInForm.vue'
 
 const router = useRouter()
 const store = useTimberItemStore()
@@ -61,7 +62,7 @@ const failureText = computed(() => {
     case 0:
       return `Keine Verbindung zum Server. ${kept} Versuch es erneut, sobald du Empfang hast.`
     case 401:
-      return `Kein Zugang: Dieses Gerät ist nicht (mehr) angemeldet. ${kept} Öffne deinen Einladungslink erneut oder frag bei V29 nach einem neuen.`
+      return `Kein Zugang: Dieses Gerät ist nicht (mehr) angemeldet. ${kept} Melde dich mit deinem Einladungscode neu an.`
     case 400:
       // The server rejects the whole batch; retrying sends the same batch again.
       return `Der Server hat die Übertragung abgelehnt (${error.message}). ${kept} Erneutes Versuchen hilft nicht – bitte melde das der Administration.`
@@ -172,8 +173,9 @@ async function onSync() {
         <strong class="text-base">Synchronisieren fehlgeschlagen</strong>
         <span>{{ failureText }}</span>
       </div>
+      <SignInForm v-if="failure?.status === 401" @signed-in="onSync" />
       <button
-        v-if="transferred !== null"
+        v-else-if="transferred !== null"
         type="button"
         class="flex h-[88px] w-full items-center justify-center gap-2.5 rounded-lg bg-ink text-lg font-bold text-paper short:h-16"
         @click="router.push({ name: 'start' })"
