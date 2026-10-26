@@ -12,6 +12,9 @@ final class PingController extends AbstractController
     #[Route('/api/ping', methods: ['GET'])]
     public function __invoke(Connection $db): JsonResponse
     {
-        return $this->json(['ok' => true, 'db' => $db->fetchOne('SELECT VERSION()')]);
+        // Fails if the database is unreachable; the version itself stays private.
+        $db->fetchOne('SELECT 1');
+
+        return $this->json(['ok' => true]);
     }
 }
