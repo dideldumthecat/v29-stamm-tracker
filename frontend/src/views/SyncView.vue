@@ -89,7 +89,7 @@ async function onSync() {
 
 <template>
   <div class="flex min-h-0 flex-col overflow-y-auto">
-    <header class="flex items-center gap-3 border-b-2 border-ink py-3 px-gutter">
+    <header class="flex h-header shrink-0 items-center gap-3 border-b-2 border-ink px-gutter">
       <button
         type="button"
         class="flex size-11 items-center justify-center rounded-lg border-2 border-current"

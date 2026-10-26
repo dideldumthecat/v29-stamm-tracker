@@ -25,7 +25,7 @@
   --color-desk: #e4e4e2; /* area beside the app column (desktop) */
   --color-disabled: #cccccc;
 
-  /* Shared height of the screen headers (start and timber item), so switching screens doesn't jump */
+  /* Shared height of all screen headers, so switching screens doesn't jump */
   --spacing-header: 90px;
 
   --font-sans: 'Helvetica Neue', Helvetica, Arial, sans-serif;
