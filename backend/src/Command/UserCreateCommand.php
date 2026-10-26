@@ -10,14 +10,15 @@ use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Attribute\Option;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Style\SymfonyStyle;
-use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 #[AsCommand(name: 'app:user:create', description: 'Create a user and print the invite message with their personal code')]
 class UserCreateCommand
 {
     public function __construct(
         private readonly EntityManagerInterface $em,
-        private readonly UrlGeneratorInterface $urlGenerator,
+        #[Autowire(env: 'DEFAULT_URI')]
+        private readonly string $address,
     ) {
     }
 
@@ -44,12 +45,11 @@ class UserCreateCommand
         $this->em->flush();
 
         $io->success(\sprintf('Created %s "%s" (%s).', $user->role->value, $user->name, $user->id->toRfc4122()));
-        $address = $this->urlGenerator->generate('home', [], UrlGeneratorInterface::ABSOLUTE_URL);
         $io->writeln(<<<MESSAGE
             Hallo {$user->name},
 
             hier dein Zugang zum V29 Stamm-Tracker:
-            Adresse: $address
+            Adresse: {$this->address}
             Dein Code: $formatted (nicht weitergeben)
 
             iPhone:
