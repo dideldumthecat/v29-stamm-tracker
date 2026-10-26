@@ -44,7 +44,7 @@ flowchart LR
 
 ## Status
 
-Work in progress, targeting a first release in November 2026.
+In use at V29 since 27 October 2026 (first capture in the field); development continues.
 
 - Done: capture app (number pad, logs, attributes, beams with inheritance), offline storage, manual sync, update prompt for new app versions, invite codes, event log with projections, deployment.
 - Next: photos, administration, evaluation and export.
@@ -125,7 +125,7 @@ The command prints a ready-to-send invite message with the address (from `DEFAUL
 
 ### Starting a test over
 
-`app:reset` deletes all events and projections (with `--attributes` also attributes and options); users stay signed in. It breaks the append-only event log on purpose and is for test data only. In prod it refuses without `--force`.
+`app:reset` deletes all events and projections (with `--attributes` also attributes and options); users stay signed in. It breaks the append-only event log on purpose and is for test data only. It always refuses in prod. Elsewhere it asks for confirmation; with `--no-interaction`, `--force` replaces the confirmation.
 
 Locally, a database snapshot is quicker and also restores the data instead of only deleting it:
 
