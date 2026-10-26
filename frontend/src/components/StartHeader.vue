@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { CircleHelpIcon } from '@lucide/vue'
+import { InfoIcon } from '@lucide/vue'
 import SyncButton from '@/components/SyncButton.vue'
 import { useTimberItemStore } from '@/stores/timberItems'
 import { formatShortDateTime } from '@/utils/date'
@@ -25,7 +25,7 @@ const store = useTimberItemStore()
           class="flex size-11 shrink-0 items-center justify-center"
           aria-label="Hilfe"
         >
-          <CircleHelpIcon :size="24" aria-hidden="true" />
+          <InfoIcon :size="24" aria-hidden="true" />
         </RouterLink>
         <SyncButton :pending-count="store.pendingCount" />
       </div>
