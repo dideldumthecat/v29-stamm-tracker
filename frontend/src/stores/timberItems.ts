@@ -1,7 +1,7 @@
 /**
  * Displayed state = stored snapshot (as the server sent it) + own pending events laid over it.
  * Every change is an event in the queue, saved on the device right away; the snapshot is only
- * replaced by a sync. The views rely on the public surface, so keep it stable or adjust them with it.
+ * replaced by a sync (or right after sign-in). The views rely on the public surface, so keep it stable or adjust them with it.
  *
  * `items` holds own values only; inherited values are added at read time (withInherited).
  */
@@ -148,14 +148,23 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     // Events recorded while the sync runs are not part of this batch and stay in the queue.
     const batch = [...toRaw(events.value)]
     const accepted = new Set(batch.length > 0 ? (await api.sync(batch)).accepted_event_ids : [])
+    await downloadSnapshot(accepted)
+    markSynced()
+    return batch.filter((event) => event.type !== 'tag_assigned' && accepted.has(event.id)).length
+  }
+
+  async function downloadSnapshot(accepted = new Set<Uuid>()) {
     const fresh = await api.loadSnapshot()
     // Accepted events leave the queue only together with the snapshot that contains them, so a failed
     // download hides nothing. Resending them next time is harmless: the server ignores known ids.
     snapshot.value = fresh
     events.value = events.value.filter((event) => !accepted.has(event.id))
+    persist({ snapshot: fresh, events: toRaw(events.value) })
+  }
+
+  function markSynced() {
     lastSyncedAt.value = new Date().toISOString()
-    persist({ snapshot: fresh, events: toRaw(events.value), lastSyncedAt: lastSyncedAt.value })
-    return batch.filter((event) => event.type !== 'tag_assigned' && accepted.has(event.id)).length
+    persist({ lastSyncedAt: lastSyncedAt.value })
   }
 
   // Same rules as the server projection: inheritable attributes come from the parent unless the
@@ -216,6 +225,17 @@ export const useTimberItemStore = defineStore('timberItems', () => {
   async function redeemInvite(token: string) {
     currentUser.value = (await api.redeemInvite(token)).user
     persist({ user: toRaw(currentUser.value) })
+    // Attributes come only with the snapshot; without them nothing can be recorded offline.
+    // Failing here is fine: the sign-in stands and the next sync fetches it.
+    try {
+      await downloadSnapshot()
+    } catch {
+      return
+    }
+    // With pending events the device is not in sync with the server yet.
+    if (events.value.length === 0) {
+      markSynced()
+    }
   }
 
   function createTimberItem(tagNumber: number): TimberItem {
