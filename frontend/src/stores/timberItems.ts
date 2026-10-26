@@ -45,7 +45,7 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     () => events.value.filter((event) => event.type !== 'tag_assigned').length,
   )
 
-  // ponytail: a failed write only warns; the change stays in memory until the app is closed.
+  // A failed write only warns; the change stays in memory until the app is closed.
   function persist(parts: Partial<StoredState>) {
     save(parts).catch(() =>
       useToast().show({ before: 'Speichern auf dem Gerät fehlgeschlagen', kind: 'warning' }),
