@@ -6,6 +6,7 @@ import App from '../App.vue'
 import { routes } from '../router'
 import { useTimberItemStore } from '@/stores/timberItems'
 import { useToast } from '@/composables/useToast'
+import { api, ApiError } from '@/api/client'
 
 const mounted: { unmount: () => void }[] = []
 
@@ -488,6 +489,39 @@ describe('App', () => {
       expect(router.currentRoute.value.name).toBe('invite')
       expect(wrapper.text()).toContain('Kein Zugang')
       expect(wrapper.text()).toContain('widerrufen')
+    })
+  })
+
+  describe('sync page', () => {
+    afterEach(() => vi.restoreAllMocks())
+
+    it('lists pending entries and stays on the result after a sync', async () => {
+      const store = useTimberItemStore()
+      const stem = store.createTimberItem(321)
+      store.recordAttribute(stem.id, store.attributes.find((a) => a.name === 'Holzart')!.id, 'x')
+      const { wrapper, router } = await mountAt('/sync')
+      expect(wrapper.text()).toContain('Synchronisierung (2)')
+      expect(wrapper.text()).toContain('Stamm angelegt')
+      expect(wrapper.text()).toContain('noch nie')
+
+      await wrapper.find('button.bg-ink.text-lg').trigger('click')
+      await flushPromises()
+      expect(router.currentRoute.value.name).toBe('sync')
+      expect(wrapper.text()).toContain('2 Einträge übertragen')
+      expect(wrapper.text()).not.toContain('noch nie')
+    })
+
+    it('shows a rejected batch and keeps it', async () => {
+      const store = useTimberItemStore()
+      store.createTimberItem(321)
+      vi.spyOn(api, 'sync').mockRejectedValue(new ApiError(400, 'events[0]: broken'))
+      const { wrapper } = await mountAt('/sync')
+
+      await wrapper.find('button.bg-ink.text-lg').trigger('click')
+      await flushPromises()
+      expect(wrapper.find('[role="alert"]').text()).toContain('abgelehnt (events[0]: broken)')
+      expect(wrapper.text()).toContain('Stamm angelegt')
+      expect(store.pendingCount).toBe(1)
     })
   })
 })
