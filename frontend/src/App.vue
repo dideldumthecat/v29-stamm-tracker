@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AppToast from '@/components/AppToast.vue'
+import UpdatePrompt from '@/components/UpdatePrompt.vue'
 </script>
 
 <template>
@@ -14,4 +15,5 @@ import AppToast from '@/components/AppToast.vue'
     </RouterView>
   </div>
   <AppToast />
+  <UpdatePrompt />
 </template>
