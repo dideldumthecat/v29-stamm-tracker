@@ -60,6 +60,17 @@ describe('App', () => {
     expect(wrapper.find('button[aria-label="Holzart ändern"]').exists()).toBe(true)
   })
 
+  it('opens the help page from the start header', async () => {
+    const { wrapper, router } = await mountAt('/')
+    await wrapper.find('a[aria-label="Hilfe"]').trigger('click')
+    // The lazy-loaded view resolves after more than one tick.
+    await vi.waitFor(() => expect(router.currentRoute.value.name).toBe('help'))
+    await flushPromises()
+    expect(wrapper.text()).toContain('App installieren')
+    expect(wrapper.text()).toContain('Synchronisieren')
+    expect(wrapper.text()).toContain('Speicher geschützt: unbekannt')
+  })
+
   it('redirects invalid tag numbers to the start screen', async () => {
     const { router } = await mountAt('/timber-item/5000')
     expect(router.currentRoute.value.name).toBe('start')
