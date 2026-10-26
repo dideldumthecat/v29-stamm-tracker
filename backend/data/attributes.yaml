@@ -19,7 +19,8 @@
   type: number
   unit: cm
 
-- name: Stammlänge
+# Same value for a stem and the beams sawn lengthwise from it; set the beam's own value after a cross cut.
+- name: Länge
   type: choice
   is_inheritable: true
   options: ['4,10 m', '3,60 m', '3,20 m']
@@ -38,6 +39,7 @@
 
 - name: Entlastungsschnitt
   type: boolean
+  is_inheritable: true
 
 - name: Entrindet
   type: boolean
