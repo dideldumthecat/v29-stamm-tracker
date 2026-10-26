@@ -114,3 +114,25 @@ describe('timber item store: event queue', () => {
     expect(store.pendingCount).toBe(3)
   })
 })
+
+describe('timber item store: projection', () => {
+  beforeEach(() => setActivePinia(createPinia()))
+
+  it('lays pending events over the snapshot without changing it, and restores both on load', async () => {
+    const store = useTimberItemStore()
+    const stored = JSON.stringify(store.snapshot)
+    const existing = store.findByTag('789-A')!
+    store.recordAttribute(existing.id, attributeId('Sortierklasse'), 'new')
+    store.createTimberItem(8)
+    expect(JSON.stringify(store.snapshot)).toBe(stored)
+
+    // Wait until the queue is written, then start over as after an app restart.
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    setActivePinia(createPinia())
+    const reloaded = useTimberItemStore()
+    await reloaded.load()
+    expect(reloaded.findByTag('789-A')!.values[attributeId('Sortierklasse')]![0]!.value).toBe('new')
+    expect(reloaded.findByTag('8')).toBeDefined()
+    expect(reloaded.pendingCount).toBe(2)
+  })
+})

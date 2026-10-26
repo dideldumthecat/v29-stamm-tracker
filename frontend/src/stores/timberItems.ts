@@ -1,17 +1,13 @@
 /**
- * PLACEHOLDER STORE – in-memory fake data, so the screens can be built and clicked through.
- *
- * Replaced later by the real store: snapshot + own pending events → projected state,
- * persisted in IndexedDB (built in learning mode). The public surface (findByTagNumber, findByTag,
- * childrenOf, beamCount, nextBeamTagOf, isInherited, createTimberItem, addBeam, canRemove, removeTimberItem,
- * recordAttribute, pendingCount) is what the views rely on, so keep it stable or adjust the views together with it.
+ * Displayed state = stored snapshot (as the server sent it) + own pending events laid over it.
+ * Every change is an event in the queue, saved on the device right away; the snapshot is only
+ * replaced by a sync. The views rely on the public surface, so keep it stable or adjust them with it.
  *
  * `items` holds own values only; inherited values are added at read time (withInherited).
  */
 import { computed, ref, toRaw } from 'vue'
 import { defineStore } from 'pinia'
 import type {
-  Attribute,
   AttributeValueRecord,
   AttributeValue,
   Event,
@@ -19,7 +15,7 @@ import type {
   Uuid,
 } from '@/api/contract'
 import { api, type User } from '@/api/client'
-import { save, type StoredState } from '@/persistence/database'
+import { load as loadStored, save, type StoredState } from '@/persistence/database'
 import { useToast } from '@/composables/useToast'
 import { nextBeamTag } from '@/utils/tag'
 
@@ -28,12 +24,11 @@ export type { Attribute, AttributeOption, AttributeValueRecord, TimberItem } fro
 export type { User } from '@/api/client'
 
 export const useTimberItemStore = defineStore('timberItems', () => {
-  const snapshot = api.initialSnapshot()
+  const snapshot = ref(api.initialSnapshot())
   // Set by the invite link; null until then.
   const currentUser = ref<User | null>(api.initialUser())
-  const users = ref<User[]>(snapshot.users)
-  const attributes = ref<Attribute[]>(snapshot.attributes)
-  const items = ref<TimberItem[]>(snapshot.timber_items)
+  const users = computed(() => snapshot.value.users)
+  const attributes = computed(() => snapshot.value.attributes)
   // Own events waiting for the sync, in the order they were recorded.
   const events = ref<Event[]>([])
   const removedBeams = ref<StoredState['removedBeams']>([])
@@ -70,20 +65,76 @@ export const useTimberItemStore = defineStore('timberItems', () => {
   const hasPendingCreated = (itemId: string) =>
     events.value.some((event) => event.type === 'created' && event.timber_item_id === itemId)
 
-  const findById = (id: string | null) => items.value.find((item) => item.id === id)
   const lastEventId = (records: AttributeValueRecord[] | undefined) =>
     records?.slice(-1)[0]?.event_id
 
-  // The snapshot delivers beams with their inherited values (as timber_item_state does).
-  // Strip those, so a parent changed offline is followed by its beams.
-  for (const item of items.value) {
-    const parent = findById(item.parent_id)
-    for (const attributeId of Object.keys(item.values)) {
-      const own = lastEventId(item.values[attributeId])
-      if (parent && own !== undefined && own === lastEventId(parent.values[attributeId])) {
-        delete item.values[attributeId]
+  // Rebuilt whenever the snapshot or the queue changes; copies, so the snapshot itself stays untouched.
+  const items = computed<TimberItem[]>(() => {
+    const byId = new Map(
+      snapshot.value.timber_items.map((item) => [item.id, { ...item, values: { ...item.values } }]),
+    )
+    // The snapshot delivers beams with their inherited values (as timber_item_state does).
+    // Strip those, so a parent changed offline is followed by its beams.
+    for (const item of byId.values()) {
+      const parent = item.parent_id ? byId.get(item.parent_id) : undefined
+      for (const attributeId of Object.keys(item.values)) {
+        const own = lastEventId(item.values[attributeId])
+        if (parent && own !== undefined && own === lastEventId(parent.values[attributeId])) {
+          delete item.values[attributeId]
+        }
       }
     }
+
+    for (const event of events.value) {
+      if (event.type === 'created') {
+        const parentId = event.data.parent_id
+        byId.set(event.timber_item_id, {
+          id: event.timber_item_id,
+          parent_id: parentId,
+          tag_number: null,
+          has_children: false,
+          created_at: event.recorded_at,
+          created_by: currentUser.value?.id ?? '',
+          values: {},
+        })
+        const parent = parentId ? byId.get(parentId) : undefined
+        if (parent) {
+          parent.has_children = true
+        }
+        continue
+      }
+      // Unknown item: voided on the server meanwhile – nothing to show it on.
+      const item = byId.get(event.timber_item_id)
+      if (!item) {
+        continue
+      }
+      if (event.type === 'tag_assigned') {
+        item.tag_number = event.data.tag_number
+        continue
+      }
+      const { attribute_id: attributeId, value } = event.data
+      const record = {
+        value,
+        recorded_at: event.recorded_at,
+        user_id: currentUser.value?.id ?? '',
+        event_id: event.id,
+      }
+      // Series keep every recording; all other attributes hold exactly one (the current value).
+      const isSeries = attributes.value.find((attribute) => attribute.id === attributeId)?.is_series
+      item.values[attributeId] = isSeries ? [...(item.values[attributeId] ?? []), record] : [record]
+    }
+    return [...byId.values()]
+  })
+
+  const findById = (id: string | null) => items.value.find((item) => item.id === id)
+
+  /** Called once before the app mounts: the router guards already need the stored state. */
+  async function load() {
+    const stored = await loadStored()
+    currentUser.value = stored.user ?? currentUser.value
+    snapshot.value = stored.snapshot ?? snapshot.value
+    events.value = stored.events
+    removedBeams.value = stored.removedBeams
   }
 
   // Same rules as the server projection: inheritable attributes come from the parent unless the
@@ -143,6 +194,7 @@ export const useTimberItemStore = defineStore('timberItems', () => {
 
   async function redeemInvite(token: string) {
     currentUser.value = (await api.redeemInvite(token)).user
+    persist({ user: toRaw(currentUser.value) })
   }
 
   function createTimberItem(tagNumber: number): TimberItem {
@@ -159,7 +211,6 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     if (!tag) {
       throw new Error(`Timber item ${parentId} has no beam letters left`)
     }
-    parent.has_children = true
     return create(tag, parentId)
   }
 
@@ -167,17 +218,7 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     const id = crypto.randomUUID()
     emit('created', id, { parent_id: parentId })
     emit('tag_assigned', id, { tag_number: tagNumber })
-    items.value.push({
-      id,
-      parent_id: parentId,
-      tag_number: tagNumber,
-      has_children: false,
-      created_at: new Date().toISOString(),
-      created_by: currentUser.value?.id ?? '',
-      values: {},
-    })
-    // Return the reactive proxy from the array, not the plain object pushed above.
-    return items.value[items.value.length - 1]!
+    return findById(id)!
   }
 
   // Once synced, a beam can only be voided in the administration – the app sends no void event.
@@ -189,21 +230,13 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     if (!canRemove(itemId)) {
       throw new Error(`Timber item ${itemId} cannot be removed`)
     }
-    const beam = findById(itemId)!
-    const parentId = beam.parent_id
-    removedBeams.value.push({ id: beam.id, parent_id: parentId! })
-    items.value = items.value.filter((item) => item.id !== itemId)
+    removedBeams.value.push({ id: itemId, parent_id: findById(itemId)!.parent_id! })
     events.value = events.value.filter((event) => event.timber_item_id !== itemId)
     persist({ events: toRaw(events.value), removedBeams: toRaw(removedBeams.value) })
-    const parent = findById(parentId)
-    if (parent) {
-      parent.has_children = items.value.some((item) => item.parent_id === parentId)
-    }
   }
 
-  // One store function per event type: this one will emit attribute_recorded (see contract.ts).
   function recordAttribute(itemId: string, attributeId: string, value: AttributeValue) {
-    const item = items.value.find((candidate) => candidate.id === itemId)
+    const item = findById(itemId)
     if (!item) {
       throw new Error(`Unknown timber item ${itemId}`)
     }
@@ -211,19 +244,11 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     if (item.has_children) {
       throw new Error(`Timber item ${itemId} is split into beams and read-only`)
     }
-    const event = emit('attribute_recorded', itemId, { attribute_id: attributeId, value })
-    const record = {
-      value,
-      recorded_at: event.recorded_at,
-      user_id: currentUser.value?.id ?? '',
-      event_id: event.id,
-    }
-    // Series keep every recording; all other attributes hold exactly one (the current value).
-    const isSeries = attributes.value.find((attribute) => attribute.id === attributeId)?.is_series
-    item.values[attributeId] = isSeries ? [...(item.values[attributeId] ?? []), record] : [record]
+    emit('attribute_recorded', itemId, { attribute_id: attributeId, value })
   }
 
   return {
+    snapshot,
     currentUser,
     users,
     attributes,
@@ -243,5 +268,6 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     removeTimberItem,
     recordAttribute,
     redeemInvite,
+    load,
   }
 })
