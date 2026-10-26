@@ -88,8 +88,20 @@ describe('timber item store: beams and inheritance', () => {
     // Only the stem's created event is left.
     expect(store.pendingCount).toBe(before + 1)
 
-    // The removed beam's letter stays taken.
-    expect(store.addBeam(fresh.id).tag_number).toBe('6-B')
+    // The removed beam's letter is free again.
+    expect(store.addBeam(fresh.id).tag_number).toBe('6-A')
+  })
+
+  it('gives a new beam the first letter freed by a removed one', () => {
+    const store = useTimberItemStore()
+    const stem = store.createTimberItem(7)
+    store.addBeam(stem.id)
+    store.removeTimberItem(store.addBeam(stem.id).id)
+    expect(store.addBeam(stem.id).tag_number).toBe('7-B')
+
+    store.addBeam(stem.id)
+    store.removeTimberItem(store.findByTag('7-B')!.id)
+    expect(store.addBeam(stem.id).tag_number).toBe('7-B')
   })
 })
 

@@ -71,14 +71,14 @@ test('beam inherits a stem value and can override it', async ({ page }) => {
   await expect(page.getByRole('button', { name: /Speichern/ })).toHaveCount(0)
 })
 
-test('beam letters run to Z, are never reused, and stop after 26', async ({ page }) => {
+test('beam letters run to Z, are reused after removal, and stop after 26', async ({ page }) => {
   await page.goto('/timber-item/1888')
   await page.getByRole('button', { name: 'Balken 01888-A hinzufügen' }).click()
   await page.getByRole('button', { name: 'Balken 1888-A entfernen' }).click()
   await page.getByRole('button', { name: 'Balken entfernen', exact: true }).click()
   await expect(page.getByRole('link', { name: /01888-A/ })).toHaveCount(0)
 
-  for (let count = 1; count < 25; count++) {
+  for (let count = 0; count < 25; count++) {
     await page.getByRole('button', { name: /^Balken \d+-[A-Z] hinzufügen$/ }).click()
   }
   await page.getByRole('button', { name: 'Balken 01888-Z hinzufügen' }).click()

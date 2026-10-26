@@ -9,18 +9,15 @@ describe('device storage', () => {
       user: null,
       snapshot: null,
       events: [],
-      removedBeams: [],
       lastSyncedAt: null,
     })
 
     const events = syncRequest.events as Event[]
     await save({ events: events.slice(0, 2), lastSyncedAt: '2026-10-22T10:00:00.000Z' })
-    save({ events })
-    await save({ removedBeams: [{ id: 'beam', parent_id: 'stem' }] })
+    await save({ events })
 
     const stored = await load()
     expect(stored.events.map((event) => event.id)).toEqual(events.map((event) => event.id))
-    expect(stored.removedBeams).toEqual([{ id: 'beam', parent_id: 'stem' }])
     expect(stored.lastSyncedAt).toBe('2026-10-22T10:00:00.000Z')
   })
 })
