@@ -1,6 +1,7 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { useTimberItemStore } from '@/stores/timberItems'
+import { api, ApiError } from '@/api/client'
 
 // Fixture: stem 789 with Holzart, Lieferdatum, Gesägt; beam 789-A inherits Holzart and Lieferdatum,
 // beam 789-B inherits Holzart but has its own Lieferdatum.
@@ -134,5 +135,37 @@ describe('timber item store: projection', () => {
     expect(reloaded.findByTag('789-A')!.values[attributeId('Sortierklasse')]![0]!.value).toBe('new')
     expect(reloaded.findByTag('8')).toBeDefined()
     expect(reloaded.pendingCount).toBe(2)
+  })
+})
+
+describe('timber item store: sync', () => {
+  beforeEach(() => setActivePinia(createPinia()))
+  afterEach(() => vi.restoreAllMocks())
+
+  it('removes only confirmed events and takes the new snapshot', async () => {
+    const store = useTimberItemStore()
+    const stem = store.createTimberItem(9)
+    store.recordAttribute(stem.id, attributeId('Holzart'), 'oak')
+    const [created, tag, recorded] = store.events
+    vi.spyOn(api, 'sync').mockResolvedValue({ accepted_event_ids: [created!.id, tag!.id] })
+    const fresh = api.initialSnapshot()
+    fresh.generated_at = '2026-10-26T10:00:00.000Z'
+    vi.spyOn(api, 'loadSnapshot').mockResolvedValue(fresh)
+
+    expect(await store.sync()).toBe(1)
+    expect(store.events).toEqual([recorded])
+    expect(store.snapshot.generated_at).toBe('2026-10-26T10:00:00.000Z')
+    expect(store.lastSyncedAt).not.toBeNull()
+  })
+
+  it('keeps the whole queue when the snapshot download fails after the upload', async () => {
+    const store = useTimberItemStore()
+    store.createTimberItem(9)
+    vi.spyOn(api, 'loadSnapshot').mockRejectedValue(new ApiError(0, 'offline'))
+
+    await expect(store.sync()).rejects.toThrow(ApiError)
+    expect(store.findByTag('9')).toBeDefined()
+    expect(store.pendingCount).toBe(1)
+    expect(store.lastSyncedAt).toBeNull()
   })
 })

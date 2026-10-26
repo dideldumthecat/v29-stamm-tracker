@@ -24,6 +24,8 @@ async function redeem() {
     error.value = failure instanceof ApiError && failure.status === 401 ? 'revoked' : 'offline'
     return
   }
+  // A new device has no attributes yet. Best effort: the sync page shows any problem later.
+  await store.sync().catch(() => {})
   // replace: the token must not stay in the history.
   await router.replace({ name: 'start' })
 }

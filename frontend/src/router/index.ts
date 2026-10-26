@@ -22,6 +22,7 @@ export const routes: RouteRecordRaw[] = [
       return (isValidTag(tag) && isKnownOrPlain) || { name: 'start' }
     },
   },
+  { path: '/sync', name: 'sync', component: () => import('@/views/SyncView.vue') },
   {
     path: '/invite/:token',
     name: 'invite',

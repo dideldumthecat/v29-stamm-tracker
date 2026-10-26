@@ -15,3 +15,12 @@ export function formatDate(calendarDate: string): string {
 export function formatMonth(calendarMonth: string): string {
   return calendarMonth.split('-').reverse().join('/')
 }
+
+/** Short German date and time without year: "15.10., 18:42" */
+export function formatShortDateTime(timestamp: string): string {
+  const time = new Date(timestamp).toLocaleTimeString('de-DE', {
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+  return `${formatShortDate(timestamp)}, ${time}`
+}

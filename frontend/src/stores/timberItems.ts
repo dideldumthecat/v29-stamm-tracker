@@ -12,6 +12,7 @@ import type {
   AttributeValue,
   Event,
   TimberItem,
+  Timestamp,
   Uuid,
 } from '@/api/contract'
 import { api, type User } from '@/api/client'
@@ -32,6 +33,7 @@ export const useTimberItemStore = defineStore('timberItems', () => {
   // Own events waiting for the sync, in the order they were recorded.
   const events = ref<Event[]>([])
   const removedBeams = ref<StoredState['removedBeams']>([])
+  const lastSyncedAt = ref<Timestamp | null>(null)
   // What the user did, not the wire format: the tag of a new item belongs to "created".
   const pendingCount = computed(
     () => events.value.filter((event) => event.type !== 'tag_assigned').length,
@@ -135,6 +137,25 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     snapshot.value = stored.snapshot ?? snapshot.value
     events.value = stored.events
     removedBeams.value = stored.removedBeams
+    lastSyncedAt.value = stored.lastSyncedAt
+  }
+
+  /**
+   * Own events up, then the snapshot down. Throws ApiError on failure; the queue keeps whatever the
+   * server has not confirmed. Returns how many entries (as counted by pendingCount) were transferred.
+   */
+  async function sync(): Promise<number> {
+    // Events recorded while the sync runs are not part of this batch and stay in the queue.
+    const batch = [...toRaw(events.value)]
+    const accepted = new Set(batch.length > 0 ? (await api.sync(batch)).accepted_event_ids : [])
+    const fresh = await api.loadSnapshot()
+    // Accepted events leave the queue only together with the snapshot that contains them, so a failed
+    // download hides nothing. Resending them next time is harmless: the server ignores known ids.
+    snapshot.value = fresh
+    events.value = events.value.filter((event) => !accepted.has(event.id))
+    lastSyncedAt.value = new Date().toISOString()
+    persist({ snapshot: fresh, events: toRaw(events.value), lastSyncedAt: lastSyncedAt.value })
+    return batch.filter((event) => event.type !== 'tag_assigned' && accepted.has(event.id)).length
   }
 
   // Same rules as the server projection: inheritable attributes come from the parent unless the
@@ -255,6 +276,7 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     items,
     events,
     pendingCount,
+    lastSyncedAt,
     findByTagNumber,
     findByTag,
     childrenOf,
@@ -269,5 +291,6 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     recordAttribute,
     redeemInvite,
     load,
+    sync,
   }
 })

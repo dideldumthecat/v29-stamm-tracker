@@ -30,8 +30,8 @@ const colorClass = computed(() =>
 </script>
 
 <template>
-  <button
-    type="button"
+  <RouterLink
+    :to="{ name: 'sync' }"
     class="flex shrink-0 items-center rounded-full border-2 text-[15px] font-semibold"
     :class="[layoutClass, colorClass]"
     :aria-label="`Synchronisieren, ${pendingCount} offene Einträge`"
@@ -47,5 +47,5 @@ const colorClass = computed(() =>
         >{{ pendingCount }}</span
       >
     </span>
-  </button>
+  </RouterLink>
 </template>
