@@ -32,7 +32,7 @@ final class AuthenticateListener
 
         $token = $request->cookies->getString(SessionController::COOKIE);
         $user = '' === $token ? null : $this->em->getRepository(User::class)
-            ->findOneBy(['tokenHash' => User::hashToken($token), 'revokedAt' => null]);
+            ->findOneBy(['tokenHash' => User::hashToken(User::normalizeToken($token)), 'revokedAt' => null]);
         if (!$user) {
             throw new HttpException(401, 'Unknown or revoked invite link.');
         }

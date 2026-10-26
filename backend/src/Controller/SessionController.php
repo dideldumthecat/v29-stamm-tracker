@@ -23,6 +23,7 @@ final class SessionController extends AbstractController
         if (!\is_string($token) || '' === $token) {
             throw new BadRequestHttpException('token must be a non-empty string.');
         }
+        $token = User::normalizeToken($token);
         $user = $em->getRepository(User::class)->findOneBy(['tokenHash' => User::hashToken($token), 'revokedAt' => null]);
         if (!$user) {
             throw new HttpException(401, 'Unknown or revoked invite link.');

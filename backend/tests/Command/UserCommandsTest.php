@@ -41,15 +41,16 @@ class UserCommandsTest extends KernelTestCase
         return $this->em->getRepository(User::class)->findAll();
     }
 
-    public function testCreatePrintsInviteLinkAndStoresOnlyTheHash(): void
+    public function testCreatePrintsCodeAndInviteLinkAndStoresOnlyTheHash(): void
     {
         $tester = $this->execute('app:user:create', ['name' => ' Kerstin ']);
 
         self::assertSame(Command::SUCCESS, $tester->getStatusCode());
-        // 32 bytes as base64url = 43 characters, in the fragment so it never reaches a server log.
-        self::assertMatchesRegularExpression('~https://\S+/invite#([A-Za-z0-9_-]{43})\s~', $tester->getDisplay());
-        preg_match('~/invite#([A-Za-z0-9_-]{43})~', $tester->getDisplay(), $match);
-        $token = $match[1];
+        // Code on its own line, then the link with the same code in the fragment, so it never reaches a server log.
+        $group = '[0-9A-HJKMNP-TV-Z]{4}';
+        self::assertMatchesRegularExpression("~^ *($group-$group-$group)\n *https://\\S+/invite#\\1\\s~m", $tester->getDisplay());
+        preg_match("~/invite#($group-$group-$group)~", $tester->getDisplay(), $match);
+        $token = str_replace('-', '', $match[1]);
 
         $users = $this->users();
         self::assertCount(1, $users);
@@ -71,6 +72,26 @@ class UserCommandsTest extends KernelTestCase
         self::assertSame(UserRole::User, $users[1]->role);
         self::assertNotSame($first->getDisplay(), $second->getDisplay());
         self::assertNotSame($users[0]->tokenHash, $users[1]->tokenHash);
+    }
+
+    public function testCodesUseOnlyTheCodeAlphabet(): void
+    {
+        $codes = '';
+        foreach (range(1, 20) as $i) {
+            preg_match('~/invite#(\S+)~', $this->execute('app:user:create', ['name' => "User $i"])->getDisplay(), $match);
+            self::assertSame(14, \strlen($match[1]));
+            $codes .= str_replace('-', '', $match[1]);
+        }
+        self::assertSame('', trim($codes, User::CODE_ALPHABET));
+        self::assertCount(20, array_unique(array_column($this->em->getConnection()->fetchAllAssociative('SELECT token_hash FROM users'), 'token_hash')));
+    }
+
+    public function testNormalizeTokenIgnoresCaseHyphensSpacesAndLookAlikes(): void
+    {
+        foreach (['K7QM-4XHT-9RD0', 'k7qm-4xht-9rd0', 'K7QM4XHT9RD0', ' k7qm 4xht 9rdo ', 'K7QM-4XHT-9RDO'] as $input) {
+            self::assertSame('K7QM4XHT9RD0', User::normalizeToken($input), $input);
+        }
+        self::assertSame('1111AAAABBBB', User::normalizeToken('iIlL-aaaa-bbbb'));
     }
 
     public function testCreateRejectsAnEmptyName(): void
