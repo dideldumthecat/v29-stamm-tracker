@@ -78,7 +78,7 @@ const fake: typeof real = {
   },
   sync: async (events) => {
     signedIn()
-    return { accepted_event_ids: events.map((event) => event.id) }
+    return { accepted_event_ids: events.map((event) => event.id), rejected: [] }
   },
   // A fresh device starts with the fixture, so screens and tests have data without a sync.
   initialSnapshot: () => structuredClone(snapshotFixture as Snapshot),

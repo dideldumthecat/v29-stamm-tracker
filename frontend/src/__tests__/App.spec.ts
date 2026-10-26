@@ -25,6 +25,22 @@ async function mountAt(path: string) {
   return { wrapper, router }
 }
 
+// The server already holds every tag the device sends.
+function rejectAll() {
+  return vi.spyOn(api, 'sync').mockImplementation(async (events) => ({
+    accepted_event_ids: [],
+    rejected: events.map((event) => ({
+      event_id: event.id,
+      timber_item_id: event.timber_item_id,
+      tag_number: '1555',
+      reason: 'tag_already_taken' as const,
+    })),
+  }))
+}
+
+const DUPLICATE_HINT =
+  'Stamm 01555 war bereits erfasst. Deine Angaben dazu wurden nicht übernommen. Bitte prüfe die Nummer und erfasse fehlende Werte am bestehenden Stamm.'
+
 describe('App', () => {
   beforeEach(() => {
     // jsdom does not implement scrollIntoView.
@@ -547,6 +563,44 @@ describe('App', () => {
 
   describe('sync page', () => {
     afterEach(() => vi.restoreAllMocks())
+
+    it('lists rejected duplicate captures on the result and drops them from the queue', async () => {
+      useTimberItemStore().createTimberItem(1555)
+      rejectAll()
+      const { wrapper } = await mountAt('/sync')
+      await wrapper.find('button.bg-ink.text-lg').trigger('click')
+      await flushPromises()
+
+      expect(wrapper.find('[role="alert"]').text()).toBe(DUPLICATE_HINT)
+      expect(useTimberItemStore().events).toEqual([])
+    })
+
+    it('opens the result after a sign-in whose sync rejected something', async () => {
+      const store = useTimberItemStore()
+      store.currentUser = null
+      store.createTimberItem(1555)
+      const sync = rejectAll()
+      const { wrapper, router } = await mountAt('/')
+      await wrapper.find('input#invite-code').setValue('K7QM-4XHT-9RDP')
+      await wrapper.find('form').trigger('submit')
+      await flushPromises()
+
+      expect(sync).toHaveBeenCalled()
+      expect(router.currentRoute.value.name).toBe('sync')
+      expect(wrapper.find('[role="alert"]').text()).toBe(DUPLICATE_HINT)
+    })
+
+    it('opens the result after an invite link whose sync rejected something', async () => {
+      const store = useTimberItemStore()
+      store.currentUser = null
+      store.createTimberItem(1555)
+      rejectAll()
+      const { wrapper, router } = await mountAt('/invite#abc')
+      await flushPromises()
+
+      expect(router.currentRoute.value.name).toBe('sync')
+      expect(wrapper.find('[role="alert"]').text()).toBe(DUPLICATE_HINT)
+    })
 
     it('lists pending entries and stays on the result after a sync', async () => {
       const store = useTimberItemStore()

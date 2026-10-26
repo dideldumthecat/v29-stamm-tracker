@@ -204,6 +204,83 @@ class ApiTest extends WebTestCase
         self::assertSame([], $this->request('GET', '/api/snapshot')['timber_items']);
     }
 
+    private function rejectedSyncs(): array
+    {
+        return array_map(static fn (array $row) => ['user_id' => Uuid::fromBinary($row['user_id'])->toRfc4122(), 'reason' => $row['reason'], 'events' => json_decode($row['events'], true)],
+            $this->em->getConnection()->fetchAllAssociative('SELECT user_id, reason, events FROM rejected_syncs'));
+    }
+
+    public function testADuplicateStemIsRejectedWithItsValuesAndBeamsWhileTheRestIsAccepted(): void
+    {
+        $this->syncItem123();
+        [$duplicate, $beam, $fresh] = [Uuid::v4()->toRfc4122(), Uuid::v4()->toRfc4122(), Uuid::v4()->toRfc4122()];
+        $rejected = [
+            self::event('created', $duplicate, ['parent_id' => null]),
+            self::event('tag_assigned', $duplicate, ['tag_number' => '123']),
+            self::event('attribute_recorded', $duplicate, ['attribute_id' => self::HOLZART, 'value' => self::STIELEICHE]),
+            self::event('created', $beam, ['parent_id' => $duplicate]),
+            self::event('tag_assigned', $beam, ['tag_number' => '123-A']),
+        ];
+        $accepted = [
+            self::event('created', $fresh, ['parent_id' => null]),
+            self::event('tag_assigned', $fresh, ['tag_number' => '124']),
+            self::event('attribute_recorded', self::ITEM_123, ['attribute_id' => self::HOLZART, 'value' => self::TRAUBENEICHE]),
+        ];
+
+        $response = $this->request('POST', '/api/sync', ['events' => [$rejected[0], $accepted[0], ...array_slice($rejected, 1), ...array_slice($accepted, 1)]], 'Alexander');
+        self::assertResponseIsSuccessful();
+        self::assertSame(array_column($accepted, 'id'), $response['accepted_event_ids']);
+        self::assertSame(array_map(static fn (array $e) => ['event_id' => $e['id'], 'timber_item_id' => $e['timber_item_id'], 'tag_number' => '123', 'reason' => 'tag_already_taken'], $rejected), $response['rejected']);
+
+        $items = array_column($this->request('GET', '/api/snapshot')['timber_items'], 'tag_number', 'id');
+        self::assertEquals([self::ITEM_123 => '123', $fresh => '124'], array_intersect_key($items, [self::ITEM_123 => 1, $fresh => 1]));
+        self::assertArrayNotHasKey($duplicate, $items);
+        self::assertArrayNotHasKey($beam, $items);
+        self::assertSame(self::TRAUBENEICHE, $this->values(self::ITEM_123)[self::HOLZART][0]['value']);
+        self::assertSame([['user_id' => self::ALEXANDER, 'reason' => 'tag_already_taken', 'events' => $rejected]], $this->rejectedSyncs());
+    }
+
+    public function testTheSecondOfTwoStemsWithTheSameTagInOneRequestIsRejected(): void
+    {
+        [$first, $second] = [Uuid::v4()->toRfc4122(), Uuid::v4()->toRfc4122()];
+        $events = [
+            self::event('created', $first, ['parent_id' => null]),
+            self::event('tag_assigned', $first, ['tag_number' => '7']),
+            self::event('created', $second, ['parent_id' => null]),
+            self::event('tag_assigned', $second, ['tag_number' => '7']),
+        ];
+
+        $response = $this->request('POST', '/api/sync', ['events' => $events]);
+        self::assertResponseIsSuccessful();
+        self::assertSame(array_column(array_slice($events, 0, 2), 'id'), $response['accepted_event_ids']);
+        self::assertSame([$second, $second], array_column($response['rejected'], 'timber_item_id'));
+        self::assertSame([$first], array_column($this->request('GET', '/api/snapshot')['timber_items'], 'id'));
+
+        // Resending the accepted stem is no conflict with itself.
+        self::assertSame([], $this->request('POST', '/api/sync', ['events' => array_slice($events, 0, 2)])['rejected']);
+    }
+
+    public function testABeamWithATagAnotherBeamAlreadyHoldsIsRejected(): void
+    {
+        $this->syncItem123();
+        [$beam, $duplicate] = [Uuid::v4()->toRfc4122(), Uuid::v4()->toRfc4122()];
+        $this->request('POST', '/api/sync', ['events' => [
+            self::event('created', $beam, ['parent_id' => self::ITEM_123]),
+            self::event('tag_assigned', $beam, ['tag_number' => '123-A']),
+        ]], 'Kerstin');
+
+        $response = $this->request('POST', '/api/sync', ['events' => [
+            self::event('created', $duplicate, ['parent_id' => self::ITEM_123]),
+            self::event('tag_assigned', $duplicate, ['tag_number' => '123-A']),
+            self::event('attribute_recorded', $duplicate, ['attribute_id' => self::LIEFERDATUM, 'value' => '2026-02-02']),
+        ]]);
+        self::assertResponseIsSuccessful();
+        self::assertSame([], $response['accepted_event_ids']);
+        self::assertSame(['123-A', '123-A', '123-A'], array_column($response['rejected'], 'tag_number'));
+        self::assertNotContains($duplicate, array_column($this->request('GET', '/api/snapshot')['timber_items'], 'id'));
+        self::assertCount(1, $this->rejectedSyncs());
+    }
+
     public function testMonthValueIsAccepted(): void
     {
         $item = Uuid::v4()->toRfc4122();

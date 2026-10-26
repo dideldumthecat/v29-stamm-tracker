@@ -113,6 +113,23 @@ export interface SyncRequest {
 export interface SyncResponse {
   /** Includes ids the server already knew. Only these may leave the local queue. */
   accepted_event_ids: Uuid[]
+  /**
+   * Events the server will never store, one entry per event (kept server-side in rejected_syncs).
+   * They leave the queue as well; the app drops the items they belong to.
+   */
+  rejected: RejectedEvent[]
+}
+
+/**
+ * tag_already_taken: the item was created with a tag (its first tag_assigned in the request) that another
+ * item already holds – a duplicate capture. All events of that item and of its beams in the request are rejected.
+ */
+export interface RejectedEvent {
+  event_id: Uuid
+  timber_item_id: Uuid
+  /** The tag that is taken; for beams of a rejected item the tag of that item. */
+  tag_number: string
+  reason: 'tag_already_taken'
 }
 
 interface EventBase {

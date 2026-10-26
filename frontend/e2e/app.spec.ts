@@ -124,7 +124,8 @@ test('signs in with a code pasted from a messenger', async ({ page }) => {
     .getByLabel('Einladungscode oder Link')
     .fill('Hallo Alexander,\ndein Zugang: https://v29.example/invite#k7qm–4xht–9rdp – viel Spaß')
   await page.getByRole('button', { name: 'Anmelden' }).click()
-  await expect(page.getByText('Alexander · Letzter Sync')).toBeVisible()
+  await expect(page.locator('header').getByText('Alexander', { exact: true })).toBeVisible()
+  await expect(page.getByText('Letzter Sync:')).toBeVisible()
   await expect(page.getByRole('button', { name: '1', exact: true })).toBeVisible()
 })
 
@@ -168,7 +169,8 @@ test('invite link elsewhere is redeemed right away', async ({ page }, testInfo) 
   await page.evaluate(SIGNED_OUT)
   await page.goto('/invite#K7QM-4XHT-9RDP')
   await expect(page.locator('h1')).toHaveText('V29 Stamm-Tracker')
-  await expect(page.getByText('Alexander · Letzter Sync')).toBeVisible()
+  await expect(page.locator('header').getByText('Alexander', { exact: true })).toBeVisible()
+  await expect(page.getByText('Letzter Sync:')).toBeVisible()
 })
 
 test('sync without pending changes offers to refresh the data', async ({ page }) => {

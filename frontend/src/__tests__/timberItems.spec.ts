@@ -159,15 +159,49 @@ describe('timber item store: sync', () => {
     const stem = store.createTimberItem(9)
     store.recordAttribute(stem.id, attributeId('Holzart'), 'oak')
     const [created, tag, recorded] = store.events
-    vi.spyOn(api, 'sync').mockResolvedValue({ accepted_event_ids: [created!.id, tag!.id] })
+    vi.spyOn(api, 'sync').mockResolvedValue({
+      accepted_event_ids: [created!.id, tag!.id],
+      rejected: [],
+    })
     const fresh = api.initialSnapshot()
     fresh.generated_at = '2026-10-26T10:00:00.000Z'
     vi.spyOn(api, 'loadSnapshot').mockResolvedValue(fresh)
 
-    expect(await store.sync()).toBe(1)
+    expect(await store.sync()).toEqual({ transferred: 1, rejected: [] })
     expect(store.events).toEqual([recorded])
     expect(store.snapshot.generated_at).toBe('2026-10-26T10:00:00.000Z')
     expect(store.lastSyncedAt).not.toBeNull()
+  })
+
+  it('drops a rejected duplicate stem with its beam and later events, keeps the rest', async () => {
+    const store = useTimberItemStore()
+    const duplicate = store.createTimberItem(123)
+    store.recordAttribute(duplicate.id, attributeId('Holzart'), 'oak')
+    const beam = store.addBeam(duplicate.id)
+    const other = store.createTimberItem(9)
+    const sent = [...store.events]
+    vi.spyOn(api, 'sync').mockImplementation(async () => {
+      // Recorded while the sync runs: not in the batch, but on the rejected item.
+      store.recordAttribute(beam.id, attributeId('Holzart'), 'oak')
+      const rejected = sent.filter((event) => event.timber_item_id !== other.id)
+      return {
+        accepted_event_ids: sent.filter((event) => !rejected.includes(event)).map((e) => e.id),
+        rejected: rejected.map((event) => ({
+          event_id: event.id,
+          timber_item_id: event.timber_item_id,
+          tag_number: '123',
+          reason: 'tag_already_taken' as const,
+        })),
+      }
+    })
+    vi.spyOn(api, 'loadSnapshot').mockResolvedValue(api.initialSnapshot())
+
+    expect(await store.sync()).toEqual({
+      transferred: 1,
+      rejected: [{ tagNumber: '123', isBeam: false }],
+    })
+    expect(store.events).toEqual([])
+    expect(store.findByTag('123-A')).toBeUndefined()
   })
 
   it('keeps the whole queue when the snapshot download fails after the upload', async () => {
