@@ -8,10 +8,19 @@
  *
  * `items` holds own values only; inherited values are added at read time (withInherited).
  */
-import { ref } from 'vue'
+import { computed, ref, toRaw } from 'vue'
 import { defineStore } from 'pinia'
-import type { Attribute, AttributeValueRecord, AttributeValue, TimberItem } from '@/api/contract'
+import type {
+  Attribute,
+  AttributeValueRecord,
+  AttributeValue,
+  Event,
+  TimberItem,
+  Uuid,
+} from '@/api/contract'
 import { api, type User } from '@/api/client'
+import { save, type StoredState } from '@/persistence/database'
+import { useToast } from '@/composables/useToast'
 import { nextBeamTag } from '@/utils/tag'
 
 // The app uses the contract types directly (snake_case, as on the wire) – no second model, no mapper.
@@ -25,14 +34,41 @@ export const useTimberItemStore = defineStore('timberItems', () => {
   const users = ref<User[]>(snapshot.users)
   const attributes = ref<Attribute[]>(snapshot.attributes)
   const items = ref<TimberItem[]>(snapshot.timber_items)
-  // Stands in for the number of events waiting in the sync queue.
-  const pendingCount = ref(0)
-  // Items created in this session with their number of events: still in the queue, so removable.
-  // Placeholder for "has unsynced created event".
-  const unsynced = ref(new Map<string, number>())
-  // Unsynced beams removed in this session, still counted for the next letter.
-  // TODO: the real store must keep this trace persistently (the removed events never reach the server).
-  const removedBeams = ref<TimberItem[]>([])
+  // Own events waiting for the sync, in the order they were recorded.
+  const events = ref<Event[]>([])
+  const removedBeams = ref<StoredState['removedBeams']>([])
+  // What the user did, not the wire format: the tag of a new item belongs to "created".
+  const pendingCount = computed(
+    () => events.value.filter((event) => event.type !== 'tag_assigned').length,
+  )
+
+  // ponytail: a failed write only warns; the change stays in memory until the app is closed.
+  function persist(parts: Partial<StoredState>) {
+    save(parts).catch(() =>
+      useToast().show({ before: 'Speichern auf dem Gerät fehlgeschlagen', kind: 'warning' }),
+    )
+  }
+
+  function emit<T extends Event['type']>(
+    type: T,
+    timberItemId: Uuid,
+    data: Extract<Event, { type: T }>['data'],
+  ): Event {
+    const event = {
+      id: crypto.randomUUID(),
+      schema_version: 1,
+      type,
+      timber_item_id: timberItemId,
+      recorded_at: new Date().toISOString(),
+      data,
+    } as Event
+    events.value.push(event)
+    persist({ events: toRaw(events.value) })
+    return event
+  }
+
+  const hasPendingCreated = (itemId: string) =>
+    events.value.some((event) => event.type === 'created' && event.timber_item_id === itemId)
 
   const findById = (id: string | null) => items.value.find((item) => item.id === id)
   const lastEventId = (records: AttributeValueRecord[] | undefined) =>
@@ -129,6 +165,8 @@ export const useTimberItemStore = defineStore('timberItems', () => {
 
   function create(tagNumber: string, parentId: string | null): TimberItem {
     const id = crypto.randomUUID()
+    emit('created', id, { parent_id: parentId })
+    emit('tag_assigned', id, { tag_number: tagNumber })
     items.value.push({
       id,
       parent_id: parentId,
@@ -138,15 +176,13 @@ export const useTimberItemStore = defineStore('timberItems', () => {
       created_by: currentUser.value?.id ?? '',
       values: {},
     })
-    pendingCount.value++
-    unsynced.value.set(id, 1)
     // Return the reactive proxy from the array, not the plain object pushed above.
     return items.value[items.value.length - 1]!
   }
 
   // Once synced, a beam can only be voided in the administration – the app sends no void event.
   function canRemove(itemId: string): boolean {
-    return unsynced.value.has(itemId) && findById(itemId)?.parent_id != null
+    return hasPendingCreated(itemId) && findById(itemId)?.parent_id != null
   }
 
   function removeTimberItem(itemId: string) {
@@ -155,10 +191,10 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     }
     const beam = findById(itemId)!
     const parentId = beam.parent_id
-    removedBeams.value.push(beam)
+    removedBeams.value.push({ id: beam.id, parent_id: parentId! })
     items.value = items.value.filter((item) => item.id !== itemId)
-    pendingCount.value -= unsynced.value.get(itemId)!
-    unsynced.value.delete(itemId)
+    events.value = events.value.filter((event) => event.timber_item_id !== itemId)
+    persist({ events: toRaw(events.value), removedBeams: toRaw(removedBeams.value) })
     const parent = findById(parentId)
     if (parent) {
       parent.has_children = items.value.some((item) => item.parent_id === parentId)
@@ -175,20 +211,16 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     if (item.has_children) {
       throw new Error(`Timber item ${itemId} is split into beams and read-only`)
     }
+    const event = emit('attribute_recorded', itemId, { attribute_id: attributeId, value })
     const record = {
       value,
-      recorded_at: new Date().toISOString(),
+      recorded_at: event.recorded_at,
       user_id: currentUser.value?.id ?? '',
-      // Placeholder until real events exist; the event id will come from the sync queue.
-      event_id: crypto.randomUUID(),
+      event_id: event.id,
     }
     // Series keep every recording; all other attributes hold exactly one (the current value).
     const isSeries = attributes.value.find((attribute) => attribute.id === attributeId)?.is_series
     item.values[attributeId] = isSeries ? [...(item.values[attributeId] ?? []), record] : [record]
-    pendingCount.value++
-    if (unsynced.value.has(itemId)) {
-      unsynced.value.set(itemId, unsynced.value.get(itemId)! + 1)
-    }
   }
 
   return {
@@ -196,6 +228,7 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     users,
     attributes,
     items,
+    events,
     pendingCount,
     findByTagNumber,
     findByTag,
