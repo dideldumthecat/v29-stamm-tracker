@@ -1,0 +1,48 @@
+# Attributes for capture, as agreed with V29 (26.10.2026).
+# Import: ddev console app:attributes:import data/attributes.yaml
+# Order in this file = order in the app. Never rename an attribute or option that already has values:
+# the import matches by name/label and would create a new one.
+
+- name: Holzart
+  type: choice
+  is_inheritable: true
+  options:
+    - Traubeneiche (Quercus petraea)
+    - Stieleiche (Quercus robur)
+    - Roteiche (Quercus rubra)
+
+# Measured crosswise at one spot; the mean is computed in the evaluation, not in the app.
+- name: Stammdurchmesser größter
+  type: number
+  unit: cm
+- name: Stammdurchmesser kleinster
+  type: number
+  unit: cm
+
+- name: Stammlänge
+  type: choice
+  is_inheritable: true
+  options: ['4,10 m', '3,60 m', '3,20 m']
+
+- name: Fällzeitpunkt
+  type: month
+  is_inheritable: true
+
+- name: Polternummer
+  type: choice
+  options: ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10']
+
+- name: Gesägt
+  type: boolean
+  is_inheritable: true
+
+- name: Entlastungsschnitt
+  type: boolean
+
+- name: Entrindet
+  type: boolean
+  is_inheritable: true
+
+- name: Notiz
+  type: text
+  is_series: true
