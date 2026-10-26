@@ -10,28 +10,18 @@
  */
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
-import type {
-  Attribute,
-  AttributeValueRecord,
-  AttributeValue,
-  Snapshot,
-  SessionResponse,
-  TimberItem,
-} from '@/api/contract'
-// Fixtures stand in for GET /api/snapshot and POST /api/session until the API client exists.
-// JSON imports are typed loosely (type: string instead of 'choice' | …), hence the casts.
-import snapshotFixture from '@/api/fixtures/snapshot.json'
-import sessionFixture from '@/api/fixtures/session-response.json'
+import type { Attribute, AttributeValueRecord, AttributeValue, TimberItem } from '@/api/contract'
+import { api, type User } from '@/api/client'
 import { nextBeamTag } from '@/utils/tag'
 
 // The app uses the contract types directly (snake_case, as on the wire) – no second model, no mapper.
 export type { Attribute, AttributeOption, AttributeValueRecord, TimberItem } from '@/api/contract'
-export type User = SessionResponse['user']
+export type { User } from '@/api/client'
 
 export const useTimberItemStore = defineStore('timberItems', () => {
-  // structuredClone: tests and hot reload must not mutate the imported fixture.
-  const snapshot = structuredClone(snapshotFixture as Snapshot)
-  const currentUser: User = { ...(sessionFixture as SessionResponse).user }
+  const snapshot = api.initialSnapshot()
+  // Set by the invite link; null until then.
+  const currentUser = ref<User | null>(api.initialUser())
   const users = ref<User[]>(snapshot.users)
   const attributes = ref<Attribute[]>(snapshot.attributes)
   const items = ref<TimberItem[]>(snapshot.timber_items)
@@ -109,8 +99,14 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     return own !== undefined && own === lastEventId(parent.values[attributeId])
   }
 
+  // Own name before the first sync: the snapshot does not know this user yet.
   function userName(userId: string): string {
-    return users.value.find((user) => user.id === userId)?.name ?? 'Unbekannt'
+    const user = [...users.value, currentUser.value].find((candidate) => candidate?.id === userId)
+    return user?.name ?? 'Unbekannt'
+  }
+
+  async function redeemInvite(token: string) {
+    currentUser.value = (await api.redeemInvite(token)).user
   }
 
   function createTimberItem(tagNumber: number): TimberItem {
@@ -139,7 +135,7 @@ export const useTimberItemStore = defineStore('timberItems', () => {
       tag_number: tagNumber,
       has_children: false,
       created_at: new Date().toISOString(),
-      created_by: currentUser.id,
+      created_by: currentUser.value?.id ?? '',
       values: {},
     })
     pendingCount.value++
@@ -182,7 +178,7 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     const record = {
       value,
       recorded_at: new Date().toISOString(),
-      user_id: currentUser.id,
+      user_id: currentUser.value?.id ?? '',
       // Placeholder until real events exist; the event id will come from the sync queue.
       event_id: crypto.randomUUID(),
     }
@@ -213,5 +209,6 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     canRemove,
     removeTimberItem,
     recordAttribute,
+    redeemInvite,
   }
 })
