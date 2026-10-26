@@ -2,6 +2,14 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { useTimberItemStore } from '@/stores/timberItems'
 import { api, ApiError } from '@/api/client'
+import { save } from '@/persistence/database'
+
+// Pass-through spy: tests can check what reaches IndexedDB.
+vi.mock('@/persistence/database', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/persistence/database')>()
+  return { ...original, save: vi.fn(original.save) }
+})
+const cloneEverySave = () => structuredClone(vi.mocked(save).mock.calls)
 
 // Fixture: stem 789 with Holzart, Lieferdatum, Gesägt; beam 789-A inherits Holzart and Lieferdatum,
 // beam 789-B inherits Holzart but has its own Lieferdatum.
@@ -103,6 +111,13 @@ describe('timber item store: beams and inheritance', () => {
     store.removeTimberItem(store.findByTag('7-B')!.id)
     expect(store.addBeam(stem.id).tag_number).toBe('7-B')
   })
+
+  it('saves the queue after removing a beam in a form IndexedDB can store', () => {
+    const store = useTimberItemStore()
+    const stem = store.createTimberItem(6)
+    store.removeTimberItem(store.addBeam(stem.id).id)
+    expect(cloneEverySave).not.toThrow()
+  })
 })
 
 describe('timber item store: event queue', () => {
@@ -171,6 +186,7 @@ describe('timber item store: sync', () => {
     expect(store.events).toEqual([recorded])
     expect(store.snapshot.generated_at).toBe('2026-10-26T10:00:00.000Z')
     expect(store.lastSyncedAt).not.toBeNull()
+    expect(cloneEverySave).not.toThrow()
   })
 
   it('drops a rejected duplicate stem with its beam and later events, keeps the rest', async () => {
