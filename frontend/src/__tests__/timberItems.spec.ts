@@ -169,3 +169,40 @@ describe('timber item store: sync', () => {
     expect(store.lastSyncedAt).toBeNull()
   })
 })
+
+describe('timber item store: sign-in', () => {
+  beforeEach(() => setActivePinia(createPinia()))
+  afterEach(() => vi.restoreAllMocks())
+
+  it('loads the snapshot right after sign-in, keeping pending events', async () => {
+    const store = useTimberItemStore()
+    const fixture = api.initialSnapshot()
+    store.snapshot = { ...fixture, attributes: [] }
+    store.createTimberItem(9)
+    vi.spyOn(api, 'loadSnapshot').mockResolvedValue(fixture)
+
+    await store.redeemInvite('token')
+    expect(store.currentUser).not.toBeNull()
+    expect(store.attributes.length).toBeGreaterThan(0)
+    expect(store.pendingCount).toBe(1)
+    expect(store.lastSyncedAt).toBeNull()
+  })
+
+  it('counts the sign-in as a sync when no events are pending', async () => {
+    const store = useTimberItemStore()
+    vi.spyOn(api, 'loadSnapshot').mockResolvedValue(api.initialSnapshot())
+
+    await store.redeemInvite('token')
+    expect(store.lastSyncedAt).not.toBeNull()
+  })
+
+  it('keeps the sign-in when the snapshot cannot be loaded', async () => {
+    const store = useTimberItemStore()
+    store.currentUser = null
+    vi.spyOn(api, 'loadSnapshot').mockRejectedValue(new ApiError(0, 'offline'))
+
+    await expect(store.redeemInvite('token')).resolves.toBeUndefined()
+    expect(store.currentUser).not.toBeNull()
+    expect(store.lastSyncedAt).toBeNull()
+  })
+})
