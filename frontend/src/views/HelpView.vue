@@ -4,9 +4,13 @@ import { ChevronLeftIcon } from '@lucide/vue'
 import AndroidInstallSteps from '@/components/AndroidInstallSteps.vue'
 import IosInstallSteps from '@/components/IosInstallSteps.vue'
 import { useStoragePersistence } from '@/composables/useStoragePersistence'
+import { formatShortDateTime } from '@/utils/date'
 
 const router = useRouter()
 const { isPersisted } = useStoragePersistence()
+const appVersion = [__APP_REVISION__, formatShortDateTime(__APP_BUILD_TIME__)]
+  .filter(Boolean)
+  .join(' · ')
 </script>
 
 <template>
@@ -60,9 +64,12 @@ const { isPersisted } = useStoragePersistence()
       </section>
     </div>
 
-    <p class="mt-auto py-4 px-gutter text-center text-[13px] text-mute">
-      Speicher geschützt:
-      {{ isPersisted === null ? 'unbekannt' : isPersisted ? 'ja' : 'nein' }}
-    </p>
+    <div class="mt-auto flex flex-col gap-1 py-4 px-gutter text-center text-[13px] text-mute">
+      <p>
+        Speicher geschützt:
+        {{ isPersisted === null ? 'unbekannt' : isPersisted ? 'ja' : 'nein' }}
+      </p>
+      <p>App-Version: {{ appVersion }}</p>
+    </div>
   </div>
 </template>

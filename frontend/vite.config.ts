@@ -1,3 +1,4 @@
+import { execSync } from 'node:child_process'
 import { fileURLToPath, URL } from 'node:url'
 
 import { defineConfig } from 'vite'
@@ -10,8 +11,26 @@ import checker from 'vite-plugin-checker'
 // Im DDEV-Container gesetzt, z.B. https://v29-stamm-tracker.ddev.site / v29-stamm-tracker.ddev.site
 const { DDEV_PRIMARY_URL, DDEV_HOSTNAME } = process.env
 
+// Build identifier on the help page instead of a hand-maintained version number nobody bumps.
+// Uncommitted changes share the last commit's hash, hence the "-dirty" marker and the build time.
+function gitRevision(): string | null {
+  try {
+    const run = (command: string) =>
+      execSync(command, { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim()
+    const hash = run('git rev-parse --short HEAD')
+    return run('git status --porcelain') ? `${hash}-dirty` : hash
+  } catch {
+    // No git (or no repository) where the build runs → the build time alone has to do
+    return null
+  }
+}
+
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => ({
+  define: {
+    __APP_REVISION__: JSON.stringify(gitRevision()),
+    __APP_BUILD_TIME__: JSON.stringify(new Date().toISOString()),
+  },
   plugins: [
     vue(),
     tailwindcss(),
