@@ -6,9 +6,15 @@ defineProps<{
   title?: string
   primaryLabel: string
   secondaryLabel: string
+  // Highlights the secondary button when it is the expected action; primary stays the safe choice.
+  emphasizeSecondary?: boolean
 }>()
 // primary = the safe choice (e.g. keep editing); also triggered by backdrop tap and Escape.
 const emit = defineEmits<{ primary: []; secondary: [] }>()
+
+const filled =
+  'flex h-14 w-full items-center justify-center gap-2.5 rounded-lg bg-ink text-lg font-bold text-paper'
+const outlined = 'h-14 w-full rounded-lg border-2 border-ink bg-paper text-[17px] font-bold'
 
 const titleId = useId()
 const primaryButton = useTemplateRef<HTMLButtonElement>('primaryButton')
@@ -48,14 +54,14 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
           <button
             ref="primaryButton"
             type="button"
-            class="flex h-14 w-full items-center justify-center gap-2.5 rounded-lg bg-ink text-lg font-bold text-paper"
+            :class="emphasizeSecondary ? outlined : filled"
             @click="emit('primary')"
           >
             {{ primaryLabel }}
           </button>
           <button
             type="button"
-            class="h-14 w-full rounded-lg border-2 border-ink bg-paper text-[17px] font-bold"
+            :class="emphasizeSecondary ? filled : outlined"
             @click="emit('secondary')"
           >
             {{ secondaryLabel }}

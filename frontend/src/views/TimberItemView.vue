@@ -384,6 +384,7 @@ function onDiscard() {
       v-if="beamToRemove"
       primary-label="Abbrechen"
       secondary-label="Balken entfernen"
+      emphasize-secondary
       @primary="beamToRemove = null"
       @secondary="onRemove"
     >
