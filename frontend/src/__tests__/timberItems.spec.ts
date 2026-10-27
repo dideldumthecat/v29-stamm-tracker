@@ -283,6 +283,27 @@ describe('timber item store: sync', () => {
     expect(store.findByTag('789-A')!.id).toBe(beam.id)
   })
 
+  it('drops an item voided on the server and keeps the letter of a voided beam taken', async () => {
+    const store = useTimberItemStore()
+    const stem = store.findByTag('789')!
+    const voided = store.findByTag('789-B')!
+    // Recorded offline before the sync: the server accepts it, but it changes nothing.
+    store.recordAttribute(voided.id, attributeId('Holzart'), 'oak')
+    vi.spyOn(api, 'sync').mockResolvedValue({
+      accepted_event_ids: store.events.map((event) => event.id),
+      rejected: [],
+    })
+    const fresh = api.initialSnapshot()
+    fresh.timber_items = fresh.timber_items.filter((item) => item.id !== voided.id)
+    fresh.timber_items.find((item) => item.id === stem.id)!.voided_beam_tags = ['789-B']
+    vi.spyOn(api, 'loadSnapshot').mockResolvedValue(fresh)
+
+    await store.sync()
+    expect(store.findByTag('789-B')).toBeUndefined()
+    expect(store.events).toEqual([])
+    expect(store.nextBeamTagOf(store.findByTag('789'), '789')).toBe('789-C')
+  })
+
   it('keeps the whole queue when the snapshot download fails after the upload', async () => {
     const store = useTimberItemStore()
     store.createTimberItem(9)

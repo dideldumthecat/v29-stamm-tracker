@@ -117,6 +117,7 @@ export const useTimberItemStore = defineStore('timberItems', () => {
           created_at: event.recorded_at,
           created_by: currentUser.value?.id ?? '',
           values: {},
+          voided_beam_tags: [],
         })
         const parent = parentId ? byId.get(parentId) : undefined
         if (parent) {
@@ -251,9 +252,15 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     return items.value.filter((item) => item.parent_id === itemId).map(withInherited)
   }
 
-  // undefined parent = stem not created yet, so no beams either. A removed unsynced beam frees its letter.
+  // undefined parent = stem not created yet, so no beams either. A removed unsynced beam frees its letter,
+  // a voided one does not. A snapshot stored before voided_beam_tags existed lacks it until the next sync.
   function nextBeamTagOf(parent: TimberItem | undefined, parentTag: string): string | null {
-    const beamTags = parent ? childrenOf(parent.id).map((beam) => beam.tag_number) : []
+    const beamTags = parent
+      ? [
+          ...childrenOf(parent.id).map((beam) => beam.tag_number),
+          ...(parent.voided_beam_tags ?? []),
+        ]
+      : []
     return nextBeamTag(parentTag, beamTags)
   }
 
