@@ -7,6 +7,7 @@ import type { Event } from '@/api/contract'
 import { useTimberItemStore, type SyncResult } from '@/stores/timberItems'
 import { formatValue } from '@/utils/attributeDraft'
 import { formatShortDateTime } from '@/utils/date'
+import { formatTag } from '@/utils/tag'
 import FormattedTag from '@/components/FormattedTag.vue'
 import SignInForm from '@/components/SignInForm.vue'
 
@@ -20,11 +21,11 @@ const result = ref((router.options.history.state.syncResult as SyncResult | unde
 const transferred = computed(() => result.value?.transferred ?? null)
 const failure = ref<ApiError | null>(null)
 
-// Pending events grouped by item, in recording order; the tag belongs to "angelegt" and gets no row.
+// Pending events grouped by item, in recording order; the tag of a new item belongs to "angelegt" and gets no row.
 const groups = computed(() => {
   const byItem = new Map<string, Event[]>()
   for (const event of store.events) {
-    if (event.type !== 'tag_assigned') {
+    if (store.isEntry(event)) {
       byItem.set(event.timber_item_id, [...(byItem.get(event.timber_item_id) ?? []), event])
     }
   }
@@ -41,8 +42,11 @@ const groups = computed(() => {
 })
 
 function describe(event: Event, kind: string): string {
-  if (event.type !== 'attribute_recorded') {
+  if (event.type === 'created') {
     return `${kind} angelegt`
+  }
+  if (event.type === 'tag_assigned') {
+    return `Plakette geändert: ${formatTag(Number(event.data.tag_number))}`
   }
   const attribute = store.attributes.find((candidate) => candidate.id === event.data.attribute_id)
   if (!attribute) {
@@ -130,15 +134,24 @@ async function onSync() {
         <template v-else>Daten aktualisieren lädt den neuesten Stand vom Server.</template>
       </p>
       <div
-        v-for="{ tagNumber, isBeam } in result?.rejected"
-        :key="tagNumber"
+        v-for="({ tagNumber, isBeam, keptTag }, index) in result?.rejected"
+        :key="index"
         class="max-w-[40ch] rounded-lg border-2 border-ink px-3.5 py-3 text-left text-sm leading-[1.4]"
         role="alert"
       >
-        {{ isBeam ? 'Balken' : 'Stamm' }}
-        <strong class="tabular-nums"><FormattedTag :tag-number="tagNumber" /></strong> war bereits
-        erfasst. Deine Angaben dazu wurden nicht übernommen. Bitte prüfe die Nummer und erfasse
-        fehlende Werte am bestehenden {{ isBeam ? 'Balken' : 'Stamm' }}.
+        <template v-if="keptTag !== undefined">
+          Plakette
+          <strong class="tabular-nums"><FormattedTag :tag-number="tagNumber" /></strong> ist schon
+          vergeben. {{ isBeam ? 'Balken' : 'Stamm' }}
+          <template v-if="keptTag"><FormattedTag :tag-number="keptTag" /></template> behält seine
+          bisherige Plakette.
+        </template>
+        <template v-else>
+          {{ isBeam ? 'Balken' : 'Stamm' }}
+          <strong class="tabular-nums"><FormattedTag :tag-number="tagNumber" /></strong> war bereits
+          erfasst. Deine Angaben dazu wurden nicht übernommen. Bitte prüfe die Nummer und erfasse
+          fehlende Werte am bestehenden {{ isBeam ? 'Balken' : 'Stamm' }}.
+        </template>
       </div>
     </div>
 

@@ -6,7 +6,7 @@ import {
   useRouter,
   type RouteLocationRaw,
 } from 'vue-router'
-import { ChevronRightIcon, PlusIcon, Trash2Icon } from '@lucide/vue'
+import { ChevronRightIcon, PlusIcon, TagIcon, Trash2Icon } from '@lucide/vue'
 import { useTimberItemStore, type TimberItem } from '@/stores/timberItems'
 import type { AttributeValue } from '@/api/contract'
 import { collectDraft, formatValue, type DraftInput } from '@/utils/attributeDraft'
@@ -362,8 +362,19 @@ function onDiscard() {
       </template>
     </div>
 
-    <section v-if="item && store.canRemove(item.id)" class="py-3.5 px-gutter">
+    <!-- A removable beam is never split, so both actions share this section. -->
+    <section v-if="item && !isSplit" class="flex flex-col gap-3.5 py-3.5 px-gutter">
+      <!-- Replace: the retag screen comes back with replace as well, so back never reaches the old tag. -->
       <button
+        type="button"
+        class="flex h-14 w-full items-center justify-center gap-2 rounded-lg border-2 border-ink bg-paper text-[17px] font-bold"
+        @click="router.replace({ name: 'retag', params: { tagNumber } })"
+      >
+        <TagIcon :size="22" :stroke-width="2.5" aria-hidden="true" />
+        Plakette ändern
+      </button>
+      <button
+        v-if="store.canRemove(item.id)"
         type="button"
         class="flex h-14 w-full items-center justify-center gap-2 rounded-lg border-2 border-ink bg-paper text-[17px] font-bold"
         @click="beamToRemove = item"
