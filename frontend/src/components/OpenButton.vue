@@ -1,7 +1,5 @@
 <script lang="ts" setup>
-defineProps<{
-  isDisabled: boolean
-}>()
+withDefaults(defineProps<{ isDisabled: boolean; label?: string }>(), { label: 'Stamm öffnen' })
 const emit = defineEmits<{ open: [] }>()
 </script>
 
@@ -13,7 +11,7 @@ const emit = defineEmits<{ open: [] }>()
       :disabled="isDisabled"
       @click="emit('open')"
     >
-      Stamm öffnen
+      {{ label }}
     </button>
   </div>
 </template>
