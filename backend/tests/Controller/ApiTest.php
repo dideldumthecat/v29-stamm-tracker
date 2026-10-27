@@ -513,4 +513,142 @@ class ApiTest extends WebTestCase
         unset($live['generated_at'], $rebuilt['generated_at']);
         self::assertSame($live, $rebuilt);
     }
+
+    /** Beams 123-A and 123-B of item 123, both synced. */
+    private function syncBeams(): array
+    {
+        $this->syncItem123();
+        [$a, $b] = [Uuid::v4()->toRfc4122(), Uuid::v4()->toRfc4122()];
+        $this->request('POST', '/api/sync', ['events' => [
+            self::event('created', $a, ['parent_id' => self::ITEM_123]),
+            self::event('tag_assigned', $a, ['tag_number' => '123-A']),
+            self::event('created', $b, ['parent_id' => self::ITEM_123]),
+            self::event('tag_assigned', $b, ['tag_number' => '123-B']),
+            self::event('attribute_recorded', $b, ['attribute_id' => self::LIEFERDATUM, 'value' => '2026-02-02']),
+        ]]);
+
+        return [$a, $b];
+    }
+
+    private function void(string $tag, array $options = ['--force' => true], bool $withAdmin = true): CommandTester
+    {
+        if ($withAdmin && !$this->em->getRepository(User::class)->findBy(['role' => UserRole::Admin])) {
+            $this->em->persist(new User('Admin', UserRole::Admin, User::hashToken('admin-test-token')));
+            $this->em->flush();
+        }
+        $tester = new CommandTester((new Application($this->client->getKernel()))->find('app:item:void'));
+        $tester->execute(['tag' => $tag, ...$options], ['interactive' => false]);
+
+        return $tester;
+    }
+
+    private function snapshotItems(): array
+    {
+        return array_column($this->request('GET', '/api/snapshot')['timber_items'], null, 'id');
+    }
+
+    public function testAVoidedBeamLeavesTheSnapshotAndKeepsItsLetterTaken(): void
+    {
+        [$a, $b] = $this->syncBeams();
+
+        $tester = $this->void('0123-b');
+        self::assertSame(0, $tester->getStatusCode());
+        self::assertStringContainsString('Beam', $tester->getDisplay());
+        self::assertMatchesRegularExpression('/Recorded values\s+1/', $tester->getDisplay());
+
+        $items = $this->snapshotItems();
+        self::assertSame([self::ITEM_123, $a], array_keys($items));
+        self::assertSame(['123-B'], $items[self::ITEM_123]['voided_beam_tags']);
+        self::assertTrue($items[self::ITEM_123]['has_children']);
+        self::assertSame('voided', $this->em->getConnection()->fetchOne('SELECT type FROM timber_item_events WHERE reference_id IS NOT NULL'));
+    }
+
+    public function testTheTagOfAVoidedItemCanBeTakenAgain(): void
+    {
+        $this->syncItem123();
+        self::assertSame(0, $this->void('123')->getStatusCode());
+
+        $fresh = Uuid::v4()->toRfc4122();
+        $response = $this->request('POST', '/api/sync', ['events' => [
+            self::event('created', $fresh, ['parent_id' => null]),
+            self::event('tag_assigned', $fresh, ['tag_number' => '123']),
+        ]]);
+        self::assertSame([], $response['rejected']);
+        self::assertSame([$fresh => '123'], array_column($this->snapshotItems(), 'tag_number', 'id'));
+    }
+
+    public function testAStemWithBeamsIsRefusedAndTheBeamsAreNamed(): void
+    {
+        [, $b] = $this->syncBeams();
+        $this->void('123-A');
+
+        $tester = $this->void('123');
+        self::assertSame(1, $tester->getStatusCode());
+        self::assertStringContainsString('123-B', $tester->getDisplay());
+        self::assertStringNotContainsString('123-A', preg_replace('/^.*Not voided/s', '', $tester->getDisplay()));
+        self::assertArrayHasKey(self::ITEM_123, $this->snapshotItems());
+        self::assertArrayHasKey($b, $this->snapshotItems());
+    }
+
+    public function testAStemWithoutBeamsIsVoidedAndOneWhoseBeamsAreVoidedIsEditableAgain(): void
+    {
+        $this->syncBeams();
+        $this->void('123-A');
+        $this->void('123-B');
+        self::assertFalse($this->snapshotItems()[self::ITEM_123]['has_children']);
+
+        self::assertSame(0, $this->void('123')->getStatusCode());
+        self::assertSame([], $this->snapshotItems());
+        self::assertSame(1, $this->void('123')->getStatusCode());
+    }
+
+    public function testLateEventsOnAVoidedItemAreAcceptedAndChangeNothing(): void
+    {
+        [, $b] = $this->syncBeams();
+        $this->void('123-B');
+        $before = $this->request('GET', '/api/snapshot');
+
+        $late = [
+            self::event('attribute_recorded', $b, ['attribute_id' => self::LIEFERDATUM, 'value' => '2026-03-03']),
+            self::event('tag_assigned', $b, ['tag_number' => '1999']),
+            // A beam another device added offline to a stem voided meanwhile.
+            self::event('created', $beamOfVoided = Uuid::v4()->toRfc4122(), ['parent_id' => $b]),
+        ];
+        $response = $this->request('POST', '/api/sync', ['events' => $late]);
+        self::assertSame(array_column($late, 'id'), $response['accepted_event_ids']);
+
+        $after = $this->request('GET', '/api/snapshot');
+        unset($before['generated_at'], $after['generated_at']);
+        self::assertSame($before, $after);
+        self::assertArrayNotHasKey($beamOfVoided, $this->snapshotItems());
+    }
+
+    public function testRebuildGivesTheSameSnapshotAfterVoids(): void
+    {
+        $this->syncBeams();
+        $this->void('123-B');
+        $this->request('POST', '/api/sync', ['events' => [self::event('created', $stem = Uuid::v4()->toRfc4122(), ['parent_id' => null]), self::event('tag_assigned', $stem, ['tag_number' => '5'])]]);
+        $this->void('5');
+        $live = $this->request('GET', '/api/snapshot');
+
+        $tester = new CommandTester((new Application($this->client->getKernel()))->find('app:projections:rebuild'));
+        self::assertSame(0, $tester->execute([]));
+        $rebuilt = $this->request('GET', '/api/snapshot');
+
+        unset($live['generated_at'], $rebuilt['generated_at']);
+        self::assertSame($live, $rebuilt);
+        self::assertSame(['123-B'], array_column($rebuilt['timber_items'], 'voided_beam_tags', 'id')[self::ITEM_123]);
+    }
+
+    public function testVoidNeedsExactlyOneAdminAndConfirmation(): void
+    {
+        $this->syncItem123();
+        $tester = $this->void('123', withAdmin: false);
+        self::assertSame(1, $tester->getStatusCode());
+        self::assertStringContainsString('app:user:create', $tester->getDisplay());
+
+        self::assertSame(1, $this->void('123', [])->getStatusCode());
+        self::assertSame(1, $this->void('12x')->getStatusCode());
+        self::assertArrayHasKey(self::ITEM_123, $this->snapshotItems());
+    }
 }
