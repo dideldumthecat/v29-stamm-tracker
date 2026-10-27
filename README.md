@@ -119,6 +119,7 @@ The command prints a ready-to-send invite message with the address (from `DEFAUL
 | Format PHP | `ddev php-cs-fixer fix` |
 | Symfony console | `ddev console …` |
 | Users | `app:user:create`, `app:user:list`, `app:user:revoke` |
+| Void a stem or beam created by mistake or twice (it leaves the snapshot, its tag is free again; a stem only once its beams are voided; recorded under the only admin) | `ddev console app:item:void 123` or `app:item:void 123-A [--force]` |
 | Rebuild projections from all events | `ddev console app:projections:rebuild` |
 | Import attributes from YAML (path relative to `backend/`) | `ddev console app:attributes:import data/attributes.example.yaml [--dry-run]` |
 | Testing only: delete events and projections (users stay) | `ddev console app:reset [--attributes] [--force]` |
