@@ -11,14 +11,22 @@
     - Stieleiche (Quercus robur)
     - Roteiche (Quercus rubra)
 
-# Measured crosswise at one spot; the mean is computed in the evaluation, not in the app.
-# Inherited for traceability: on a beam it describes the stem it was sawn from (evaluation counts stems only).
-# TODO: a beam whose stem has no value yet shows an open field; an own beam value then hides a later stem value.
+- name: Polternummer
+  type: choice
+  is_inheritable: true
+  options: ['01 (0101/0145)', '02', '03', '04', '05', '06', '07', '08', '09', '10']
+
+- name: Fällzeitpunkt
+  type: month
+  is_inheritable: true
+
 - name: Stammdurchmesser größter
+  description: "In Stammmitte mit Rinde messen, größter Durchmesser, auf volle cm abgerundet"
   type: number
   unit: cm
   is_inheritable: true
 - name: Stammdurchmesser kleinster
+  description: "In Stammmitte mit Rinde messen, kleinster Durchmesser, auf volle cm abgerundet"
   type: number
   unit: cm
   is_inheritable: true
@@ -28,15 +36,6 @@
   type: choice
   is_inheritable: true
   options: ['4,10 m', '3,60 m', '3,20 m']
-
-- name: Fällzeitpunkt
-  type: month
-  is_inheritable: true
-
-- name: Polternummer
-  type: choice
-  is_inheritable: true
-  options: ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10']
 
 - name: Gesägt
   type: boolean
