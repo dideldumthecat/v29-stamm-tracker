@@ -61,6 +61,9 @@ const signedIn = () => {
   }
 }
 
+// The type inferred from the JSON (empty arrays as never[], optional keys per item) does not overlap Snapshot enough for a direct cast.
+const fixtureSnapshot = snapshotFixture as unknown as Snapshot
+
 // structuredClone: callers may mutate the result, the imported fixture must stay as it is.
 const fake: typeof real = {
   redeemInvite: async () => {
@@ -70,14 +73,14 @@ const fake: typeof real = {
   // Always the fixture: events "synced" here are accepted and then gone.
   loadSnapshot: async () => {
     signedIn()
-    return structuredClone(snapshotFixture as Snapshot)
+    return structuredClone(fixtureSnapshot)
   },
   sync: async (events) => {
     signedIn()
     return { accepted_event_ids: events.map((event) => event.id), rejected: [] }
   },
   // A fresh device starts with the fixture, so screens and tests have data without a sync.
-  initialSnapshot: () => structuredClone(snapshotFixture as Snapshot),
+  initialSnapshot: () => structuredClone(fixtureSnapshot),
   initialUser: () => (isSignedOut() ? null : { ...sessionFixture.user }),
 }
 
