@@ -50,4 +50,12 @@ describe('nextBeamTag', () => {
       ),
     ).toBeNull()
   })
+
+  // Rule: first unused letter after skipping one unused letter (from A on) per beam with its own plaque.
+  it('keeps the letter of a beam that got its own plaque taken', () => {
+    expect(nextBeamTag('1', ['1-A', '345'])).toBe('1-C')
+    expect(nextBeamTag('1', ['345', '1-B'])).toBe('1-C')
+    expect(nextBeamTag('1', ['345'])).toBe('1-B')
+    expect(nextBeamTag('1', ['1-A', '345', '1-C', '346'])).toBe('1-E')
+  })
 })
