@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { KeyRoundIcon } from '@lucide/vue'
 import NumPad from '@/components/NumPad.vue'
@@ -9,48 +9,21 @@ import OpenButton from '@/components/OpenButton.vue'
 import SignInForm from '@/components/SignInForm.vue'
 import IosInstallSteps from '@/components/IosInstallSteps.vue'
 import AndroidInstallSteps from '@/components/AndroidInstallSteps.vue'
-import { TAG_DIGITS, TAG_MAX_NUMBER } from '@/config/constants'
-import { isValidTagNumber as checkTagNumber } from '@/utils/tag'
+import { useTagInput } from '@/composables/useTagInput'
 import { useTimberItemStore } from '@/stores/timberItems'
 import { isInstalledApp, isIos } from '@/utils/platform'
 
 const router = useRouter()
 const store = useTimberItemStore()
 
-const tagInput = ref('')
+const { tagInput, tagNumber, isValidTagNumber, isTagNumberTooHigh, onDigit, onClear, onDelete } =
+  useTagInput()
 // Not bound to store.currentUser directly: the form would be gone before it reports the sign-in.
 const isSignedIn = ref(store.currentUser !== null)
 const isInBrowser = !isInstalledApp()
 // The installed app has its own cookies and storage, separate from the browser (on iOS always):
 // signing in here would sign in the browser only. Dev server and fake API keep the form for local work and tests.
 const showsSignIn = !isInBrowser || import.meta.env.DEV || import.meta.env.VITE_API === 'fake'
-
-const tagNumber = computed(() => {
-  return Number(tagInput.value)
-})
-
-const isValidTagNumber = computed(() => {
-  return checkTagNumber(tagNumber.value)
-})
-
-const isTagNumberTooHigh = computed(() => {
-  return tagNumber.value > TAG_MAX_NUMBER
-})
-
-function onDigit(digit: string) {
-  if ((tagInput.value === '' && digit === '0') || tagInput.value.length >= TAG_DIGITS) {
-    return
-  }
-  tagInput.value += digit
-}
-
-function onClear() {
-  tagInput.value = ''
-}
-
-function onDelete() {
-  tagInput.value = tagInput.value.slice(0, -1)
-}
 
 // A new device has no attributes yet. Best effort: the sync page shows any problem later,
 // except rejected duplicate captures, whose data is gone – those are shown right away.
