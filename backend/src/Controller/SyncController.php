@@ -23,7 +23,7 @@ use Symfony\Component\Uid\Uuid;
 
 /**
  * SyncRequest → SyncResponse in frontend/src/api/contract.ts. All events are checked before anything is
- * written, so a bad request (400) stores nothing. A duplicate capture is not a bad request: only its events are
+ * written, so a bad request (400) stores nothing. A taken tag is not a bad request: only the affected events are
  * rejected (kept in rejected_syncs), the rest of the batch is stored.
  */
 final class SyncController extends AbstractController
@@ -53,15 +53,16 @@ final class SyncController extends AbstractController
             $parsed[$index] = $this->parse($event, $user, $receivedAt->modify('+'.$index.' microseconds'), $index);
         }
 
-        $takenTags = $this->takenTags($parsed);
+        [$takenItems, $takenEvents] = $this->takenTags($parsed, $known);
         $existingItems = [];
         $new = [];
         $accepted = [];
         $rejected = [];
         foreach ($parsed as $index => $event) {
             $itemId = $event->timberItemId->toRfc4122();
-            if (isset($takenTags[$itemId])) {
-                $rejected[$index] = ['event_id' => $event->id->toRfc4122(), 'timber_item_id' => $itemId, 'tag_number' => $takenTags[$itemId], 'reason' => self::TAG_ALREADY_TAKEN];
+            $takenTag = $takenItems[$itemId] ?? $takenEvents[$index] ?? null;
+            if (null !== $takenTag) {
+                $rejected[$index] = ['event_id' => $event->id->toRfc4122(), 'timber_item_id' => $itemId, 'tag_number' => $takenTag, 'reason' => self::TAG_ALREADY_TAKEN];
                 continue;
             }
             if (EventType::Created === $event->type) {
@@ -103,46 +104,67 @@ final class SyncController extends AbstractController
     }
 
     /**
-     * Items whose created event comes with a tag (their first tag_assigned in the request) that another item already
-     * holds – on the server or earlier in this request – plus all beams below them. Duplicate captures of the same
-     * plate: the first one stays, the device of the second learns about it.
+     * Tags another item already holds – on the server or earlier in this request – in two cases:
+     * - An item created with a taken tag (its first tag_assigned in the request): a duplicate capture of the same plate.
+     *   The item and all beams below it are rejected; the first capture stays, the device of the second learns about it.
+     * - Any later tag_assigned (a new plate, a corrected typo) with a taken tag: only that event is rejected,
+     *   the item keeps its previous tag.
      *
      * @param array<int, TimberItemEvent> $events
+     * @param array<string, true>         $known  resent events are stored already and never rejected afterwards
      *
-     * @return array<string, string> taken tag per rejected item id; beams carry the tag of their rejected parent
+     * @return array{array<string, string>, array<int, string>} taken tag per rejected item id (beams carry the tag of
+     *                                                          their rejected parent), and per rejected event index
      */
-    private function takenTags(array $events): array
+    private function takenTags(array $events, array $known): array
     {
-        $firstTags = [];
-        foreach ($events as $event) {
+        $firstTagIndex = [];
+        $createdHere = [];
+        foreach ($events as $index => $event) {
+            $itemId = $event->timberItemId->toRfc4122();
             if (EventType::TagAssigned === $event->type) {
-                $firstTags[$event->timberItemId->toRfc4122()] ??= $event->data['tag_number'];
+                $firstTagIndex[$itemId] ??= $index;
+            } elseif (EventType::Created === $event->type) {
+                $createdHere[$itemId] = true;
             }
         }
 
-        $taken = [];
         $claimed = [];
-        foreach ($events as $event) {
+        // ponytail: a tag given up earlier in the same request still counts as taken; it is free from the next sync on.
+        $claim = function (string $tag, string $itemId) use (&$claimed): bool {
+            // The projection holds the latest tag of every item that is not voided.
+            $holders = array_map(static fn (TimberItem $item) => $item->id->toRfc4122(), $this->em->getRepository(TimberItem::class)->findBy(['tagNumber' => $tag]));
+            if (array_diff([...$holders, $claimed[$tag] ?? $itemId], [$itemId])) {
+                return false;
+            }
+            $claimed[$tag] = $itemId;
+
+            return true;
+        };
+
+        $takenItems = [];
+        $takenEvents = [];
+        foreach ($events as $index => $event) {
             $itemId = $event->timberItemId->toRfc4122();
-            $tag = $firstTags[$itemId] ?? null;
-            if (EventType::Created !== $event->type || isset($taken[$itemId])) {
+            if (isset($takenItems[$itemId])) {
                 continue;
             }
-            $parentId = $event->data['parent_id'];
-            if ($parentId && isset($taken[$parentId])) {
-                $taken[$itemId] = $taken[$parentId];
-            } elseif (null !== $tag) {
-                // The projection holds the latest tag of every item that is not voided.
-                $holders = array_map(static fn (TimberItem $item) => $item->id->toRfc4122(), $this->em->getRepository(TimberItem::class)->findBy(['tagNumber' => $tag]));
-                if (array_diff([...$holders, $claimed[$tag] ?? $itemId], [$itemId])) {
-                    $taken[$itemId] = $tag;
-                } else {
-                    $claimed[$tag] = $itemId;
+            if (EventType::Created === $event->type) {
+                $parentId = $event->data['parent_id'];
+                $tag = isset($firstTagIndex[$itemId]) ? $events[$firstTagIndex[$itemId]]->data['tag_number'] : null;
+                if ($parentId && isset($takenItems[$parentId])) {
+                    $takenItems[$itemId] = $takenItems[$parentId];
+                } elseif (null !== $tag && !$claim($tag, $itemId)) {
+                    $takenItems[$itemId] = $tag;
                 }
+            } elseif (EventType::TagAssigned === $event->type && !isset($known[$event->id->toRfc4122()])
+                && !(isset($createdHere[$itemId]) && $firstTagIndex[$itemId] === $index)
+                && !$claim($event->data['tag_number'], $itemId)) {
+                $takenEvents[$index] = $event->data['tag_number'];
             }
         }
 
-        return $taken;
+        return [$takenItems, $takenEvents];
     }
 
     /**

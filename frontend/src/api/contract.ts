@@ -115,14 +115,16 @@ export interface SyncResponse {
   accepted_event_ids: Uuid[]
   /**
    * Events the server will never store, one entry per event (kept server-side in rejected_syncs).
-   * They leave the queue as well; the app drops the items they belong to.
+   * They leave the queue as well; the app drops the items whose created event is among them.
    */
   rejected: RejectedEvent[]
 }
 
 /**
- * tag_already_taken: the item was created with a tag (its first tag_assigned in the request) that another
- * item already holds – a duplicate capture. All events of that item and of its beams in the request are rejected.
+ * tag_already_taken: another item that is not voided already holds the tag (on the server or earlier in the request).
+ * - The item was created with that tag (its first tag_assigned in the request) – a duplicate capture.
+ *   All events of that item and of its beams in the request are rejected.
+ * - Any later tag_assigned (new plaque, corrected typo): only that event is rejected, the item keeps its previous tag.
  */
 export interface RejectedEvent {
   event_id: Uuid

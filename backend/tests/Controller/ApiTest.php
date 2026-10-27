@@ -281,6 +281,68 @@ class ApiTest extends WebTestCase
         self::assertCount(1, $this->rejectedSyncs());
     }
 
+    public function testATagChangeToAFreeTagMakesTheItemFindableOnlyByTheNewTagAndKeepsTheHistory(): void
+    {
+        $this->syncItem123();
+        $retag = self::event('tag_assigned', self::ITEM_123, ['tag_number' => '132']);
+
+        $response = $this->request('POST', '/api/sync', ['events' => [$retag]]);
+        self::assertSame([$retag['id']], $response['accepted_event_ids']);
+        self::assertSame([], $response['rejected']);
+
+        $tags = array_column($this->request('GET', '/api/snapshot')['timber_items'], 'tag_number', 'id');
+        self::assertSame([self::ITEM_123 => '132'], $tags);
+        self::assertSame(['123', '132'], $this->em->getConnection()->fetchFirstColumn(
+            "SELECT JSON_VALUE(data, '$.tag_number') FROM timber_item_events WHERE type = 'tag_assigned' ORDER BY received_at"));
+    }
+
+    public function testATagChangeToATagOnTheServerIsRejectedAloneWhileTheRestIsAccepted(): void
+    {
+        $this->syncItem123();
+        $other = Uuid::v4()->toRfc4122();
+        $this->request('POST', '/api/sync', ['events' => [
+            self::event('created', $other, ['parent_id' => null]),
+            self::event('tag_assigned', $other, ['tag_number' => '456']),
+        ]], 'Kerstin');
+
+        $retag = self::event('tag_assigned', self::ITEM_123, ['tag_number' => '456']);
+        $value = self::event('attribute_recorded', self::ITEM_123, ['attribute_id' => self::HOLZART, 'value' => self::TRAUBENEICHE]);
+        $response = $this->request('POST', '/api/sync', ['events' => [$retag, $value]]);
+        self::assertResponseIsSuccessful();
+        self::assertSame([$value['id']], $response['accepted_event_ids']);
+        self::assertSame([['event_id' => $retag['id'], 'timber_item_id' => self::ITEM_123, 'tag_number' => '456', 'reason' => 'tag_already_taken']], $response['rejected']);
+        self::assertSame([['user_id' => self::ALEXANDER, 'reason' => 'tag_already_taken', 'events' => [$retag]]], $this->rejectedSyncs());
+
+        $tags = array_column($this->request('GET', '/api/snapshot')['timber_items'], 'tag_number', 'id');
+        self::assertSame('123', $tags[self::ITEM_123]);
+        self::assertSame(self::TRAUBENEICHE, $this->values(self::ITEM_123)[self::HOLZART][0]['value']);
+
+        // Resending the accepted event is still no conflict.
+        self::assertSame([], $this->request('POST', '/api/sync', ['events' => [$value]])['rejected']);
+    }
+
+    public function testATagChangeToATagTakenEarlierInTheSameRequestIsRejected(): void
+    {
+        $this->syncItem123();
+        $fresh = Uuid::v4()->toRfc4122();
+        $events = [
+            self::event('created', $fresh, ['parent_id' => null]),
+            self::event('tag_assigned', $fresh, ['tag_number' => '7']),
+            self::event('tag_assigned', self::ITEM_123, ['tag_number' => '7']),
+            // Retagging the new item in the same request is checked as well.
+            self::event('tag_assigned', $fresh, ['tag_number' => '123']),
+        ];
+
+        $response = $this->request('POST', '/api/sync', ['events' => $events]);
+        self::assertResponseIsSuccessful();
+        self::assertSame(array_column(array_slice($events, 0, 2), 'id'), $response['accepted_event_ids']);
+        self::assertSame([[$events[2]['id'], '7'], [$events[3]['id'], '123']],
+            array_map(null, array_column($response['rejected'], 'event_id'), array_column($response['rejected'], 'tag_number')));
+
+        $tags = array_column($this->request('GET', '/api/snapshot')['timber_items'], 'tag_number', 'id');
+        self::assertEquals([self::ITEM_123 => '123', $fresh => '7'], array_intersect_key($tags, [self::ITEM_123 => 1, $fresh => 1]));
+    }
+
     public function testMonthValueIsAccepted(): void
     {
         $item = Uuid::v4()->toRfc4122();
