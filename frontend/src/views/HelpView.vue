@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
-import { ChevronLeftIcon } from '@lucide/vue'
+import { XIcon } from '@lucide/vue'
 import AndroidInstallSteps from '@/components/AndroidInstallSteps.vue'
 import IosInstallSteps from '@/components/IosInstallSteps.vue'
 import { useStoragePersistence } from '@/composables/useStoragePersistence'
@@ -19,10 +19,10 @@ const appVersion = [__APP_REVISION__, formatShortDateTime(__APP_BUILD_TIME__)]
       <button
         type="button"
         class="flex size-11 items-center justify-center rounded-lg border-2 border-current"
-        aria-label="Zurück"
+        aria-label="Schließen"
         @click="router.push({ name: 'start' })"
       >
-        <ChevronLeftIcon :size="22" aria-hidden="true" />
+        <XIcon :size="22" aria-hidden="true" />
       </button>
       <h1 class="flex-1 text-center text-xl font-bold">Hilfe</h1>
       <span class="w-11 shrink-0"></span>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { ChevronLeftIcon, CircleCheckIcon, RefreshCwIcon } from '@lucide/vue'
+import { CircleCheckIcon, RefreshCwIcon, XIcon } from '@lucide/vue'
 import { ApiError } from '@/api/client'
 import type { Event } from '@/api/contract'
 import { useTimberItemStore, type SyncResult } from '@/stores/timberItems'
@@ -99,10 +99,10 @@ async function onSync() {
       <button
         type="button"
         class="flex size-11 items-center justify-center rounded-lg border-2 border-current"
-        aria-label="Zurück"
+        aria-label="Schließen"
         @click="router.push({ name: 'start' })"
       >
-        <ChevronLeftIcon :size="22" aria-hidden="true" />
+        <XIcon :size="22" aria-hidden="true" />
       </button>
       <h1 class="flex-1 text-center text-xl font-bold">
         Synchronisierung<template v-if="store.pendingCount > 0">
