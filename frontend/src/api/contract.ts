@@ -89,6 +89,8 @@ export interface TimberItem {
    * all other attributes exactly one (the current value).
    */
   values: Record<Uuid, AttributeValueRecord[]>
+  /** Latest tags of voided beams. Their letters stay taken: nextBeamTag() counts them like existing beams. */
+  voided_beam_tags: string[]
 }
 
 export interface AttributeValueRecord {

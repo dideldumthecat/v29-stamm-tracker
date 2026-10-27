@@ -36,6 +36,16 @@ final class SnapshotController extends AbstractController
             $values[$state->timberItemId->toRfc4122()][$state->attributeId->toRfc4122()] = $state->valueRecords;
         }
 
+        $items = [];
+        $voidedBeamTags = [];
+        foreach ($em->getRepository(TimberItem::class)->findBy([], ['createdAt' => 'ASC']) as $item) {
+            if (!$item->voidedAt) {
+                $items[] = $item;
+            } elseif ($item->parentId) {
+                $voidedBeamTags[$item->parentId->toRfc4122()][] = $item->tagNumber;
+            }
+        }
+
         return $this->json([
             'schema_version' => 1,
             'generated_at' => Timestamp::format(new \DateTimeImmutable()),
@@ -64,7 +74,8 @@ final class SnapshotController extends AbstractController
                 'created_by' => $item->createdBy->toRfc4122(),
                 // An object, also when empty: a PHP array without keys would become [].
                 'values' => (object) ($values[$item->id->toRfc4122()] ?? []),
-            ], $em->getRepository(TimberItem::class)->findBy([], ['createdAt' => 'ASC'])),
+                'voided_beam_tags' => $voidedBeamTags[$item->id->toRfc4122()] ?? [],
+            ], $items),
         ]);
     }
 }

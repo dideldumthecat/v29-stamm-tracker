@@ -265,7 +265,8 @@
             "event_id": "31a3b1d5-07e5-4c16-a0d8-5be588a7ccc1"
           }
         ]
-      }
+      },
+      "voided_beam_tags": []
     },
     {
       "id": "bed7ca14-522e-45d0-a7db-a324a8cccace",
@@ -274,7 +275,8 @@
       "has_children": false,
       "created_at": "2026-10-08T12:30:00.000Z",
       "created_by": "993955be-5888-4f39-937c-56af8c5187c1",
-      "values": {}
+      "values": {},
+      "voided_beam_tags": []
     },
     {
       "id": "b53d4566-964b-41d0-8c9f-5e6dc1b9aecf",
@@ -308,7 +310,8 @@
             "event_id": "abf04acb-3489-4c84-aca1-9e43f73326fb"
           }
         ]
-      }
+      },
+      "voided_beam_tags": []
     },
     {
       "id": "6a12de8f-ec7b-4eb6-a605-bc1d0599b27b",
@@ -342,7 +345,8 @@
             "event_id": "bb175c8c-bbfd-4f56-a291-19e1f7a223df"
           }
         ]
-      }
+      },
+      "voided_beam_tags": []
     },
     {
       "id": "0c5ea43f-dea1-47bd-9f35-0cdaf5afaf22",
@@ -376,7 +380,8 @@
             "event_id": "f92af21f-b2f4-41a4-982d-50ffdff93389"
           }
         ]
-      }
+      },
+      "voided_beam_tags": []
     }
   ]
 }

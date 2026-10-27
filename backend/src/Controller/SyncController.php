@@ -132,8 +132,8 @@ final class SyncController extends AbstractController
         $claimed = [];
         // ponytail: a tag given up earlier in the same request still counts as taken; it is free from the next sync on.
         $claim = function (string $tag, string $itemId) use (&$claimed): bool {
-            // The projection holds the latest tag of every item that is not voided.
-            $holders = array_map(static fn (TimberItem $item) => $item->id->toRfc4122(), $this->em->getRepository(TimberItem::class)->findBy(['tagNumber' => $tag]));
+            // A voided item gives its tag free.
+            $holders = array_map(static fn (TimberItem $item) => $item->id->toRfc4122(), $this->em->getRepository(TimberItem::class)->findBy(['tagNumber' => $tag, 'voidedAt' => null]));
             if (array_diff([...$holders, $claimed[$tag] ?? $itemId], [$itemId])) {
                 return false;
             }

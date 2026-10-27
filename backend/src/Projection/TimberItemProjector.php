@@ -50,10 +50,12 @@ final class TimberItemProjector
      */
     public function project(Uuid $timberItemId): void
     {
-        ['item' => $item, 'tag_number' => $tagNumber, 'values' => $values] = $this->fromOwnEvents($timberItemId);
+        ['item' => $item, 'tag_number' => $tagNumber, 'values' => $values, 'voided_at' => $voidedAt] = $this->fromOwnEvents($timberItemId);
         if ($item['parent_id'] ?? null) {
             // Per attribute the own value wins; a series counts as one value, so own recordings replace the parent's.
             $values += $this->passedOnValues($item['parent_id']);
+            // A beam created late on another device under a voided stem has nothing left to belong to.
+            $voidedAt ??= $this->voidedAt($item['parent_id']);
         }
 
         $db = $this->em->getConnection();
@@ -63,9 +65,12 @@ final class TimberItemProjector
             return;
         }
 
+        // Voided beams do not count: a stem whose only beam was voided can be recorded on again.
         $hasChildren = (bool) $db->fetchOne(
-            'SELECT 1 FROM timber_item_events WHERE type = ? AND JSON_VALUE(data, ?) = ? LIMIT 1',
-            [EventType::Created->value, '$.parent_id', $timberItemId->toRfc4122()],
+            'SELECT 1 FROM timber_item_events child WHERE child.type = ? AND JSON_VALUE(child.data, ?) = ?
+                AND NOT EXISTS (SELECT 1 FROM timber_item_events void WHERE void.timber_item_id = child.timber_item_id AND void.type = ?)
+                LIMIT 1',
+            [EventType::Created->value, '$.parent_id', $timberItemId->toRfc4122(), EventType::Voided->value],
         );
         $db->insert('timber_items', [
             'id' => $timberItemId,
@@ -74,7 +79,8 @@ final class TimberItemProjector
             'has_children' => $hasChildren,
             'created_at' => $item['created_at'],
             'created_by' => $item['created_by'],
-        ], [UuidType::NAME, UuidType::NAME, Types::STRING, Types::BOOLEAN, Types::DATETIME_IMMUTABLE, UuidType::NAME]);
+            'voided_at' => $voidedAt,
+        ], [UuidType::NAME, UuidType::NAME, Types::STRING, Types::BOOLEAN, Types::DATETIME_IMMUTABLE, UuidType::NAME, Types::DATETIME_IMMUTABLE]);
         foreach ($values as $attributeId => $records) {
             $db->insert('timber_item_state', [
                 'timber_item_id' => $timberItemId,
@@ -105,14 +111,22 @@ final class TimberItemProjector
         return $values + (($item['parent_id'] ?? null) ? $this->passedOnValues($item['parent_id']) : []);
     }
 
+    private function voidedAt(Uuid $timberItemId): ?\DateTimeImmutable
+    {
+        ['item' => $item, 'voided_at' => $voidedAt] = $this->fromOwnEvents($timberItemId);
+
+        return $voidedAt ?? (($item['parent_id'] ?? null) ? $this->voidedAt($item['parent_id']) : null);
+    }
+
     /**
-     * @return array{item: ?array, tag_number: ?string, values: array<string, list<array>>} item is null without a created event
+     * @return array{item: ?array, tag_number: ?string, values: array<string, list<array>>, voided_at: ?\DateTimeImmutable} item is null without a created event
      */
     private function fromOwnEvents(Uuid $timberItemId): array
     {
         $item = null;
         $tagNumber = null;
         $values = [];
+        $voidedAt = null;
         foreach ($this->events->findInReceiptOrder($timberItemId) as $event) {
             switch ($event->type) {
                 case EventType::Created:
@@ -136,12 +150,15 @@ final class TimberItemProjector
                     $isSeries = $this->em->find(Attribute::class, Uuid::fromString($attributeId))?->isSeries;
                     $values[$attributeId] = $isSeries ? [...$values[$attributeId] ?? [], $record] : [$record];
                     break;
+                case EventType::Voided:
+                    // Late events from other devices are stored but change nothing.
+                    $voidedAt = $event->receivedAt;
+                    break 2;
                 default:
-                    // TODO: apply corrected and voided events (voided items disappear from the snapshot).
-                    //  A voided beam must still tell the app the stem's highest beam letter, or the app hands it out again.
+                    // TODO: apply corrected events.
             }
         }
 
-        return ['item' => $item, 'tag_number' => $tagNumber, 'values' => $values];
+        return ['item' => $item, 'tag_number' => $tagNumber, 'values' => $values, 'voided_at' => $voidedAt];
     }
 }
