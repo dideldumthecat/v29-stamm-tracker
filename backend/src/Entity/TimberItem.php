@@ -36,4 +36,8 @@ class TimberItem
     /** User id; no foreign key, like everything in a projection it only mirrors the events. */
     #[ORM\Column(type: UuidType::NAME)]
     public readonly Uuid $createdBy;
+
+    /** Server time of the voided event. Voided items stay here so late events still find them, but leave the snapshot. */
+    #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true, columnDefinition: 'DATETIME(6) DEFAULT NULL')]
+    public readonly ?\DateTimeImmutable $voidedAt;
 }

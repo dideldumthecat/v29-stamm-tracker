@@ -386,7 +386,7 @@ class ApiTest extends WebTestCase
         $items = array_column($snapshot['timber_items'], null, 'id');
         self::assertSame(array_keys($expected['timber_items'][0]), array_keys($items[self::ITEM_123]));
         self::assertSame(['id' => self::ITEM_123, 'parent_id' => null, 'tag_number' => '123', 'has_children' => false,
-            'created_at' => '2026-10-02T07:12:00.000Z', 'created_by' => self::KERSTIN],
+            'created_at' => '2026-10-02T07:12:00.000Z', 'created_by' => self::KERSTIN, 'voided_beam_tags' => []],
             array_diff_key($items[self::ITEM_123], ['values' => true]));
         // Series: both readings, oldest first, in contract form.
         $readings = $items[self::ITEM_123]['values'][self::HOLZFEUCHTE];
