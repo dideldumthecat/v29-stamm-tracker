@@ -20,13 +20,19 @@ export function isValidTag(tag: string): boolean {
 }
 
 /**
- * Derived tag for the next beam of a parent: the first letter A … Z not among `beamTags`
- * (the tags of the parent's existing beams), null once all 26 are taken.
+ * Derived tag for the next beam of a parent. `beamTags` are the current tags of all the parent's beams.
+ * Rule: the next beam gets the first unused letter A … Z after one unused letter (from A on) has been skipped
+ * per beam that no longer carries a derived tag (it got its own plaque). Null once no letter is left.
+ * Example: beams A and B, B gets plaque 345 → only A is used, B is skipped → next is C.
+ * Needs only the beams in the snapshot, so every device hands out the same letter.
  */
+// ponytail: assumes a renamed beam held the lowest unused letter. Wrong only if an unsynced beam in the middle
+// was removed and a later one renamed (a letter is then handed out twice); voiding needs the server's help anyway.
 export function nextBeamTag(parentTag: string, beamTags: (string | null)[]): string | null {
+  let skip = beamTags.filter((tag) => !tag?.startsWith(`${parentTag}-`)).length
   for (let index = 0; index < MAX_BEAMS; index++) {
     const tag = `${parentTag}-${String.fromCharCode(65 + index)}`
-    if (!beamTags.includes(tag)) {
+    if (!beamTags.includes(tag) && skip-- === 0) {
       return tag
     }
   }
