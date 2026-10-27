@@ -27,8 +27,11 @@ export type { User } from '@/api/client'
 // A type, not an interface: it travels as router history state, which needs an index signature.
 export type SyncResult = {
   transferred: number
-  /** Tags that were already captured on the server; what this device recorded on them is gone. */
-  rejected: { tagNumber: string; isBeam: boolean }[]
+  /**
+   * Tags another item already holds. Without keptTag a duplicate capture: what this device recorded on it is gone.
+   * With keptTag a rejected tag change: the item keeps that tag.
+   */
+  rejected: { tagNumber: string; isBeam: boolean; keptTag?: string | null }[]
 }
 
 export const useTimberItemStore = defineStore('timberItems', () => {
@@ -40,10 +43,14 @@ export const useTimberItemStore = defineStore('timberItems', () => {
   // Own events waiting for the sync, in the order they were recorded.
   const events = ref<Event[]>([])
   const lastSyncedAt = ref<Timestamp | null>(null)
-  // What the user did, not the wire format: the tag of a new item belongs to "created".
-  const pendingCount = computed(
-    () => events.value.filter((event) => event.type !== 'tag_assigned').length,
-  )
+  // What the user did, not the wire format: the tag of a new item belongs to "created", a later one is a tag change.
+  const isEntryIn = (event: Event, queue: Event[]) =>
+    event.type !== 'tag_assigned' ||
+    !queue.some(
+      (other) => other.type === 'created' && other.timber_item_id === event.timber_item_id,
+    )
+  const isEntry = (event: Event) => isEntryIn(event, events.value)
+  const pendingCount = computed(() => events.value.filter(isEntry).length)
 
   // A failed write only warns; the change stays in memory until the app is closed.
   function persist(parts: Partial<StoredState>) {
@@ -154,7 +161,7 @@ export const useTimberItemStore = defineStore('timberItems', () => {
   /**
    * Own events up, then the snapshot down. Throws ApiError on failure; the queue keeps whatever the
    * server has not confirmed. Returns how many entries (as counted by pendingCount) were transferred,
-   * and the duplicate captures the server rejected – their items are dropped from the device.
+   * and the tags the server rejected: duplicate captures are dropped from the device, rejected tag changes only.
    */
   async function sync(): Promise<SyncResult> {
     // Events recorded while the sync runs are not part of this batch and stay in the queue.
@@ -162,16 +169,24 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     const response = batch.length > 0 ? await api.sync(batch) : null
     const accepted = new Set(response?.accepted_event_ids)
     const rejectedEvents = new Set(response?.rejected.map((entry) => entry.event_id))
-    const rejectedItems = new Set(response?.rejected.map((entry) => entry.timber_item_id))
-    // Read before the queue changes: afterwards the rejected items are gone.
-    const rejected = [...new Set(response?.rejected.map((entry) => entry.tag_number))].map(
-      (tagNumber) => ({
-        tagNumber,
-        isBeam: items.value.some(
-          (item) => rejectedItems.has(item.id) && item.tag_number === tagNumber && item.parent_id,
-        ),
-      }),
+    // An item is gone only if its creation was rejected; a rejected tag change keeps the item with its previous tag.
+    const rejectedItems = new Set(
+      batch
+        .filter((event) => event.type === 'created' && rejectedEvents.has(event.id))
+        .map((event) => event.timber_item_id),
     )
+    const rejectedEntries = response?.rejected ?? []
+    const duplicateTags = rejectedEntries
+      .filter((entry) => rejectedItems.has(entry.timber_item_id))
+      .map((entry) => entry.tag_number)
+    const tagChanges = rejectedEntries.filter((entry) => !rejectedItems.has(entry.timber_item_id))
+    // Read before the queue changes: afterwards the rejected items are gone.
+    const rejected: SyncResult['rejected'] = [...new Set(duplicateTags)].map((tagNumber) => ({
+      tagNumber,
+      isBeam: items.value.some(
+        (item) => rejectedItems.has(item.id) && item.tag_number === tagNumber && item.parent_id,
+      ),
+    }))
     // Later events on a rejected item would only be rejected with it next time.
     await downloadSnapshot(
       (event) =>
@@ -180,8 +195,17 @@ export const useTimberItemStore = defineStore('timberItems', () => {
         rejectedItems.has(event.timber_item_id),
     )
     markSynced()
+    // Read after the download: the tag the item keeps is the server's.
+    for (const entry of tagChanges) {
+      const item = findById(entry.timber_item_id)
+      rejected.push({
+        tagNumber: entry.tag_number,
+        isBeam: item?.parent_id != null,
+        keptTag: item?.tag_number ?? null,
+      })
+    }
     return {
-      transferred: batch.filter((event) => event.type !== 'tag_assigned' && accepted.has(event.id))
+      transferred: batch.filter((event) => isEntryIn(event, batch) && accepted.has(event.id))
         .length,
       rejected,
     }
@@ -302,6 +326,25 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     persist({ events: dropEvents((event) => event.timber_item_id === itemId) })
   }
 
+  /** Another item that holds the tag, in the snapshot or through pending events. */
+  function tagHolder(tagNumber: number, exceptId: string): TimberItem | undefined {
+    return items.value.find((item) => item.tag_number === String(tagNumber) && item.id !== exceptId)
+  }
+
+  // Same tag again is no change. Also a beam gets a plain tag: its new plaque.
+  function assignTag(itemId: string, tagNumber: number) {
+    const item = findById(itemId)
+    if (!item || item.has_children) {
+      throw new Error(`Timber item ${itemId} is unknown or split into beams`)
+    }
+    if (tagHolder(tagNumber, itemId)) {
+      throw new Error(`Tag ${tagNumber} is taken`)
+    }
+    if (item.tag_number !== String(tagNumber)) {
+      emit('tag_assigned', itemId, { tag_number: String(tagNumber) })
+    }
+  }
+
   function recordAttribute(itemId: string, attributeId: string, value: AttributeValue) {
     const item = findById(itemId)
     if (!item) {
@@ -322,6 +365,7 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     items,
     events,
     pendingCount,
+    isEntry,
     lastSyncedAt,
     findByTagNumber,
     findByTag,
@@ -334,6 +378,8 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     canRemove,
     removeTimberItem,
     recordAttribute,
+    tagHolder,
+    assignTag,
     redeemInvite,
     load,
     sync,
