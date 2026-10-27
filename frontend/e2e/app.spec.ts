@@ -181,7 +181,9 @@ test('a beam gets a new plaque, refusing a taken one', async ({ page }) => {
   await page.goto('/timber-item/789-A')
   await page.getByRole('button', { name: 'Plakette ändern' }).click()
   await type('456')
-  await expect(page.getByText('ist schon vergeben')).toContainText('Stamm 00456')
+  await expect(page.getByText('ist schon vergeben')).toHaveText(
+    'Plakette 00456 ist schon vergeben.',
+  )
   await expect(page.getByRole('button', { name: 'Plakette ändern' })).toBeDisabled()
 
   await page.getByRole('button', { name: 'Leeren' }).click()
@@ -204,4 +206,12 @@ test('a beam gets a new plaque, refusing a taken one', async ({ page }) => {
   await page.goto('/sync')
   await expect(page.locator('h1')).toHaveText('Synchronisierung (1)')
   await expect(page.getByText('Plakette geändert: 00345')).toBeVisible()
+
+  // A beam holding the plaque is named by its stem.
+  await page.goto('/timber-item/789-B')
+  await page.getByRole('button', { name: 'Plakette ändern' }).click()
+  await type('345')
+  await expect(page.getByText('ist schon vergeben')).toHaveText(
+    'Plakette 00345 ist schon vergeben: Balken aus Stamm 00789.',
+  )
 })

@@ -67,11 +67,10 @@ function onConfirm() {
     <div class="flex min-h-0 flex-col justify-end overflow-hidden pb-3">
       <TagNumberDisplay :tag-input="tagInput" :has-error="isTagNumberTooHigh" />
       <p v-if="holder" class="-mt-3 mb-3 px-gutter text-center text-sm" role="alert">
-        <FormattedTag :tag-number="newTag" /> ist schon vergeben:
-        {{ holder.parent_id ? 'Balken' : 'Stamm' }}
-        <FormattedTag :tag-number="holder.tag_number!" /><template v-if="holderParent?.tag_number">
-          aus Stamm <FormattedTag :tag-number="holderParent.tag_number"
-        /></template>
+        Plakette <FormattedTag :tag-number="newTag" /> ist schon vergeben<template
+          v-if="holderParent?.tag_number"
+          >: Balken aus Stamm <FormattedTag :tag-number="holderParent.tag_number" /></template
+        >.
       </p>
       <OpenButton
         label="Plakette ändern"
