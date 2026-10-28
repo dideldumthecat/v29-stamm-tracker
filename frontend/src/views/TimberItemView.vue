@@ -281,7 +281,8 @@ function onDiscard() {
       >
       <p v-if="beams.length === 0" class="text-sm leading-[1.4] text-body">
         Nur wenn der Stamm in mehrere Balken gesägt wird: je Balken einmal tippen und die Kennung
-        mit Filzstift auf den Balken schreiben.
+        mit Filzstift auf den Balken schreiben. Angaben, die für alle Balken gelten, vorher am Stamm
+        erfassen – danach ist der Stamm gesperrt.
       </p>
       <span v-if="beams.some((beam) => !store.canRemove(beam.id))" class="text-[13px] text-mute"
         >Übertragene Balken kann nur die Administration entfernen.</span
@@ -289,8 +290,7 @@ function onDiscard() {
     </section>
 
     <p v-if="isSplit" class="my-2 mx-gutter rounded-lg bg-well p-3 text-sm leading-[1.4]">
-      Aufgeteilter Stamm: Angaben am jeweiligen Balken erfassen. Angaben, die an alle Balken gehen,
-      vor dem ersten Balken setzen.
+      Aufgeteilter Stamm: Angaben am jeweiligen Balken erfassen.
     </p>
 
     <div :key="formKey" class="border-b border-line">
