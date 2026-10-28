@@ -36,7 +36,7 @@ class UserCommandsTest extends KernelTestCase
 
     private function code(string $display): string
     {
-        preg_match('~Dein Code: (\S+)~', $display, $match);
+        preg_match('~Dein Einladungscode: (\S+)~', $display, $match);
 
         return $match[1];
     }
@@ -56,9 +56,9 @@ class UserCommandsTest extends KernelTestCase
         $display = $tester->getDisplay();
         self::assertStringContainsString('Hallo Kerstin,', $display);
         self::assertStringContainsString('Adresse: https://v29-stamm-tracker.ddev.site'."\n", $display);
-        self::assertStringContainsString('Bitte immer über das Symbol öffnen', $display);
+        self::assertStringContainsString('Bitte danach IMMER über das Symbol öffnen', $display);
         $group = '[0-9A-HJKMNP-TV-Z]{4}';
-        self::assertMatchesRegularExpression("~Dein Code: $group-$group-$group \\(nicht weitergeben\\)~", $display);
+        self::assertMatchesRegularExpression("~Dein Einladungscode: $group-$group-$group\$~m", $display);
         $token = str_replace('-', '', $this->code($display));
 
         $users = $this->users();
