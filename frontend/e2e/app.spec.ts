@@ -69,6 +69,8 @@ test('beam inherits a stem value and can override it', async ({ page }) => {
   await expect(page.getByText('Aufgeteilter Stamm')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Holzart ändern' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: /Speichern/ })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Zurück zum Start' }).click()
+  await expect(page.locator('h1')).toHaveText('V29 Stamm-Tracker')
 })
 
 test('beam letters run to Z, are reused after removal, and stop after 26', async ({ page }) => {
