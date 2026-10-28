@@ -40,6 +40,7 @@ const parent = computed(() =>
   store.items.find((candidate) => candidate.id === item.value?.parent_id),
 )
 const beams = computed(() => (item.value ? store.childrenOf(item.value.id) : []))
+const parentTag = computed(() => parent.value?.tag_number ?? undefined)
 const kind = computed(() => (parent.value ? 'Balken' : 'Stamm'))
 // Split into beams: the values stay visible, but nothing can be recorded any more.
 const isSplit = computed(() => item.value?.has_children ?? false)
@@ -225,7 +226,7 @@ function onDiscard() {
       @close="onClose"
     />
 
-    <TimberItemStatus :item="item" />
+    <TimberItemStatus :item="item" :parent-tag="parentTag" />
 
     <!-- Beams are cut from a stem only, never from another beam. -->
     <section
@@ -287,13 +288,6 @@ function onDiscard() {
       >
     </section>
 
-    <RouterLink
-      v-if="parent?.tag_number"
-      :to="{ name: 'timber-item', params: { tagNumber: parent.tag_number } }"
-      class="mx-gutter mb-2 font-semibold underline"
-    >
-      Aus Stamm <FormattedTag :tag-number="parent.tag_number" />
-    </RouterLink>
     <p v-if="isSplit" class="my-2 mx-gutter rounded-lg bg-well p-3 text-sm leading-[1.4]">
       Aufgeteilter Stamm: Angaben am jeweiligen Balken erfassen. Angaben, die an alle Balken gehen,
       vor dem ersten Balken setzen.
