@@ -120,6 +120,75 @@ describe('timber item store: beams and inheritance', () => {
   })
 })
 
+describe('timber item store: discarding pending entries', () => {
+  beforeEach(() => setActivePinia(createPinia()))
+
+  const entryId = (store: ReturnType<typeof useTimberItemStore>, type: string, itemId: string) =>
+    store.events.find((event) => event.type === type && event.timber_item_id === itemId)!.id
+
+  it('reverts an attribute value to what the remaining events and the snapshot give', () => {
+    const store = useTimberItemStore()
+    const stem = store.findByTag('789-A')!
+    const sortierklasse = attributeId('Sortierklasse')
+    const before = store.findByTag('789-A')!.values[sortierklasse]![0]!.value
+    store.recordAttribute(stem.id, sortierklasse, 'changed')
+    expect(store.pendingCount).toBe(1)
+
+    store.discardEntry(entryId(store, 'attribute_recorded', stem.id))
+    expect(store.pendingCount).toBe(0)
+    expect(store.findByTag('789-A')!.values[sortierklasse]![0]!.value).toBe(before)
+    expect(cloneEverySave).not.toThrow()
+  })
+
+  it('brings the old tag back when a tag change on a synced item is discarded', () => {
+    const store = useTimberItemStore()
+    const beam = store.findByTag('789-A')!
+    store.assignTag(beam.id, 345)
+    store.discardEntry(entryId(store, 'tag_assigned', beam.id))
+    expect(store.findByTag('345')).toBeUndefined()
+    expect(store.findByTag('789-A')!.id).toBe(beam.id)
+  })
+
+  it('removes a new stem with its beams and all their events, and frees the tag', () => {
+    const store = useTimberItemStore()
+    const synced = store.pendingCount
+    const stem = store.createTimberItem(6)
+    store.recordAttribute(stem.id, attributeId('Holzart'), 'x')
+    const beam = store.addBeam(stem.id)
+    store.recordAttribute(beam.id, attributeId('Sortierklasse'), 'x')
+    store.addBeam(stem.id)
+
+    store.discardEntry(entryId(store, 'created', stem.id))
+    expect(store.events).toEqual([])
+    expect(store.pendingCount).toBe(synced)
+    expect(store.findByTag('6')).toBeUndefined()
+    expect(store.findByTag('6-A')).toBeUndefined()
+    expect(store.createTimberItem(6).tag_number).toBe('6')
+    expect(cloneEverySave).not.toThrow()
+  })
+
+  it('frees the letter of a discarded new beam and leaves its stem and synced items alone', () => {
+    const store = useTimberItemStore()
+    const stem = store.createTimberItem(7)
+    store.addBeam(stem.id)
+    const second = store.addBeam(stem.id)
+    store.discardEntry(entryId(store, 'created', second.id))
+    expect(store.findByTag('7')!.has_children).toBe(true)
+    expect(store.addBeam(stem.id).tag_number).toBe('7-B')
+
+    const syncedBeam = store.findByTag('789-A')!
+    expect(syncedBeam).toBeDefined()
+    expect(store.findByTag('789')).toBeDefined()
+  })
+
+  it('refuses events that are no entry', () => {
+    const store = useTimberItemStore()
+    const stem = store.createTimberItem(8)
+    expect(() => store.discardEntry(entryId(store, 'tag_assigned', stem.id))).toThrow()
+    expect(() => store.discardEntry('unknown')).toThrow()
+  })
+})
+
 describe('timber item store: tag changes', () => {
   beforeEach(() => setActivePinia(createPinia()))
 
