@@ -12,7 +12,8 @@ Built pro bono for **V29**, a collective of architects building a publicly funde
 2. The app shows the log if it already exists, or offers to create it.
 3. Record attributes: yes/no, choice, number, text, date, month, measurement series.
 4. Split a log into beams. Beams inherit attributes from their log unless they have their own value.
-5. Sync by hand once there is a connection: own changes go up, the current state of all logs comes down.
+5. Give a log or beam a new tag if its tag is lost or was mixed up.
+6. Sync by hand once there is a connection: own changes go up, the current state of all logs comes down.
 
 Everything is stored on the device first. Out in the woods there is usually no network, so the app works fully offline – including looking up what is already known about a log.
 
@@ -44,9 +45,9 @@ flowchart LR
 
 ## Status
 
-In use at V29 since 27 October 2026 (first capture in the field); development continues.
+Deployed; first use in the field (at the sawmill) planned for the end of October 2026. Development continues.
 
-- Done: capture app (number pad, logs, attributes, beams with inheritance), offline storage, manual sync, update prompt for new app versions, invite codes, event log with projections, deployment.
+- Done: capture app (number pad, logs, attributes, beams with inheritance, changing a tag), offline storage, manual sync, update prompt for new app versions, build identifier on the help page, invite codes, event log with projections, voiding entries by console command, deployment.
 - Next: photos, administration, evaluation and export.
 
 ## Tech stack
@@ -66,7 +67,8 @@ In use at V29 since 27 October 2026 (first capture in the field); development co
 ├── backend/              Symfony JSON API under /api
 │   ├── src/Controller/   session, snapshot and sync endpoints
 │   ├── src/Projection/   computes current state from the event log
-│   ├── src/Command/      user management, projection rebuild
+│   ├── src/Command/      users, attribute import, voiding, export, projection rebuild, test reset
+│   ├── data/             attribute definitions (YAML) for the import
 │   └── migrations/
 ├── frontend/             Vue capture app (Progressive Web App)
 │   ├── src/api/          API contract (types), fixtures, real and fake client
@@ -92,20 +94,19 @@ ddev start
 ddev composer install
 ddev frontend install
 ddev console doctrine:migrations:migrate -n
-ddev console app:attributes:import data/attributes.example.yaml
+ddev console app:user:create "Name" --admin
+ddev console app:attributes:import data/attributes.yaml
 ddev frontend run dev        # Vite dev server, runs in the foreground
 ```
+
+`data/attributes.yaml` holds the attributes agreed with V29; `data/attributes.example.yaml` documents every option of the format.
 
 - App: https://v29-stamm-tracker.ddev.site:5173 (requests to `/api` are proxied to Symfony)
 - API: https://v29-stamm-tracker.ddev.site/api/ping
 
-By default the dev server uses a **fake API** with the fixtures, so the app works without any backend data. To use the real backend, create `frontend/.env.development.local` containing `VITE_API=` and restart Vite. Then create a user:
+The dev server uses a **fake API** with the fixtures by default, so UI work needs no backend data. To use the real backend there, create `frontend/.env.development.local` containing `VITE_API=` and restart Vite. The built app (`ddev frontend run build`, served at https://v29-stamm-tracker.ddev.site) always uses the real API – the way to try out capture as it will run live.
 
-```sh
-ddev console app:user:create "Name" [--admin]
-```
-
-The command prints a ready-to-send invite message with the address (from `DEFAULT_URI`), the personal code and install steps for iPhone and Android. The code is shown only once. A browser shows only the install steps; the sign-in form appears in the installed app (and, for local work, on the dev server and with the fake API).
+`app:user:create` prints a ready-to-send invite message with the address (from `DEFAULT_URI`), the personal code and install steps for iPhone and Android. The code is shown only once. A browser shows only the install steps; the sign-in form appears in the installed app (and, for local work, on the dev server and with the fake API).
 
 ### Commands
 
@@ -122,7 +123,7 @@ The command prints a ready-to-send invite message with the address (from `DEFAUL
 | Void a stem or beam created by mistake or twice (it leaves the snapshot, its tag is free again; a stem only once its beams are voided; recorded under the only admin) | `ddev console app:item:void 123` or `app:item:void 123-A [--force]` |
 | Export all stems and beams (current state, without voided) to Excel; without a path `stamm-tracker-export-YYYY-MM-DD.xlsx` in the current directory, see [Excel export](#excel-export) | `ddev console app:export [path.xlsx]` |
 | Rebuild projections from all events | `ddev console app:projections:rebuild` |
-| Import attributes from YAML (path relative to `backend/`) | `ddev console app:attributes:import data/attributes.example.yaml [--dry-run]` |
+| Import attributes from YAML (path relative to `backend/`; creates and updates, never deletes) | `ddev console app:attributes:import data/attributes.yaml [--dry-run]` |
 | Testing only: delete events and projections (users stay) | `ddev console app:reset [--attributes] [--force]` |
 
 ### Excel export
@@ -152,6 +153,18 @@ ddev snapshot --name before-test
 ddev snapshot restore before-test
 ```
 
+To start from a completely empty database (users included), recreate it, then create the admin again and take a snapshot to return to:
+
+```sh
+ddev console doctrine:database:drop --force
+ddev console doctrine:database:create
+ddev console doctrine:migrations:migrate -n
+ddev console app:user:create "Name" --admin    # note the code, it is shown only once
+ddev snapshot --name empty-with-admin
+```
+
+The import never deletes: a renamed attribute or option is created anew next to the old one. While the attribute file is still changing, restore the snapshot and import again.
+
 After a reset, also clear the app's local data on every phone used for the test (delete the home screen app or the site data in the browser settings). Otherwise their pending events are uploaded again at the next sync.
 
 The backend tests use a separate database. Create it once (and repeat the second command after new migrations):
@@ -172,6 +185,30 @@ ddev share --provider=cloudflared                 # open the printed address on 
 ```
 
 After a new build, reload the page on the phone twice. Restarting `ddev share` yields a new address – a new origin, so local test data on the phone is gone.
+
+### Testing the update prompt
+
+Once the app is live, new versions reach phones only through the "Neue Version verfügbar" hint, so test it before every release that touches it. Use the regular build (`registerType: 'prompt'`), never the Vite dev server or `--mode share`: both skip the waiting state, so the hint never appears. Every build gets a new build time and therefore a new service worker – no code change is needed to produce an "update".
+
+**Desktop (Chrome)**
+
+1. `ddev frontend run build`, open https://v29-stamm-tracker.ddev.site (without `:5173`), sign in, capture one or two stems without syncing.
+2. DevTools → Application → Service Workers: turn **"Update on reload" off** (otherwise Chrome skips the waiting state).
+3. `ddev frontend run build` again, reload the page once.
+4. Check:
+   - The hint appears on the start screen only. On the capture form it does not; going back to start shows it.
+   - The close button hides it.
+   - "Aktualisieren" reloads; the help page shows the new build time.
+   - Pending (unsynced) stems are still there.
+
+**Phone**
+
+1. `ddev frontend run build` (without `--mode share`), then `ddev share --provider=cloudflared`.
+2. Open the address on the phone and add the app to the home screen.
+3. Keep `ddev share` running (a restart means a new address and a new origin) and build again.
+4. Close the app completely (swipe it away in the app switcher) and reopen it from the icon – the hint should appear.
+
+The browser looks for a new service worker only when the app is opened or reloaded. An app left open in the background shows the hint only after it has been closed and reopened.
 
 ### Debugging
 
