@@ -20,13 +20,13 @@
   type: month
   is_inheritable: true
 
-- name: Stammdurchmesser größter
-  description: "In Stammmitte mit Rinde messen, größter Durchmesser, auf volle cm abgerundet"
+- name: Größter Stammdurchmesser
+  description: "Mit Rinde messen, auf volle cm abgerundet"
   type: number
   unit: cm
   is_inheritable: true
-- name: Stammdurchmesser kleinster
-  description: "In Stammmitte mit Rinde messen, kleinster Durchmesser, auf volle cm abgerundet"
+- name: Kleinster Stammdurchmesser
+  description: "Mit Rinde messen, auf volle cm abgerundet"
   type: number
   unit: cm
   is_inheritable: true
