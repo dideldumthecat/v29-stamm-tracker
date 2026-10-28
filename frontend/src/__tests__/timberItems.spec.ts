@@ -400,14 +400,6 @@ describe('timber item store: sign-in', () => {
     expect(store.currentUser).not.toBeNull()
     expect(store.attributes.length).toBeGreaterThan(0)
     expect(store.pendingCount).toBe(1)
-    expect(store.lastSyncedAt).toBeNull()
-  })
-
-  it('counts the sign-in as a sync when no events are pending', async () => {
-    const store = useTimberItemStore()
-    vi.spyOn(api, 'loadSnapshot').mockResolvedValue(api.initialSnapshot())
-
-    await store.redeemInvite('token')
     expect(store.lastSyncedAt).not.toBeNull()
   })
 
@@ -419,5 +411,89 @@ describe('timber item store: sign-in', () => {
     await expect(store.redeemInvite('token')).resolves.toBeUndefined()
     expect(store.currentUser).not.toBeNull()
     expect(store.lastSyncedAt).toBeNull()
+  })
+})
+
+describe('timber item store: automatic refresh', () => {
+  beforeEach(() => setActivePinia(createPinia()))
+  afterEach(() => vi.restoreAllMocks())
+
+  it('downloads without uploading, keeps the queue and stamps the time', async () => {
+    const store = useTimberItemStore()
+    store.createTimberItem(9)
+    const upload = vi.spyOn(api, 'sync')
+    const fresh = api.initialSnapshot()
+    fresh.generated_at = '2026-10-28T10:00:00.000Z'
+    vi.spyOn(api, 'loadSnapshot').mockResolvedValue(fresh)
+
+    await store.refresh()
+    expect(upload).not.toHaveBeenCalled()
+    expect(store.snapshot.generated_at).toBe('2026-10-28T10:00:00.000Z')
+    expect(store.pendingCount).toBe(1)
+    expect(store.findByTag('9')).toBeDefined()
+    expect(store.lastSyncedAt).not.toBeNull()
+  })
+
+  it('leaves the time alone when the download fails', async () => {
+    const store = useTimberItemStore()
+    vi.spyOn(api, 'loadSnapshot').mockRejectedValue(new ApiError(0, 'offline'))
+
+    await expect(store.refresh()).rejects.toThrow(ApiError)
+    expect(store.lastSyncedAt).toBeNull()
+  })
+
+  it('runs one download for concurrent refreshes', async () => {
+    const store = useTimberItemStore()
+    const download = vi.spyOn(api, 'loadSnapshot').mockResolvedValue(api.initialSnapshot())
+
+    await Promise.all([store.refresh(), store.refresh()])
+    expect(download).toHaveBeenCalledTimes(1)
+  })
+
+  it('runs one sync for concurrent syncs', async () => {
+    const store = useTimberItemStore()
+    store.createTimberItem(9)
+    const upload = vi.spyOn(api, 'sync').mockImplementation(async (events) => ({
+      accepted_event_ids: events.map((event) => event.id),
+      rejected: [],
+    }))
+    vi.spyOn(api, 'loadSnapshot').mockResolvedValue(api.initialSnapshot())
+
+    const [first, second] = await Promise.all([store.sync(), store.sync()])
+    expect(upload).toHaveBeenCalledTimes(1)
+    expect(second).toBe(first)
+  })
+
+  it('still uploads when the sync button is tapped during a refresh', async () => {
+    const store = useTimberItemStore()
+    store.createTimberItem(9)
+    const upload = vi.spyOn(api, 'sync').mockImplementation(async (events) => ({
+      accepted_event_ids: events.map((event) => event.id),
+      rejected: [],
+    }))
+    const download = vi.spyOn(api, 'loadSnapshot').mockResolvedValue(api.initialSnapshot())
+
+    const refreshing = store.refresh()
+    const result = await store.sync()
+    await refreshing
+    expect(upload).toHaveBeenCalledTimes(1)
+    expect(download).toHaveBeenCalledTimes(2)
+    expect(result.transferred).toBe(1)
+    expect(store.pendingCount).toBe(0)
+  })
+
+  it('skips a refresh while a sync runs', async () => {
+    const store = useTimberItemStore()
+    store.createTimberItem(9)
+    vi.spyOn(api, 'sync').mockImplementation(async (events) => ({
+      accepted_event_ids: events.map((event) => event.id),
+      rejected: [],
+    }))
+    const download = vi.spyOn(api, 'loadSnapshot').mockResolvedValue(api.initialSnapshot())
+
+    const syncing = store.sync()
+    await store.refresh()
+    await syncing
+    expect(download).toHaveBeenCalledTimes(1)
   })
 })

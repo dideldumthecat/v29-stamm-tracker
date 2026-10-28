@@ -31,7 +31,7 @@ const store = useTimberItemStore()
       </div>
     </header>
     <p class="border-b border-line py-2 px-gutter text-center text-[13px] text-mute">
-      Letzter Sync:
+      Stand der Daten:
       {{ store.lastSyncedAt ? formatShortDateTime(store.lastSyncedAt) : 'noch nie' }}
     </p>
   </div>

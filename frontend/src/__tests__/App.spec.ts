@@ -109,6 +109,22 @@ describe('App', () => {
     expect(document.body.textContent).toContain('Änderungen verwerfen?')
   })
 
+  it('keeps an unsaved entry when the data is refreshed in the background', async () => {
+    const { wrapper } = await mountAt('/timber-item/42')
+    const value = wrapper.findAll('option')[1]!.element.value
+    await wrapper.find('select').setValue(value)
+
+    const fresh = api.initialSnapshot()
+    fresh.generated_at = '2026-10-28T10:00:00.000Z'
+    vi.spyOn(api, 'loadSnapshot').mockResolvedValue(fresh)
+    await useTimberItemStore().refresh()
+    await flushPromises()
+
+    expect(useTimberItemStore().snapshot.generated_at).toBe('2026-10-28T10:00:00.000Z')
+    expect((wrapper.find('select').element as HTMLSelectElement).value).toBe(value)
+    vi.restoreAllMocks()
+  })
+
   it('closes a saved stem to the start screen and still shows the toast there', async () => {
     const { wrapper, router } = await mountAt('/timber-item/456')
     await wrapper.find('select').setValue(wrapper.findAll('option')[1]!.element.value)

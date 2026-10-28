@@ -134,7 +134,7 @@ test('signs in with a typed code', async ({ page }) => {
   await expect(field).toHaveValue('K7QM-4XHT-9RDP')
   await page.getByRole('button', { name: 'Anmelden' }).click()
   await expect(page.locator('header').getByText('Alexander', { exact: true })).toBeVisible()
-  await expect(page.getByText('Letzter Sync:')).toBeVisible()
+  await expect(page.getByText('Stand der Daten:')).toBeVisible()
   await expect(page.getByRole('button', { name: '1', exact: true })).toBeVisible()
 })
 
@@ -235,4 +235,22 @@ test('discards a new stem on the sync screen after confirming', async ({ page })
   await expect(
     page.getByRole('heading', { name: 'Keine Änderungen auf diesem Gerät' }),
   ).toBeVisible()
+})
+
+// The automatic update downloads only: pending entries stay on the device for the sync button.
+test('opening the app refreshes the data without tapping and keeps pending entries', async ({
+  page,
+}) => {
+  await page.goto('/')
+  // A fresh device never synced; the start-up download stamps the time.
+  await expect(page.getByText('Stand der Daten:')).not.toContainText('noch nie')
+
+  await page.goto('/timber-item/1888')
+  await page.getByLabel('Holzart').selectOption({ label: 'Traubeneiche' })
+  await page.getByRole('button', { name: 'Stamm anlegen & schließen' }).click()
+  await expect(page.getByRole('link', { name: 'Synchronisieren, 2 offene Einträge' })).toBeVisible()
+
+  await page.reload()
+  await expect(page.getByText('Stand der Daten:')).not.toContainText('noch nie')
+  await expect(page.getByRole('link', { name: 'Synchronisieren, 2 offene Einträge' })).toBeVisible()
 })

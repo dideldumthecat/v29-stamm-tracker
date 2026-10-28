@@ -1,7 +1,7 @@
 /**
  * Displayed state = stored snapshot (as the server sent it) + own pending events laid over it.
  * Every change is an event in the queue, saved on the device right away; the snapshot is only
- * replaced by a sync (or right after sign-in). The views rely on the public surface, so keep it stable or adjust them with it.
+ * replaced by a sync, an automatic refresh or right after sign-in. The views rely on the public surface, so keep it stable or adjust them with it.
  *
  * `items` holds own values only; inherited values are added at read time (withInherited).
  */
@@ -159,12 +159,41 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     lastSyncedAt.value = stored.lastSyncedAt
   }
 
+  // At most one transfer at a time: a snapshot that arrives late must not overwrite a newer one.
+  let refreshing: Promise<void> | null = null
+  let syncing: Promise<SyncResult> | null = null
+
   /**
    * Own events up, then the snapshot down. Throws ApiError on failure; the queue keeps whatever the
    * server has not confirmed. Returns how many entries (as counted by pendingCount) were transferred,
    * and the tags the server rejected: duplicate captures are dropped from the device, rejected tag changes only.
+   * A second call while one runs gets the running one; a running refresh finishes first, so the upload is never skipped.
    */
-  async function sync(): Promise<SyncResult> {
+  function sync(): Promise<SyncResult> {
+    syncing ??= (async () => {
+      await refreshing?.catch(() => {})
+      return uploadAndDownload()
+    })().finally(() => {
+      syncing = null
+    })
+    return syncing
+  }
+
+  /**
+   * Snapshot down only, nothing leaves the device: the automatic update. Does nothing while a sync runs,
+   * which downloads anyway. Throws ApiError on failure.
+   */
+  function refresh(): Promise<void> {
+    if (syncing) {
+      return Promise.resolve()
+    }
+    refreshing ??= downloadSnapshot().finally(() => {
+      refreshing = null
+    })
+    return refreshing
+  }
+
+  async function uploadAndDownload(): Promise<SyncResult> {
     // Events recorded while the sync runs are not part of this batch and stay in the queue.
     const batch = [...toRaw(events.value)]
     const response = batch.length > 0 ? await api.sync(batch) : null
@@ -195,7 +224,6 @@ export const useTimberItemStore = defineStore('timberItems', () => {
         rejectedEvents.has(event.id) ||
         rejectedItems.has(event.timber_item_id),
     )
-    markSynced()
     // Read after the download: the tag the item keeps is the server's.
     for (const entry of tagChanges) {
       const item = findById(entry.timber_item_id)
@@ -217,12 +245,9 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     // Accepted events leave the queue only together with the snapshot that contains them, so a failed
     // download hides nothing. Resending them next time is harmless: the server ignores known ids.
     snapshot.value = fresh
-    persist({ snapshot: fresh, events: dropEvents(isDone) })
-  }
-
-  function markSynced() {
+    // The time stands for how current the data is, whether or not entries are still waiting for the upload.
     lastSyncedAt.value = new Date().toISOString()
-    persist({ lastSyncedAt: lastSyncedAt.value })
+    persist({ snapshot: fresh, events: dropEvents(isDone), lastSyncedAt: lastSyncedAt.value })
   }
 
   // Same rules as the server projection: inheritable attributes come from the parent unless the
@@ -286,15 +311,7 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     persist({ user: toRaw(currentUser.value) })
     // Attributes come only with the snapshot; without them nothing can be recorded offline.
     // Failing here is fine: the sign-in stands and the next sync fetches it.
-    try {
-      await downloadSnapshot()
-    } catch {
-      return
-    }
-    // With pending events the device is not in sync with the server yet.
-    if (events.value.length === 0) {
-      markSynced()
-    }
+    await refresh().catch(() => {})
   }
 
   function createTimberItem(tagNumber: number): TimberItem {
@@ -416,5 +433,6 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     redeemInvite,
     load,
     sync,
+    refresh,
   }
 })

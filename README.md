@@ -13,7 +13,7 @@ Built pro bono for **V29**, a collective of architects building a publicly funde
 3. Record attributes: yes/no, choice, number, text, date, month, measurement series.
 4. Split a log into beams. Beams inherit attributes from their log unless they have their own value.
 5. Give a log or beam a new tag if its tag is lost or was mixed up.
-6. Sync by hand once there is a connection: own changes go up, the current state of all logs comes down.
+6. Sync by hand once there is a connection: own changes go up, the current state of all logs comes down. The app also downloads the current state by itself when it opens and when it returns to the foreground (at most once a minute, silently, never uploading); the start screen shows when the data was last downloaded, the counter on the sync button shows what is still waiting for the upload.
 
 Everything is stored on the device first. Out in the woods there is usually no network, so the app works fully offline – including looking up what is already known about a log.
 
@@ -21,7 +21,7 @@ Everything is stored on the device first. Out in the woods there is usually no n
 
 ## Design decisions
 
-- **Offline-first with manual sync.** No background sync – people should know when their data has left the phone.
+- **Offline-first with manual upload.** Own entries (later with large photos) leave the phone only when someone taps the sync button – people should know when their data has left the phone. Only the download of the current state runs by itself, when the app opens or returns to the foreground. No timer, no background sync (unreliable on iOS).
 - **Append-only event log.** Nothing is ever updated or deleted. Every change is an event; corrections and voids are new events. The current state of each log is a projection computed from the events and can be rebuilt at any time. On conflicting values, the one that reached the server last wins.
 - **Attributes are configuration, not code.** Everything domain-specific – even the wood species – is an attribute V29 defines themselves. A new process step needs no deployment and no migration.
 - **Client-generated IDs.** Every log and every event gets a UUID on the device, so re-sending after a failed sync is harmless (idempotent). The tag number is a label, not the key.
