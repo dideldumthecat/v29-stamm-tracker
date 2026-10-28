@@ -387,8 +387,13 @@ function onDiscard() {
     <!-- Pushes the save bar down when the content is shorter than the screen. -->
     <div class="flex-auto"></div>
 
-    <!-- A stem not recorded yet can always be saved: creating it is the change. -->
-    <SaveBar v-if="!isSplit" :label="saveLabel" :disabled="!!item && !isDirty" @save="onSave" />
+    <!-- A stem not recorded yet can always be saved: creating it is the change.
+         A split stem is read-only, so the bar only leads back to the start screen. -->
+    <SaveBar
+      :label="isSplit ? 'Zurück zum Start' : saveLabel"
+      :disabled="!isSplit && !!item && !isDirty"
+      @save="isSplit ? onClose() : onSave()"
+    />
 
     <!-- Wording as in the click prototype (confirmRemoveBeam). -->
     <ConfirmSheet

@@ -518,6 +518,24 @@ describe('App', () => {
       )
     })
 
+    it('offers "Zurück zum Start" on a split stem, right after the first beam', async () => {
+      const { router } = await mountAt('/timber-item/42')
+      expect(buttonByText(/Stamm anlegen & schließen/)).toBeDefined()
+      buttonByText(/Balken 00042-A hinzufügen/).click()
+      await flushPromises()
+      expect(buttonByText(/Stamm anlegen & schließen/)).toBeUndefined()
+      buttonByText(/^\s*Zurück zum Start\s*$/).click()
+      await flushPromises()
+      expect(router.currentRoute.value.name).toBe('start')
+      expect(document.body.querySelector(':scope > [role="status"]')).toBeNull()
+    })
+
+    it('keeps the save label on a beam', async () => {
+      await mountAt('/timber-item/789-A')
+      expect(buttonByText(/Speichern & schließen/)).toBeDefined()
+      expect(buttonByText(/Zurück zum Start/)).toBeUndefined()
+    })
+
     it('closes a saved beam to its stem and still shows the toast there', async () => {
       const { wrapper, router } = await mountAt('/timber-item/789-A')
       await wrapper.find('textarea').setValue('Riss')
