@@ -333,6 +333,31 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     persist({ events: dropEvents((event) => event.timber_item_id === itemId) })
   }
 
+  /**
+   * Drops one pending entry from the queue. Dropping "created" takes the whole item with it, and a new
+   * stem also its new beams (an item that is not synced yet cannot have synced beams).
+   */
+  function discardEntry(eventId: Uuid) {
+    const event = events.value.find((candidate) => candidate.id === eventId)
+    if (!event || !isEntry(event)) {
+      throw new Error(`Event ${eventId} is not a pending entry`)
+    }
+    if (event.type !== 'created') {
+      persist({ events: dropEvents((candidate) => candidate.id === eventId) })
+      return
+    }
+    const itemIds = new Set([
+      event.timber_item_id,
+      ...events.value
+        .filter(
+          (candidate) =>
+            candidate.type === 'created' && candidate.data.parent_id === event.timber_item_id,
+        )
+        .map((candidate) => candidate.timber_item_id),
+    ])
+    persist({ events: dropEvents((candidate) => itemIds.has(candidate.timber_item_id)) })
+  }
+
   /** Another item that holds the tag, in the snapshot or through pending events. */
   function tagHolder(tagNumber: number, exceptId: string): TimberItem | undefined {
     return items.value.find((item) => item.tag_number === String(tagNumber) && item.id !== exceptId)
@@ -384,6 +409,7 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     addBeam,
     canRemove,
     removeTimberItem,
+    discardEntry,
     recordAttribute,
     tagHolder,
     assignTag,

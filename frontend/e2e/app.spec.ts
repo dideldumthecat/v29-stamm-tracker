@@ -215,3 +215,24 @@ test('a beam gets a new plaque, refusing a taken one', async ({ page }) => {
     'Plakette 00345 ist schon vergeben: Balken aus Stamm 00789.',
   )
 })
+
+// Flow: an unsynced stem is discarded on the sync screen; cancelling the confirmation keeps it.
+test('discards a new stem on the sync screen after confirming', async ({ page }) => {
+  await page.goto('/timber-item/1666')
+  await page.getByRole('button', { name: 'Stamm anlegen & schließen' }).click()
+  await expect(page.getByText('Stamm 01666 gespeichert')).toBeVisible()
+
+  await page.goto('/sync')
+  await expect(page.locator('h1')).toHaveText('Synchronisierung (1)')
+  await page.getByRole('button', { name: 'Eintrag verwerfen' }).click()
+  await expect(page.getByRole('dialog')).toContainText('Stamm 01666 mit allen Angaben verwerfen?')
+  await page.getByRole('button', { name: 'Abbrechen' }).click()
+  await expect(page.locator('h1')).toHaveText('Synchronisierung (1)')
+
+  await page.getByRole('button', { name: 'Eintrag verwerfen' }).click()
+  await page.getByRole('button', { name: 'Verwerfen', exact: true }).click()
+  await expect(page.locator('h1')).toHaveText('Synchronisierung')
+  await expect(
+    page.getByRole('heading', { name: 'Keine Änderungen auf diesem Gerät' }),
+  ).toBeVisible()
+})

@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { CircleCheckIcon, RefreshCwIcon, XIcon } from '@lucide/vue'
+import { CircleCheckIcon, RefreshCwIcon, Trash2Icon, XIcon } from '@lucide/vue'
 import { ApiError } from '@/api/client'
 import type { Event } from '@/api/contract'
 import { useTimberItemStore, type SyncResult } from '@/stores/timberItems'
 import { formatValue } from '@/utils/attributeDraft'
 import { formatShortDateTime } from '@/utils/date'
 import { formatTag } from '@/utils/tag'
+import ConfirmSheet from '@/components/ConfirmSheet.vue'
 import FormattedTag from '@/components/FormattedTag.vue'
 import SignInForm from '@/components/SignInForm.vue'
 
@@ -55,6 +56,20 @@ function describe(event: Event, kind: string): string {
   const value = formatValue(attribute, event.data.value) ?? String(event.data.value)
   // Boolean values already read as a sentence ("Gesägt", "Gesägt: Nein").
   return attribute.type === 'boolean' ? value : `${attribute.name}: ${value}`
+}
+
+type Group = (typeof groups.value)[number]
+const toDiscard = ref<{ event: Event; group: Group } | null>(null)
+// A new stem takes its new beams along; a beam has none.
+const discardedBeamCount = computed(() =>
+  toDiscard.value?.event.type === 'created' && toDiscard.value.group.kind === 'Stamm'
+    ? store.childrenOf(toDiscard.value.group.itemId).length
+    : 0,
+)
+
+function onDiscard() {
+  store.discardEntry(toDiscard.value!.event.id)
+  toDiscard.value = null
 }
 
 const failureText = computed(() => {
@@ -175,10 +190,21 @@ async function onSync() {
         <div
           v-for="event in group.events"
           :key="event.id"
-          class="flex min-h-14 flex-col justify-center border-b border-line py-1.5"
+          class="flex items-center gap-2 border-b border-line"
         >
-          <b class="font-semibold wrap-anywhere">{{ describe(event, group.kind) }}</b>
-          <span class="text-[13px] text-mute">{{ formatShortDateTime(event.recorded_at) }}</span>
+          <div class="flex min-h-14 min-w-0 flex-1 flex-col justify-center py-1.5">
+            <b class="font-semibold wrap-anywhere">{{ describe(event, group.kind) }}</b>
+            <span class="text-[13px] text-mute">{{ formatShortDateTime(event.recorded_at) }}</span>
+          </div>
+          <button
+            type="button"
+            class="flex size-11 shrink-0 items-center justify-center rounded-md border-2 border-ink bg-paper text-ink disabled:border-lockline disabled:text-mute"
+            aria-label="Eintrag verwerfen"
+            :disabled="isSyncing"
+            @click="toDiscard = { event, group }"
+          >
+            <Trash2Icon :size="20" :stroke-width="2.5" aria-hidden="true" />
+          </button>
         </div>
       </section>
       <p class="rounded-lg bg-well p-3 text-sm leading-[1.4]">
@@ -189,7 +215,7 @@ async function onSync() {
     <div class="flex-auto"></div>
 
     <div
-      class="sticky bottom-0 z-5 flex flex-col gap-2 border-t border-line bg-well pt-3 px-gutter pb-safe-4"
+      class="sticky bottom-0 z-5 flex flex-col gap-2 border-t border-line bg-well pt-3 px-gutter pb-4"
     >
       <div
         v-if="failureText"
@@ -238,5 +264,29 @@ async function onSync() {
         >
       </template>
     </div>
+
+    <ConfirmSheet
+      v-if="toDiscard"
+      primary-label="Abbrechen"
+      secondary-label="Verwerfen"
+      emphasize-secondary
+      @primary="toDiscard = null"
+      @secondary="onDiscard"
+    >
+      <template #title>
+        <template v-if="toDiscard.event.type === 'created'">
+          {{ toDiscard.group.kind }} <FormattedTag :tag-number="toDiscard.group.tagNumber!" /> mit
+          allen Angaben<template v-if="discardedBeamCount > 0">
+            und {{ discardedBeamCount }} Balken</template
+          >
+          verwerfen?
+        </template>
+        <template v-else>Eintrag verwerfen?</template>
+      </template>
+      <p v-if="toDiscard.event.type !== 'created'">
+        {{ describe(toDiscard.event, toDiscard.group.kind) }}<br />Der bisherige Stand gilt wieder.
+      </p>
+      <p v-else>Nichts davon wird synchronisiert. Die Plakette ist danach wieder frei.</p>
+    </ConfirmSheet>
   </div>
 </template>
