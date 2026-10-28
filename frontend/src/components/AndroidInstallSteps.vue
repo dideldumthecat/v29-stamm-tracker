@@ -7,7 +7,7 @@ import { EllipsisVerticalIcon } from '@lucide/vue'
   <li>
     Oben rechts auf das Menü
     <EllipsisVerticalIcon :size="20" class="inline align-text-bottom" aria-hidden="true" />
-    tippen, dann <b>„App installieren“</b> bzw. <b>„Zum Startbildschirm hinzufügen“</b>.
+    tippen, dann <b>„App installieren“</b> oder <b>„Zum Startbildschirm hinzufügen“</b>.
   </li>
   <li>Die App vom Startbildschirm aus öffnen.</li>
 </template>

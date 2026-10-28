@@ -50,21 +50,22 @@ class UserCreateCommand
 
             hier dein Zugang zum V29 Stamm-Tracker:
             Adresse: {$this->address}
-            Dein Code: $formatted (nicht weitergeben)
+            Dein Einladungscode: $formatted
 
             iPhone:
-            1. Adresse in Safari öffnen.
-            2. Unten auf „Teilen“ tippen, dann „Zum Home-Bildschirm“.
-            3. App über das neue Symbol öffnen und den Code eingeben.
+            1. Adresse in Safari öffnen (nicht direkt in WhatsApp o. Ä.).
+            2. Auf die drei Punkte neben der Adressleiste tippen, dann auf „Teilen“. (Bei älteren iPhones direkt unten auf „Teilen“ tippen.)
+            3. Auf „Zum Home-Bildschirm“ tippen (falls nicht sichtbar, vorher auf „Mehr anzeigen“). „Als Web-App öffnen“ eingeschaltet lassen und auf „Hinzufügen“ tippen.
+            4. App über das neue Symbol öffnen und den Einladungscode eingeben.
 
             Android:
-            1. Adresse in Chrome öffnen.
-            2. Oben rechts auf ⋮ tippen, dann „App installieren“ (oder „Zum Startbildschirm hinzufügen“).
-            3. App über das neue Symbol öffnen und den Code eingeben.
+            1. Adresse in Chrome öffnen (nicht direkt in WhatsApp o. Ä.).
+            2. Oben rechts auf ⋮ tippen, dann auf „App installieren“ (oder „Zum Startbildschirm hinzufügen“).
+            3. App über das neue Symbol öffnen und den Einladungscode eingeben.
 
-            Bitte immer über das Symbol öffnen, nicht über den Browser.
+            Bitte danach IMMER über das Symbol öffnen, nicht über den Browser.
             MESSAGE);
-        $io->warning('The code is shown only now. They cannot be recovered; revoke the user and create a new one if it is lost.');
+        $io->warning('The invite code is shown only now. It cannot be recovered; revoke the user and create a new one if it is lost.');
 
         return Command::SUCCESS;
     }

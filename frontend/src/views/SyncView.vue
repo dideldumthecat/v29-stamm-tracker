@@ -127,7 +127,7 @@ async function onSync() {
       <span class="w-11 shrink-0"></span>
     </header>
     <p class="border-b border-line py-2 px-gutter text-center text-[13px] text-mute">
-      Zuletzt synchronisiert:
+      Stand der Daten:
       {{ store.lastSyncedAt ? formatShortDateTime(store.lastSyncedAt) : 'noch nie' }}
     </p>
 

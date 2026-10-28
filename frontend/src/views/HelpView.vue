@@ -31,15 +31,16 @@ const appVersion = [__APP_REVISION__, formatShortDateTime(__APP_BUILD_TIME__)]
     <div class="flex flex-col gap-8 py-6 px-gutter text-lg leading-[1.4]">
       <section class="flex flex-col gap-3">
         <h2 class="text-[26px] font-bold text-balance">Synchronisieren</h2>
-        <ul class="flex list-disc flex-col gap-3 pl-6">
-          <li>Erfassen geht auch ohne Netz. Alles bleibt auf dem Handy, bis du synchronisierst.</li>
-          <li>Die Zahl am Sync-Button zeigt, wie viele Einträge noch nicht hochgeladen sind.</li>
-          <li>
-            <b>Vor</b> dem Einsatz synchronisieren: Dann hast du den aktuellen Stand aller.
-            <b>Danach</b> synchronisieren: Dann sind deine Einträge hochgeladen.
-          </li>
-          <li>Wann zuletzt synchronisiert wurde, steht auf der Startseite unter „Letzter Sync“.</li>
-        </ul>
+        <p>Erfassen geht auch ohne Netz. Alles bleibt auf dem Handy, bis du es hochlädst.</p>
+        <p>
+          Die App holt den aktuellen Stand automatisch, sobald du Netz hast. Wann zuletzt, steht auf
+          der Startseite unter „Stand der Daten“.
+        </p>
+        <p>
+          Deine eigenen Einträge lädst du mit dem Sync-Button hoch. Die Zahl am Button zeigt, wie
+          viele noch fehlen.
+        </p>
+        <p>Lade sie hoch, sobald du Empfang hast, spätestens nach dem Einsatz.</p>
         <p class="rounded-lg border-2 border-ink p-3" role="note">
           <b>Achtung:</b> Die App nicht löschen und keine Website-Daten entfernen, solange am
           Sync-Button eine Zahl steht. Sonst sind diese Einträge verloren.
@@ -48,19 +49,23 @@ const appVersion = [__APP_REVISION__, formatShortDateTime(__APP_BUILD_TIME__)]
 
       <section class="flex flex-col gap-3">
         <h2 class="text-[26px] font-bold text-balance">App auf einem neuen Handy installieren</h2>
-        <p>Dafür brauchst du die Adresse und den Code aus deiner Einladung.</p>
-        <h3 class="font-bold">iPhone (Safari)</h3>
-        <ol class="flex list-decimal flex-col gap-3 pl-6">
-          <IosInstallSteps />
-        </ol>
-        <p>
-          Danach nur noch über das Symbol öffnen: Safari und die App auf dem Home-Bildschirm haben
-          getrennte Daten.
-        </p>
-        <h3 class="font-bold">Android (Chrome)</h3>
-        <ol class="flex list-decimal flex-col gap-3 pl-6">
-          <AndroidInstallSteps />
-        </ol>
+        <details class="rounded-lg border-2 border-ink">
+          <summary class="min-h-14 cursor-pointer px-3 py-4 font-bold">iPhone (Safari)</summary>
+          <ol class="flex list-decimal flex-col gap-3 pr-3 pb-4 pl-9">
+            <li>Adresse aus der Einladung in Safari öffnen.</li>
+            <IosInstallSteps />
+            <li>Mit dem Einladungscode anmelden.</li>
+          </ol>
+        </details>
+        <details class="rounded-lg border-2 border-ink">
+          <summary class="min-h-14 cursor-pointer px-3 py-4 font-bold">Android (Chrome)</summary>
+          <ol class="flex list-decimal flex-col gap-3 pr-3 pb-4 pl-9">
+            <li>Adresse aus der Einladung in Chrome öffnen.</li>
+            <AndroidInstallSteps />
+            <li>Mit dem Einladungscode anmelden.</li>
+          </ol>
+        </details>
+        <p>Danach nur noch über das Symbol öffnen: Browser und App haben getrennte Daten.</p>
       </section>
     </div>
 
