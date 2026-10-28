@@ -95,6 +95,13 @@ describe('App', () => {
     expect(wrapper.text()).toContain('Speicher geschützt: unbekannt')
   })
 
+  it('credits the author with a link in the help page footer', async () => {
+    const { wrapper } = await mountAt('/help')
+    const link = wrapper.find('a[href="https://alexandersumma.de"]')
+    expect(link.text()).toBe('Alexander Summa')
+    expect(link.attributes('target')).toBe('_blank')
+  })
+
   it('redirects invalid tag numbers to the start screen', async () => {
     const { router } = await mountAt('/timber-item/5000')
     expect(router.currentRoute.value.name).toBe('start')
