@@ -520,11 +520,12 @@ class ApiTest extends WebTestCase
         $this->syncItem123();
         [$a, $b] = [Uuid::v4()->toRfc4122(), Uuid::v4()->toRfc4122()];
         $this->request('POST', '/api/sync', ['events' => [
-            self::event('created', $a, ['parent_id' => self::ITEM_123]),
-            self::event('tag_assigned', $a, ['tag_number' => '123-A']),
-            self::event('created', $b, ['parent_id' => self::ITEM_123]),
-            self::event('tag_assigned', $b, ['tag_number' => '123-B']),
-            self::event('attribute_recorded', $b, ['attribute_id' => self::LIEFERDATUM, 'value' => '2026-02-02']),
+            // Distinct creation times: the snapshot lists items by creation time, and equal times leave the order to the random ids.
+            self::event('created', $a, ['parent_id' => self::ITEM_123], '2026-10-02T07:13:00.000Z'),
+            self::event('tag_assigned', $a, ['tag_number' => '123-A'], '2026-10-02T07:13:01.000Z'),
+            self::event('created', $b, ['parent_id' => self::ITEM_123], '2026-10-02T07:14:00.000Z'),
+            self::event('tag_assigned', $b, ['tag_number' => '123-B'], '2026-10-02T07:14:01.000Z'),
+            self::event('attribute_recorded', $b, ['attribute_id' => self::LIEFERDATUM, 'value' => '2026-02-02'], '2026-10-02T07:14:02.000Z'),
         ]]);
 
         return [$a, $b];
