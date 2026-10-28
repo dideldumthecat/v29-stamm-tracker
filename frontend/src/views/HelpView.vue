@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
-import { XIcon } from '@lucide/vue'
+import { HeartIcon, XIcon } from '@lucide/vue'
 import AndroidInstallSteps from '@/components/AndroidInstallSteps.vue'
 import IosInstallSteps from '@/components/IosInstallSteps.vue'
 import { useStoragePersistence } from '@/composables/useStoragePersistence'
@@ -75,6 +75,19 @@ const appVersion = [__APP_REVISION__, formatShortDateTime(__APP_BUILD_TIME__)]
         {{ isPersisted === null ? 'unbekannt' : isPersisted ? 'ja' : 'nein' }}
       </p>
       <p>App-Version: {{ appVersion }}</p>
+      <p lang="en">
+        Built with
+        <HeartIcon
+          :size="13"
+          fill="currentColor"
+          class="inline -translate-y-0.5 align-middle"
+          aria-hidden="true"
+        />
+        <span class="sr-only">love</span> by
+        <a href="https://alexandersumma.de" target="_blank" rel="noopener" class="underline"
+          >Alexander Summa</a
+        >
+      </p>
     </div>
   </div>
 </template>
