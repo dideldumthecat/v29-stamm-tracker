@@ -36,3 +36,6 @@ AGENTS.md
 
 # Personal working list, not part of the repository
 /BACKLOG.md
+
+# Excel exports contain all data
+*.xlsx

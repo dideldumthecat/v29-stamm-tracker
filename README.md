@@ -120,9 +120,26 @@ The command prints a ready-to-send invite message with the address (from `DEFAUL
 | Symfony console | `ddev console …` |
 | Users | `app:user:create`, `app:user:list`, `app:user:revoke` |
 | Void a stem or beam created by mistake or twice (it leaves the snapshot, its tag is free again; a stem only once its beams are voided; recorded under the only admin) | `ddev console app:item:void 123` or `app:item:void 123-A [--force]` |
+| Export all stems and beams (current state, without voided) to Excel; without a path `stamm-tracker-export-YYYY-MM-DD.xlsx` in the current directory, see [Excel export](#excel-export) | `ddev console app:export [path.xlsx]` |
 | Rebuild projections from all events | `ddev console app:projections:rebuild` |
 | Import attributes from YAML (path relative to `backend/`) | `ddev console app:attributes:import data/attributes.example.yaml [--dry-run]` |
 | Testing only: delete events and projections (users stay) | `ddev console app:reset [--attributes] [--force]` |
+
+### Excel export
+
+`app:export` writes one sheet with a row per stem or beam: tag (plaque format), type, stem, created, created by, last change, then one column per attribute in attribute order. Inactive attributes appear only if an item has a value for them. Voided items are left out. It reads the same projections as the snapshot, so the file shows what the apps show after a sync.
+
+On IONOS, run it over SSH in the backend directory and download the file with `scp`:
+
+```sh
+ssh <user>@<host>
+cd <REMOTE_PATH>
+<PHP_BIN> bin/console app:export ~/stamm-tracker-export.xlsx   # prints path and row count
+exit
+scp <user>@<host>:stamm-tracker-export.xlsx .
+```
+
+Write the file outside `public/` (the home directory, as above): it holds all data and `public/` is served on the web. Delete it after downloading. Needed PHP extensions: `zip`, `dom`, `libxml`, `xmlreader`, `filter` (check with `php -m`).
 
 ### Starting a test over
 
