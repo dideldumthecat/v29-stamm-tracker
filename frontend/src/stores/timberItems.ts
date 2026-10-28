@@ -273,8 +273,17 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     return item && withInherited(item)
   }
 
+  // Sorted by tag like the Excel export: the snapshot order is device time, which skews between phones.
+  // Beams without a tag come last.
   function childrenOf(itemId: string): TimberItem[] {
-    return items.value.filter((item) => item.parent_id === itemId).map(withInherited)
+    return items.value
+      .filter((item) => item.parent_id === itemId)
+      .map(withInherited)
+      .sort(
+        (a, b) =>
+          Number(a.tag_number === null) - Number(b.tag_number === null) ||
+          (a.tag_number ?? '').localeCompare(b.tag_number ?? ''),
+      )
   }
 
   // undefined parent = stem not created yet, so no beams either. A removed unsynced beam frees its letter,

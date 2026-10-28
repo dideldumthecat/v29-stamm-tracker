@@ -76,6 +76,16 @@ describe('timber item store: beams and inheritance', () => {
     expect(store.findByTag('5-A')!.values[series.id]!.map((record) => record.value)).toEqual([30])
   })
 
+  it('lists the beams of a stem by tag, whatever order they arrived in', () => {
+    const store = useTimberItemStore()
+    const stem = store.findByTag('789')!
+    store.snapshot = { ...store.snapshot, timber_items: [...store.snapshot.timber_items].reverse() }
+    expect(
+      store.snapshot.timber_items.findIndex((item) => item.tag_number === '789-B'),
+    ).toBeLessThan(store.snapshot.timber_items.findIndex((item) => item.tag_number === '789-A'))
+    expect(store.childrenOf(stem.id).map((beam) => beam.tag_number)).toEqual(['789-A', '789-B'])
+  })
+
   it('letters beams, locks the parent and removes unsynced beams only', () => {
     const store = useTimberItemStore()
     const stem = store.findByTag('789')!
