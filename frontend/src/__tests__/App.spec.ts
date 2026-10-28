@@ -8,11 +8,17 @@ import { routes } from '../router'
 import { useTimberItemStore } from '@/stores/timberItems'
 import { useToast } from '@/composables/useToast'
 import { api, ApiError } from '@/api/client'
+import { checkForUpdateNow } from '@/composables/useUpdateCheck'
 
 const needRefresh = ref(false)
 const updateServiceWorker = vi.fn()
 vi.mock('virtual:pwa-register/vue', () => ({
   useRegisterSW: () => ({ needRefresh, updateServiceWorker }),
+}))
+
+vi.mock('@/composables/useUpdateCheck', () => ({
+  startUpdateCheck: vi.fn(),
+  checkForUpdateNow: vi.fn(),
 }))
 
 const mounted: { unmount: () => void }[] = []
@@ -691,6 +697,7 @@ describe('App', () => {
   })
 
   describe('sync page', () => {
+    beforeEach(() => vi.mocked(checkForUpdateNow).mockClear())
     afterEach(() => vi.restoreAllMocks())
 
     it('lists rejected duplicate captures on the result and drops them from the queue', async () => {
@@ -733,6 +740,7 @@ describe('App', () => {
       expect(router.currentRoute.value.name).toBe('sync')
       expect(wrapper.text()).toContain('2 Einträge übertragen')
       expect(wrapper.text()).not.toContain('noch nie')
+      expect(checkForUpdateNow).toHaveBeenCalledTimes(1)
     })
 
     it('shows a rejected batch and keeps it', async () => {
@@ -746,6 +754,7 @@ describe('App', () => {
       expect(wrapper.find('[role="alert"]').text()).toContain('abgelehnt (events[0]: broken)')
       expect(wrapper.text()).toContain('Stamm angelegt')
       expect(store.pendingCount).toBe(1)
+      expect(checkForUpdateNow).not.toHaveBeenCalled()
     })
   })
 })

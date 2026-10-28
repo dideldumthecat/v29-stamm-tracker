@@ -5,6 +5,7 @@ import { CircleCheckIcon, RefreshCwIcon, Trash2Icon, XIcon } from '@lucide/vue'
 import { ApiError } from '@/api/client'
 import type { Event } from '@/api/contract'
 import { useTimberItemStore, type SyncResult } from '@/stores/timberItems'
+import { checkForUpdateNow } from '@/composables/useUpdateCheck'
 import { formatValue } from '@/utils/attributeDraft'
 import { formatShortDateTime } from '@/utils/date'
 import { formatTag } from '@/utils/tag'
@@ -97,6 +98,8 @@ async function onSync() {
   failure.value = null
   try {
     result.value = await store.sync()
+    // Reception is proven now. Not awaited: the result page must not wait for it.
+    void checkForUpdateNow()
   } catch (error) {
     if (!(error instanceof ApiError)) {
       throw error

@@ -5,10 +5,18 @@ import { useRegisterSW } from 'virtual:pwa-register/vue'
 import { CircleCheckIcon, RefreshCwIcon, TriangleAlertIcon, XIcon } from '@lucide/vue'
 import FormattedTag from '@/components/FormattedTag.vue'
 import { useToast } from '@/composables/useToast'
+import { startUpdateCheck } from '@/composables/useUpdateCheck'
 
 const { current } = useToast()
 // registerType 'prompt': the new service worker waits until the user confirms.
-const { needRefresh, updateServiceWorker } = useRegisterSW()
+const { needRefresh, updateServiceWorker } = useRegisterSW({
+  // Registers once per page load and lives as long as the app, so the cleanup function is not needed.
+  onRegisteredSW(_url, registration) {
+    if (registration) {
+      startUpdateCheck(registration)
+    }
+  },
+})
 const route = useRoute()
 
 // Start screen only: updating reloads the app, which would throw away an unsaved entry.
