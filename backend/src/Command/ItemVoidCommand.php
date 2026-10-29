@@ -2,6 +2,7 @@
 
 namespace App\Command;
 
+use App\Api\Tag;
 use App\Entity\EventType;
 use App\Entity\TimberItem;
 use App\Entity\TimberItemEvent;
@@ -37,13 +38,13 @@ class ItemVoidCommand
         #[Argument(description: 'Tag, e.g. 123 or 123-A; leading zeros do not matter')] string $tag,
         #[Option(description: 'Skip the confirmation; required with --no-interaction')] bool $force = false,
     ): int {
-        // Counter principle as in the app: 0123-a is 123-A.
-        if (!preg_match('/^0*(\d+)(?:-([A-Za-z]))?$/', $tag, $match)) {
+        $normalized = Tag::normalize($tag);
+        if (null === $normalized) {
             $io->error(\sprintf('"%s" is not a tag like 123 or 123-A.', $tag));
 
             return Command::FAILURE;
         }
-        $tag = $match[1].(isset($match[2]) ? '-'.strtoupper($match[2]) : '');
+        $tag = $normalized;
 
         $items = $this->em->getRepository(TimberItem::class);
         $item = $items->findOneBy(['tagNumber' => $tag, 'voidedAt' => null]);

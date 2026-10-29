@@ -129,12 +129,13 @@ class AttributesImportCommandTest extends KernelTestCase
             - { name: Notiz, type: text, options: [A] }
             - { name: Klasse, type: choice, options: [A, A] }
             - { name: Gut, type: text }
+            - { name: Fotos, type: photo }
             YAML);
 
         self::assertSame(Command::FAILURE, $tester->getStatusCode());
         $display = preg_replace('/\s+/', ' ', $tester->getDisplay());
         foreach (['"Farbe": type must be', '"Länge": unknown key colour', '"Länge": unit is only allowed', '"Art": type choice needs options',
-            '"Notiz": options are only allowed', '"Klasse": option "A" appears more than once', '"Gut": name appears more than once'] as $error) {
+            '"Notiz": options are only allowed', '"Klasse": option "A" appears more than once', '"Gut": name appears more than once', '"Fotos": type photo needs is_series'] as $error) {
             self::assertStringContainsString($error, $display);
         }
         self::assertSame([], $this->attributes());

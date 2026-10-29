@@ -8,6 +8,7 @@ use App\Entity\AttributeOption;
 use App\Entity\AttributeType;
 use App\Entity\User;
 use App\Entity\UserRole;
+use App\Photo\PhotoStorage;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -15,6 +16,7 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\BrowserKit\Cookie;
 use Symfony\Component\Console\Tester\CommandTester;
 use Symfony\Component\HttpFoundation\Cookie as ResponseCookie;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -32,6 +34,7 @@ class ApiTest extends WebTestCase
     private const FAELLDATUM = 'a222dbf7-15cd-44cd-92c9-18969c610238';
     private const LAGERPLATZ = '1903019a-8027-4e12-8bc1-e1db3e08f803';
     private const TRAUBENEICHE = 'af0c94b3-caef-4a22-ac9d-32b76876a0d1';
+    private const FOTOS = 'c8bcdbf8-6f14-46e2-b82d-b6962ba1ae10';
     private const STIELEICHE = '8b2b5909-3247-4abe-8604-08909006f9e9';
 
     private KernelBrowser $client;
@@ -55,6 +58,50 @@ class ApiTest extends WebTestCase
             }
         }
         $this->em->flush();
+    }
+
+    protected function tearDown(): void
+    {
+        array_map('unlink', glob('/tmp/v29-photos-test/*/*.jpg') ?: []);
+        parent::tearDown();
+    }
+
+    private static function jpeg(int $bytes = 1000): string
+    {
+        return "\xFF\xD8\xFF\xE0".random_bytes($bytes - 4);
+    }
+
+    private function upload(string $content, ?string $id = null, ?string $itemId = null, ?string $as = 'Alexander'): array
+    {
+        $file = tempnam(sys_get_temp_dir(), 'photo');
+        file_put_contents($file, $content);
+        $this->client->getCookieJar()->clear();
+        if ($as) {
+            $this->client->getCookieJar()->set(new Cookie(SessionController::COOKIE, $as.'-test-token'));
+        }
+        $this->client->request('POST', '/api/photos', [
+            'id' => $id ?? self::fixture('photo-upload-response')['id'],
+            'timber_item_id' => $itemId ?? self::ITEM_123,
+            'taken_at' => '2026-10-02T07:12:00.000Z',
+        ], ['file' => new UploadedFile($file, 'photo.jpg', 'image/jpeg', null, true)]);
+
+        return json_decode($this->client->getResponse()->getContent(), true) ?? [];
+    }
+
+    private function photoCount(): int
+    {
+        return $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM photos');
+    }
+
+    private function download(string $id, ?string $as = 'Alexander'): string
+    {
+        $this->client->getCookieJar()->clear();
+        if ($as) {
+            $this->client->getCookieJar()->set(new Cookie(SessionController::COOKIE, $as.'-test-token'));
+        }
+        $this->client->request('GET', '/api/photos/'.$id);
+
+        return $this->client->getInternalResponse()->getContent();
     }
 
     private static function fixture(string $name): array
@@ -651,5 +698,107 @@ class ApiTest extends WebTestCase
         self::assertSame(1, $this->void('123', [])->getStatusCode());
         self::assertSame(1, $this->void('12x')->getStatusCode());
         self::assertArrayHasKey(self::ITEM_123, $this->snapshotItems());
+    }
+
+    public function testPhotoUploadStoresTheFileUnchangedAndAnswersLikeTheFixture(): void
+    {
+        $jpeg = self::jpeg();
+        $response = $this->upload($jpeg);
+
+        self::assertResponseStatusCodeSame(201);
+        self::assertSame(self::fixture('photo-upload-response'), $response);
+        $row = $this->em->getConnection()->fetchAssociative('SELECT size, sha256, taken_at, user_id FROM photos');
+        self::assertSame(1000, $row['size']);
+        self::assertSame(hash('sha256', $jpeg), $row['sha256']);
+        self::assertSame('2026-10-02 07:12:00.000000', $row['taken_at']);
+        self::assertSame(Uuid::fromString(self::ALEXANDER)->toBinary(), $row['user_id']);
+        self::assertSame($jpeg, file_get_contents(self::getContainer()->get(PhotoStorage::class)->path(Uuid::fromString($response['id']))));
+    }
+
+    public function testPhotoUploadRejectsTooLargeFilesAndNonJpegs(): void
+    {
+        $this->upload(self::jpeg(PhotoStorage::MAX_BYTES + 1));
+        self::assertResponseStatusCodeSame(413);
+
+        $this->upload('GIF89a not a jpeg');
+        self::assertResponseStatusCodeSame(415);
+
+        $this->upload(self::jpeg(), id: 'not-a-uuid');
+        self::assertResponseStatusCodeSame(400);
+        self::assertSame(0, $this->photoCount());
+    }
+
+    public function testPhotoUploadMayBeRepeatedWithoutDuplicates(): void
+    {
+        $jpeg = self::jpeg();
+        $this->upload($jpeg);
+        $this->upload(self::jpeg());
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(1, $this->photoCount());
+        self::assertSame($jpeg, $this->download(self::fixture('photo-upload-response')['id']));
+    }
+
+    public function testPhotosNeedAValidCookie(): void
+    {
+        $id = self::fixture('photo-upload-response')['id'];
+        $this->upload(self::jpeg(), as: null);
+        self::assertResponseStatusCodeSame(401);
+        self::assertSame(0, $this->photoCount());
+
+        $this->upload(self::jpeg());
+        $this->download($id, as: null);
+        self::assertResponseStatusCodeSame(401);
+        $this->download($id, as: 'Unknown');
+        self::assertResponseStatusCodeSame(401);
+    }
+
+    public function testPhotoDownloadServesTheJpegOrAnswers404(): void
+    {
+        $jpeg = self::jpeg();
+        $this->upload($jpeg);
+
+        self::assertSame($jpeg, $this->download(self::fixture('photo-upload-response')['id']));
+        self::assertResponseIsSuccessful();
+        self::assertSame('image/jpeg', $this->client->getResponse()->headers->get('Content-Type'));
+        self::assertSame('nosniff', $this->client->getResponse()->headers->get('X-Content-Type-Options'));
+
+        $this->download(Uuid::v4()->toRfc4122());
+        self::assertResponseStatusCodeSame(404);
+    }
+
+    public function testSyncAcceptsAPhotoEventBeforeItsFileArrives(): void
+    {
+        $this->syncItem123();
+        $photoId = self::fixture('photo-upload-response')['id'];
+        $response = $this->request('POST', '/api/sync', ['events' => [self::event('attribute_recorded', self::ITEM_123, ['attribute_id' => self::FOTOS, 'value' => $photoId])]]);
+
+        self::assertResponseIsSuccessful();
+        self::assertCount(1, $response['accepted_event_ids']);
+        self::assertSame($photoId, $this->values(self::ITEM_123)[self::FOTOS][0]['value']);
+        $this->download($photoId);
+        self::assertResponseStatusCodeSame(404);
+
+        $this->upload(self::jpeg());
+        $this->download($photoId);
+        self::assertResponseIsSuccessful();
+    }
+
+    public function testEveryPhotoOfAnItemCounts(): void
+    {
+        $this->syncItem123();
+        $ids = [Uuid::v4()->toRfc4122(), Uuid::v4()->toRfc4122()];
+        $this->request('POST', '/api/sync', ['events' => array_map(static fn (string $id) => self::event('attribute_recorded', self::ITEM_123, ['attribute_id' => self::FOTOS, 'value' => $id]), $ids)]);
+
+        self::assertSame($ids, array_column($this->values(self::ITEM_123)[self::FOTOS], 'value'));
+    }
+
+    public function testPingTellsTheUploadLimitsOfTheWebServer(): void
+    {
+        $response = $this->request('GET', '/api/ping', as: null);
+
+        self::assertTrue($response['ok']);
+        self::assertSame(ini_parse_quantity(ini_get('upload_max_filesize')), $response['upload_max_filesize']);
+        self::assertSame(ini_parse_quantity(ini_get('post_max_size')), $response['post_max_size']);
     }
 }

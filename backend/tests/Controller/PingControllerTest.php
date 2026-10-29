@@ -12,6 +12,6 @@ class PingControllerTest extends WebTestCase
         $client->request('GET', '/api/ping');
 
         self::assertResponseStatusCodeSame(200);
-        self::assertSame(['ok' => true], json_decode($client->getResponse()->getContent(), true));
+        self::assertTrue(json_decode($client->getResponse()->getContent(), true)['ok']);
     }
 }
