@@ -130,7 +130,7 @@ The dev server uses a **fake API** with the fixtures by default, so UI work need
 
 `app:export` writes one sheet with a row per stem or beam: tag (plaque format), type, stem, created, created by, last change, then one column per attribute in attribute order. Inactive attributes appear only if an item has a value for them. Voided items are left out. It reads the same projections as the snapshot, so the file shows what the apps show after a sync.
 
-On IONOS, run it over SSH in the backend directory and download the file with `scp`:
+On IONOS, run it over SSH from the home directory and download the file with `scp`:
 
 ```sh
 ssh <user>@<host>
