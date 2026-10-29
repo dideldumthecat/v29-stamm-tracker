@@ -180,13 +180,8 @@ export interface PhotoUploadResponse {
 // The JPEG exactly as uploaded (image/jpeg), only for signed-in users. 404 while the upload has not arrived.
 
 // --- GET /api/ping -----------------------------------------------------------
-// No login needed. The limits are those of the web server's PHP (the command line may differ):
-// a photo can only be uploaded if it is smaller than both.
+// No login needed.
 
 export interface PingResponse {
   ok: true
-  /** Bytes. */
-  upload_max_filesize: number
-  /** Bytes. */
-  post_max_size: number
 }
