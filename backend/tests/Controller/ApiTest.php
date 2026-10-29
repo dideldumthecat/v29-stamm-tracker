@@ -792,13 +792,4 @@ class ApiTest extends WebTestCase
 
         self::assertSame($ids, array_column($this->values(self::ITEM_123)[self::FOTOS], 'value'));
     }
-
-    public function testPingTellsTheUploadLimitsOfTheWebServer(): void
-    {
-        $response = $this->request('GET', '/api/ping', as: null);
-
-        self::assertTrue($response['ok']);
-        self::assertSame(ini_parse_quantity(ini_get('upload_max_filesize')), $response['upload_max_filesize']);
-        self::assertSame(ini_parse_quantity(ini_get('post_max_size')), $response['post_max_size']);
-    }
 }

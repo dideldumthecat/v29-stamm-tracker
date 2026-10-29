@@ -159,7 +159,7 @@ Photos are JPEGs, compressed on the device (4032 px long edge, quality 0.85); th
 - Storage: `<REMOTE_PATH>/var/photos/`. The folder is created on the first photo (mode 0750, owner = SSH user, who is also the PHP user on shared hosting – confirm with the first upload). `var/` is excluded from the deploy, so photos survive it.
 - The database dump of the on-demand backup does not contain photos; they need their own copy of `var/photos/`.
 - After the deploy, add the attribute once with `app:attributes:import data/attributes.yaml` (not on the sawmill days).
-- Upload limits of the web server: `curl https://<host>/api/ping` shows `upload_max_filesize` and `post_max_size` in bytes (the command line may have other values).
+- Upload limits of the web server: check with a temporary `public/boom.php` containing `<?php header('Content-Type: text/plain'); var_dump(ini_get('upload_max_filesize'), ini_get('post_max_size'));` (delete it afterwards), opened in the browser (the command line may have other values); see "Logs and php.ini (IONOS)".
 - Import: copy the photos and `photos.csv` to a folder outside `public/` (e.g. `~/photo-import/`), then:
 
 ```sh
@@ -266,7 +266,6 @@ On the server, `.htaccess` routes `/api/*` and `/admin/*` to Symfony, serves exi
 cd <REMOTE_PATH>
 mkdir -p var/log
 sed "s#<REMOTE_PATH>#$(pwd)#" php.ini.example > public/php.ini
-curl https://<host>/api/ping    # upload_max_filesize and post_max_size are still 67108864 (64 MB)
 ```
 
 - Read the logs:
@@ -281,8 +280,8 @@ tail -n 20 php-errors.log
 **Check after the deploy** (nothing stays in the repo)
 
 - Symfony log: `curl -s -X POST https://<host>/api/session -H 'Content-Type: application/json' -d '{"token":"test"}'` answers 401 and writes an `ERROR` line "Unknown or revoked invite link" in `prod-<today>.log`, preceded by a "Matched route" line. A normal request (`curl https://<host>/api/ping`) and a 404 (`curl https://<host>/api/nothing`) add nothing.
-- Console: `<PHP_BIN> bin/console doctrine:query:sql "SELECT * FROM missing_table"` throws, and the exception appears in the same file.
-- `php.ini`: over SSH, create `public/boom.php` containing `<?php header('Content-Type: text/plain'); var_dump(ini_get('log_errors'), ini_get('error_log')); trigger_error('user-ini-test', E_USER_ERROR);`, open `https://<host>/boom.php`: it shows `string(1) "1"` and the path to `php-errors.log`, and `tail php-errors.log` shows the error. Delete `public/boom.php` afterwards. If the values are wrong, `public/php.ini` is not read (check the name and the path). `curl https://<host>/api/ping` still shows 67108864.
+- Console: `<PHP_BIN> bin/console dbal:run-sql "SELECT * FROM missing_table"` throws, and the exception appears in the same file.
+- `php.ini`: over SSH, create `public/boom.php` containing `<?php header('Content-Type: text/plain'); var_dump(ini_get('log_errors'), ini_get('error_log'), ini_get('upload_max_filesize'), ini_get('post_max_size')); trigger_error('php-ini-test', E_USER_WARNING);`, open `https://<host>/boom.php`: it shows `string(1) "1"`, the path to `php-errors.log` and the upload limits (`64M` each, as in the template), and `tail php-errors.log` shows the warning. Delete `public/boom.php` afterwards. If the values are wrong, `public/php.ini` is not read (check the name and the path).
 
 ## Conventions
 
