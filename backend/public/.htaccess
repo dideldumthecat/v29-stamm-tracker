@@ -61,6 +61,11 @@ DirectoryIndex index.html index.php
     RewriteRule ^ %{ENV:BASE}/index.html [L]
 </IfModule>
 
+# Server-only PHP settings, never served (the real php.ini is not in the repository).
+<FilesMatch "^php\.ini$">
+    Require all denied
+</FilesMatch>
+
 <IfModule mod_mime.c>
     AddType application/manifest+json .webmanifest
 </IfModule>

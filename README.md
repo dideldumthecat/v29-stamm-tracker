@@ -256,6 +256,34 @@ On the server, `.htaccess` routes `/api/*` and `/admin/*` to Symfony, serves exi
 - Server: create `backend/.env.local` from `backend/.env.local.example`.
 - GitHub environment `IONOS` – secrets `SSH_HOST`, `SSH_USERNAME`, `DEPLOY_SSH_PRIVATE_KEY`, `KNOWN_HOST_KEY`, `REMOTE_PATH`; variable `PHP_BIN` (on IONOS, plain `php` is an ancient version, so the path to the PHP 8.4 binary has to be set explicitly).
 
+### Logs and php.ini (IONOS)
+
+- **Symfony errors:** `<REMOTE_PATH>/var/log/prod-YYYY-MM-DD.log`, one file per day, the last 14 are kept. Nothing is written for successful requests and for 404/405. On an error (including 4xx such as a wrong invite code or a rejected sync with 400) the log holds the lines before it from the same request or command run (at most 100). Uncaught exceptions in console commands land there too; handled failures that only print `[ERROR]` (e.g. an unreadable CSV) do not. Invite codes, cookies and request bodies are not logged.
+- **PHP errors before Symfony starts:** `<REMOTE_PATH>/var/log/php-errors.log`, set by `public/php.ini`. This file is **not rotated**; delete or truncate it now and then (`: > php-errors.log`).
+- `public/php.ini` exists only on the server (ignored by git, kept by the deploy, blocked in `.htaccess` – `/php.ini` answers 403). For IONOS contracts from before 21 Jul 2026 (ours) a `php.ini` applies to its own directory only, not to subfolders; contracts from that date on read only `/home/www/php.ini` (and need `apachectl restart`), see [IONOS: customizing PHP settings](https://www.ionos.com/help/hosting/using-php-for-web-projects/customizing-the-php-settings-using-the-phpini-file/). The documentation does not say whether the file adds to or replaces the default settings, so the template repeats the upload limits. Create it once from the template; the `var/log` folder must exist for PHP to write there:
+
+```sh
+cd <REMOTE_PATH>
+mkdir -p var/log
+sed "s#<REMOTE_PATH>#$(pwd)#" php.ini.example > public/php.ini
+curl https://<host>/api/ping    # upload_max_filesize and post_max_size are still 67108864 (64 MB)
+```
+
+- Read the logs:
+
+```sh
+cd <REMOTE_PATH>/var/log
+tail -n 50 prod-$(date +%F).log
+grep -h CRITICAL prod-*.log
+tail -n 20 php-errors.log
+```
+
+**Check after the deploy** (nothing stays in the repo)
+
+- Symfony log: `curl -s -X POST https://<host>/api/session -H 'Content-Type: application/json' -d '{"token":"test"}'` answers 401 and writes an `ERROR` line "Unknown or revoked invite link" in `prod-<today>.log`, preceded by a "Matched route" line. A normal request (`curl https://<host>/api/ping`) and a 404 (`curl https://<host>/api/nothing`) add nothing.
+- Console: `<PHP_BIN> bin/console doctrine:query:sql "SELECT * FROM missing_table"` throws, and the exception appears in the same file.
+- `php.ini`: over SSH, create `public/boom.php` containing `<?php header('Content-Type: text/plain'); var_dump(ini_get('log_errors'), ini_get('error_log')); trigger_error('user-ini-test', E_USER_ERROR);`, open `https://<host>/boom.php`: it shows `string(1) "1"` and the path to `php-errors.log`, and `tail php-errors.log` shows the error. Delete `public/boom.php` afterwards. If the values are wrong, `public/php.ini` is not read (check the name and the path). `curl https://<host>/api/ping` still shows 67108864.
+
 ## Conventions
 
 - Code, comments, commit messages and documentation in English. Content defined by V29 (attribute names, options) and the user interface are German.

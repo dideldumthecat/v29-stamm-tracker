@@ -1,0 +1,45 @@
+monolog:
+    channels: # To see all channels, run bin/console debug:autowiring logger
+        - deprecation # Deprecations are logged in the dedicated "deprecation" channel when it exists
+
+when@dev:
+    monolog:
+        handlers:
+            main:
+                type: stream
+                path: "%kernel.logs_dir%/%kernel.environment%.log"
+                level: debug
+                channels: ["!event"]
+            console:
+                type: console
+                process_psr_3_messages: false
+                channels: ["!event", "!doctrine", "!console"]
+
+when@test:
+    monolog:
+        handlers:
+            # Tests must not grow a log file; failures show up as test failures.
+            main:
+                type: 'null'
+
+when@prod:
+    monolog:
+        handlers:
+            # Buffers a whole request (or command run) and writes it, including the lines before the error,
+            # only if an error happens. 404/405 (bots, typos) do not count.
+            main:
+                type: fingers_crossed
+                action_level: error
+                handler: file
+                excluded_http_codes: [404, 405]
+                channels: ["!deprecation"]
+                buffer_size: 100 # Oldest lines drop out, so a long sync or photo import cannot fill the memory
+            file:
+                type: rotating_file
+                path: "%kernel.logs_dir%/%kernel.environment%.log"
+                level: debug
+                max_files: 14
+            console:
+                type: console
+                process_psr_3_messages: false
+                channels: ["!event", "!doctrine"]
