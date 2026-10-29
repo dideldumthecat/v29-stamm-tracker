@@ -164,7 +164,7 @@ class ExportCommandTest extends KernelTestCase
 
         self::assertSame(Command::SUCCESS, $this->tester->getStatusCode());
         self::assertCount(1, $files);
-        self::assertMatchesRegularExpression('/stamm-tracker-export-\d{4}-\d{2}-\d{2}\.xlsx$/', $files[0]);
+        self::assertMatchesRegularExpression('/stamm-tracker-export-\d{4}-\d{2}-\d{2}-\d{4}\.xlsx$/', $files[0]);
         unlink($files[0]);
         rmdir($directory);
     }

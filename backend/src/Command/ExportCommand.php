@@ -39,10 +39,10 @@ class ExportCommand
 
     public function __invoke(
         SymfonyStyle $io,
-        #[Argument(description: 'Target file; default stamm-tracker-export-YYYY-MM-DD.xlsx in the current directory')] ?string $file = null,
+        #[Argument(description: 'Target file; default stamm-tracker-export-YYYY-MM-DD-HHMM.xlsx (Berlin time) in the current directory')] ?string $file = null,
     ): int {
         $berlin = new \DateTimeZone('Europe/Berlin');
-        $file ??= \sprintf('%s/stamm-tracker-export-%s.xlsx', getcwd(), (new \DateTimeImmutable('now', $berlin))->format('Y-m-d'));
+        $file ??= \sprintf('%s/stamm-tracker-export-%s.xlsx', getcwd(), (new \DateTimeImmutable('now', $berlin))->format('Y-m-d-Hi'));
 
         $items = $this->em->getRepository(TimberItem::class)->findBy(['voidedAt' => null]);
         $values = [];
