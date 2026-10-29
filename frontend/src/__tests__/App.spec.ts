@@ -177,8 +177,8 @@ describe('App', () => {
       expect(toast.querySelector('button')).toBeNull()
       expect(toast.querySelector('svg')).not.toBeNull()
 
-      // Slide-in (200 ms) does not count towards the 1.5 s.
-      vi.advanceTimersByTime(1500)
+      // Slide-in (200 ms) does not count towards the 3 s.
+      vi.advanceTimersByTime(3000)
       await flushPromises()
       expect(document.body.querySelector(':scope > div > [role="status"]')).not.toBeNull()
       vi.advanceTimersByTime(200)
@@ -203,11 +203,26 @@ describe('App', () => {
       await flushPromises()
       const status = () => document.body.querySelector(':scope > div > [role="status"]')
       expect(status()?.textContent).toContain('Zweiter')
-      vi.advanceTimersByTime(1499)
+      vi.advanceTimersByTime(2999)
       await flushPromises()
       expect(status()).not.toBeNull()
       vi.advanceTimersByTime(1)
       await flushPromises()
+      expect(toast.current.value).toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('keeps a warning toast for 5 s', async () => {
+    vi.useFakeTimers()
+    try {
+      await mountAt('/')
+      const toast = useToast()
+      toast.show({ before: 'Achtung', kind: 'warning' })
+      vi.advanceTimersByTime(4999)
+      expect(toast.current.value).not.toBeNull()
+      vi.advanceTimersByTime(201)
       expect(toast.current.value).toBeNull()
     } finally {
       vi.useRealTimers()
@@ -249,7 +264,7 @@ describe('App', () => {
         expect(hint()).toBeUndefined()
         expect(document.body.textContent).toContain('Gespeichert')
 
-        vi.advanceTimersByTime(1500)
+        vi.advanceTimersByTime(3000)
         await flushPromises()
         // Toast slides out first (out-in), then the hint slides in.
         vi.advanceTimersByTime(500)
