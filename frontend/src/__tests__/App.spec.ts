@@ -8,7 +8,7 @@ import { routes } from '../router'
 import { useTimberItemStore } from '@/stores/timberItems'
 import { useToast } from '@/composables/useToast'
 import { api, ApiError } from '@/api/client'
-import { checkForUpdateNow } from '@/composables/useUpdateCheck'
+import { applyUpdate, checkForUpdateNow } from '@/composables/useUpdateCheck'
 
 const needRefresh = ref(false)
 const updateServiceWorker = vi.fn()
@@ -18,6 +18,7 @@ vi.mock('virtual:pwa-register/vue', () => ({
 
 vi.mock('@/composables/useUpdateCheck', () => ({
   startUpdateCheck: vi.fn(),
+  applyUpdate: vi.fn(),
   checkForUpdateNow: vi.fn(),
 }))
 
@@ -246,7 +247,11 @@ describe('App', () => {
         ;[...hint()!.querySelectorAll('button')]
           .find((b) => b.textContent?.includes('Aktualisieren'))!
           .click()
-        expect(updateServiceWorker).toHaveBeenCalledWith(true)
+        await flushPromises()
+        expect(applyUpdate).toHaveBeenCalledWith(updateServiceWorker)
+        const button = hint()!.querySelector('button') as HTMLButtonElement
+        expect(button.disabled).toBe(true)
+        expect(button.textContent).toContain('Wird aktualisiert')
       } finally {
         vi.useRealTimers()
       }

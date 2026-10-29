@@ -1,6 +1,8 @@
 // Same reasoning as MIN_REFRESH_INTERVAL_MS: short stays at other apps should not each cost a request.
 export const MIN_UPDATE_CHECK_INTERVAL_MS = 60_000
 export const UPDATE_CHECK_PERIOD_MS = 60 * 60_000
+// Longer than a normal activation, short enough that the user does not give up and force-quit the app.
+export const APPLY_UPDATE_TIMEOUT_MS = 4000
 
 // Set by startUpdateCheck; stays null in development and tests, where nothing is registered.
 let activeRegistration: ServiceWorkerRegistration | null = null
@@ -26,6 +28,30 @@ export async function checkForUpdateNow(): Promise<void> {
   if (activeRegistration && canUpdate(activeRegistration)) {
     await update(activeRegistration)
   }
+}
+
+/**
+ * Activates the waiting service worker and reloads once it has taken over.
+ * vite-plugin-pwa only reloads on `controllerchange`, which iOS standalone apps do not reliably deliver,
+ * so this watches the worker's own state and falls back to a reload after a timeout. Reloads at most once.
+ */
+export function applyUpdate(updateServiceWorker: (reloadPage?: boolean) => Promise<void>): void {
+  let reloaded = false
+  function reload() {
+    if (!reloaded) {
+      reloaded = true
+      window.location.reload()
+    }
+  }
+
+  const waiting = activeRegistration?.waiting
+  waiting?.addEventListener('statechange', () => {
+    if (waiting.state === 'activated') {
+      reload()
+    }
+  })
+  setTimeout(reload, APPLY_UPDATE_TIMEOUT_MS)
+  void updateServiceWorker(true)
 }
 
 /**
