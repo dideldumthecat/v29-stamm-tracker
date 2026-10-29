@@ -1,0 +1,16 @@
+; Template for public/php.ini on IONOS. The real file exists only on the server (see README, "Logs and php.ini").
+; Replace <REMOTE_PATH> with the absolute path of the backend folder on the server (a relative path
+; would depend on the working directory of the script).
+
+; Errors that happen before Symfony starts (or in a broken deploy) end up here; Symfony's own errors go to var/log/prod-*.log.
+log_errors = On
+display_errors = Off
+error_log = <REMOTE_PATH>/var/log/php-errors.log
+
+; IONOS does not document whether a php.ini adds to or replaces the defaults, so keep the limits the photo upload
+; needs (the app sends at most 10 MB per photo).
+upload_max_filesize = 64M
+post_max_size = 64M
+
+; Keeps argument values (invite codes) out of stack traces.
+zend.exception_ignore_args = On

@@ -4,6 +4,7 @@
 /.env.*.local
 /.env.test
 /var/
+/public/php.ini
 /tests/
 /phpunit.dist.xml
 /.phpunit.cache/
