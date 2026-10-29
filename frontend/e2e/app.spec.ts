@@ -256,3 +256,28 @@ test('opening the app refreshes the data without tapping and keeps pending entri
   await expect(page.getByText('Stand der Daten:')).not.toContainText('noch nie')
   await expect(page.getByRole('link', { name: 'Synchronisieren, 2 offene Einträge' })).toBeVisible()
 })
+
+// iOS cannot lock the orientation, so landscape on a phone shows an overlay over the (still mounted) app.
+test('landscape phone shows the rotate hint and keeps the entry', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: '7', exact: true }).click()
+  const hint = page.getByText('Bitte das Handy hochkant halten.')
+  await expect(hint).toBeHidden()
+
+  await page.setViewportSize({ width: 844, height: 390 })
+  await expect(hint).toBeVisible()
+  await expect(
+    page.getByRole('button', { name: '7', exact: true }).click({ trial: true, timeout: 1000 }),
+  ).rejects.toThrow(/intercepts pointer events/)
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expect(hint).toBeHidden()
+  await expect(page.getByText('Stammnummer: 7')).toBeAttached()
+})
+
+test('landscape tablet shows no rotate hint', async ({ page }) => {
+  await page.setViewportSize({ width: 1024, height: 768 })
+  await page.goto('/')
+  await expect(page.locator('h1')).toBeVisible()
+  await expect(page.getByText('Bitte das Handy hochkant halten.')).toBeHidden()
+})

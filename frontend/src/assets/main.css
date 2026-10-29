@@ -7,6 +7,8 @@
 /* Low screens (small phones, browser bars): slightly flatter elements */
 @custom-variant short (@media (max-height: 760px));
 @custom-variant shorter (@media (max-height: 700px));
+/* Phone held sideways. The max-height keeps tablets and desktop windows out. */
+@custom-variant landscape-phone (@media (orientation: landscape) and (max-height: 500px));
 
 @theme {
   /* Only our own colors – the default palette (red-500 etc.) is switched off */
