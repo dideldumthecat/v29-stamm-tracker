@@ -1,5 +1,7 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from 'vitest'
 import {
+  APPLY_UPDATE_TIMEOUT_MS,
+  applyUpdate,
   checkForUpdateNow,
   MIN_UPDATE_CHECK_INTERVAL_MS,
   UPDATE_CHECK_PERIOD_MS,
@@ -126,5 +128,58 @@ describe('service worker update check', () => {
     setVisibility('visible')
     vi.advanceTimersByTime(UPDATE_CHECK_PERIOD_MS)
     expect(update).not.toHaveBeenCalled()
+  })
+})
+
+describe('applying a waiting update', () => {
+  let waiting: EventTarget & { state: string }
+  let updateServiceWorker: Mock<(reloadPage?: boolean) => Promise<void>>
+  let reload: ReturnType<typeof vi.fn>
+  let stop: () => void
+
+  function setState(state: string) {
+    waiting.state = state
+    waiting.dispatchEvent(new Event('statechange'))
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+    waiting = Object.assign(new EventTarget(), { state: 'installed' })
+    updateServiceWorker = vi.fn<(reloadPage?: boolean) => Promise<void>>().mockResolvedValue()
+    reload = vi.fn()
+    vi.stubGlobal('location', { reload })
+    stop = startUpdateCheck({ waiting } as unknown as ServiceWorkerRegistration)
+    applyUpdate(updateServiceWorker)
+  })
+
+  afterEach(() => {
+    stop()
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
+  })
+
+  it('asks the plugin to activate the worker', () => {
+    expect(updateServiceWorker).toHaveBeenCalledWith(true)
+    expect(reload).not.toHaveBeenCalled()
+  })
+
+  it('reloads when the worker reports activated', () => {
+    setState('activating')
+    expect(reload).not.toHaveBeenCalled()
+    setState('activated')
+    expect(reload).toHaveBeenCalledTimes(1)
+  })
+
+  it('reloads after the timeout if nothing happens', () => {
+    vi.advanceTimersByTime(APPLY_UPDATE_TIMEOUT_MS - 1)
+    expect(reload).not.toHaveBeenCalled()
+    vi.advanceTimersByTime(1)
+    expect(reload).toHaveBeenCalledTimes(1)
+  })
+
+  it('reloads only once when both happen', () => {
+    setState('activated')
+    vi.advanceTimersByTime(APPLY_UPDATE_TIMEOUT_MS)
+    expect(reload).toHaveBeenCalledTimes(1)
   })
 })

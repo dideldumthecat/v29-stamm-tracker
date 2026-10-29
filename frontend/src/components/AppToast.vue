@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useRegisterSW } from 'virtual:pwa-register/vue'
 import { CircleCheckIcon, RefreshCwIcon, TriangleAlertIcon, XIcon } from '@lucide/vue'
 import FormattedTag from '@/components/FormattedTag.vue'
 import { useToast } from '@/composables/useToast'
-import { startUpdateCheck } from '@/composables/useUpdateCheck'
+import { applyUpdate, startUpdateCheck } from '@/composables/useUpdateCheck'
 
 const { current } = useToast()
 // registerType 'prompt': the new service worker waits until the user confirms.
@@ -18,6 +18,12 @@ const { needRefresh, updateServiceWorker } = useRegisterSW({
   },
 })
 const route = useRoute()
+const updating = ref(false)
+
+function update() {
+  updating.value = true
+  applyUpdate(updateServiceWorker)
+}
 
 // Start screen only: updating reloads the app, which would throw away an unsaved entry.
 // A regular toast takes precedence; the update hint returns once it is gone.
@@ -70,10 +76,11 @@ const showUpdate = computed(() => needRefresh.value && route.name === 'start' &&
           <span class="min-w-0 flex-1">Neue Version verfügbar</span>
           <button
             type="button"
-            class="min-h-11 shrink-0 px-1.5 font-normal text-ink underline"
-            @click="updateServiceWorker(true)"
+            class="min-h-11 shrink-0 px-1.5 font-normal text-ink underline disabled:text-mute disabled:no-underline"
+            :disabled="updating"
+            @click="update"
           >
-            Aktualisieren
+            {{ updating ? 'Wird aktualisiert …' : 'Aktualisieren' }}
           </button>
           <button
             type="button"
