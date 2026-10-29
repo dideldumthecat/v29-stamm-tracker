@@ -22,7 +22,8 @@ export type CalendarMonth = string
 // 401 invite code unknown or revoked → app shows "Kein Zugang" (sitemap)
 // 400 malformed request (bug in the app, not a user error)
 // 5xx / network error → sync failed, events stay in the local queue
-// Photo upload follows with the photo feature (not part of the MVP).
+// 413 photo larger than 10 MB, 415 photo is not a JPEG (POST /api/photos only)
+// 401 also applies to POST /api/photos and GET /api/photos/{id}.
 
 // --- POST /api/session ------------------------------------------------------
 // Called once when the invite code is entered. Request: { "token": "<the code>" }.
@@ -102,7 +103,8 @@ export interface AttributeValueRecord {
 }
 
 /** boolean → true/false, choice → option id (never the label), number → number,
- *  text → string, date → CalendarDate, month → CalendarMonth, photo → photo id. */
+ *  text → string, date → CalendarDate, month → CalendarMonth, photo → photo id.
+ *  A photo id can be recorded before its file is uploaded: GET /api/photos/{id} answers 404 until then. */
 export type AttributeValue = boolean | number | string
 
 // --- POST /api/sync ----------------------------------------------------------
@@ -153,3 +155,38 @@ export type Event =
       data: { attribute_id: Uuid; value: AttributeValue }
     })
 // corrected and voided are created in the administration only and never sent by the app.
+
+// --- POST /api/photos --------------------------------------------------------
+// multipart/form-data, one JPEG per request. Independent of POST /api/sync: before or after the event that
+// records the photo id, and a failed upload never blocks the sync. Repeating an upload of the same id is harmless.
+// Status: 201 stored, 200 id already known (nothing changed), 400 malformed, 401, 413 over 10 MB, 415 not a JPEG.
+// The file is stored unchanged; compression happens on the device (4032 px long edge, JPEG 0.85).
+
+/** Form fields; the JPEG itself is the file part "file". */
+export interface PhotoUploadFields {
+  /** Generated on the device (crypto.randomUUID()); the value recorded for the photo attribute. */
+  id: Uuid
+  /** The stem or beam the photo was taken for. It does not need to exist on the server yet. */
+  timber_item_id: Uuid
+  /** Device time of the shot. */
+  taken_at: Timestamp
+}
+
+export interface PhotoUploadResponse {
+  id: Uuid
+}
+
+// --- GET /api/photos/{id} ----------------------------------------------------
+// The JPEG exactly as uploaded (image/jpeg), only for signed-in users. 404 while the upload has not arrived.
+
+// --- GET /api/ping -----------------------------------------------------------
+// No login needed. The limits are those of the web server's PHP (the command line may differ):
+// a photo can only be uploaded if it is smaller than both.
+
+export interface PingResponse {
+  ok: true
+  /** Bytes. */
+  upload_max_filesize: number
+  /** Bytes. */
+  post_max_size: number
+}

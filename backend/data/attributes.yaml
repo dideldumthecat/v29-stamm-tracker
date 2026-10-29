@@ -52,3 +52,7 @@
 - name: Notiz
   type: text
   is_series: true
+
+- name: Fotos
+  type: photo
+  is_series: true

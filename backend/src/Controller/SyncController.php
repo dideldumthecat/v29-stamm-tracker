@@ -235,7 +235,7 @@ final class SyncController extends AbstractController
             AttributeType::Month => \is_string($value) && (\DateTimeImmutable::createFromFormat('!Y-m', $value) ?: null)?->format('Y-m') === $value,
             AttributeType::Choice => \is_string($value) && Uuid::isValid($value)
                 && $this->em->find(AttributeOption::class, Uuid::fromString($value))?->attribute === $attribute,
-            // TODO: check that the photo exists once photos are uploaded.
+            // The file is uploaded separately (PhotoController) and may arrive after this event: not checked.
             AttributeType::Photo => \is_string($value) && Uuid::isValid($value),
         };
         if (!$valid) {

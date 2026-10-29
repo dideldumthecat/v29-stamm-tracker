@@ -122,6 +122,7 @@ The dev server uses a **fake API** with the fixtures by default, so UI work need
 | Users | `app:user:create`, `app:user:list`, `app:user:revoke` |
 | Void a stem or beam created by mistake or twice (it leaves the snapshot, its tag is free again; a stem only once its beams are voided; recorded under the only admin) | `ddev console app:item:void 123` or `app:item:void 123-A [--force]` |
 | Export all stems and beams (current state, without voided) to Excel; without a path `stamm-tracker-export-YYYY-MM-DD-HHMM.xlsx` (Berlin time) in the current directory, see [Excel export](#excel-export) | `ddev console app:export [path.xlsx]` |
+| Attach photos to stems and beams from a CSV (`file,tag` or `file;tag`), see [Photos](#photos) | `ddev console app:photo:import photos.csv [--dry-run]` |
 | Rebuild projections from all events | `ddev console app:projections:rebuild` |
 | Import attributes from YAML (path relative to `backend/`; creates and updates, never deletes) | `ddev console app:attributes:import data/attributes.yaml [--dry-run]` |
 | Testing only: delete events and projections (users stay) | `ddev console app:reset [--attributes] [--force]` |
@@ -141,6 +142,31 @@ scp <user>@<host>:<file name from the output> .
 ```
 
 The file lands in the current directory, so run it from the home directory, not from `public/`: it holds all data and `public/` is served on the web. Delete it after downloading. Needed PHP extensions: `zip`, `dom`, `libxml`, `xmlreader`, `filter` (check with `php -m`).
+
+### Photos
+
+Photos are JPEGs, compressed on the device (4032 px long edge, quality 0.85); the server stores them unchanged and rejects files over 10 MB. They live in `var/photos/` (outside `public/`, set another folder with `PHOTO_DIR`) and are served only by `GET /api/photos/{id}` to signed-in users. A photo is an ordinary value of the one photo attribute ("Fotos", a series): the id is synced as an event, the file is uploaded separately via `POST /api/photos`, in any order.
+
+`app:photo:import` attaches existing photos to stems and beams. The CSV has the header `file,tag` or `file;tag` (the separator is taken from the header; quoted fields work as usual), file paths are relative to the CSV, the tag may have leading zeros. Rows with an unknown tag, a missing file, a non-JPEG or a file over 10 MB are skipped and listed at the end. Run `--dry-run` first.
+
+- **Convert the originals only once** (Mac: `sips -Z 4032 -s format jpeg -s formatOptions 85`). Converting again gives different checksums, and the import treats the files as new photos: duplicates are detected by checksum per stem or beam.
+- A second run with the same files adds nothing.
+- The capture time comes from the EXIF date (`DateTimeOriginal`, read as Berlin time), otherwise from the file date. Needs the PHP extension `exif` (`php -m`).
+- The photos are recorded under the only admin, or under the user given with `--user` (name or ID).
+
+**On IONOS**
+
+- Storage: `<REMOTE_PATH>/var/photos/`. The folder is created on the first photo (mode 0750, owner = SSH user, who is also the PHP user on shared hosting – confirm with the first upload). `var/` is excluded from the deploy, so photos survive it.
+- The database dump of the on-demand backup does not contain photos; they need their own copy of `var/photos/`.
+- After the deploy, add the attribute once with `app:attributes:import data/attributes.yaml` (not on the sawmill days).
+- Upload limits of the web server: `curl https://<host>/api/ping` shows `upload_max_filesize` and `post_max_size` in bytes (the command line may have other values).
+- Import: copy the photos and `photos.csv` to a folder outside `public/` (e.g. `~/photo-import/`), then:
+
+```sh
+cd ~/photo-import
+<PHP_BIN> <REMOTE_PATH>/bin/console app:photo:import photos.csv --dry-run
+<PHP_BIN> <REMOTE_PATH>/bin/console app:photo:import photos.csv
+```
 
 ### Starting a test over
 

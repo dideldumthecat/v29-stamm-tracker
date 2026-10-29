@@ -200,6 +200,10 @@ class AttributesImportCommand
                     $fail("$key must be true or false.");
                 }
             }
+            // Every photo counts and none replaces another (T11); only a series keeps all recordings.
+            if (AttributeType::Photo === $type && !($entry['is_series'] ?? false)) {
+                $fail('type photo needs is_series: true.');
+            }
             if (isset($entry['unit']) && AttributeType::Number !== $type) {
                 $fail('unit is only allowed for type number.');
             }
