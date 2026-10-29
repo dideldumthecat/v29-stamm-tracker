@@ -160,7 +160,7 @@ export type Event =
 // multipart/form-data, one JPEG per request. Independent of POST /api/sync: before or after the event that
 // records the photo id, and a failed upload never blocks the sync. Repeating an upload of the same id is harmless.
 // Status: 201 stored, 200 id already known (nothing changed), 400 malformed, 401, 413 over 10 MB, 415 not a JPEG.
-// The file is stored unchanged; compression happens on the device (4032 px long edge, JPEG 0.85).
+// The file is stored unchanged; compression happens on the device (4032 px long edge, JPEG 0.7).
 
 /** Form fields; the JPEG itself is the file part "file". */
 export interface PhotoUploadFields {
