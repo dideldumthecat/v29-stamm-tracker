@@ -588,25 +588,6 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     discard((candidate) => itemIds.has(candidate.timber_item_id), itemIds)
   }
 
-  /** Another item that holds the tag, in the snapshot or through pending events. */
-  function tagHolder(tagNumber: number, exceptId: string): TimberItem | undefined {
-    return items.value.find((item) => item.tag_number === String(tagNumber) && item.id !== exceptId)
-  }
-
-  // Same tag again is no change. Also a beam gets a plain tag: its new plaque.
-  function assignTag(itemId: string, tagNumber: number) {
-    const item = findById(itemId)
-    if (!item || item.has_children) {
-      throw new Error(`Timber item ${itemId} is unknown or split into beams`)
-    }
-    if (tagHolder(tagNumber, itemId)) {
-      throw new Error(`Tag ${tagNumber} is taken`)
-    }
-    if (item.tag_number !== String(tagNumber)) {
-      emit('tag_assigned', itemId, { tag_number: String(tagNumber) })
-    }
-  }
-
   function assertRecordable(itemId: string) {
     const item = findById(itemId)
     if (!item) {
@@ -693,8 +674,6 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     isPhotoQueued,
     pendingPhotosOf,
     uploadedPhotoCount,
-    tagHolder,
-    assignTag,
     redeemInvite,
     load,
     sync,

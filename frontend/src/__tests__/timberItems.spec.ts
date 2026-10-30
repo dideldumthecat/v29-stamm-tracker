@@ -17,6 +17,21 @@ const cloneEverySave = () => structuredClone(vi.mocked(save).mock.calls)
 const attributeId = (name: string) =>
   useTimberItemStore().attributes.find((attribute) => attribute.name === name)!.id
 
+// The app no longer changes tags, but phones may still hold such events from before.
+const queueTagChange = (
+  store: ReturnType<typeof useTimberItemStore>,
+  itemId: string,
+  tag: number,
+) =>
+  store.events.push({
+    id: crypto.randomUUID(),
+    schema_version: 1,
+    type: 'tag_assigned',
+    timber_item_id: itemId,
+    recorded_at: new Date().toISOString(),
+    data: { tag_number: String(tag) },
+  })
+
 describe('timber item store: beams and inheritance', () => {
   beforeEach(() => setActivePinia(createPinia()))
 
@@ -154,7 +169,7 @@ describe('timber item store: discarding pending entries', () => {
   it('brings the old tag back when a tag change on a synced item is discarded', () => {
     const store = useTimberItemStore()
     const beam = store.findByTag('789-A')!
-    store.assignTag(beam.id, 345)
+    queueTagChange(store, beam.id, 345)
     store.discardEntry(entryId(store, 'tag_assigned', beam.id))
     expect(store.findByTag('345')).toBeUndefined()
     expect(store.findByTag('789-A')!.id).toBe(beam.id)
@@ -203,35 +218,10 @@ describe('timber item store: discarding pending entries', () => {
 describe('timber item store: tag changes', () => {
   beforeEach(() => setActivePinia(createPinia()))
 
-  it('moves an item to a free tag; the old tag finds nothing and the change counts as an entry', () => {
-    const store = useTimberItemStore()
-    const beam = store.findByTag('789-A')!
-    const before = store.pendingCount
-    store.assignTag(beam.id, 345)
-    expect(store.findByTag('345')!.id).toBe(beam.id)
-    expect(store.findByTag('789-A')).toBeUndefined()
-    expect(store.pendingCount).toBe(before + 1)
-  })
-
-  it('refuses a tag held in the snapshot or by pending events, and a split stem', () => {
-    const store = useTimberItemStore()
-    const beam = store.findByTag('789-A')!
-    expect(store.tagHolder(456, beam.id)!.tag_number).toBe('456')
-    expect(() => store.assignTag(beam.id, 456)).toThrow()
-
-    const fresh = store.createTimberItem(9)
-    expect(store.tagHolder(9, beam.id)!.id).toBe(fresh.id)
-    expect(() => store.assignTag(beam.id, 9)).toThrow()
-    expect(store.tagHolder(9, fresh.id)).toBeUndefined()
-
-    expect(() => store.assignTag(store.findByTag('789')!.id, 790)).toThrow()
-    expect(store.findByTag('789-A')!.id).toBe(beam.id)
-  })
-
   it('does not hand out the letter of a renamed beam again', () => {
     const store = useTimberItemStore()
     const stem = store.findByTag('789')!
-    store.assignTag(store.findByTag('789-A')!.id, 345)
+    queueTagChange(store, store.findByTag('789-A')!.id, 345)
     expect(store.addBeam(stem.id).tag_number).toBe('789-C')
   })
 })
@@ -339,7 +329,7 @@ describe('timber item store: sync', () => {
   it('drops only a rejected tag change; the item keeps its tag and its other events go through', async () => {
     const store = useTimberItemStore()
     const beam = store.findByTag('789-A')!
-    store.assignTag(beam.id, 345)
+    queueTagChange(store, beam.id, 345)
     store.recordAttribute(beam.id, attributeId('Holzart'), 'oak')
     const [tagChange, recorded] = store.events
     vi.spyOn(api, 'sync').mockResolvedValue({
@@ -772,7 +762,7 @@ describe('timber item store: photos', () => {
     store.addPhoto(duplicate.id, photoAttribute(), jpeg())
     const beam = store.findByTag('789-A')!
     store.addPhoto(beam.id, photoAttribute(), jpeg())
-    store.assignTag(beam.id, 345)
+    queueTagChange(store, beam.id, 345)
     const tagChange = store.events.find(
       (event) => event.type === 'tag_assigned' && event.timber_item_id === beam.id,
     )!
