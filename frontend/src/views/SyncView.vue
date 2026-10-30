@@ -1,7 +1,14 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { ChevronRightIcon, CircleCheckIcon, RefreshCwIcon, Trash2Icon, XIcon } from '@lucide/vue'
+import {
+  ChevronRightIcon,
+  CircleCheckIcon,
+  PauseIcon,
+  RefreshCwIcon,
+  Trash2Icon,
+  XIcon,
+} from '@lucide/vue'
 import { ApiError } from '@/api/client'
 import type { Event } from '@/api/contract'
 import { useTimberItemStore, type StoredPhoto, type SyncResult } from '@/stores/timberItems'
@@ -10,6 +17,7 @@ import { formatValue } from '@/utils/attributeDraft'
 import { formatShortDateTime } from '@/utils/date'
 import { formatBytes } from '@/utils/photo'
 import { formatTag } from '@/utils/tag'
+import { useToast } from '@/composables/useToast'
 import ConfirmSheet from '@/components/ConfirmSheet.vue'
 import FormattedTag from '@/components/FormattedTag.vue'
 import RejectedAlerts from '@/components/RejectedAlerts.vue'
@@ -18,7 +26,6 @@ import SignInForm from '@/components/SignInForm.vue'
 const router = useRouter()
 const store = useTimberItemStore()
 
-const isSyncing = ref(false)
 // Set after a successful sync: the page stays on the result until the user leaves.
 // A sync right after sign-in elsewhere hands its result over when it rejected something.
 const result = ref((router.options.history.state.syncResult as SyncResult | undefined) ?? null)
@@ -38,9 +45,6 @@ const transferredText = computed(() =>
     .join(', '),
 )
 const failure = ref<ApiError | null>(null)
-// What the last attempt left behind without a failure of the whole sync: cancelled, or photos that did not go up.
-const notice = ref<string | null>(null)
-let controller: AbortController | undefined
 
 // Pending events grouped by item, in recording order; the tag of a new item belongs to "angelegt" and gets no row.
 // Photos whose event is already on the server (only the file is left) have no event: they get a row of their own.
@@ -156,7 +160,7 @@ function photoNotice({ photos, cancelled }: SyncResult): string | null {
   const open = store.photos.length
   const left = `${open} ${open === 1 ? 'Foto bleibt' : 'Fotos bleiben'} auf diesem Gerät.`
   if (cancelled === 'photos') {
-    return `Abgebrochen. ${left}`
+    return `Angehalten. ${left}`
   }
   if (!photos?.failed) {
     return null
@@ -173,19 +177,24 @@ function photoNotice({ photos, cancelled }: SyncResult): string | null {
 }
 
 async function onSync() {
-  isSyncing.value = true
   failure.value = null
-  notice.value = null
-  controller = new AbortController()
+  // The "Angehalten" toast of the previous run no longer applies.
+  useToast().hide()
   try {
-    const synced = await store.sync(controller.signal)
+    const synced = await store.sync()
     if (synced.cancelled === 'data') {
       const count = store.pendingCount
-      notice.value = `Abgebrochen. Deine ${count} ${count === 1 ? 'Eintrag bleibt' : 'Einträge bleiben'} auf diesem Gerät.`
+      useToast().show({
+        before: `Angehalten. Deine ${count} ${count === 1 ? 'Eintrag bleibt' : 'Einträge bleiben'} auf diesem Gerät.`,
+        kind: 'warning',
+      })
       return
     }
     result.value = synced
-    notice.value = photoNotice(synced)
+    const notice = photoNotice(synced)
+    if (notice) {
+      useToast().show({ before: notice, kind: 'warning' })
+    }
     // Reception is proven now. Not awaited: the result page must not wait for it.
     void checkForUpdateNow()
   } catch (error) {
@@ -193,9 +202,12 @@ async function onSync() {
       throw error
     }
     failure.value = error
-  } finally {
-    isSyncing.value = false
   }
+}
+
+// One button for both: while syncing, a tap stops the sync.
+function onMainButton() {
+  return store.isSyncing ? store.stopSync() : onSync()
 }
 </script>
 
@@ -273,7 +285,7 @@ async function onSync() {
             type="button"
             class="flex size-11 shrink-0 items-center justify-center rounded-md border-2 border-ink bg-paper text-ink disabled:border-lockline disabled:text-mute"
             aria-label="Eintrag verwerfen"
-            :disabled="isSyncing"
+            :disabled="store.isSyncing"
             @click="toDiscard = { event, group }"
           >
             <Trash2Icon :size="20" :stroke-width="2.5" aria-hidden="true" />
@@ -303,13 +315,6 @@ async function onSync() {
         <strong class="text-base">Synchronisieren fehlgeschlagen</strong>
         <span>{{ failureText }}</span>
       </div>
-      <div
-        v-if="notice"
-        class="rounded-lg border-2 border-ink bg-paper px-3.5 py-3 text-sm leading-[1.4]"
-        role="alert"
-      >
-        {{ notice }}
-      </div>
       <SignInForm v-if="failure?.status === 401" @signed-in="onSync" />
       <button
         v-else-if="transferred !== null && isDone"
@@ -320,11 +325,13 @@ async function onSync() {
         Zurück zum Start
       </button>
       <template v-else>
-        <span v-if="store.photos.length > 0 && !isSyncing" class="text-center text-sm font-semibold"
+        <span
+          v-if="store.photos.length > 0 && !store.isSyncing"
+          class="text-center text-sm font-semibold"
           >{{ store.photos.length }} {{ store.photos.length === 1 ? 'Foto' : 'Fotos' }} ·
           {{ formatBytes(photoBytes) }}</span
         >
-        <div v-if="isSyncing" class="flex flex-col gap-1.5">
+        <div v-if="store.isSyncing" class="flex flex-col gap-1.5">
           <div
             class="relative h-2.5 overflow-hidden rounded-full bg-soft"
             role="progressbar"
@@ -341,41 +348,43 @@ async function onSync() {
               class="absolute inset-y-0 w-2/5 animate-indeterminate bg-ink motion-reduce:inset-x-0 motion-reduce:w-full motion-reduce:animate-none motion-reduce:opacity-40"
             ></div>
           </div>
-          <span class="text-center text-[13px] text-mute">{{ progressText }}</span>
+          <span class="flex items-center justify-center gap-1.5 text-[13px] text-mute"
+            ><RefreshCwIcon
+              :size="14"
+              class="animate-spin motion-reduce:animate-none"
+              aria-hidden="true"
+            />{{ progressText }}</span
+          >
         </div>
         <button
           type="button"
-          class="flex h-[88px] w-full items-center justify-center gap-2.5 rounded-lg bg-ink text-lg font-bold text-paper disabled:cursor-default disabled:bg-disabled disabled:text-mute short:h-16"
-          :disabled="isSyncing"
-          @click="onSync"
+          class="flex h-[88px] w-full items-center justify-center gap-2.5 rounded-lg text-lg font-bold disabled:cursor-default disabled:bg-disabled disabled:text-mute short:h-16"
+          :class="
+            store.isSyncing
+              ? 'border-2 border-ink bg-paper text-ink disabled:border-lockline'
+              : 'bg-ink text-paper'
+          "
+          :disabled="store.isStopping"
+          :aria-label="
+            store.isSyncing && !store.isStopping ? 'Synchronisierung anhalten' : undefined
+          "
+          @click="onMainButton"
         >
-          <span
-            class="flex"
-            :class="{ 'animate-spin motion-reduce:animate-none': isSyncing }"
-            aria-hidden="true"
-            ><RefreshCwIcon :size="18"
-          /></span>
+          <PauseIcon v-if="store.isSyncing && !store.isStopping" :size="18" aria-hidden="true" />
+          <RefreshCwIcon v-else-if="!store.isSyncing" :size="18" aria-hidden="true" />
           {{
-            isSyncing
-              ? groups.length
-                ? 'Synchronisiere …'
-                : 'Aktualisiere …'
-              : failure
-                ? 'Erneut versuchen'
-                : groups.length
-                  ? 'Jetzt synchronisieren'
-                  : 'Daten aktualisieren'
+            store.isStopping
+              ? 'Wird angehalten …'
+              : store.isSyncing
+                ? 'Anhalten'
+                : failure
+                  ? 'Erneut versuchen'
+                  : groups.length
+                    ? 'Jetzt synchronisieren'
+                    : 'Daten aktualisieren'
           }}
         </button>
-        <button
-          v-if="isSyncing"
-          type="button"
-          class="h-14 w-full rounded-lg border-2 border-ink bg-paper text-[17px] font-bold"
-          @click="controller?.abort()"
-        >
-          Abbrechen
-        </button>
-        <span v-else class="text-center text-[13px] text-mute"
+        <span v-if="!store.isSyncing" class="text-center text-[13px] text-mute"
           >Braucht Empfang · lädt danach den aktuellen Stand</span
         >
       </template>
