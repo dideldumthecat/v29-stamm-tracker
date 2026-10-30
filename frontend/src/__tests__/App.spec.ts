@@ -337,13 +337,13 @@ describe('App', () => {
     }
   })
 
-  it('keeps a warning toast for 5 s', async () => {
+  it('keeps a warning toast for 8 s', async () => {
     vi.useFakeTimers()
     try {
       await mountAt('/')
       const toast = useToast()
       toast.show({ before: 'Achtung', kind: 'warning' })
-      vi.advanceTimersByTime(4999)
+      vi.advanceTimersByTime(7999)
       expect(toast.current.value).not.toBeNull()
       vi.advanceTimersByTime(201)
       expect(toast.current.value).toBeNull()

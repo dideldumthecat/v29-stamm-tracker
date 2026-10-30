@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { CircleCheckIcon, RefreshCwIcon, Trash2Icon, XIcon } from '@lucide/vue'
+import { ChevronRightIcon, CircleCheckIcon, RefreshCwIcon, Trash2Icon, XIcon } from '@lucide/vue'
 import { ApiError } from '@/api/client'
 import type { Event } from '@/api/contract'
 import { useTimberItemStore, type StoredPhoto, type SyncResult } from '@/stores/timberItems'
@@ -248,14 +248,17 @@ async function onSync() {
           class="flex min-h-11 w-full items-center justify-between border-b-2 border-ink text-left"
         >
           <strong class="flex items-center gap-2 text-lg tabular-nums">
-            <span>{{ group.kind }} <FormattedTag :tag-number="group.tagNumber" /></span>
+            <span
+              >{{ group.kind }}
+              <FormattedTag :tag-number="group.tagNumber" class="underline underline-offset-4"
+            /></span>
             <span
               v-if="group.isNew"
               class="rounded-xl border-[1.5px] border-current px-2 py-[3px] text-xs font-semibold whitespace-nowrap"
               >neu</span
             >
           </strong>
-          <span class="text-sm">öffnen ›</span>
+          <ChevronRightIcon :size="24" class="shrink-0" aria-hidden="true" />
         </RouterLink>
         <div
           v-for="event in group.events"
@@ -285,9 +288,6 @@ async function onSync() {
           <span class="text-[13px] text-mute">{{ formatShortDateTime(photo.taken_at) }}</span>
         </div>
       </section>
-      <p class="rounded-lg bg-well p-3 text-sm leading-[1.4]">
-        Bis zum Sync sind das Entwürfe und frei änderbar.
-      </p>
     </div>
 
     <div class="flex-auto"></div>
