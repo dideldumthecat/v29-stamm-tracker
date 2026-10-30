@@ -76,6 +76,11 @@ export const useTimberItemStore = defineStore('timberItems', () => {
       photos.value.length,
   )
   const progress = ref<SyncProgress | null>(null)
+  // The running sync lives here, not in a screen: a screen opened later sees it and can stop it.
+  const isSyncing = ref(false)
+  // Between `stopSync()` and the actual end of the sync.
+  const isStopping = ref(false)
+  let syncController: AbortController | undefined
 
   // Writes collected by `inOneTransaction`; null = write each change on its own.
   let collected: { parts: Partial<StoredState>; add: StoredPhoto[] } | null = null
@@ -253,17 +258,34 @@ export const useTimberItemStore = defineStore('timberItems', () => {
    * A second call while one runs gets the running one; a running refresh finishes first, so the upload is never skipped.
    */
   function sync(signal?: AbortSignal): Promise<SyncResult> {
-    syncing ??= (async () => {
-      await refreshing?.catch(() => {})
-      try {
-        return await syncDataAndPhotos(signal)
-      } finally {
-        progress.value = null
-      }
-    })().finally(() => {
-      syncing = null
-    })
+    if (!syncing) {
+      const controller = new AbortController()
+      syncController = controller
+      isSyncing.value = true
+      const stoppable = AbortSignal.any(signal ? [controller.signal, signal] : [controller.signal])
+      syncing = (async () => {
+        await refreshing?.catch(() => {})
+        try {
+          return await syncDataAndPhotos(stoppable)
+        } finally {
+          progress.value = null
+        }
+      })().finally(() => {
+        syncing = null
+        syncController = undefined
+        isSyncing.value = false
+        isStopping.value = false
+      })
+    }
     return syncing
+  }
+
+  /** Stops the running sync, whichever screen started it; what has not been confirmed stays on the device. */
+  function stopSync() {
+    if (syncController) {
+      isStopping.value = true
+      syncController.abort()
+    }
   }
 
   // Data first, then the photos one by one; `signal` cancels either phase.
@@ -648,6 +670,9 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     pendingCount,
     photos,
     progress,
+    isSyncing,
+    isStopping,
+    stopSync,
     isEntry,
     lastSyncedAt,
     findByTagNumber,

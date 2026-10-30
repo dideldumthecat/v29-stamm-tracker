@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { computed } from 'vue'
 import { RefreshCwIcon } from '@lucide/vue'
+import { useTimberItemStore } from '@/stores/timberItems'
 
 const props = withDefaults(
   defineProps<{
@@ -10,6 +11,8 @@ const props = withDefaults(
   }>(),
   { inverted: false },
 )
+
+const store = useTimberItemStore()
 
 const hasBadge = computed(() => props.pendingCount > 0)
 // Inverted without pending entries shows nothing but the icon.
@@ -34,9 +37,13 @@ const colorClass = computed(() =>
     :to="{ name: 'sync' }"
     class="flex shrink-0 items-center rounded-full border-2 text-[15px] font-semibold"
     :class="[layoutClass, colorClass]"
-    :aria-label="`Synchronisieren, ${pendingCount} offene Einträge`"
+    :aria-label="`${store.isSyncing ? 'Synchronisierung läuft' : 'Synchronisieren'}, ${pendingCount} offene Einträge`"
   >
-    <RefreshCwIcon :size="inverted ? 18 : 20" aria-hidden="true" />
+    <RefreshCwIcon
+      :size="inverted ? 18 : 20"
+      :class="{ 'animate-spin motion-reduce:animate-none': store.isSyncing }"
+      aria-hidden="true"
+    />
     <!-- Only rendered when it has content: an empty flex item would still add a gap. -->
     <span v-if="!isIconOnly" class="flex items-center gap-1">
       <span v-if="!inverted">Sync</span>

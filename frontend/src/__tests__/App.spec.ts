@@ -871,6 +871,127 @@ describe('App', () => {
       expect(useTimberItemStore().events).toEqual([])
     })
 
+    it('stops through the main button: secondary style while syncing, disabled until it has stopped, then a toast and the entries stay', async () => {
+      useTimberItemStore().createTimberItem(1555)
+      let stop!: () => void
+      vi.spyOn(api, 'sync').mockImplementation(
+        () =>
+          new Promise((_resolve, reject) => {
+            stop = () => reject(new ApiError(0, 'aborted'))
+          }),
+      )
+      const { wrapper } = await mountAt('/sync')
+      const main = () => wrapper.find('button.h-\\[88px\\]')
+      expect(main().classes()).toContain('bg-ink')
+      await main().trigger('click')
+      expect(main().attributes('aria-label')).toBe('Synchronisierung anhalten')
+      expect(main().text()).toBe('Anhalten')
+      expect(main().classes()).not.toContain('bg-ink')
+      expect(main().classes()).toContain('bg-paper')
+      expect(wrapper.find('[role="progressbar"]').exists()).toBe(true)
+      expect(wrapper.text()).toContain('Daten werden übertragen …')
+
+      await main().trigger('click')
+      expect(main().text()).toBe('Wird angehalten …')
+      expect(main().attributes('disabled')).toBeDefined()
+      expect(main().find('svg').exists()).toBe(false)
+
+      stop()
+      await flushPromises()
+      expect(main().text()).toContain('Jetzt synchronisieren')
+      expect(main().classes()).toContain('bg-ink')
+      expect(main().attributes('disabled')).toBeUndefined()
+      expect(useToast().current.value).toMatchObject({
+        before: 'Angehalten. Deine 1 Eintrag bleibt auf diesem Gerät.',
+        kind: 'warning',
+      })
+      expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+      expect(wrapper.text()).toContain('01555')
+    })
+
+    it('uploads no further photo after stopping in the photo phase; the next sync sends the rest and closes the toast', async () => {
+      const store = useTimberItemStore()
+      const stem = store.createTimberItem(1555)
+      const photoAttribute = store.attributes.find((attribute) => attribute.type === 'photo')!.id
+      for (let count = 0; count < 3; count++) {
+        store.addPhoto(
+          stem.id,
+          photoAttribute,
+          new NodeBlob(['x'], { type: 'image/jpeg' }) as unknown as Blob,
+        )
+      }
+      vi.spyOn(api, 'sync').mockImplementation(async (events) => ({
+        accepted_event_ids: events.map((event) => event.id),
+        rejected: [],
+      }))
+      const upload = vi
+        .spyOn(api, 'uploadPhoto')
+        .mockImplementationOnce((_photo, signal) => {
+          return new Promise((_resolve, reject) => {
+            signal?.addEventListener('abort', () => reject(new ApiError(0, 'aborted')))
+          })
+        })
+        .mockResolvedValue()
+      const { wrapper } = await mountAt('/sync')
+      const main = () => wrapper.find('button.h-\\[88px\\]')
+
+      await main().trigger('click')
+      await flushPromises()
+      expect(wrapper.text()).toContain('Foto 1 von 3')
+      await main().trigger('click')
+      await flushPromises()
+      expect(upload).toHaveBeenCalledTimes(1)
+      expect(useTimberItemStore().photos).toHaveLength(3)
+      expect(useToast().current.value?.before).toBe('Angehalten. 3 Fotos bleiben auf diesem Gerät.')
+
+      await main().trigger('click')
+      expect(useToast().current.value).toBeNull()
+      await flushPromises()
+      expect(upload).toHaveBeenCalledTimes(4)
+      expect(useTimberItemStore().photos).toHaveLength(0)
+    })
+
+    it('stops a sync that was started on an earlier visit of the page: no further photo goes up', async () => {
+      const store = useTimberItemStore()
+      const stem = store.createTimberItem(1555)
+      const photoAttribute = store.attributes.find((attribute) => attribute.type === 'photo')!.id
+      for (let count = 0; count < 2; count++) {
+        store.addPhoto(
+          stem.id,
+          photoAttribute,
+          new NodeBlob(['x'], { type: 'image/jpeg' }) as unknown as Blob,
+        )
+      }
+      vi.spyOn(api, 'sync').mockImplementation(async (events) => ({
+        accepted_event_ids: events.map((event) => event.id),
+        rejected: [],
+      }))
+      const upload = vi.spyOn(api, 'uploadPhoto').mockImplementation(
+        (_photo, signal) =>
+          new Promise((_resolve, reject) => {
+            signal?.addEventListener('abort', () => reject(new ApiError(0, 'aborted')))
+          }),
+      )
+      const { wrapper, router } = await mountAt('/sync')
+      const main = () => wrapper.find('button.h-\\[88px\\]')
+      await main().trigger('click')
+      await flushPromises()
+      expect(wrapper.text()).toContain('Foto 1 von 2')
+
+      await router.push('/')
+      await router.push('/sync')
+      await flushPromises()
+      expect(main().text()).toBe('Anhalten')
+      expect(wrapper.text()).toContain('Foto 1 von 2')
+
+      await main().trigger('click')
+      await flushPromises()
+      expect(upload).toHaveBeenCalledTimes(1)
+      expect(main().text()).toContain('Jetzt synchronisieren')
+      expect(useTimberItemStore().photos).toHaveLength(2)
+      expect(useToast().current.value?.before).toBe('Angehalten. 2 Fotos bleiben auf diesem Gerät.')
+    })
+
     it('opens the result after a sign-in whose sync rejected something', async () => {
       const store = useTimberItemStore()
       store.currentUser = null
