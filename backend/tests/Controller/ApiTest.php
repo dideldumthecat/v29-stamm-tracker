@@ -578,7 +578,7 @@ class ApiTest extends WebTestCase
         return [$a, $b];
     }
 
-    private function void(string $tag, array $options = ['--force' => true], bool $withAdmin = true): CommandTester
+    private function void(string $tag, array $options = [], bool $withAdmin = true): CommandTester
     {
         if ($withAdmin && !$this->em->getRepository(User::class)->findBy(['role' => UserRole::Admin])) {
             $this->em->persist(new User('Admin', UserRole::Admin, User::hashToken('admin-test-token')));
@@ -688,14 +688,13 @@ class ApiTest extends WebTestCase
         self::assertSame(['123-B'], array_column($rebuilt['timber_items'], 'voided_beam_tags', 'id')[self::ITEM_123]);
     }
 
-    public function testVoidNeedsExactlyOneAdminAndConfirmation(): void
+    public function testVoidNeedsExactlyOneAdmin(): void
     {
         $this->syncItem123();
         $tester = $this->void('123', withAdmin: false);
         self::assertSame(1, $tester->getStatusCode());
-        self::assertStringContainsString('app:user:create', $tester->getDisplay());
+        self::assertStringContainsString('--user', $tester->getDisplay());
 
-        self::assertSame(1, $this->void('123', [])->getStatusCode());
         self::assertSame(1, $this->void('12x')->getStatusCode());
         self::assertArrayHasKey(self::ITEM_123, $this->snapshotItems());
     }

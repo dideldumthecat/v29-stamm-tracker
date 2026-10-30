@@ -6,8 +6,6 @@ use App\Api\Tag;
 use App\Entity\EventType;
 use App\Entity\TimberItem;
 use App\Entity\TimberItemEvent;
-use App\Entity\User;
-use App\Entity\UserRole;
 use App\Projection\TimberItemProjector;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bridge\Doctrine\Types\UuidType;
@@ -15,7 +13,6 @@ use Symfony\Component\Console\Attribute\Argument;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Attribute\Option;
 use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\Uid\Uuid;
 
@@ -29,14 +26,15 @@ class ItemVoidCommand
     public function __construct(
         private readonly EntityManagerInterface $em,
         private readonly TimberItemProjector $projector,
+        private readonly StemSelection $selection,
     ) {
     }
 
     public function __invoke(
         SymfonyStyle $io,
-        InputInterface $input,
         #[Argument(description: 'Tag, e.g. 123 or 123-A; leading zeros do not matter')] string $tag,
-        #[Option(description: 'Skip the confirmation; required with --no-interaction')] bool $force = false,
+        #[Option(description: 'Show what would happen without writing anything')] bool $dryRun = false,
+        #[Option(description: 'Name or ID of the user the void is recorded under; default: the only admin')] ?string $user = null,
     ): int {
         $normalized = Tag::normalize($tag);
         if (null === $normalized) {
@@ -53,12 +51,9 @@ class ItemVoidCommand
 
             return Command::FAILURE;
         }
-        $admins = $this->em->getRepository(User::class)->findBy(['role' => UserRole::Admin, 'revokedAt' => null]);
-        if (1 !== \count($admins)) {
-            // TODO: a --user option once there are several admins.
-            $io->error($admins
-                ? \sprintf('The void is recorded under the admin, but there are several: %s. Revoke all but one: app:user:revoke <ID>, IDs via app:user:list.', implode(', ', array_map(static fn (User $admin) => $admin->name, $admins)))
-                : 'The void is recorded under the admin, but there is none. Create one: app:user:create "Name" --admin');
+        $author = $this->selection->user($user);
+        if (\is_string($author)) {
+            $io->error($author);
 
             return Command::FAILURE;
         }
@@ -82,15 +77,11 @@ class ItemVoidCommand
 
             return Command::FAILURE;
         }
-        if (!$force && !$input->isInteractive()) {
-            $io->error('Not voided: confirmation needed. Run interactively or add --force.');
+        if ($dryRun) {
+            $io->success(\sprintf('Would void %s.', $tag));
+            $io->note('Dry run, nothing was written.');
 
-            return Command::FAILURE;
-        }
-        if (!$force && !$io->confirm(\sprintf('Void %s?', $tag), false)) {
-            $io->note('Nothing voided.');
-
-            return Command::FAILURE;
+            return Command::SUCCESS;
         }
 
         $created = $db->fetchOne(
@@ -98,8 +89,8 @@ class ItemVoidCommand
             [$item->id, EventType::Created->value],
             [UuidType::NAME],
         );
-        $this->em->wrapInTransaction(function () use ($item, $admins, $created): void {
-            $this->em->persist(new TimberItemEvent(Uuid::v7(), $item->id, EventType::Voided, [], new \DateTimeImmutable(), $admins[0], Uuid::fromBinary($created)));
+        $this->em->wrapInTransaction(function () use ($item, $author, $created): void {
+            $this->em->persist(new TimberItemEvent(Uuid::v7(), $item->id, EventType::Voided, [], new \DateTimeImmutable(), $author, Uuid::fromBinary($created)));
             $this->em->flush();
             // The parent re-projects its beams, the voided one included: its has_children may change.
             $this->projector->project($item->parentId ?? $item->id);
