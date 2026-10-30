@@ -413,6 +413,31 @@ describe('timber item store: sign-in', () => {
     expect(store.lastSyncedAt).not.toBeNull()
   })
 
+  it('takes the own name from the user list of a downloaded snapshot and stores it', async () => {
+    const store = useTimberItemStore()
+    const fresh = api.initialSnapshot()
+    store.currentUser = { ...fresh.users[0]!, name: 'Old name' }
+    fresh.users[0]!.name = 'New name'
+    vi.spyOn(api, 'loadSnapshot').mockResolvedValue(fresh)
+
+    await store.refresh()
+    expect(store.currentUser.name).toBe('New name')
+    expect(vi.mocked(save)).toHaveBeenLastCalledWith(
+      expect.objectContaining({ user: expect.objectContaining({ name: 'New name' }) }),
+    )
+  })
+
+  it('keeps the signed-in user when the snapshot does not list them', async () => {
+    const store = useTimberItemStore()
+    const own = { id: 'not-in-snapshot', name: 'Stranger' }
+    store.currentUser = own
+    vi.spyOn(api, 'loadSnapshot').mockResolvedValue(api.initialSnapshot())
+
+    await store.refresh()
+    expect(store.currentUser).toEqual(own)
+    expect(vi.mocked(save).mock.lastCall![0]).not.toHaveProperty('user')
+  })
+
   it('keeps the sign-in when the snapshot cannot be loaded', async () => {
     const store = useTimberItemStore()
     store.currentUser = null
