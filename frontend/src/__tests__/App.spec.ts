@@ -779,6 +779,23 @@ describe('App', () => {
       expect(wrapper.text()).toContain('Alexander')
     })
 
+    it('clears the code and the error with the clear button, shown only while there is a code', async () => {
+      useTimberItemStore().currentUser = null
+      const { wrapper } = await mountAt('/')
+      const clearButton = () => wrapper.find('button[aria-label="Code löschen"]')
+      expect(clearButton().exists()).toBe(false)
+
+      await wrapper.find('input#invite-code').setValue('Hallo Jana!')
+      await wrapper.find('form').trigger('submit')
+      expect(wrapper.find('[role="alert"]').exists()).toBe(true)
+      expect(clearButton().attributes('type')).toBe('button')
+
+      await clearButton().trigger('click')
+      expect((wrapper.find('input#invite-code').element as HTMLInputElement).value).toBe('')
+      expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+      expect(clearButton().exists()).toBe(false)
+    })
+
     it('sends nothing when no code is recognised', async () => {
       useTimberItemStore().currentUser = null
       const redeem = vi.spyOn(api, 'redeemInvite')
