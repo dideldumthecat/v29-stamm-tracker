@@ -10,6 +10,7 @@ import { ChevronRightIcon, PlusIcon, TagIcon, Trash2Icon } from '@lucide/vue'
 import { useTimberItemStore, type TimberItem } from '@/stores/timberItems'
 import type { AttributeValue } from '@/api/contract'
 import { collectDraft, formatValue, type DraftInput } from '@/utils/attributeDraft'
+import { attachPhotos } from '@/utils/photo'
 import { bySortOrder } from '@/utils/sort'
 import { MAX_BEAMS } from '@/config/constants'
 import { useToast } from '@/composables/useToast'
@@ -21,6 +22,7 @@ import DateAttributeField from '@/components/DateAttributeField.vue'
 import MonthAttributeField from '@/components/MonthAttributeField.vue'
 import NumberAttributeField from '@/components/NumberAttributeField.vue'
 import TextAttributeField from '@/components/TextAttributeField.vue'
+import PhotoSection from '@/components/PhotoSection.vue'
 import SaveBar from '@/components/SaveBar.vue'
 import ConfirmSheet from '@/components/ConfirmSheet.vue'
 import FormattedTag from '@/components/FormattedTag.vue'
@@ -45,13 +47,17 @@ const kind = computed(() => (parent.value ? 'Balken' : 'Stamm'))
 // Split into beams: the values stay visible, but nothing can be recorded any more.
 const isSplit = computed(() => item.value?.has_children ?? false)
 
-// Fields in the order V29 set. Types without a field (photo) are skipped by the v-if chain in the template.
+// Fields in the order V29 set.
 // Read-only attributes (inactive, or all on a split stem) stay visible only for an existing value.
 const attributes = computed(() =>
   store.attributes
     .filter((attribute) => (attribute.active && !isSplit.value) || item.value?.values[attribute.id])
     .sort(bySortOrder),
 )
+
+// Photos taken or picked but not saved yet: held in memory like any field, so a crash loses them.
+// `id` only keys the preview; the store gives the saved photo its own.
+const draftPhotos = ref<{ id: string; attributeId: string; blob: Blob }[]>([])
 
 // Raw input per attribute id (see DraftInput). Only touched attributes have an entry.
 const draft = ref<Record<string, DraftInput | undefined>>({})
@@ -78,7 +84,10 @@ const collected = computed(() =>
 const changes = computed(() => collected.value.changes)
 // Invalid input counts as unsaved, so the leave dialog still protects it.
 const isDirty = computed(
-  () => changes.value.length > 0 || Object.keys(collected.value.errors).length > 0,
+  () =>
+    changes.value.length > 0 ||
+    Object.keys(collected.value.errors).length > 0 ||
+    draftPhotos.value.length > 0,
 )
 
 // An error appears only after a failed save and disappears once the input changes (as in the click prototype):
@@ -107,17 +116,26 @@ async function saveDraft(): Promise<TimberItem | null> {
     document.querySelector('[role="alert"]')?.scrollIntoView({ block: 'center' })
     return null
   }
-  // Take the list before writing: afterwards the draft equals the store and `changes` would be empty.
+  // Take the lists before writing: afterwards the draft equals the store and `changes` would be empty.
   const toSave = changes.value
+  const photosToSave = draftPhotos.value
   // Like the click prototype: a new item is created even without values.
   // Only plain tags get here without an item: unknown beams are sent back by the router guard.
-  const target = item.value ?? store.createTimberItem(Number(props.tagNumber))
-  for (const change of toSave) {
-    store.recordAttribute(target.id, change.attributeId, change.value)
-  }
+  // One transaction: a crash must not leave a photo without its stem or a stem without its photo.
+  const target = store.inOneTransaction(() => {
+    const target = item.value ?? store.createTimberItem(Number(props.tagNumber))
+    for (const change of toSave) {
+      store.recordAttribute(target.id, change.attributeId, change.value)
+    }
+    for (const photo of photosToSave) {
+      store.addPhoto(target.id, photo.attributeId, photo.blob)
+    }
+    return target
+  })
 
   draft.value = {}
   added.value = {}
+  draftPhotos.value = []
   failedInputs.value = {}
   formKey.value++
   return target
@@ -132,6 +150,53 @@ async function onSave() {
         ? { name: 'timber-item', params: { tagNumber: parent.value.tag_number } }
         : { name: 'start' },
     )
+  }
+}
+
+// --- Photos --------------------------------------------------------------
+// Taken or picked photos are compressed and join the draft; they are stored with "Speichern & schließen".
+const isCompressing = ref(false)
+
+async function onAddPhotos(attributeId: string, files: File[]) {
+  isCompressing.value = true
+  try {
+    const { skipped } = await attachPhotos(files, (blob) => {
+      draftPhotos.value.push({ id: crypto.randomUUID(), attributeId, blob })
+    })
+    if (skipped > 0) {
+      toast.show({
+        before: `${skipped} ${skipped === 1 ? 'Foto konnte' : 'Fotos konnten'} nicht gelesen werden`,
+        kind: 'warning',
+      })
+    }
+  } finally {
+    isCompressing.value = false
+  }
+}
+
+// Previews of the attribute: saved photos not uploaded yet, then the draft ones.
+// Saved photos are removable only while their event is still queued.
+function photosOf(attributeId: string) {
+  return [
+    ...(item.value ? store.pendingPhotosOf(item.value.id) : []).map((photo) => ({
+      photo,
+      removable: store.isPhotoQueued(photo.id),
+    })),
+    ...draftPhotos.value
+      .filter((photo) => photo.attributeId === attributeId)
+      .map((photo) => ({ photo, removable: true })),
+  ]
+}
+
+const photoToRemove = ref<string | null>(null)
+
+function onRemovePhoto() {
+  const id = photoToRemove.value!
+  photoToRemove.value = null
+  if (draftPhotos.value.some((photo) => photo.id === id)) {
+    draftPhotos.value = draftPhotos.value.filter((photo) => photo.id !== id)
+  } else {
+    store.removePhoto(id)
   }
 }
 
@@ -205,6 +270,18 @@ function onClose() {
 function onKeepEditing() {
   pendingLeave.value = null
 }
+
+// "2 Fotos und 1 Änderung": only the parts that exist.
+const discardSummary = computed(() => {
+  const photoCount = draftPhotos.value.length
+  const fieldCount = changes.value.length + Object.keys(collected.value.errors).length
+  return [
+    photoCount > 0 && `${photoCount} ${photoCount === 1 ? 'Foto' : 'Fotos'}`,
+    fieldCount > 0 && `${fieldCount} ${fieldCount === 1 ? 'Änderung' : 'Änderungen'}`,
+  ]
+    .filter(Boolean)
+    .join(' und ')
+})
 
 function onDiscard() {
   const target = pendingLeave.value
@@ -353,6 +430,16 @@ function onDiscard() {
           :inherited="item && store.isInherited(item.id, attribute.id)"
           @update:model-value="draft[attribute.id] = $event"
         />
+        <PhotoSection
+          v-else-if="attribute.type === 'photo'"
+          :attribute="attribute"
+          :pending="photosOf(attribute.id)"
+          :uploaded-count="item ? store.uploadedPhotoCount(item.id, attribute.id) : 0"
+          :can-capture="attribute.active && !isSplit"
+          :busy="isCompressing"
+          @add="onAddPhotos(attribute.id, $event)"
+          @remove="photoToRemove = $event"
+        />
       </template>
     </div>
 
@@ -385,7 +472,7 @@ function onDiscard() {
          A split stem is read-only, so the bar only leads back to the start screen. -->
     <SaveBar
       :label="isSplit ? 'Zurück zum Start' : saveLabel"
-      :disabled="!isSplit && !!item && !isDirty"
+      :disabled="isCompressing || (!isSplit && !!item && !isDirty)"
       @save="isSplit ? onClose() : onSave()"
     />
 
@@ -412,8 +499,20 @@ function onDiscard() {
     </ConfirmSheet>
 
     <ConfirmSheet
+      v-if="photoToRemove"
+      title="Foto entfernen?"
+      primary-label="Abbrechen"
+      secondary-label="Foto entfernen"
+      emphasize-secondary
+      @primary="photoToRemove = null"
+      @secondary="onRemovePhoto"
+    >
+      <p>Das Foto ist noch nicht hochgeladen und wird vom Gerät gelöscht.</p>
+    </ConfirmSheet>
+
+    <ConfirmSheet
       v-if="pendingLeave"
-      title="Änderungen verwerfen?"
+      :title="`${discardSummary} verwerfen?`"
       primary-label="Weiter bearbeiten"
       secondary-label="Verwerfen"
       @primary="onKeepEditing"
