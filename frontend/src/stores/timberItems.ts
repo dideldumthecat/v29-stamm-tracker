@@ -15,14 +15,22 @@ import type {
   Timestamp,
   Uuid,
 } from '@/api/contract'
-import { api, type User } from '@/api/client'
-import { load as loadStored, save, type StoredState } from '@/persistence/database'
+import { api, ApiError, type User } from '@/api/client'
+import {
+  load as loadStored,
+  save,
+  type PhotoChanges,
+  type StoredPhoto,
+  type StoredState,
+} from '@/persistence/database'
 import { useToast } from '@/composables/useToast'
+import { SYNC_TIMEOUT_MS } from '@/config/constants'
 import { nextBeamTag } from '@/utils/tag'
 
 // The app uses the contract types directly (snake_case, as on the wire) – no second model, no mapper.
 export type { Attribute, AttributeOption, AttributeValueRecord, TimberItem } from '@/api/contract'
 export type { User } from '@/api/client'
+export type { StoredPhoto } from '@/persistence/database'
 
 // A type, not an interface: it travels as router history state, which needs an index signature.
 export type SyncResult = {
@@ -32,7 +40,13 @@ export type SyncResult = {
    * With keptTag a rejected tag change: the item keeps that tag.
    */
   rejected: { tagNumber: string; isBeam: boolean; keptTag?: string | null }[]
+  /** Only set if photos were waiting. Failed ones stay on the device; errorStatus is the first failure's (ApiError). */
+  photos?: { uploaded: number; failed: number; errorStatus: number | null }
+  /** The user cancelled: during the data phase nothing changed, during the photos the rest stays pending. */
+  cancelled?: 'data' | 'photos'
 }
+
+export type SyncProgress = { phase: 'data' } | { phase: 'photos'; done: number; total: number }
 
 export const useTimberItemStore = defineStore('timberItems', () => {
   const snapshot = ref(api.initialSnapshot())
@@ -50,19 +64,60 @@ export const useTimberItemStore = defineStore('timberItems', () => {
       (other) => other.type === 'created' && other.timber_item_id === event.timber_item_id,
     )
   const isEntry = (event: Event) => isEntryIn(event, events.value)
-  const pendingCount = computed(() => events.value.filter(isEntry).length)
+  // Photos not uploaded yet; the blobs live in their own object store, the event with the photo id in the queue.
+  const photos = ref<StoredPhoto[]>([])
+  const pendingPhotoIds = computed(() => new Set(photos.value.map((photo) => photo.id)))
+  const isPhotoEvent = (event: Event) =>
+    event.type === 'attribute_recorded' && pendingPhotoIds.value.has(String(event.data.value))
+  // A photo counts once, not for its event and again for its file.
+  const pendingCount = computed(
+    () =>
+      events.value.filter((event) => isEntry(event) && !isPhotoEvent(event)).length +
+      photos.value.length,
+  )
+  const progress = ref<SyncProgress | null>(null)
+
+  // Writes collected by `inOneTransaction`; null = write each change on its own.
+  let collected: { parts: Partial<StoredState>; add: StoredPhoto[] } | null = null
 
   // A failed write only warns; the change stays in memory until the app is closed.
-  function persist(parts: Partial<StoredState>) {
-    save(parts).catch(() =>
+  function persist(parts: Partial<StoredState>, photoChanges?: PhotoChanges) {
+    if (collected) {
+      // Only additions are batched: removals never happen inside a batch.
+      Object.assign(collected.parts, parts)
+      collected.add.push(...(photoChanges?.add ?? []))
+      return
+    }
+    // Without photo changes the call stays as it was: only the parts.
+    const hasPhotoChanges =
+      photoChanges && (photoChanges.add?.length || photoChanges.remove?.length)
+    ;(hasPhotoChanges ? save(parts, photoChanges) : save(parts)).catch(() =>
       useToast().show({ before: 'Speichern auf dem Gerät fehlgeschlagen', kind: 'warning' }),
     )
+  }
+
+  /**
+   * Runs `changes` and writes everything it recorded in one transaction: a crash leaves all of it or none.
+   * The in-memory state changes at once; only the write waits.
+   */
+  function inOneTransaction<T>(changes: () => T): T {
+    const outer = collected
+    const batch = (collected ??= { parts: {}, add: [] })
+    try {
+      return changes()
+    } finally {
+      collected = outer
+      if (!outer) {
+        persist(batch.parts, { add: batch.add })
+      }
+    }
   }
 
   function emit<T extends Event['type']>(
     type: T,
     timberItemId: Uuid,
     data: Extract<Event, { type: T }>['data'],
+    photo?: StoredPhoto,
   ): Event {
     const event = {
       id: crypto.randomUUID(),
@@ -73,7 +128,8 @@ export const useTimberItemStore = defineStore('timberItems', () => {
       data,
     } as Event
     events.value.push(event)
-    persist({ events: toRaw(events.value) })
+    // The photo goes in the same transaction: a blob without its event would be an orphan after a crash.
+    persist({ events: toRaw(events.value) }, photo && { add: [photo] })
     return event
   }
 
@@ -81,6 +137,32 @@ export const useTimberItemStore = defineStore('timberItems', () => {
   function dropEvents(isDropped: (event: Event) => boolean): Event[] {
     events.value = toRaw(events.value).filter((event) => !isDropped(event))
     return toRaw(events.value)
+  }
+
+  function dropPhotos(isDropped: (photo: StoredPhoto) => boolean): Uuid[] {
+    const dropped = toRaw(photos.value)
+      .filter(isDropped)
+      .map((photo) => photo.id)
+    photos.value = toRaw(photos.value).filter((photo) => !dropped.includes(photo.id))
+    return dropped
+  }
+
+  /**
+   * The user throws entries away: their photos go too (a blob without an item would be uploaded as an orphan).
+   * itemIds: items removed as a whole, with every photo they hold.
+   */
+  function discard(isDropped: (event: Event) => boolean, itemIds = new Set<Uuid>()) {
+    const photoIds = new Set(
+      events.value.flatMap((event) =>
+        isDropped(event) && event.type === 'attribute_recorded' ? [String(event.data.value)] : [],
+      ),
+    )
+    persist(
+      { events: dropEvents(isDropped) },
+      {
+        remove: dropPhotos((photo) => photoIds.has(photo.id) || itemIds.has(photo.timber_item_id)),
+      },
+    )
   }
 
   const hasPendingCreated = (itemId: string) =>
@@ -156,6 +238,7 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     currentUser.value = stored.user ?? currentUser.value
     snapshot.value = stored.snapshot ?? snapshot.value
     events.value = stored.events
+    photos.value = stored.photos
     lastSyncedAt.value = stored.lastSyncedAt
   }
 
@@ -169,14 +252,85 @@ export const useTimberItemStore = defineStore('timberItems', () => {
    * and the tags the server rejected: duplicate captures are dropped from the device, rejected tag changes only.
    * A second call while one runs gets the running one; a running refresh finishes first, so the upload is never skipped.
    */
-  function sync(): Promise<SyncResult> {
+  function sync(signal?: AbortSignal): Promise<SyncResult> {
     syncing ??= (async () => {
       await refreshing?.catch(() => {})
-      return uploadAndDownload()
+      try {
+        return await syncDataAndPhotos(signal)
+      } finally {
+        progress.value = null
+      }
     })().finally(() => {
       syncing = null
     })
     return syncing
+  }
+
+  // Data first, then the photos one by one; `signal` cancels either phase.
+  async function syncDataAndPhotos(signal?: AbortSignal): Promise<SyncResult> {
+    progress.value = { phase: 'data' }
+    // One timeout for upload and download together; the queue is untouched until both are through.
+    const dataSignal = AbortSignal.any([
+      ...(signal ? [signal] : []),
+      AbortSignal.timeout(SYNC_TIMEOUT_MS),
+    ])
+    let result: SyncResult
+    try {
+      result = await uploadAndDownload(dataSignal)
+    } catch (error) {
+      // Cancelled: the events stay queued, the server ignores them if they arrived after all.
+      if (signal?.aborted) {
+        return { transferred: 0, rejected: [], cancelled: 'data' }
+      }
+      throw error
+    }
+    return { ...result, ...(await uploadPhotos(signal)) }
+  }
+
+  /**
+   * Uploads what the device still holds, one photo per request. A blob goes only after the server confirmed it;
+   * a failure keeps that photo and the next one is still tried.
+   */
+  async function uploadPhotos(
+    signal?: AbortSignal,
+  ): Promise<Pick<SyncResult, 'photos' | 'cancelled'>> {
+    const queue = [...toRaw(photos.value)]
+    if (queue.length === 0) {
+      return {}
+    }
+    const stats = { uploaded: 0, failed: 0, errorStatus: null as number | null }
+    let cancelled = false
+    for (const photo of queue) {
+      progress.value = { phase: 'photos', done: stats.uploaded + stats.failed, total: queue.length }
+      if (signal?.aborted) {
+        cancelled = true
+        break
+      }
+      try {
+        await api.uploadPhoto(
+          {
+            id: photo.id,
+            timber_item_id: photo.timber_item_id,
+            taken_at: photo.taken_at,
+            blob: photo.blob,
+          },
+          signal,
+        )
+        persist({}, { remove: dropPhotos((candidate) => candidate.id === photo.id) })
+        stats.uploaded++
+      } catch (error) {
+        if (!(error instanceof ApiError)) {
+          throw error
+        }
+        if (signal?.aborted) {
+          cancelled = true
+          break
+        }
+        stats.failed++
+        stats.errorStatus ??= error.status
+      }
+    }
+    return { photos: stats, ...(cancelled && { cancelled: 'photos' as const }) }
   }
 
   /**
@@ -193,10 +347,12 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     return refreshing
   }
 
-  async function uploadAndDownload(): Promise<SyncResult> {
+  async function uploadAndDownload(signal: AbortSignal): Promise<SyncResult> {
     // Events recorded while the sync runs are not part of this batch and stay in the queue.
     const batch = [...toRaw(events.value)]
-    const response = batch.length > 0 ? await api.sync(batch) : null
+    // Photos report themselves; the event that carries their id is not an entry of its own.
+    const photoEventIds = new Set(batch.filter(isPhotoEvent).map((event) => event.id))
+    const response = batch.length > 0 ? await api.sync(batch, signal) : null
     const accepted = new Set(response?.accepted_event_ids)
     const rejectedEvents = new Set(response?.rejected.map((entry) => entry.event_id))
     // An item is gone only if its creation was rejected; a rejected tag change keeps the item with its previous tag.
@@ -218,12 +374,15 @@ export const useTimberItemStore = defineStore('timberItems', () => {
       ),
     }))
     // Later events on a rejected item would only be rejected with it next time.
-    await downloadSnapshot(
-      (event) =>
+    await downloadSnapshot({
+      isDone: (event) =>
         accepted.has(event.id) ||
         rejectedEvents.has(event.id) ||
         rejectedItems.has(event.timber_item_id),
-    )
+      // The item is gone, so are its photos; a rejected tag change keeps the item and its photos.
+      isPhotoDropped: (photo) => rejectedItems.has(photo.timber_item_id),
+      signal,
+    })
     // Read after the download: the tag the item keeps is the server's.
     for (const entry of tagChanges) {
       const item = findById(entry.timber_item_id)
@@ -234,14 +393,24 @@ export const useTimberItemStore = defineStore('timberItems', () => {
       })
     }
     return {
-      transferred: batch.filter((event) => isEntryIn(event, batch) && accepted.has(event.id))
-        .length,
+      transferred: batch.filter(
+        (event) =>
+          isEntryIn(event, batch) && accepted.has(event.id) && !photoEventIds.has(event.id),
+      ).length,
       rejected,
     }
   }
 
-  async function downloadSnapshot(isDone: (event: Event) => boolean = () => false) {
-    const fresh = await api.loadSnapshot()
+  async function downloadSnapshot({
+    isDone = () => false,
+    isPhotoDropped = () => false,
+    signal,
+  }: {
+    isDone?: (event: Event) => boolean
+    isPhotoDropped?: (photo: StoredPhoto) => boolean
+    signal?: AbortSignal
+  } = {}) {
+    const fresh = await api.loadSnapshot(signal)
     // Accepted events leave the queue only together with the snapshot that contains them, so a failed
     // download hides nothing. Resending them next time is harmless: the server ignores known ids.
     snapshot.value = fresh
@@ -252,12 +421,15 @@ export const useTimberItemStore = defineStore('timberItems', () => {
       (user) => user.id === currentUser.value?.id && user.name !== currentUser.value.name,
     )
     if (renamed) currentUser.value = { ...currentUser.value!, name: renamed.name }
-    persist({
-      snapshot: fresh,
-      events: dropEvents(isDone),
-      lastSyncedAt: lastSyncedAt.value,
-      ...(renamed && { user: toRaw(currentUser.value) }),
-    })
+    persist(
+      {
+        snapshot: fresh,
+        events: dropEvents(isDone),
+        lastSyncedAt: lastSyncedAt.value,
+        ...(renamed && { user: toRaw(currentUser.value) }),
+      },
+      { remove: dropPhotos(isPhotoDropped) },
+    )
   }
 
   // Same rules as the server projection: inheritable attributes come from the parent unless the
@@ -366,7 +538,7 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     if (!canRemove(itemId)) {
       throw new Error(`Timber item ${itemId} cannot be removed`)
     }
-    persist({ events: dropEvents((event) => event.timber_item_id === itemId) })
+    discard((event) => event.timber_item_id === itemId, new Set([itemId]))
   }
 
   /**
@@ -379,7 +551,7 @@ export const useTimberItemStore = defineStore('timberItems', () => {
       throw new Error(`Event ${eventId} is not a pending entry`)
     }
     if (event.type !== 'created') {
-      persist({ events: dropEvents((candidate) => candidate.id === eventId) })
+      discard((candidate) => candidate.id === eventId)
       return
     }
     const itemIds = new Set([
@@ -391,7 +563,7 @@ export const useTimberItemStore = defineStore('timberItems', () => {
         )
         .map((candidate) => candidate.timber_item_id),
     ])
-    persist({ events: dropEvents((candidate) => itemIds.has(candidate.timber_item_id)) })
+    discard((candidate) => itemIds.has(candidate.timber_item_id), itemIds)
   }
 
   /** Another item that holds the tag, in the snapshot or through pending events. */
@@ -413,7 +585,7 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     }
   }
 
-  function recordAttribute(itemId: string, attributeId: string, value: AttributeValue) {
+  function assertRecordable(itemId: string) {
     const item = findById(itemId)
     if (!item) {
       throw new Error(`Unknown timber item ${itemId}`)
@@ -422,7 +594,48 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     if (item.has_children) {
       throw new Error(`Timber item ${itemId} is split into beams and read-only`)
     }
+  }
+
+  function recordAttribute(itemId: string, attributeId: string, value: AttributeValue) {
+    assertRecordable(itemId)
     emit('attribute_recorded', itemId, { attribute_id: attributeId, value })
+  }
+
+  /** Keeps a compressed photo on the device and queues the event that records its id for the photo attribute. */
+  function addPhoto(itemId: string, attributeId: string, blob: Blob) {
+    assertRecordable(itemId)
+    const photo: StoredPhoto = {
+      id: crypto.randomUUID(),
+      timber_item_id: itemId,
+      taken_at: new Date().toISOString(),
+      size: blob.size,
+      blob,
+    }
+    photos.value.push(photo)
+    emit('attribute_recorded', itemId, { attribute_id: attributeId, value: photo.id }, photo)
+  }
+
+  const pendingPhotosOf = (itemId: string) =>
+    photos.value.filter((photo) => photo.timber_item_id === itemId)
+
+  /** The server already knows these (its snapshot lists the id) and the file is no longer here. */
+  function uploadedPhotoCount(itemId: string, attributeId: string): number {
+    const records = findById(itemId)?.values[attributeId] ?? []
+    return records.filter((record) => !pendingPhotoIds.value.has(String(record.value))).length
+  }
+
+  // Once the event reached the server, the id is recorded there and the app cannot take it back.
+  const isPhotoQueued = (photoId: string) =>
+    events.value.some(
+      (event) =>
+        isPhotoEvent(event) && event.type === 'attribute_recorded' && event.data.value === photoId,
+    )
+
+  function removePhoto(photoId: string) {
+    if (!isPhotoQueued(photoId)) {
+      throw new Error(`Photo ${photoId} cannot be removed`)
+    }
+    discard((event) => event.type === 'attribute_recorded' && event.data.value === photoId)
   }
 
   return {
@@ -433,6 +646,8 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     items,
     events,
     pendingCount,
+    photos,
+    progress,
     isEntry,
     lastSyncedAt,
     findByTagNumber,
@@ -441,12 +656,18 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     nextBeamTagOf,
     isInherited,
     userName,
+    inOneTransaction,
     createTimberItem,
     addBeam,
     canRemove,
     removeTimberItem,
     discardEntry,
     recordAttribute,
+    addPhoto,
+    removePhoto,
+    isPhotoQueued,
+    pendingPhotosOf,
+    uploadedPhotoCount,
     tagHolder,
     assignTag,
     redeemInvite,
