@@ -169,55 +169,6 @@ test('sync without pending changes offers to refresh the data', async ({ page })
   await expect(page.getByRole('heading', { name: 'Synchronisiert' })).toBeVisible()
 })
 
-// Flow: a synced beam gets its own plaque and is found by it from the start screen only.
-test('a beam gets a new plaque, refusing a taken one', async ({ page }) => {
-  const type = async (digits: string) => {
-    for (const digit of digits) {
-      await page.getByRole('button', { name: digit, exact: true }).click()
-    }
-  }
-  await page.goto('/sync')
-  await page.getByRole('button', { name: 'Daten aktualisieren' }).click()
-  await expect(page.getByRole('heading', { name: 'Synchronisiert' })).toBeVisible()
-
-  await page.goto('/timber-item/789-A')
-  await page.getByRole('button', { name: 'Plakette ändern' }).click()
-  await type('456')
-  await expect(page.getByText('ist schon vergeben')).toHaveText(
-    'Plakette 00456 ist schon vergeben.',
-  )
-  await expect(page.getByRole('button', { name: 'Plakette ändern' })).toBeDisabled()
-
-  await page.getByRole('button', { name: 'Leeren' }).click()
-  await type('345')
-  await page.getByRole('button', { name: 'Plakette ändern' }).click()
-  await expect(page.getByRole('dialog')).toContainText('00789-A → 00345')
-  await page.getByRole('dialog').getByRole('button', { name: 'Plakette ändern' }).click()
-  await expect(page.locator('h1')).toContainText('BALKEN')
-  await expect(page.locator('h1')).toContainText('00345')
-
-  await page.goto('/')
-  await type('345')
-  await page.getByRole('button', { name: 'Stamm öffnen' }).click()
-  await expect(page.locator('h1')).toContainText('BALKEN')
-  await expect(page.getByRole('link', { name: /Aus Stamm 00789/ })).toBeVisible()
-  // The old tag leads nowhere: unknown beam tags go back to the start screen.
-  await page.goto('/timber-item/789-A')
-  await expect(page).toHaveURL('/')
-
-  await page.goto('/sync')
-  await expect(page.locator('h1')).toHaveText('Synchronisierung (1)')
-  await expect(page.getByText('Plakette geändert: 00345')).toBeVisible()
-
-  // A beam holding the plaque is named by its stem.
-  await page.goto('/timber-item/789-B')
-  await page.getByRole('button', { name: 'Plakette ändern' }).click()
-  await type('345')
-  await expect(page.getByText('ist schon vergeben')).toHaveText(
-    'Plakette 00345 ist schon vergeben: Balken aus Stamm 00789.',
-  )
-})
-
 // Flow: an unsynced stem is discarded on the sync screen; cancelling the confirmation keeps it.
 test('discards a new stem on the sync screen after confirming', async ({ page }) => {
   await page.goto('/timber-item/1666')

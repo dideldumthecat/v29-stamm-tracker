@@ -22,17 +22,6 @@ export const routes: RouteRecordRaw[] = [
       return (isValidTag(tag) && isKnownOrPlain) || { name: 'start' }
     },
   },
-  {
-    path: '/timber-item/:tagNumber/tag',
-    name: 'retag',
-    component: () => import('@/views/RetagView.vue'),
-    props: true,
-    // Only an existing item gets a new plaque; a split stem stays read-only.
-    beforeEnter: (to) => {
-      const item = useTimberItemStore().findByTag(String(to.params.tagNumber))
-      return (item !== undefined && !item.has_children) || { name: 'start' }
-    },
-  },
   { path: '/sync', name: 'sync', component: () => import('@/views/SyncView.vue') },
   { path: '/help', name: 'help', component: () => import('@/views/HelpView.vue') },
   // Unknown paths (e.g. old bookmarks) fall back to the start screen.
