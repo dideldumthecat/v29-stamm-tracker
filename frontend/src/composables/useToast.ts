@@ -11,7 +11,7 @@ export interface ToastMessage {
 
 // Warnings stay longer: they report something the user has to notice.
 const TOAST_DURATION_MS = 3000
-const WARNING_DURATION_MS = 5000
+const WARNING_DURATION_MS = 8000
 // Slide-in time of the <Transition> in AppToast; the display time starts once the toast is fully out.
 const TOAST_ENTER_MS = 200
 
