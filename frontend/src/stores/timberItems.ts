@@ -247,7 +247,17 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     snapshot.value = fresh
     // The time stands for how current the data is, whether or not entries are still waiting for the upload.
     lastSyncedAt.value = new Date().toISOString()
-    persist({ snapshot: fresh, events: dropEvents(isDone), lastSyncedAt: lastSyncedAt.value })
+    // The name is set at sign-in only; a rename in the database reaches the app through the user list.
+    const renamed = fresh.users.find(
+      (user) => user.id === currentUser.value?.id && user.name !== currentUser.value.name,
+    )
+    if (renamed) currentUser.value = { ...currentUser.value!, name: renamed.name }
+    persist({
+      snapshot: fresh,
+      events: dropEvents(isDone),
+      lastSyncedAt: lastSyncedAt.value,
+      ...(renamed && { user: toRaw(currentUser.value) }),
+    })
   }
 
   // Same rules as the server projection: inheritable attributes come from the parent unless the
