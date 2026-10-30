@@ -20,12 +20,12 @@
   type: month
   is_inheritable: true
 
-- name: Größter Stammdurchmesser
+- name: Stammmittendurchmesser groß
   type: number
   unit: cm
   is_inheritable: true
 
-- name: Kleinster Stammdurchmesser
+- name: Stammmittendurchmesser klein
   type: number
   unit: cm
   is_inheritable: true
