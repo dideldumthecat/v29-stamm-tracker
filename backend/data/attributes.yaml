@@ -21,12 +21,11 @@
   is_inheritable: true
 
 - name: Größter Stammdurchmesser
-  description: "Mit Rinde messen, auf volle cm abgerundet"
   type: number
   unit: cm
   is_inheritable: true
+
 - name: Kleinster Stammdurchmesser
-  description: "Mit Rinde messen, auf volle cm abgerundet"
   type: number
   unit: cm
   is_inheritable: true
