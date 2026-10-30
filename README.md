@@ -118,11 +118,12 @@ The dev server uses a **fake API** with the fixtures by default, so UI work need
 | Lint / format frontend | `ddev frontend run lint` / `ddev frontend run format` |
 | Backend tests | `ddev phpunit` |
 | Format PHP | `ddev php-cs-fixer fix` |
-| Symfony console | `ddev console …` |
+| Symfony console (an argument containing a space needs double quoting, e.g. `"'Max Muster'"`, because DDEV drops the outer quotes before the command reaches the container) | `ddev console …` |
 | Users | `app:user:create`, `app:user:list`, `app:user:revoke` |
 | Void a stem or beam created by mistake or twice (it leaves the snapshot, its tag is free again; a stem only once its beams are voided; recorded under the only admin) | `ddev console app:item:void 123` or `app:item:void 123-A [--force]` |
 | Export all stems and beams (current state, without voided) to Excel; without a path `stamm-tracker-export-YYYY-MM-DD-HHMM.xlsx` (Berlin time) in the current directory, see [Excel export](#excel-export) | `ddev console app:export [path.xlsx]` |
 | Attach photos to stems and beams from a CSV (`file,tag` or `file;tag`), see [Photos](#photos) | `ddev console app:photo:import photos.csv [--dry-run]` |
+| Set one attribute on many stems, see [Setting a value for many stems](#setting-a-value-for-many-stems) | `ddev console app:attribute:set Länge "'4,10 m'" --range all [--overwrite] [--dry-run] [--user Name]` |
 | Rebuild projections from all events | `ddev console app:projections:rebuild` |
 | Import attributes from YAML (path relative to `backend/`; creates and updates, never deletes) | `ddev console app:attributes:import data/attributes.yaml [--dry-run]` |
 | Testing only: delete events and projections (users stay) | `ddev console app:reset [--attributes] [--force]` |
@@ -166,6 +167,31 @@ Photos are JPEGs, compressed on the device (4032 px long edge, quality 0.7); the
 cd ~/photo-import
 <PHP_BIN> <REMOTE_PATH>/bin/console app:photo:import photos.csv --dry-run
 <PHP_BIN> <REMOTE_PATH>/bin/console app:photo:import photos.csv
+```
+
+### Setting a value for many stems
+
+`app:attribute:set <attribute> <value> --range <range>` records one value on many stems as ordinary events, so it shows in the snapshot and in `app:export` at once. `--range` is required: `all`, a number (`119`), a range (`1-10`) or a list (`1-10,15,20-25`); leading zeros do not matter.
+
+- The attribute is given by its exact name. Only inheritable attributes that are not a series qualify (so not "Notiz" or "Fotos"). Beams are never touched; they inherit from their stem.
+- The value: for a choice the exact option text (`"4,10 m"`, otherwise the valid options are listed), for a number `34,5`, for a boolean `ja` or `nein`, for a month `2026-10`.
+- Only stems without a value get one. A stem that already has a value is skipped, unless `--overwrite` is given and the value differs. A second run changes nothing.
+- Numbers in the range without a stem are listed at the end. Voided stems are ignored.
+- `--dry-run` shows the counts (set, skipped, not found); with `--overwrite` it also lists "number: old value → new value". Check any input first: nothing is written when the attribute, value or range is invalid.
+- Recorded under the only admin, or under the user given with `--user` (name or ID).
+
+```sh
+ddev console app:attribute:set Länge "'4,10 m'" --range all --user Alexander --dry-run
+ddev console app:attribute:set Länge "'4,10 m'" --range 1-130 --user Alexander
+```
+
+A value with a space is quoted twice for `ddev console`: DDEV removes the outer quotes before passing the arguments into the container, so without the inner quotes `4,10 m` would become two arguments ("Too many arguments"). Alternatively, run `ddev ssh`, change to `backend/` and call `php bin/console app:attribute:set Länge "4,10 m" …` with normal quoting.
+
+On IONOS there is no DDEV, so normal single quoting is enough (from the home directory, the command also runs from there):
+
+```sh
+<PHP_BIN> <REMOTE_PATH>/bin/console app:attribute:set Länge "4,10 m" --range all --dry-run
+<PHP_BIN> <REMOTE_PATH>/bin/console app:attribute:set Länge "4,10 m" --range all
 ```
 
 ### Starting a test over
