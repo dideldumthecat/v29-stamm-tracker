@@ -6,11 +6,8 @@ use App\Entity\Attribute;
 use App\Entity\AttributeOption;
 use App\Entity\AttributeType;
 use App\Entity\EventType;
-use App\Entity\TimberItem;
 use App\Entity\TimberItemEvent;
 use App\Entity\TimberItemState;
-use App\Entity\User;
-use App\Entity\UserRole;
 use App\Projection\TimberItemProjector;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\Argument;
@@ -28,11 +25,10 @@ use Symfony\Component\Uid\Uuid;
 #[AsCommand(name: 'app:attribute:set', description: 'Set an attribute value on many stems at once (only where no value is set, unless --overwrite)')]
 class AttributeSetCommand
 {
-    private const MAX_TAG_NUMBER = 1999;
-
     public function __construct(
         private readonly EntityManagerInterface $em,
         private readonly TimberItemProjector $projector,
+        private readonly StemSelection $selection,
     ) {
     }
 
@@ -45,23 +41,19 @@ class AttributeSetCommand
         #[Option(description: 'Show what would happen without writing anything')] bool $dryRun = false,
         #[Option(description: 'Name or ID of the user the values are recorded under; default: the only admin')] ?string $user = null,
     ): int {
-        $numbers = null === $range ? null : $this->parseRange($range);
-        // The database compares names case-insensitively; "exact" is checked here.
-        $attr = array_find($this->em->getRepository(Attribute::class)->findBy(['name' => $attribute]), static fn (Attribute $a) => $a->name === $attribute);
+        $numbers = null === $range ? null : $this->selection->parseRange($range);
+        $attr = $this->selection->attribute($attribute);
         $error = match (true) {
             null === $range => '--range is required: all, a number, from-to or a list like 1-10,15.',
-            false === $numbers => \sprintf('"%s" is not a range. Use all, 119, 1-10 or 1-10,15,20-25 (numbers 1 to %d).', $range, self::MAX_TAG_NUMBER),
+            false === $numbers => $this->selection->notARange($range),
             null === $attr => \sprintf('No attribute named "%s".', $attribute),
             !$attr->active => \sprintf('Attribute "%s" is inactive.', $attribute),
             $attr->isSeries || !$attr->isInheritable => \sprintf('"%s" is %s; only inheritable attributes that are not a series can be set for many stems.', $attribute, $attr->isSeries ? 'a series' : 'not inheritable'),
             default => null,
         };
         $parsed = $error ?? $this->parseValue($attr, $value, $error);
-        $users = $this->em->getRepository(User::class)->findBy(null === $user ? ['role' => UserRole::Admin, 'revokedAt' => null] : ['revokedAt' => null]);
-        $users = null === $user ? $users : array_values(array_filter($users, static fn (User $u) => $u->name === $user || $u->id->toRfc4122() === $user));
-        $error ??= 1 !== \count($users) ? (null === $user
-            ? 'The values are recorded under the admin, but there are '.($users ? 'several' : 'none').'. Choose one with --user (name or ID, see app:user:list).'
-            : \sprintf('No active user "%s" found, or the name is not unique. Use the ID from app:user:list.', $user)) : null;
+        $author = $this->selection->user($user);
+        $error ??= \is_string($author) ? $author : null;
         if (null !== $error) {
             $io->error($error);
 
@@ -80,12 +72,7 @@ class AttributeSetCommand
             default => $labels[$v] ?? (string) $v,
         };
 
-        $stems = [];
-        foreach ($this->em->getRepository(TimberItem::class)->findBy(['parentId' => null, 'voidedAt' => null]) as $stem) {
-            if (null !== $stem->tagNumber) {
-                $stems[(int) $stem->tagNumber] = $stem;
-            }
-        }
+        $stems = $this->selection->stems();
         $current = [];
         foreach ($this->em->getRepository(TimberItemState::class)->findBy(['attributeId' => $attr->id]) as $state) {
             $current[$state->timberItemId->toRfc4122()] = $state->valueRecords[array_key_last($state->valueRecords)]['value'];
@@ -111,11 +98,11 @@ class AttributeSetCommand
         }
 
         if (!$dryRun) {
-            $this->em->wrapInTransaction(function () use ($set, $attr, $parsed, $users): void {
+            $this->em->wrapInTransaction(function () use ($set, $attr, $parsed, $author): void {
                 $now = new \DateTimeImmutable();
                 foreach ($set as $stem) {
                     $this->em->persist(new TimberItemEvent(Uuid::v7(), $stem->id, EventType::AttributeRecorded,
-                        ['attribute_id' => $attr->id->toRfc4122(), 'value' => $parsed], $now, $users[0], receivedAt: $now));
+                        ['attribute_id' => $attr->id->toRfc4122(), 'value' => $parsed], $now, $author, receivedAt: $now));
                 }
                 $this->em->flush();
                 foreach ($set as $stem) {
@@ -137,29 +124,6 @@ class AttributeSetCommand
         }
 
         return Command::SUCCESS;
-    }
-
-    /**
-     * @return list<int>|false|null the requested tag numbers, null for "all", false if the text is not a range
-     */
-    private function parseRange(string $range): array|false|null
-    {
-        if ('all' === $range) {
-            return null;
-        }
-        $numbers = [];
-        foreach (explode(',', $range) as $part) {
-            if (!preg_match('/^\s*0*(\d+)\s*(?:-\s*0*(\d+)\s*)?$/', $part, $m)) {
-                return false;
-            }
-            [$from, $to] = [(int) $m[1], (int) ($m[2] ?? $m[1])];
-            if ($from < 1 || $from > $to || $to > self::MAX_TAG_NUMBER) {
-                return false;
-            }
-            array_push($numbers, ...range($from, $to));
-        }
-
-        return array_values(array_unique($numbers));
     }
 
     /**

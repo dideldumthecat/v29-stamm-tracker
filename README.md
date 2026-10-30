@@ -124,6 +124,7 @@ The dev server uses a **fake API** with the fixtures by default, so UI work need
 | Export all stems and beams (current state, without voided) to Excel; without a path `stamm-tracker-export-YYYY-MM-DD-HHMM.xlsx` (Berlin time) in the current directory, see [Excel export](#excel-export) | `ddev console app:export [path.xlsx]` |
 | Attach photos to stems and beams from a CSV (`file,tag` or `file;tag`), see [Photos](#photos) | `ddev console app:photo:import photos.csv [--dry-run]` |
 | Set one attribute on many stems, see [Setting a value for many stems](#setting-a-value-for-many-stems) | `ddev console app:attribute:set Länge "'4,10 m'" --range all [--overwrite] [--dry-run] [--user Name]` |
+| Clear one attribute on many stems (voids its recordings, the events stay), see [Clearing a value for many stems](#clearing-a-value-for-many-stems) | `ddev console app:attribute:clear "'Größter Stammdurchmesser'" --range all [--dry-run] [--user Name]` |
 | Rebuild projections from all events | `ddev console app:projections:rebuild` |
 | Import attributes from YAML (path relative to `backend/`; creates and updates, never deletes) | `ddev console app:attributes:import data/attributes.yaml [--dry-run]` |
 | Testing only: delete events and projections (users stay) | `ddev console app:reset [--attributes] [--force]` |
@@ -193,6 +194,22 @@ On IONOS there is no DDEV, so normal single quoting is enough (from the home dir
 <PHP_BIN> <REMOTE_PATH>/bin/console app:attribute:set Länge "4,10 m" --range all --dry-run
 <PHP_BIN> <REMOTE_PATH>/bin/console app:attribute:set Länge "4,10 m" --range all
 ```
+
+### Clearing a value for many stems
+
+`app:attribute:clear <attribute> --range <range>` empties an attribute on stems, for example when a value turned out to be wrong and the next person measures again. Nothing is deleted (T03): for every recording of the attribute on the stem it appends a `voided` event whose `reference_id` is that `attribute_recorded` event. The projection ignores a voided recording whatever the order of arrival, so the field is empty and editable again in the app after the next download, and `app:export` shows an empty cell. A `voided` event that references the item's `created` event still voids the whole item (`app:item:void`).
+
+- `--range`, `--user` and `--dry-run` work as for `app:attribute:set`; the attribute is given by its exact name.
+- All recordings are voided, not only the latest, otherwise an older value would resurface. A value recorded afterwards counts again.
+- Stems only: a beam's own recordings stay; a beam that merely inherited the value no longer shows it. Series attributes (e.g. "Fotos") are refused.
+- Output: `Cleared: n, skipped (no value): m, no stem found: k`. A second run clears nothing.
+
+```sh
+ddev console app:attribute:clear "'Größter Stammdurchmesser'" --range all --user Alexander --dry-run
+ddev console app:attribute:clear "'Größter Stammdurchmesser'" --range all --user Alexander
+```
+
+On IONOS: take a backup first, then `--dry-run`, then the real run, as above (normal quoting, no DDEV).
 
 ### Starting a test over
 
