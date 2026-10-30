@@ -168,4 +168,23 @@ class ExportCommandTest extends KernelTestCase
         unlink($files[0]);
         rmdir($directory);
     }
+
+    public function testAClearedAttributeIsEmpty(): void
+    {
+        $diameter = $this->attribute('Durchmesser', AttributeType::Number, 10, inheritable: true);
+        $stem = $this->item('12');
+        $this->record($stem, $diameter, 31);
+        $this->em->flush();
+        $recording = $this->em->getConnection()->fetchOne('SELECT id FROM timber_item_events WHERE type = ?', ['attribute_recorded']);
+        $this->em->persist(new TimberItemEvent(Uuid::v7(), $stem, EventType::Voided, [], new \DateTimeImmutable('2026-10-21 08:00:00 UTC'), $this->user, Uuid::fromBinary($recording), new \DateTimeImmutable('2026-10-21 08:00:00 UTC')));
+        $this->em->flush();
+        self::getContainer()->get(TimberItemProjector::class)->project($stem);
+
+        $this->tester->execute(['file' => $this->file]);
+
+        $rows = $this->exported();
+        self::assertCount(2, $rows, 'the stem is still listed');
+        self::assertSame(['00012', 'Stamm'], [$rows[1][0], $rows[1][1]]);
+        self::assertEmpty($rows[1][6] ?? null);
+    }
 }

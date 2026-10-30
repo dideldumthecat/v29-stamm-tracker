@@ -66,11 +66,13 @@ final class TimberItemProjector
         }
 
         // Voided beams do not count: a stem whose only beam was voided can be recorded on again.
+        // A void of a single recording leaves the beam alone (see fromOwnEvents).
         $hasChildren = (bool) $db->fetchOne(
             'SELECT 1 FROM timber_item_events child WHERE child.type = ? AND JSON_VALUE(child.data, ?) = ?
-                AND NOT EXISTS (SELECT 1 FROM timber_item_events void WHERE void.timber_item_id = child.timber_item_id AND void.type = ?)
+                AND NOT EXISTS (SELECT 1 FROM timber_item_events void WHERE void.timber_item_id = child.timber_item_id AND void.type = ?
+                    AND NOT EXISTS (SELECT 1 FROM timber_item_events rec WHERE rec.id = void.reference_id AND rec.type = ?))
                 LIMIT 1',
-            [EventType::Created->value, '$.parent_id', $timberItemId->toRfc4122(), EventType::Voided->value],
+            [EventType::Created->value, '$.parent_id', $timberItemId->toRfc4122(), EventType::Voided->value, EventType::AttributeRecorded->value],
         );
         $db->insert('timber_items', [
             'id' => $timberItemId,
@@ -127,7 +129,22 @@ final class TimberItemProjector
         $tagNumber = null;
         $values = [];
         $voidedAt = null;
-        foreach ($this->events->findInReceiptOrder($timberItemId) as $event) {
+        $events = $this->events->findInReceiptOrder($timberItemId);
+        // A voided event pointing at an attribute_recorded event voids that one recording; any other voided event voids
+        // the item. Collected up front: the void is received after the recording it cancels.
+        $recordingIds = [];
+        foreach ($events as $event) {
+            if (EventType::AttributeRecorded === $event->type) {
+                $recordingIds[$event->id->toRfc4122()] = true;
+            }
+        }
+        $voidedRecordings = [];
+        foreach ($events as $event) {
+            if (EventType::Voided === $event->type && isset($recordingIds[$event->referenceId?->toRfc4122()])) {
+                $voidedRecordings[$event->referenceId->toRfc4122()] = true;
+            }
+        }
+        foreach ($events as $event) {
             switch ($event->type) {
                 case EventType::Created:
                     $item ??= [
@@ -140,6 +157,9 @@ final class TimberItemProjector
                     $tagNumber = $event->data['tag_number'];
                     break;
                 case EventType::AttributeRecorded:
+                    if (isset($voidedRecordings[$event->id->toRfc4122()])) {
+                        break;
+                    }
                     $attributeId = $event->data['attribute_id'];
                     $record = [
                         'value' => $event->data['value'],
@@ -151,6 +171,9 @@ final class TimberItemProjector
                     $values[$attributeId] = $isSeries ? [...$values[$attributeId] ?? [], $record] : [$record];
                     break;
                 case EventType::Voided:
+                    if (isset($voidedRecordings[$event->referenceId?->toRfc4122()])) {
+                        break;
+                    }
                     // Late events from other devices are stored but change nothing.
                     $voidedAt = $event->receivedAt;
                     break 2;
