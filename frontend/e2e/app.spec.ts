@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, type Locator, type Page } from '@playwright/test'
 
 // Smoke test: the app shell renders
 test('shows the app title', async ({ page }) => {
@@ -280,4 +280,308 @@ test('landscape tablet shows no rotate hint', async ({ page }) => {
   await page.goto('/')
   await expect(page.locator('h1')).toBeVisible()
   await expect(page.getByText('Bitte das Handy hochkant halten.')).toBeHidden()
+})
+
+// Photos: the "file chooser" stands in for the system camera.
+const PHOTO = 'e2e/fixtures/photo.jpg'
+
+async function takePhoto(page: Page) {
+  const chooser = page.waitForEvent('filechooser')
+  await page.getByRole('button', { name: 'Foto aufnehmen' }).click()
+  await (await chooser).setFiles(PHOTO)
+}
+
+// In-app navigation: no reload, so the tests do not depend on the device storage (see the reload test).
+async function openStem(page: Page, digits: string) {
+  for (const digit of digits) {
+    await page.getByRole('button', { name: digit, exact: true }).click()
+  }
+  await page.getByRole('button', { name: /öffnen/i }).click()
+}
+
+// The tile shows up before the write to the device is through; leaving the page earlier would lose the photo.
+async function photoStored(page: Page, count: number) {
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          new Promise<number>((resolve) => {
+            const open = indexedDB.open('v29-stamm-tracker')
+            open.onsuccess = () => {
+              const request = open.result.transaction('photos').objectStore('photos').count()
+              request.onsuccess = () => {
+                open.result.close()
+                resolve(request.result)
+              }
+            }
+          }),
+      ),
+    )
+    .toBe(count)
+}
+
+const preview = (page: Page) => page.getByAltText('Foto, noch nicht hochgeladen')
+
+// Photos are part of the draft: nothing is stored until "Speichern & schließen".
+const saveDraft = (page: Page) => page.getByRole('button', { name: /& schließen$/ }).click()
+const close = (page: Page) => page.getByRole('button', { name: 'Schließen', exact: true }).click()
+const syncLink = (page: Page, count: number) =>
+  page.getByRole('link', { name: `Synchronisieren, ${count} offene Einträge` })
+
+test('a photo on an unknown stem creates nothing when discarded', async ({ page }) => {
+  await page.goto('/timber-item/1444')
+  await expect(page.getByText('Noch nicht erfasst')).toBeVisible()
+  await takePhoto(page)
+  await expect(preview(page)).toHaveCount(1)
+  // The wide first-photo button is replaced by the tile grid; the stem does not exist yet.
+  await expect(page.getByRole('button', { name: 'Foto aufnehmen' })).toHaveCount(1)
+  await expect(page.getByText('Noch nicht erfasst')).toBeVisible()
+
+  await close(page)
+  await expect(page.getByRole('dialog')).toContainText('1 Foto verwerfen?')
+  await page.getByRole('button', { name: 'Verwerfen', exact: true }).click()
+  await expect(page.locator('h1')).toHaveText('V29 Stamm-Tracker')
+  await expect(syncLink(page, 0)).toBeVisible()
+
+  await openStem(page, '1444')
+  await expect(page.getByText('Noch nicht erfasst')).toBeVisible()
+  await expect(preview(page)).toHaveCount(0)
+})
+
+test('a photo on an unknown stem is stored with the stem and survives a reload', async ({
+  page,
+  browserName,
+}) => {
+  await page.goto('/timber-item/1444')
+  await takePhoto(page)
+  await page.getByLabel('Holzart').selectOption({ label: 'Traubeneiche' })
+  await saveDraft(page)
+  await expect(page.locator('h1')).toHaveText('V29 Stamm-Tracker')
+  // Stem, Holzart and photo.
+  await expect(syncLink(page, 3)).toBeVisible()
+
+  // Playwright's WebKit runs without a disk profile and cannot store Blobs in IndexedDB: check that on a real iPhone.
+  // eslint-disable-next-line playwright/no-skipped-test
+  test.skip(browserName === 'webkit', 'WebKit in Playwright cannot store Blobs in IndexedDB')
+  await photoStored(page, 1)
+  await page.reload()
+  await openStem(page, '1444')
+  await expect(preview(page)).toHaveCount(1)
+  await expect(page.getByText('Bereits erfasst')).toBeVisible()
+})
+
+test('leaving an existing stem with a photo asks first; "Weiter bearbeiten" keeps it, "Verwerfen" drops it', async ({
+  page,
+}) => {
+  await page.goto('/timber-item/123')
+  await takePhoto(page)
+  await expect(preview(page)).toHaveCount(1)
+
+  await close(page)
+  await expect(page.getByRole('dialog')).toContainText('1 Foto verwerfen?')
+  await page.getByRole('button', { name: 'Weiter bearbeiten' }).click()
+  await expect(preview(page)).toHaveCount(1)
+
+  await close(page)
+  await page.getByRole('button', { name: 'Verwerfen', exact: true }).click()
+  await expect(syncLink(page, 0)).toBeVisible()
+  await openStem(page, '123')
+  await expect(preview(page)).toHaveCount(0)
+})
+
+test('a photo and a field change are saved together and survive a reload', async ({
+  page,
+  browserName,
+}) => {
+  await page.goto('/timber-item/456')
+  await takePhoto(page)
+  await page.getByLabel('Holzart').selectOption({ label: 'Traubeneiche' })
+  await close(page)
+  await expect(page.getByRole('dialog')).toContainText('1 Foto und 1 Änderung verwerfen?')
+  await page.getByRole('button', { name: 'Weiter bearbeiten' }).click()
+
+  await saveDraft(page)
+  await expect(syncLink(page, 2)).toBeVisible()
+
+  // eslint-disable-next-line playwright/no-skipped-test
+  test.skip(browserName === 'webkit', 'WebKit in Playwright cannot store Blobs in IndexedDB')
+  await photoStored(page, 1)
+  await page.reload()
+  await openStem(page, '456')
+  await expect(preview(page)).toHaveCount(1)
+  await expect(page.getByRole('button', { name: 'Holzart ändern' })).toBeVisible()
+})
+
+test('removing a draft photo asks first', async ({ page }) => {
+  await page.goto('/timber-item/123')
+  await takePhoto(page)
+  await expect(preview(page)).toHaveCount(1)
+
+  await page.getByRole('button', { name: 'Foto entfernen' }).click()
+  await page.getByRole('button', { name: 'Abbrechen' }).click()
+  await expect(preview(page)).toHaveCount(1)
+
+  await page.getByRole('button', { name: 'Foto entfernen' }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Foto entfernen' }).click()
+  await expect(preview(page)).toHaveCount(0)
+})
+
+test('removing a saved, not yet uploaded photo asks first', async ({ page }) => {
+  await page.goto('/timber-item/123')
+  await takePhoto(page)
+  await saveDraft(page)
+  await openStem(page, '123')
+  await expect(preview(page)).toHaveCount(1)
+
+  await page.getByRole('button', { name: 'Foto entfernen' }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Foto entfernen' }).click()
+  await expect(preview(page)).toHaveCount(0)
+  await close(page)
+  await expect(syncLink(page, 0)).toBeVisible()
+})
+
+test('the photo section switches layout with the first photo and fits a narrow phone', async ({
+  page,
+}) => {
+  await page.goto('/timber-item/123')
+  const camera = page.getByRole('button', { name: 'Foto aufnehmen' })
+  const gallery = page.getByRole('button', { name: 'Aus Galerie' })
+  const stack = page.getByRole('img', { name: '1 Foto hochgeladen' })
+  const cell = stack.locator('..')
+  const box = async (locator: Locator) => (await locator.boundingBox())!
+
+  for (const width of [320, 390]) {
+    await page.setViewportSize({ width, height: 640 })
+    // Stem 123 holds one uploaded photo: stack and both buttons in one row.
+    await expect(page.getByRole('heading', { name: 'Fotos (1)' })).toBeVisible()
+    const [cellBox, front, buttons] = [await box(cell), await box(stack), await box(camera)]
+    // The whole stack stays inside its cell: gap to the buttons is the grid gap (8px), edges are flush.
+    expect(buttons.x - (cellBox.x + cellBox.width)).toBeCloseTo(8, 0)
+    expect(cellBox.y).toBeCloseTo(buttons.y, 0)
+    expect(front.y + front.height).toBeCloseTo(buttons.y + buttons.height, 0)
+    expect(front.x).toBeCloseTo(cellBox.x, 0)
+    const outlines = await cell
+      .locator('span')
+      .evaluateAll((spans) => spans.map((span) => span.getBoundingClientRect().toJSON()))
+    for (const outline of outlines) {
+      expect(outline.right).toBeLessThanOrEqual(cellBox.x + cellBox.width + 0.5)
+      expect(outline.top).toBeGreaterThanOrEqual(cellBox.y - 0.5)
+    }
+    for (const button of [camera, gallery]) {
+      expect(await button.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true)
+    }
+  }
+
+  await takePhoto(page)
+  await expect(page.getByRole('heading', { name: 'Fotos (2)' })).toBeVisible()
+  // Now the buttons sit below the stack and the preview, which line up on both edges.
+  const [cellBox, front, previewBox, buttons] = [
+    await box(cell),
+    await box(stack),
+    await box(preview(page)),
+    await box(camera),
+  ]
+  expect(buttons.y).toBeGreaterThan(cellBox.y + cellBox.height)
+  expect(cellBox.y).toBeCloseTo(previewBox.y, 0)
+  expect(cellBox.height).toBeCloseTo(previewBox.height, 0)
+  expect(front.y + front.height).toBeCloseTo(previewBox.y + previewBox.height, 0)
+})
+
+test('uploads photos after the data and leaves the count tile', async ({ page }) => {
+  await page.goto('/timber-item/123')
+  // Stem 123 holds one uploaded photo already: a grey tile with the count.
+  const count = page.getByRole('img', { name: '1 Foto hochgeladen' })
+  await expect(count).toHaveText('1')
+  await takePhoto(page)
+  await expect(preview(page)).toHaveCount(1)
+  await expect(count).toHaveText('1')
+  await saveDraft(page)
+
+  await syncLink(page, 1).click()
+  await expect(page.locator('h1')).toHaveText('Synchronisierung (1)')
+  await expect(page.getByText(/^Foto \(\d+ KB\)$/)).toBeVisible()
+  await expect(page.getByText(/^1 Foto · \d+ KB$/)).toBeVisible()
+  await page.getByRole('button', { name: 'Jetzt synchronisieren' }).click()
+  await expect(page.getByRole('progressbar')).toBeVisible()
+  await expect(page.getByText('Foto 1 von 1')).toBeVisible()
+  await expect(page.getByText('1 Foto hochgeladen, aktueller Stand geladen.')).toBeVisible()
+
+  await page.getByRole('button', { name: 'Zurück zum Start' }).click()
+  await openStem(page, '123')
+  await expect(preview(page)).toHaveCount(0)
+  await expect(count).toHaveText('1')
+})
+
+test('cancelling the photos keeps them; the next sync uploads them', async ({ page }) => {
+  await page.goto('/timber-item/123')
+  await takePhoto(page)
+  await takePhoto(page)
+  await expect(preview(page)).toHaveCount(2)
+  await saveDraft(page)
+
+  await syncLink(page, 2).click()
+  await page.getByRole('button', { name: 'Jetzt synchronisieren' }).click()
+  await expect(page.getByText('Foto 1 von 2')).toBeVisible()
+  await page.getByRole('button', { name: 'Abbrechen' }).click()
+  await expect(page.getByRole('alert')).toContainText(
+    'Abgebrochen. 2 Fotos bleiben auf diesem Gerät.',
+  )
+  await expect(page.locator('h1')).toHaveText('Synchronisierung (2)')
+
+  await page.getByRole('button', { name: 'Jetzt synchronisieren' }).click()
+  await expect(page.getByText('2 Fotos hochgeladen, aktueller Stand geladen.')).toBeVisible()
+})
+
+// Photos from the library: the same chooser, several files at once.
+async function pickPhotos(page: Page, files: string[]) {
+  const chooser = page.waitForEvent('filechooser')
+  await page.getByRole('button', { name: 'Aus Galerie' }).click()
+  await (await chooser).setFiles(files)
+}
+
+test('three photos from the library stay in the draft until saving, then upload like captured ones', async ({
+  page,
+}) => {
+  await page.goto('/timber-item/123')
+  await pickPhotos(page, [PHOTO, 'e2e/fixtures/photo-2.jpg', PHOTO])
+  await expect(preview(page)).toHaveCount(3)
+  await close(page)
+  await expect(page.getByRole('dialog')).toContainText('3 Fotos verwerfen?')
+  await page.getByRole('button', { name: 'Weiter bearbeiten' }).click()
+  await saveDraft(page)
+
+  await syncLink(page, 3).click()
+  await page.getByRole('button', { name: 'Jetzt synchronisieren' }).click()
+  await expect(page.getByText('3 Fotos hochgeladen, aktueller Stand geladen.')).toBeVisible()
+
+  await page.getByRole('button', { name: 'Zurück zum Start' }).click()
+  await openStem(page, '123')
+  await expect(preview(page)).toHaveCount(0)
+  await expect(page.getByRole('img', { name: '1 Foto hochgeladen' })).toHaveText('1')
+})
+
+test('an unreadable file is skipped, the others join the draft of the new stem', async ({
+  page,
+  browserName,
+}) => {
+  await page.goto('/timber-item/1445')
+  await expect(page.getByRole('button', { name: 'Foto aufnehmen' })).toBeVisible()
+  await pickPhotos(page, [PHOTO, 'e2e/fixtures/broken.jpg', 'e2e/fixtures/photo-2.jpg'])
+  await expect(preview(page)).toHaveCount(2)
+  await expect(page.getByText('1 Foto konnte nicht gelesen werden')).toBeVisible()
+
+  await saveDraft(page)
+  // eslint-disable-next-line playwright/no-skipped-test
+  test.skip(browserName === 'webkit', 'WebKit in Playwright cannot store Blobs in IndexedDB')
+  await photoStored(page, 2)
+  await page.reload()
+  await openStem(page, '1445')
+  await expect(preview(page)).toHaveCount(2)
+})
+
+test('a split stem offers neither camera nor library', async ({ page }) => {
+  await page.goto('/timber-item/789')
+  await expect(page.getByText('Aufgeteilter Stamm')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Foto aufnehmen' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Aus Galerie' })).toHaveCount(0)
 })

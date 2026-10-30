@@ -3,6 +3,7 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import { createPinia, setActivePinia } from 'pinia'
 import { ref } from 'vue'
+import { Blob as NodeBlob } from 'node:buffer'
 import App from '../App.vue'
 import { routes } from '../router'
 import { useTimberItemStore } from '@/stores/timberItems'
@@ -21,6 +22,17 @@ vi.mock('@/composables/useUpdateCheck', () => ({
   applyUpdate: vi.fn(),
   checkForUpdateNow: vi.fn(),
 }))
+
+// jsdom cannot decode images: the photos pass through as they are (the compression has its own tests).
+vi.mock('@/utils/photo', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/utils/photo')>()),
+  attachPhotos: async (files: Blob[], add: (photo: Blob) => void) => {
+    files.forEach(add)
+    return { skipped: 0 }
+  },
+}))
+URL.createObjectURL = () => 'blob:preview'
+URL.revokeObjectURL = () => {}
 
 const mounted: { unmount: () => void }[] = []
 
@@ -120,7 +132,117 @@ describe('App', () => {
     await wrapper.find('button[aria-label="Schließen"]').trigger('click')
     await flushPromises()
     expect(router.currentRoute.value.name).toBe('timber-item')
-    expect(document.body.textContent).toContain('Änderungen verwerfen?')
+    expect(document.body.textContent).toContain('1 Änderung verwerfen?')
+  })
+
+  describe('photos in the draft', () => {
+    const pick = async (wrapper: Awaited<ReturnType<typeof mountAt>>['wrapper'], count = 1) => {
+      // Node's Blob: the one the fake IndexedDB can store.
+      const files = Array.from({ length: count }, () => new NodeBlob(['x']) as unknown as Blob)
+      const input = wrapper.find('input[accept="image/*"][multiple]')
+      Object.defineProperty(input.element, 'files', { value: files, configurable: true })
+      await input.trigger('change')
+      await flushPromises()
+    }
+    const previews = (wrapper: Awaited<ReturnType<typeof mountAt>>['wrapper']) =>
+      wrapper.findAll('img[alt="Foto, noch nicht hochgeladen"]')
+    const closeButton = (wrapper: Awaited<ReturnType<typeof mountAt>>['wrapper']) =>
+      wrapper.find('button[aria-label="Schließen"]')
+    const saveButton = (wrapper: Awaited<ReturnType<typeof mountAt>>['wrapper']) =>
+      wrapper.find('button.bg-ink.text-lg')
+    const sheetButton = (name: string) =>
+      [...document.querySelectorAll('[role="dialog"] button')].find(
+        (button) => button.textContent?.trim() === name,
+      ) as HTMLButtonElement
+
+    it('creates nothing for a photo on an unknown stem that is discarded', async () => {
+      const { wrapper, router } = await mountAt('/timber-item/1444')
+      await pick(wrapper)
+      expect(previews(wrapper)).toHaveLength(1)
+      expect(useTimberItemStore().events).toEqual([])
+
+      await closeButton(wrapper).trigger('click')
+      await flushPromises()
+      expect(document.body.textContent).toContain('1 Foto verwerfen?')
+      sheetButton('Verwerfen').click()
+      await flushPromises()
+
+      const store = useTimberItemStore()
+      expect(router.currentRoute.value.name).toBe('start')
+      expect([store.events, store.photos, store.pendingCount]).toEqual([[], [], 0])
+    })
+
+    it('creates the stem and queues the photo when the draft is saved', async () => {
+      const { wrapper } = await mountAt('/timber-item/1444')
+      expect(saveButton(wrapper).attributes('disabled')).toBeUndefined()
+      await pick(wrapper)
+      await saveButton(wrapper).trigger('click')
+      await flushPromises()
+
+      const store = useTimberItemStore()
+      expect(store.findByTagNumber(1444)).toBeDefined()
+      expect(store.photos).toHaveLength(1)
+      expect(store.events.map((event) => event.type)).toEqual([
+        'created',
+        'tag_assigned',
+        'attribute_recorded',
+      ])
+      expect(store.pendingCount).toBe(2)
+    })
+
+    it('asks before leaving a stem with a photo; "Weiter bearbeiten" keeps it, "Verwerfen" drops it', async () => {
+      const { wrapper } = await mountAt('/timber-item/123')
+      const photosBefore = useTimberItemStore().photos.length
+      await pick(wrapper)
+      await wrapper.find('select').setValue(wrapper.findAll('option')[1]!.element.value)
+
+      await closeButton(wrapper).trigger('click')
+      await flushPromises()
+      expect(document.body.textContent).toContain('1 Foto und 1 Änderung verwerfen?')
+      sheetButton('Weiter bearbeiten').click()
+      await flushPromises()
+      expect(previews(wrapper)).toHaveLength(1)
+
+      await closeButton(wrapper).trigger('click')
+      await flushPromises()
+      sheetButton('Verwerfen').click()
+      await flushPromises()
+      expect(useTimberItemStore().photos).toHaveLength(photosBefore)
+      expect(useTimberItemStore().events).toEqual([])
+    })
+
+    it('saves a photo together with a field change, and the photo is still there on reopening', async () => {
+      const { wrapper } = await mountAt('/timber-item/456')
+      await pick(wrapper)
+      await wrapper.find('select').setValue(wrapper.findAll('option')[1]!.element.value)
+      await saveButton(wrapper).trigger('click')
+      await flushPromises()
+
+      const store = useTimberItemStore()
+      expect(store.events.map((event) => event.type)).toEqual([
+        'attribute_recorded',
+        'attribute_recorded',
+      ])
+      expect(store.pendingPhotosOf(store.findByTagNumber(456)!.id)).toHaveLength(1)
+      const reopened = await mountAt('/timber-item/456')
+      expect(previews(reopened.wrapper)).toHaveLength(1)
+    })
+
+    it('holds three gallery photos in the draft until saving, and a draft photo can be removed', async () => {
+      const { wrapper } = await mountAt('/timber-item/123')
+      await pick(wrapper, 3)
+      expect(previews(wrapper)).toHaveLength(3)
+      expect(useTimberItemStore().photos).toEqual([])
+
+      await wrapper.find('button[aria-label="Foto entfernen"]').trigger('click')
+      sheetButton('Foto entfernen').click()
+      await flushPromises()
+      expect(previews(wrapper)).toHaveLength(2)
+
+      await saveButton(wrapper).trigger('click')
+      await flushPromises()
+      expect(useTimberItemStore().photos).toHaveLength(2)
+    })
   })
 
   it('keeps an unsaved entry when the data is refreshed in the background', async () => {
@@ -146,7 +268,7 @@ describe('App', () => {
     await flushPromises()
     expect(router.currentRoute.value.name).toBe('start')
     expect(document.body.textContent).toContain('Stamm 00456 gespeichert')
-    expect(document.body.textContent).not.toContain('Änderungen verwerfen?')
+    expect(document.body.textContent).not.toContain('1 Änderung verwerfen?')
   })
 
   it('enables saving only with changes, but always for a stem not recorded yet', async () => {
@@ -351,7 +473,7 @@ describe('App', () => {
     await wrapper.find('button[aria-label="Schließen"]').trigger('click')
     await flushPromises()
     expect(router.currentRoute.value.name).toBe('timber-item')
-    expect(document.body.textContent).toContain('Änderungen verwerfen?')
+    expect(document.body.textContent).toContain('1 Änderung verwerfen?')
   })
 
   it('records added series values and the pending input on save', async () => {
@@ -475,6 +597,7 @@ describe('App', () => {
       deactivate('choice')
       deactivate('boolean')
       deactivate('month')
+      deactivate('photo')
       // Item 123: choice, date and series recorded. Item 789: boolean recorded.
       const first = await mountAt('/timber-item/123')
       expect(first.wrapper.text()).toContain('28.09.2026')
@@ -569,7 +692,7 @@ describe('App', () => {
       await flushPromises()
       expect(router.currentRoute.value.params.tagNumber).toBe('789')
       expect(document.body.textContent).toContain('Balken 00789-A gespeichert')
-      expect(document.body.textContent).not.toContain('Änderungen verwerfen?')
+      expect(document.body.textContent).not.toContain('1 Änderung verwerfen?')
     })
 
     it('summarises own values only, first two in sort order', async () => {

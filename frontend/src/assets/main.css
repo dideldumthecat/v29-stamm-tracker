@@ -31,6 +31,17 @@
   --spacing-header: 90px;
 
   --font-sans: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+
+  /* Progress bar without a known end: a bar that runs across */
+  --animate-indeterminate: indeterminate 1.4s ease-in-out infinite;
+  @keyframes indeterminate {
+    from {
+      left: -40%;
+    }
+    to {
+      left: 100%;
+    }
+  }
 }
 
 /* 16px side gutter, but at least as wide as the notch cutout in landscape */
