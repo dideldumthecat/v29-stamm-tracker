@@ -319,6 +319,7 @@ On the server, `.htaccess` routes `/api/*` and `/admin/*` to Symfony, serves exi
 ### Logs and php.ini (IONOS)
 
 - **Symfony log:** `<REMOTE_PATH>/var/log/prod-YYYY-MM-DD.log`, one file for everything, one file per day, the last 30 are kept, level info and above. It holds one line per `/api` request – method, path, status, duration, request and response size, user (ID and name), shortened user agent and app build (header `X-App-Build`) – one line per sync (received / new / known / rejected, rejected ones with reason), photo upload (ID, bytes, stored or rejected) and snapshot (number of timber items), and every error with its full context and stack trace, including uncaught exceptions in console commands (handled failures that only print `[ERROR]`, e.g. an unreadable CSV, are not logged). 404 and 405 (bots probing for `/wp-login.php`, `/.env`) are logged as `NOTICE`, not as errors. Requests outside `/api` (the app files) are not logged. Never logged: IP addresses, invite codes, cookies, query strings, request and response bodies.
+- **App diagnostics log:** `<REMOTE_PATH>/var/log/client-YYYY-MM-DD.log`, what the app reports about itself (`POST /api/diagnostics`, sent automatically, no button), one JSON object per line, one file per day, the last 30 are kept; these lines are not in `prod-*.log`. Each line is one entry the app recorded on the phone: uncaught errors, failed requests (status, duration, the first 500 characters of an answer that is not JSON), the result of every photo upload (bytes, attempt, `blob_source`: `fresh` = captured since the app started, `stored` = read back from device storage), and steps of a sync and of an update (found, waiting, "Aktualisieren" tapped, new version active). The fields: `kind`, `count` (repeats of the same message while unsent), `device_time` (phone clock), `entry_id`, `user_name`, `app_build`, `user_agent`, and the entry's context (`route`, `online`, `visible`, `status`, …). Never contained: attribute values, invite codes, photo contents, URLs with query or hash. Messages are cut at 1,000 characters, other texts at 500.
 - **PHP errors before Symfony starts:** `<REMOTE_PATH>/var/log/php-errors.log`, set by `public/php.ini`. This file is **not rotated**; delete or truncate it now and then (`: > php-errors.log`).
 - `public/php.ini` exists only on the server (ignored by git, kept by the deploy, blocked in `.htaccess` – `/php.ini` answers 403). For our IONOS contract a `php.ini` applies to its own directory only, not to subfolders ([IONOS: customizing PHP settings](https://www.ionos.com/help/hosting/using-php-for-web-projects/customizing-the-php-settings-using-the-phpini-file/)). The documentation does not say whether the file adds to or replaces the default settings, so the template repeats the upload limits. Create it once from the template; the `var/log` folder must exist for PHP to write there:
 
@@ -337,11 +338,16 @@ grep -h /api/photos prod-*.log
 grep -h '"user_name":"Kerstin"' prod-$(date +%F).log
 grep -hE "\.(ERROR|CRITICAL)" prod-*.log
 tail -n 20 php-errors.log
+# App diagnostics log
+grep -h '"user_name":"Kerstin"' client-*.log
+grep -h '"kind":"photo_upload"' client-$(date +%F).log
+grep -h '"level_name":"ERROR"' client-*.log
 ```
 
 **Check after the deploy** (nothing stays in the repo)
 
 - Symfony log: `curl -s -X POST https://<host>/api/session -H 'Content-Type: application/json' -d '{"token":"test"}'` answers 401 and writes an `ERROR` line "Unknown or revoked invite link" and a request line (status 401) in `prod-<today>.log`. `curl https://<host>/api/ping` adds a request line (the app build is empty for `curl`).
+- App diagnostics log: sign in with the app, open the help page, then switch the phone to flight mode, tap "Sync" and switch it back on; the failed sync shows up as a `"kind":"request_failed"` line (and "Sync failed") in `client-<today>.log` after a few seconds, with the user's name and the app build.
 - Console: `<PHP_BIN> bin/console dbal:run-sql "SELECT * FROM missing_table"` throws, and the exception appears in the same file.
 - `php.ini`: over SSH, create `public/boom.php` containing `<?php header('Content-Type: text/plain'); var_dump(ini_get('log_errors'), ini_get('error_log'), ini_get('upload_max_filesize'), ini_get('post_max_size')); trigger_error('php-ini-test', E_USER_WARNING);`, open `https://<host>/boom.php`: it shows `string(1) "1"`, the path to `php-errors.log` and the upload limits (`64M` each, as in the template), and `tail php-errors.log` shows the warning. Delete `public/boom.php` afterwards. If the values are wrong, `public/php.ini` is not read (check the name and the path).
 

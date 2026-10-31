@@ -3,7 +3,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { useTimberItemStore } from '@/stores/timberItems'
 import { api, ApiError } from '@/api/client'
 import { Blob as NodeBlob } from 'node:buffer'
-import { load as loadStored, save } from '@/persistence/database'
+import { load as loadStored, loadDiagnostics, save } from '@/persistence/database'
 
 // Pass-through spy: tests can check what reaches IndexedDB.
 vi.mock('@/persistence/database', async (importOriginal) => {
@@ -664,6 +664,45 @@ describe('timber item store: photos', () => {
     expect(store.photos).toEqual([])
     expect(store.progress).toBeNull()
     expect(store.pendingCount).toBe(0)
+  })
+
+  it('reports each upload with its size, attempt and where the blob came from', async () => {
+    const store = useTimberItemStore()
+    const stem = store.createTimberItem(5)
+    store.addPhoto(stem.id, photoAttribute(), jpeg(7))
+    const id = store.photos[0]!.id
+    await vi.waitFor(async () =>
+      expect((await loadStored()).photos.map((photo) => photo.id)).toContain(id),
+    )
+    acceptAll()
+    emptySnapshot()
+    vi.spyOn(api, 'uploadPhoto').mockRejectedValueOnce(new ApiError(400, 'Bad Request', '<html>'))
+    const entryFor = async (message: string) =>
+      vi.waitFor(async () => {
+        const entry = (await loadDiagnostics()).find((candidate) => candidate.message === message)
+        expect(entry).toBeDefined()
+        return entry!
+      })
+
+    // Just captured: the blob in memory is the camera's.
+    await store.sync()
+    const failed = await entryFor(`Photo ${id.slice(0, 8)} upload failed (400)`)
+    expect(failed).toMatchObject({ level: 'error', kind: 'photo_upload' })
+    expect(failed.context).toMatchObject({
+      bytes: 7,
+      attempt: 1,
+      blob_source: 'fresh',
+      status: 400,
+      body_start: '<html>',
+    })
+
+    // After a restart it is read back from the device storage.
+    setActivePinia(createPinia())
+    const reloaded = useTimberItemStore()
+    await reloaded.load()
+    await reloaded.sync()
+    const uploaded = await entryFor(`Photo ${id.slice(0, 8)} uploaded`)
+    expect(uploaded.context).toMatchObject({ bytes: 7, attempt: 1, blob_source: 'stored' })
   })
 
   it('leaves the blob of a failed upload pending and still tries the next photo', async () => {

@@ -1,8 +1,12 @@
+import { record } from '@/diagnostics/record'
+
 // Same reasoning as MIN_REFRESH_INTERVAL_MS: short stays at other apps should not each cost a request.
 export const MIN_UPDATE_CHECK_INTERVAL_MS = 60_000
 export const UPDATE_CHECK_PERIOD_MS = 60 * 60_000
 // Longer than a normal activation, short enough that the user does not give up and force-quit the app.
 export const APPLY_UPDATE_TIMEOUT_MS = 4000
+// After the timeout the report gets this long to reach device storage before the page goes.
+export const RELOAD_GRACE_MS = 300
 
 // Set by startUpdateCheck; stays null in development and tests, where nothing is registered.
 let activeRegistration: ServiceWorkerRegistration | null = null
@@ -45,12 +49,19 @@ export function applyUpdate(updateServiceWorker: (reloadPage?: boolean) => Promi
   }
 
   const waiting = activeRegistration?.waiting
+  void record('info', 'update', 'Update requested', { waiting: !!waiting })
   waiting?.addEventListener('statechange', () => {
     if (waiting.state === 'activated') {
+      // Not reported here: the first start of the new build does that (recordBuildChange).
       reload()
     }
   })
-  setTimeout(reload, APPLY_UPDATE_TIMEOUT_MS)
+  setTimeout(() => {
+    if (!reloaded) {
+      void record('warning', 'update', 'Update did not activate in time, reloading anyway')
+      setTimeout(reload, RELOAD_GRACE_MS)
+    }
+  }, APPLY_UPDATE_TIMEOUT_MS)
   void updateServiceWorker(true)
 }
 
@@ -63,6 +74,22 @@ export function applyUpdate(updateServiceWorker: (reloadPage?: boolean) => Promi
 export function startUpdateCheck(registration: ServiceWorkerRegistration): () => void {
   let lastAttempt = -Infinity
   activeRegistration = registration
+
+  // An update that iOS reports without any error is only visible through these steps.
+  if (registration.waiting) {
+    void record('info', 'update', 'Update waiting from an earlier visit')
+  }
+  registration.addEventListener('updatefound', () => {
+    void record('info', 'update', 'Update found')
+    const installing = registration.installing
+    installing?.addEventListener('statechange', () => {
+      if (installing.state === 'installed') {
+        void record('info', 'update', 'Update waiting')
+      } else if (installing.state === 'redundant') {
+        void record('warning', 'update', 'Update worker discarded')
+      }
+    })
+  })
 
   async function check() {
     if (!canUpdate(registration)) {

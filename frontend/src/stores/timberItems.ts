@@ -15,7 +15,7 @@ import type {
   Timestamp,
   Uuid,
 } from '@/api/contract'
-import { api, ApiError, type User } from '@/api/client'
+import { api, ApiError, describeFailure, type User } from '@/api/client'
 import {
   load as loadStored,
   save,
@@ -24,6 +24,8 @@ import {
   type StoredState,
 } from '@/persistence/database'
 import { useToast } from '@/composables/useToast'
+import { record } from '@/diagnostics/record'
+import { sendDiagnostics } from '@/diagnostics/send'
 import { SYNC_TIMEOUT_MS } from '@/config/constants'
 import { nextBeamTag } from '@/utils/tag'
 
@@ -66,6 +68,9 @@ export const useTimberItemStore = defineStore('timberItems', () => {
   const isEntry = (event: Event) => isEntryIn(event, events.value)
   // Photos not uploaded yet; the blobs live in their own object store, the event with the photo id in the queue.
   const photos = ref<StoredPhoto[]>([])
+  // Captured since this start: the blob is still the one from the camera, not read back from IndexedDB (diagnostics only).
+  const freshPhotoIds = new Set<Uuid>()
+  const photoAttempts = new Map<Uuid, number>()
   const pendingPhotoIds = computed(() => new Set(photos.value.map((photo) => photo.id)))
   const isPhotoEvent = (event: Event) =>
     event.type === 'attribute_recorded' && pendingPhotoIds.value.has(String(event.data.value))
@@ -266,7 +271,24 @@ export const useTimberItemStore = defineStore('timberItems', () => {
       syncing = (async () => {
         await refreshing?.catch(() => {})
         try {
-          return await syncDataAndPhotos(stoppable)
+          void record('info', 'sync', 'Sync started', {
+            pending_entries: events.value.length,
+            pending_photos: photos.value.length,
+          })
+          const result = await syncDataAndPhotos(stoppable)
+          void record('info', 'sync', result.cancelled ? 'Sync stopped' : 'Sync finished', {
+            transferred: result.transferred,
+            rejected: result.rejected.length,
+            photos_uploaded: result.photos?.uploaded,
+            photos_failed: result.photos?.failed,
+            stopped_in: result.cancelled,
+          })
+          return result
+        } catch (error) {
+          void record('warning', 'sync', 'Sync failed', {
+            status: error instanceof ApiError ? error.status : undefined,
+          })
+          throw error
         } finally {
           progress.value = null
         }
@@ -275,6 +297,8 @@ export const useTimberItemStore = defineStore('timberItems', () => {
         syncController = undefined
         isSyncing.value = false
         isStopping.value = false
+        // Successful or not: the reports of this sync go out too.
+        void sendDiagnostics()
       })
     }
     return syncing
@@ -328,6 +352,7 @@ export const useTimberItemStore = defineStore('timberItems', () => {
         cancelled = true
         break
       }
+      const started = performance.now()
       try {
         await api.uploadPhoto(
           {
@@ -338,12 +363,14 @@ export const useTimberItemStore = defineStore('timberItems', () => {
           },
           signal,
         )
+        reportPhotoUpload(photo, started)
         persist({}, { remove: dropPhotos((candidate) => candidate.id === photo.id) })
         stats.uploaded++
       } catch (error) {
         if (!(error instanceof ApiError)) {
           throw error
         }
+        reportPhotoUpload(photo, started, error, signal)
         if (signal?.aborted) {
           cancelled = true
           break
@@ -353,6 +380,34 @@ export const useTimberItemStore = defineStore('timberItems', () => {
       }
     }
     return { photos: stats, ...(cancelled && { cancelled: 'photos' as const }) }
+  }
+
+  // One entry per photo and attempt outcome. "stored" next to "fresh" tells whether a blob that went through
+  // IndexedDB behaves differently on upload (suspected for Safari).
+  function reportPhotoUpload(
+    photo: StoredPhoto,
+    started: number,
+    error?: ApiError,
+    signal?: AbortSignal,
+  ) {
+    const attempt = (photoAttempts.get(photo.id) ?? 0) + 1
+    photoAttempts.set(photo.id, attempt)
+    const context = {
+      bytes: photo.size,
+      attempt,
+      blob_source: freshPhotoIds.has(photo.id) ? 'fresh' : 'stored',
+      duration_ms: Math.round(performance.now() - started),
+    }
+    const name = `Photo ${photo.id.slice(0, 8)}`
+    if (!error) {
+      void record('info', 'photo_upload', `${name} uploaded`, context)
+      return
+    }
+    const { outcome, level, context: failure } = describeFailure(error, signal)
+    void record(level, 'photo_upload', `${name} upload failed (${outcome})`, {
+      ...context,
+      ...failure,
+    })
   }
 
   /**
@@ -522,6 +577,8 @@ export const useTimberItemStore = defineStore('timberItems', () => {
   async function redeemInvite(token: string) {
     currentUser.value = (await api.redeemInvite(token)).user
     persist({ user: toRaw(currentUser.value) })
+    // Reports kept after a 401 can go now.
+    void sendDiagnostics({ afterSignIn: true })
     // Attributes come only with the snapshot; without them nothing can be recorded offline.
     // Failing here is fine: the sign-in stands and the next sync fetches it.
     await refresh().catch(() => {})
@@ -615,6 +672,7 @@ export const useTimberItemStore = defineStore('timberItems', () => {
       blob,
     }
     photos.value.push(photo)
+    freshPhotoIds.add(photo.id)
     emit('attribute_recorded', itemId, { attribute_id: attributeId, value: photo.id }, photo)
   }
 
