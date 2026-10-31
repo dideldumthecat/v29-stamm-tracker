@@ -6,10 +6,12 @@
  * values keeps the queue order without any index.
  * Object store "photos": one entry per photo not uploaded yet, so a big blob is never rewritten
  * with the queue. A photo leaves the store once the server has it.
+ * Object store "diagnostics": the app's own error and flow reports until the server has them (src/diagnostics).
  */
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
-import type { Event, Snapshot, Timestamp, Uuid } from '@/api/contract'
+import type { DiagnosticEntry, Event, Snapshot, Timestamp, Uuid } from '@/api/contract'
 import type { User } from '@/api/client'
+import { DIAGNOSTICS_MAX_AGE_MS, DIAGNOSTICS_MAX_ENTRIES } from '@/config/constants'
 
 export interface StoredState {
   user: User | null
@@ -43,18 +45,22 @@ type Key = keyof StoredState
 interface Schema extends DBSchema {
   state: { key: Key; value: StoredState[Key] }
   photos: { key: Uuid; value: StoredPhoto }
+  diagnostics: { key: Uuid; value: DiagnosticEntry }
 }
 
 let database: Promise<IDBPDatabase<Schema>> | undefined
 
 function open() {
-  database ??= openDB<Schema>('v29-stamm-tracker', 2, {
+  database ??= openDB<Schema>('v29-stamm-tracker', 3, {
     upgrade(db, oldVersion) {
       if (oldVersion < 1) {
         db.createObjectStore('state')
       }
       if (oldVersion < 2) {
         db.createObjectStore('photos', { keyPath: 'id' })
+      }
+      if (oldVersion < 3) {
+        db.createObjectStore('diagnostics', { keyPath: 'id' })
       }
     },
   })
@@ -93,6 +99,65 @@ export async function save(parts: Partial<StoredState>, photos: PhotoChanges = {
   }
   for (const id of photos.remove ?? []) {
     tx.objectStore('photos').delete(id)
+  }
+  await tx.done
+}
+
+/** Oldest first, without what is too old. */
+function freshDiagnostics(entries: DiagnosticEntry[]) {
+  const oldest = Date.now() - DIAGNOSTICS_MAX_AGE_MS
+  return entries
+    .filter((entry) => Date.parse(entry.at) >= oldest)
+    .sort((a, b) => a.at.localeCompare(b.at))
+}
+
+/**
+ * Adds an entry; the same kind and message as an unsent one only raises its count. Keeps the newest
+ * DIAGNOSTICS_MAX_ENTRIES and drops entries older than DIAGNOSTICS_MAX_AGE_MS.
+ */
+export async function addDiagnostic(entry: DiagnosticEntry) {
+  const tx = (await open()).transaction('diagnostics', 'readwrite')
+  const store = tx.objectStore('diagnostics')
+  const all = await store.getAll()
+  const same = all.find((other) => other.kind === entry.kind && other.message === entry.message)
+  if (same) {
+    same.count += entry.count
+    await store.put(same)
+  } else {
+    await store.put(entry)
+    all.push(entry)
+  }
+  const keep = new Set(
+    freshDiagnostics(all)
+      .slice(-DIAGNOSTICS_MAX_ENTRIES)
+      .map(({ id }) => id),
+  )
+  for (const { id } of all) {
+    if (!keep.has(id)) await store.delete(id)
+  }
+  await tx.done
+}
+
+/** Unsent entries, oldest first. */
+export async function loadDiagnostics(): Promise<DiagnosticEntry[]> {
+  return freshDiagnostics(await (await open()).getAll('diagnostics'))
+}
+
+/**
+ * The server has these (as they were when sent). An entry that counted further meanwhile stays with the
+ * repeats the server has not seen.
+ */
+export async function removeDiagnostics(sent: Pick<DiagnosticEntry, 'id' | 'count'>[]) {
+  const tx = (await open()).transaction('diagnostics', 'readwrite')
+  const store = tx.objectStore('diagnostics')
+  for (const { id, count } of sent) {
+    const stored = await store.get(id)
+    if (!stored) continue
+    if (stored.count > count) {
+      await store.put({ ...stored, count: stored.count - count })
+    } else {
+      await store.delete(id)
+    }
   }
   await tx.done
 }

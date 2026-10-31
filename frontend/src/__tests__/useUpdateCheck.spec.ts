@@ -4,6 +4,7 @@ import {
   applyUpdate,
   checkForUpdateNow,
   MIN_UPDATE_CHECK_INTERVAL_MS,
+  RELOAD_GRACE_MS,
   UPDATE_CHECK_PERIOD_MS,
   startUpdateCheck,
 } from '@/composables/useUpdateCheck'
@@ -19,7 +20,12 @@ function setVisibility(state: DocumentVisibilityState) {
 
 describe('service worker update check', () => {
   let update: ReturnType<typeof vi.fn>
-  let registration: { update: typeof update; installing: ServiceWorker | null }
+  let registration: {
+    update: typeof update
+    installing: ServiceWorker | null
+    addEventListener: ReturnType<typeof vi.fn>
+    waiting: ServiceWorker | null
+  }
 
   beforeEach(() => {
     vi.useFakeTimers()
@@ -28,7 +34,7 @@ describe('service worker update check', () => {
     vi.spyOn(document, 'visibilityState', 'get').mockImplementation(() => visibility)
     vi.spyOn(navigator, 'onLine', 'get').mockImplementation(() => online)
     update = vi.fn().mockResolvedValue(undefined)
-    registration = { update, installing: null }
+    registration = { update, installing: null, addEventListener: vi.fn(), waiting: null }
     stop = startUpdateCheck(registration as unknown as ServiceWorkerRegistration)
   })
 
@@ -148,7 +154,10 @@ describe('applying a waiting update', () => {
     updateServiceWorker = vi.fn<(reloadPage?: boolean) => Promise<void>>().mockResolvedValue()
     reload = vi.fn()
     vi.stubGlobal('location', { reload })
-    stop = startUpdateCheck({ waiting } as unknown as ServiceWorkerRegistration)
+    stop = startUpdateCheck({
+      waiting,
+      addEventListener: vi.fn(),
+    } as unknown as ServiceWorkerRegistration)
     applyUpdate(updateServiceWorker)
   })
 
@@ -170,8 +179,8 @@ describe('applying a waiting update', () => {
     expect(reload).toHaveBeenCalledTimes(1)
   })
 
-  it('reloads after the timeout if nothing happens', () => {
-    vi.advanceTimersByTime(APPLY_UPDATE_TIMEOUT_MS - 1)
+  it('reloads after the timeout if nothing happens, once the report had a moment to be stored', () => {
+    vi.advanceTimersByTime(APPLY_UPDATE_TIMEOUT_MS + RELOAD_GRACE_MS - 1)
     expect(reload).not.toHaveBeenCalled()
     vi.advanceTimersByTime(1)
     expect(reload).toHaveBeenCalledTimes(1)
@@ -179,7 +188,7 @@ describe('applying a waiting update', () => {
 
   it('reloads only once when both happen', () => {
     setState('activated')
-    vi.advanceTimersByTime(APPLY_UPDATE_TIMEOUT_MS)
+    vi.advanceTimersByTime(APPLY_UPDATE_TIMEOUT_MS + RELOAD_GRACE_MS)
     expect(reload).toHaveBeenCalledTimes(1)
   })
 })

@@ -557,3 +557,24 @@ test('a split stem offers neither camera nor library', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Foto aufnehmen' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Aus Galerie' })).toHaveCount(0)
 })
+
+// Nobody taps anything for the report: the failed sync is enough.
+test('a failed request is reported to the server by itself', async ({ page }) => {
+  await page.goto('/sync')
+  await page.evaluate(SIGNED_OUT)
+  await page.getByRole('button', { name: 'Daten aktualisieren' }).click()
+  await expect(page.getByRole('alert')).toContainText('nicht (mehr) angemeldet')
+
+  const reported = () =>
+    page.evaluate(() => JSON.parse(localStorage.getItem('fake-api-diagnostics') ?? '[]'))
+  await expect
+    .poll(async () => (await reported()).map((entry: { message: string }) => entry.message))
+    .toContain('GET /api/snapshot failed (401)')
+  const [failure] = (await reported()).filter(
+    (entry: { kind: string }) => entry.kind === 'request_failed',
+  )
+  expect(failure).toMatchObject({
+    level: 'warning',
+    context: { status: 401, route: '/sync' },
+  })
+})

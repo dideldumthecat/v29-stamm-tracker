@@ -179,6 +179,33 @@ export interface PhotoUploadResponse {
 // --- GET /api/photos/{id} ----------------------------------------------------
 // The JPEG exactly as uploaded (image/jpeg), only for signed-in users. 404 while the upload has not arrived.
 
+// --- POST /api/diagnostics ---------------------------------------------------
+// The app records errors, failed requests and flow steps on the device and sends them by itself (no button, no
+// attribute values, invite codes or photo contents). Symfony writes each entry as one line to its own log file.
+// Status: 204 stored, 401 not signed in (the app keeps its entries until the next sign-in), 413 more than 100 entries
+// or more than 256 KB, 400 malformed. The server truncates strings: message 1,000 characters, context strings 500.
+
+export interface DiagnosticsRequest {
+  user_agent: string
+  /** At most 100 per request. */
+  entries: DiagnosticEntry[]
+}
+
+export interface DiagnosticEntry {
+  /** Generated on the device (crypto.randomUUID()). */
+  id: Uuid
+  /** Device time of the first occurrence. */
+  at: Timestamp
+  level: 'error' | 'warning' | 'info'
+  /** Short machine-readable string, e.g. "photo_upload", "request_failed", "sync", "update". */
+  kind: string
+  message: string
+  /** How often the same kind and message occurred while the entry was still unsent (at least 1). */
+  count: number
+  /** Flat scalar values only; nested values make the request malformed (400). */
+  context: Record<string, string | number | boolean | null>
+}
+
 // --- GET /api/ping -----------------------------------------------------------
 // No login needed.
 

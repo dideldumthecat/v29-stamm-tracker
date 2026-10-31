@@ -41,6 +41,7 @@ const appVersion = [__APP_REVISION__, formatShortDateTime(__APP_BUILD_TIME__)]
           viele noch fehlen.
         </p>
         <p>Lade sie hoch, sobald du Empfang hast, spätestens nach dem Einsatz.</p>
+        <p>Die App schickt Fehlerberichte ohne Erfassungsdaten an den V29-Server.</p>
         <p class="rounded-lg border-2 border-ink p-3" role="note">
           <b>Achtung:</b> Die App nicht löschen und keine Website-Daten entfernen, solange am
           Sync-Button eine Zahl steht. Sonst sind diese Einträge verloren.

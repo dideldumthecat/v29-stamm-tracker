@@ -143,15 +143,19 @@ class RequestLogTest extends WebTestCase
         self::assertCount(2, array_filter($this->log->getRecords(), static fn (LogRecord $record) => Level::Error === $record->level && str_starts_with($record->message, 'Uncaught PHP Exception')));
     }
 
-    /** Production writes everything to prod.log with a single handler; the test environment cannot show that, so the configuration is checked. */
+    /** Production writes everything but the app's own reports to prod.log; the test environment cannot show that, so the configuration is checked. */
     public function testProductionLogsEverythingInfoAndAboveToOneRotatingFile(): void
     {
         $handlers = Yaml::parseFile(__DIR__.'/../../config/packages/monolog.yaml')['when@prod']['monolog']['handlers'];
 
-        self::assertSame(['main', 'console'], array_keys($handlers));
+        self::assertSame(['main', 'client', 'console'], array_keys($handlers));
         self::assertSame(
-            ['type' => 'rotating_file', 'path' => '%kernel.logs_dir%/%kernel.environment%.log', 'level' => 'info', 'max_files' => 30, 'channels' => ['!event', '!doctrine', '!deprecation']],
+            ['type' => 'rotating_file', 'path' => '%kernel.logs_dir%/%kernel.environment%.log', 'level' => 'info', 'max_files' => 30, 'channels' => ['!event', '!doctrine', '!deprecation', '!client']],
             $handlers['main'],
+        );
+        self::assertSame(
+            ['type' => 'rotating_file', 'path' => '%kernel.logs_dir%/client.log', 'level' => 'info', 'max_files' => 30, 'channels' => ['client'], 'formatter' => 'monolog.formatter.json'],
+            $handlers['client'],
         );
     }
 
