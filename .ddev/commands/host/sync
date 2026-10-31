@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+
+## Description: Mirror production (database + photos) into DDEV
+## Usage: sync [--skip-db] [--skip-files]
+## Example: "ddev sync"
+
+set -eu -o pipefail
+
+cd "$DDEV_APPROOT"
+
+skip_db=false
+skip_files=false
+for arg in "$@"; do
+  case "$arg" in
+    --skip-db) skip_db=true ;;
+    --skip-files) skip_files=true ;;
+    *) echo "Unknown option: $arg (usage: ddev sync [--skip-db] [--skip-files])" >&2; exit 1 ;;
+  esac
+done
+
+set -a
+# shellcheck disable=SC1091
+source backend/.env
+# shellcheck disable=SC1091
+[ -f backend/.env.local ] && source backend/.env.local
+set +a
+
+for var in SYNC_SSH_HOST SYNC_REMOTE_PATH SYNC_PHP_BIN; do
+  if [ -z "${!var:-}" ]; then
+    echo "$var is not set. Add SYNC_SSH_HOST, SYNC_REMOTE_PATH and SYNC_PHP_BIN to backend/.env.local (see backend/.env.local.example)." >&2
+    exit 1
+  fi
+done
+remote_path="${SYNC_REMOTE_PATH%/}"
+
+snapshot="pre-sync-$(date +%Y%m%d%H%M%S)"
+ddev snapshot --name="$snapshot"
+
+if [ "$skip_db" = false ]; then
+  tmp_dir="$(mktemp -d)"
+  trap 'rm -rf "$tmp_dir"' EXIT
+  ssh "$SYNC_SSH_HOST" "cd '$remote_path' && $SYNC_PHP_BIN bin/console app:db:dump" | gzip > "$tmp_dir/production.sql.gz"
+  ddev import-db --file="$tmp_dir/production.sql.gz"
+  ddev console doctrine:migrations:migrate -n
+fi
+
+if [ "$skip_files" = false ]; then
+  mkdir -p backend/var/photos
+  rsync -az --delete "$SYNC_SSH_HOST:$remote_path/var/photos/" backend/var/photos/
+fi
+
+echo "Sync complete."
+echo "Restore the previous local state: ddev snapshot restore $snapshot"
+echo "Sign in locally: ddev console app:user:create"

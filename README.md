@@ -279,6 +279,23 @@ Once the app is live, new versions reach phones only through the "Neue Version v
 
 The browser looks for a new service worker only when the app is opened or reloaded. An app left open in the background shows the hint only after it has been closed and reopened.
 
+### Mirroring production locally
+
+`ddev sync` copies the production database and photos into DDEV, for debugging with real data. It only reads on the server. Not to be confused with the sync button in the app, which uploads a phone's entries.
+
+1. Put the access data in `backend/.env.local` (see `backend/.env.local.example`; never in the repository): `SYNC_SSH_HOST` (SSH alias or `user@host`), `SYNC_REMOTE_PATH` (app folder on the server) and `SYNC_PHP_BIN` (PHP 8.4 binary on IONOS).
+2. `ddev sync` (options `--skip-db`, `--skip-files`). It takes a snapshot `pre-sync-<timestamp>` first, replaces the local database with `app:db:dump` from the server, runs pending migrations and mirrors `var/photos/` (local photos not on the server are deleted).
+3. Go back to the earlier local state with `ddev snapshot restore pre-sync-<timestamp>` (database only; photos are not restored).
+4. Invite codes are stored hashed, so sign in locally with a new user: `ddev console app:user:create`.
+
+**With production data in DDEV, do not run `ddev share`.**
+
+Backup by hand (the dump contains no photos, they are files in `var/photos/`):
+
+```sh
+ssh <host> "cd <path> && <php> bin/console app:db:dump" | gzip > backup-YYYY-MM-DD.sql.gz
+```
+
 ### Debugging
 
 `ddev xdebug on` and the VS Code launch configuration "Xdebug (DDEV)" (port 9003). Turn it off again with `ddev xdebug off`, it slows every request down.
