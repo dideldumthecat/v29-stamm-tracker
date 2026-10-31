@@ -29,6 +29,8 @@ final class SessionController extends AbstractController
             throw new HttpException(401, 'Unknown or revoked invite link.');
         }
 
+        // For the request log, which otherwise only knows users from the cookie.
+        $request->attributes->set('user', $user);
         $response = $this->json(['user' => ['id' => $user->id->toRfc4122(), 'name' => $user->name]]);
         // The token itself, no PHP session: session garbage collection on shared hosting would log people out
         // in the forest. Revoking the user ends access, since every request checks the token again.

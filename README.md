@@ -318,7 +318,7 @@ On the server, `.htaccess` routes `/api/*` and `/admin/*` to Symfony, serves exi
 
 ### Logs and php.ini (IONOS)
 
-- **Symfony errors:** `<REMOTE_PATH>/var/log/prod-YYYY-MM-DD.log`, one file per day, the last 14 are kept. Nothing is written for successful requests and for 404/405. On an error (including 4xx such as a wrong invite code or a rejected sync with 400) the log holds the lines before it from the same request or command run (at most 100). Uncaught exceptions in console commands land there too; handled failures that only print `[ERROR]` (e.g. an unreadable CSV) do not. Invite codes, cookies and request bodies are not logged.
+- **Symfony log:** `<REMOTE_PATH>/var/log/prod-YYYY-MM-DD.log`, one file for everything, one file per day, the last 30 are kept, level info and above. It holds one line per `/api` request – method, path, status, duration, request and response size, user (ID and name), shortened user agent and app build (header `X-App-Build`) – one line per sync (received / new / known / rejected, rejected ones with reason), photo upload (ID, bytes, stored or rejected) and snapshot (number of timber items), and every error with its full context and stack trace, including uncaught exceptions in console commands (handled failures that only print `[ERROR]`, e.g. an unreadable CSV, are not logged). 404 and 405 (bots probing for `/wp-login.php`, `/.env`) are logged as `NOTICE`, not as errors. Requests outside `/api` (the app files) are not logged. Never logged: IP addresses, invite codes, cookies, query strings, request and response bodies.
 - **PHP errors before Symfony starts:** `<REMOTE_PATH>/var/log/php-errors.log`, set by `public/php.ini`. This file is **not rotated**; delete or truncate it now and then (`: > php-errors.log`).
 - `public/php.ini` exists only on the server (ignored by git, kept by the deploy, blocked in `.htaccess` – `/php.ini` answers 403). For our IONOS contract a `php.ini` applies to its own directory only, not to subfolders ([IONOS: customizing PHP settings](https://www.ionos.com/help/hosting/using-php-for-web-projects/customizing-the-php-settings-using-the-phpini-file/)). The documentation does not say whether the file adds to or replaces the default settings, so the template repeats the upload limits. Create it once from the template; the `var/log` folder must exist for PHP to write there:
 
@@ -333,13 +333,15 @@ sed "s#<REMOTE_PATH>#$(pwd)#" php.ini.example > public/php.ini
 ```sh
 cd <REMOTE_PATH>/var/log
 tail -n 50 prod-$(date +%F).log
-grep -h CRITICAL prod-*.log
+grep -h /api/photos prod-*.log
+grep -h '"user_name":"Kerstin"' prod-$(date +%F).log
+grep -hE "\.(ERROR|CRITICAL)" prod-*.log
 tail -n 20 php-errors.log
 ```
 
 **Check after the deploy** (nothing stays in the repo)
 
-- Symfony log: `curl -s -X POST https://<host>/api/session -H 'Content-Type: application/json' -d '{"token":"test"}'` answers 401 and writes an `ERROR` line "Unknown or revoked invite link" in `prod-<today>.log`, preceded by a "Matched route" line. A normal request (`curl https://<host>/api/ping`) and a 404 (`curl https://<host>/api/nothing`) add nothing.
+- Symfony log: `curl -s -X POST https://<host>/api/session -H 'Content-Type: application/json' -d '{"token":"test"}'` answers 401 and writes an `ERROR` line "Unknown or revoked invite link" and a request line (status 401) in `prod-<today>.log`. `curl https://<host>/api/ping` adds a request line (the app build is empty for `curl`).
 - Console: `<PHP_BIN> bin/console dbal:run-sql "SELECT * FROM missing_table"` throws, and the exception appears in the same file.
 - `php.ini`: over SSH, create `public/boom.php` containing `<?php header('Content-Type: text/plain'); var_dump(ini_get('log_errors'), ini_get('error_log'), ini_get('upload_max_filesize'), ini_get('post_max_size')); trigger_error('php-ini-test', E_USER_WARNING);`, open `https://<host>/boom.php`: it shows `string(1) "1"`, the path to `php-errors.log` and the upload limits (`64M` each, as in the template), and `tail php-errors.log` shows the warning. Delete `public/boom.php` afterwards. If the values are wrong, `public/php.ini` is not read (check the name and the path).
 

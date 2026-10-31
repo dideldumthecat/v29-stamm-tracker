@@ -31,6 +31,9 @@ export interface PhotoUpload extends PhotoUploadFields {
   blob: Blob
 }
 
+// Which build sent a request, for the server log (same data as the help page, but ASCII: it travels as a header).
+const APP_BUILD = [__APP_REVISION__, __APP_BUILD_TIME__.slice(0, 16)].filter(Boolean).join(' ')
+
 /**
  * `body` is sent as JSON, a FormData as multipart. An aborted `signal` (cancel, timeout) ends up as status 0 like
  * any lost connection; the caller knows whether it aborted.
@@ -47,8 +50,8 @@ async function request<T>(
       method,
       headers:
         body === undefined || body instanceof FormData
-          ? undefined
-          : { 'Content-Type': 'application/json' },
+          ? { 'X-App-Build': APP_BUILD }
+          : { 'X-App-Build': APP_BUILD, 'Content-Type': 'application/json' },
       body: body === undefined || body instanceof FormData ? body : JSON.stringify(body),
       signal,
     })
