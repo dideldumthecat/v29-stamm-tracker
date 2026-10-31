@@ -14,6 +14,7 @@ use App\Entity\User;
 use App\Projection\TimberItemProjector;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -33,11 +34,22 @@ final class SyncController extends AbstractController
     public function __construct(
         private readonly EntityManagerInterface $em,
         private readonly TimberItemProjector $projector,
+        private readonly LoggerInterface $logger,
     ) {
     }
 
     #[Route('/api/sync', methods: ['POST'])]
     public function __invoke(Request $request, User $user): JsonResponse
+    {
+        try {
+            return $this->sync($request, $user);
+        } catch (BadRequestHttpException $e) {
+            $this->logger->warning('Sync rejected: '.$e->getMessage());
+            throw $e;
+        }
+    }
+
+    private function sync(Request $request, User $user): JsonResponse
     {
         $events = $request->toArray()['events'] ?? null;
         if (!\is_array($events) || !array_is_list($events)) {
@@ -99,6 +111,10 @@ final class SyncController extends AbstractController
                 $this->projector->project($itemId);
             }
         });
+
+        $message = \sprintf('Sync: %d received, %d new, %d known, %d rejected', \count($parsed), \count($new), \count($accepted) - \count($new), \count($rejected));
+        $context = ['received' => \count($parsed), 'new' => \count($new), 'known' => \count($accepted) - \count($new), 'rejected' => array_values($rejected)];
+        $rejected ? $this->logger->warning($message, $context) : $this->logger->info($message, $context);
 
         return $this->json(['accepted_event_ids' => $accepted, 'rejected' => array_values($rejected)]);
     }

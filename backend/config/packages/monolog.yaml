@@ -25,20 +25,14 @@ when@test:
 when@prod:
     monolog:
         handlers:
-            # Buffers a whole request (or command run) and writes it, including the lines before the error,
-            # only if an error happens. 404/405 (bots, typos) do not count.
+            # Everything in one file: a line per API request, the outcomes of sync, photo upload and snapshot, and errors with
+            # their stack trace. Always written; there is no buffering that could swallow lines before a crash.
             main:
-                type: fingers_crossed
-                action_level: error
-                handler: file
-                excluded_http_codes: [404, 405]
-                channels: ["!deprecation"]
-                buffer_size: 100 # Oldest lines drop out, so a long sync or photo import cannot fill the memory
-            file:
                 type: rotating_file
                 path: "%kernel.logs_dir%/%kernel.environment%.log"
-                level: debug
-                max_files: 14
+                level: info
+                max_files: 30
+                channels: ["!event", "!doctrine", "!deprecation"]
             console:
                 type: console
                 process_psr_3_messages: false

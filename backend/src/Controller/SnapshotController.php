@@ -9,6 +9,7 @@ use App\Entity\TimberItem;
 use App\Entity\TimberItemState;
 use App\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Attribute\Route;
@@ -19,7 +20,7 @@ use Symfony\Component\Routing\Attribute\Route;
 final class SnapshotController extends AbstractController
 {
     #[Route('/api/snapshot', methods: ['GET'])]
-    public function __invoke(EntityManagerInterface $em): JsonResponse
+    public function __invoke(EntityManagerInterface $em, LoggerInterface $logger): JsonResponse
     {
         $options = [];
         foreach ($em->getRepository(AttributeOption::class)->findBy([], ['sortOrder' => 'ASC']) as $option) {
@@ -45,6 +46,8 @@ final class SnapshotController extends AbstractController
                 $voidedBeamTags[$item->parentId->toRfc4122()][] = $item->tagNumber;
             }
         }
+
+        $logger->info(\sprintf('Snapshot delivered: %d timber items', \count($items)), ['timber_items' => \count($items)]);
 
         return $this->json([
             'schema_version' => 1,
