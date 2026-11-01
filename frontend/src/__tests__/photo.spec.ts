@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { attachPhotos, fitWithin, formatBytes } from '@/utils/photo'
+import { attachPhotos, fitWithin, formatBytes, photoQuality } from '@/utils/photo'
 
 describe('photo size', () => {
   it('fits the longest edge into 4032 px in either orientation, keeping the ratio', () => {
@@ -14,8 +14,48 @@ describe('photo size', () => {
   })
 
   it('never exceeds the limit through rounding', () => {
-    const { width, height } = fitWithin(4033, 2999)
+    const { width, height } = fitWithin(4033, 3999)
     expect(Math.max(width, height)).toBe(4032)
+  })
+
+  it.each([
+    [
+      'iPhone Safari',
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1',
+      0.6,
+    ],
+    [
+      'iPhone Chrome',
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/130.0.6723.37 Mobile/15E148 Safari/604.1',
+      0.6,
+    ],
+    [
+      'iPad desktop mode',
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15',
+      0.6,
+    ],
+    [
+      'Mac Safari',
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Safari/605.1.15',
+      0.6,
+    ],
+    [
+      'Mac Chrome',
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
+      0.85,
+    ],
+    [
+      'Android Chrome',
+      'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36',
+      0.85,
+    ],
+    [
+      'Firefox desktop',
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:132.0) Gecko/20100101 Firefox/132.0',
+      0.85,
+    ],
+  ])('picks the JPEG quality for %s', (_name, userAgent, quality) => {
+    expect(photoQuality(userAgent)).toBe(quality)
   })
 
   it('writes file sizes with a decimal comma', () => {
