@@ -40,11 +40,10 @@
   type: boolean
   is_inheritable: true
 
-# Set on the stem before splitting when all beams share it; a beam with a different cross-section gets its own value.
-# Inheritable because only beams are evaluated: this way they have the value wherever it was set.
+# Recorded on each beam: the cross-section is a property of the sawn beam, not of the stem.
 - name: Gesägter Querschnitt
   type: choice
-  is_inheritable: true
+  is_inheritable: false
   options: ['14,7 x 14,7 cm', '10,5 x 14,7 cm']
 
 - name: Entlastungsschnitt
