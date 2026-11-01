@@ -33,7 +33,15 @@ when@prod:
                 path: "%kernel.logs_dir%/%kernel.environment%.log"
                 level: info
                 max_files: 30
-                channels: ["!event", "!doctrine", "!deprecation", "!client"]
+                channels: ["!event", "!doctrine", "!deprecation", "!client", "!request"]
+            # Symfony's "request" channel logs "Matched route" at info before every request, which would double the lines.
+            # From notice up (404/405, errors with stack trace) it belongs in the same file; a handler has one level only.
+            request_problems:
+                type: rotating_file
+                path: "%kernel.logs_dir%/%kernel.environment%.log"
+                level: notice
+                max_files: 30
+                channels: ["request"]
             # What the app reports about itself (POST /api/diagnostics): one JSON object per line, readable with grep.
             client:
                 type: rotating_file

@@ -272,7 +272,8 @@ export const useTimberItemStore = defineStore('timberItems', () => {
         await refreshing?.catch(() => {})
         try {
           void record('info', 'sync', 'Sync started', {
-            pending_entries: events.value.length,
+            pending_entries: pendingCount.value,
+            pending_events: events.value.length,
             pending_photos: photos.value.length,
           })
           const result = await syncDataAndPhotos(stoppable)

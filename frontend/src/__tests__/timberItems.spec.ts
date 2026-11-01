@@ -4,11 +4,17 @@ import { useTimberItemStore } from '@/stores/timberItems'
 import { api, ApiError } from '@/api/client'
 import { Blob as NodeBlob } from 'node:buffer'
 import { load as loadStored, loadDiagnostics, save } from '@/persistence/database'
+import { record } from '@/diagnostics/record'
 
 // Pass-through spy: tests can check what reaches IndexedDB.
 vi.mock('@/persistence/database', async (importOriginal) => {
   const original = await importOriginal<typeof import('@/persistence/database')>()
   return { ...original, save: vi.fn(original.save) }
+})
+// Pass-through spy: tests can check what the store reports to the diagnostics.
+vi.mock('@/diagnostics/record', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/diagnostics/record')>()
+  return { ...original, record: vi.fn(original.record) }
 })
 const cloneEverySave = () => structuredClone(vi.mocked(save).mock.calls)
 
@@ -293,6 +299,35 @@ describe('timber item store: sync', () => {
     expect(store.snapshot.generated_at).toBe('2026-10-26T10:00:00.000Z')
     expect(store.lastSyncedAt).not.toBeNull()
     expect(cloneEverySave).not.toThrow()
+  })
+
+  it('reports the pending entries as the sync button counts them, next to the raw events', async () => {
+    const store = useTimberItemStore()
+    const stem = store.createTimberItem(9)
+    store.recordAttribute(stem.id, attributeId('Holzart'), 'oak')
+    // created + tag_assigned + attribute_recorded: three events, but the tag belongs to the new stem.
+    expect(store.events).toHaveLength(3)
+    expect(store.pendingCount).toBe(2)
+    vi.spyOn(api, 'sync').mockResolvedValue({
+      accepted_event_ids: store.events.map((event) => event.id),
+      rejected: [],
+    })
+    vi.spyOn(api, 'loadSnapshot').mockResolvedValue(api.initialSnapshot())
+    vi.mocked(record).mockClear()
+
+    await store.sync()
+
+    expect(record).toHaveBeenCalledWith('info', 'sync', 'Sync started', {
+      pending_entries: 2,
+      pending_events: 3,
+      pending_photos: 0,
+    })
+    expect(record).toHaveBeenCalledWith(
+      'info',
+      'sync',
+      'Sync finished',
+      expect.objectContaining({ transferred: 2 }),
+    )
   })
 
   it('drops a rejected duplicate stem with its beam and later events, keeps the rest', async () => {
