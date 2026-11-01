@@ -16,7 +16,6 @@ import { checkForUpdateNow } from '@/composables/useUpdateCheck'
 import { formatValue } from '@/utils/attributeDraft'
 import { formatShortDateTime } from '@/utils/date'
 import { formatBytes } from '@/utils/photo'
-import { formatTag } from '@/utils/tag'
 import { useToast } from '@/composables/useToast'
 import ConfirmSheet from '@/components/ConfirmSheet.vue'
 import FormattedTag from '@/components/FormattedTag.vue'
@@ -103,11 +102,9 @@ const isDone = computed(
 )
 
 function describe(event: Event, kind: string): string {
-  if (event.type === 'created') {
+  // Entries are "created" or "attribute_recorded"; a tag belongs to its "created".
+  if (event.type !== 'attribute_recorded') {
     return `${kind} angelegt`
-  }
-  if (event.type === 'tag_assigned') {
-    return `Plakette geändert: ${formatTag(Number(event.data.tag_number))}`
   }
   const attribute = store.attributes.find((candidate) => candidate.id === event.data.attribute_id)
   if (!attribute) {
