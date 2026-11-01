@@ -21,9 +21,13 @@ export function setProblemListener(listener: (() => void) | undefined) {
   onProblem = listener
 }
 
-/** Where the user is and whether the app can reach the network; the route without query and hash. */
+/**
+ * Where the user is and whether the app can reach the network; the route without query and hash.
+ * The build is fixed when the entry is recorded: an entry may be sent later by a newer build (header X-App-Build).
+ */
 function surroundings(): Context {
   return {
+    recorded_build: APP_BUILD,
     route: location.pathname,
     online: navigator.onLine,
     visible: document.visibilityState === 'visible',
