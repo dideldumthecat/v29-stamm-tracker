@@ -34,21 +34,35 @@ done
 remote_path="${SYNC_REMOTE_PATH%/}"
 
 snapshot="pre-sync-$(date +%Y%m%d%H%M%S)"
+echo "Snapshot: $snapshot"
 ddev snapshot --name="$snapshot"
 
 if [ "$skip_db" = false ]; then
+  echo "Database: loading dump from $SYNC_SSH_HOST ..."
   tmp_dir="$(mktemp -d)"
   trap 'rm -rf "$tmp_dir"' EXIT
   ssh "$SYNC_SSH_HOST" "cd '$remote_path' && $SYNC_PHP_BIN bin/console app:db:dump" | gzip > "$tmp_dir/production.sql.gz"
+  echo "Database: dump loaded, importing ..."
   ddev import-db --file="$tmp_dir/production.sql.gz"
+  echo "Database: imported, running migrations ..."
   ddev console doctrine:migrations:migrate -n
+  echo "Database: done."
+else
+  echo "Database: skipped (--skip-db)."
 fi
 
 if [ "$skip_files" = false ]; then
+  echo "Photos: mirroring var/photos/ from $SYNC_SSH_HOST ..."
   mkdir -p backend/var/photos
-  rsync -az --delete "$SYNC_SSH_HOST:$remote_path/var/photos/" backend/var/photos/
+  # Itemized lines: ">f..." = file transferred, "*deleting" = local file removed
+  changes="$(rsync -az --delete --itemize-changes "$SYNC_SSH_HOST:$remote_path/var/photos/" backend/var/photos/)"
+  transferred="$(grep -c '^>f' <<< "$changes" || true)"
+  deleted="$(grep -c '^\*deleting' <<< "$changes" || true)"
+  echo "Photos: $transferred transferred, $deleted deleted locally."
+else
+  echo "Photos: skipped (--skip-files)."
 fi
 
 echo "Sync complete."
 echo "Restore the previous local state: ddev snapshot restore $snapshot"
-echo "Sign in locally: ddev console app:user:create"
+echo "Sign in locally with your live invite code (same hashes); a local user via 'ddev console app:user:create' is optional."
