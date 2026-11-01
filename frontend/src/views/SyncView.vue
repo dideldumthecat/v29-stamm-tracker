@@ -396,11 +396,11 @@ function onMainButton() {
 
     <ConfirmSheet
       v-if="toDiscard"
-      primary-label="Abbrechen"
-      secondary-label="Verwerfen"
-      emphasize-secondary
-      @primary="toDiscard = null"
-      @secondary="onDiscard"
+      safe-label="Abbrechen"
+      action-label="Verwerfen"
+      emphasize-action
+      @safe="toDiscard = null"
+      @action="onDiscard"
     >
       <template #title>
         <template v-if="toDiscard.event.type === 'created'">

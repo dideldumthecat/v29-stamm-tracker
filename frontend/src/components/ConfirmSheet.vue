@@ -1,33 +1,41 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, useId, useTemplateRef } from 'vue'
+import { computed, onMounted, onUnmounted, useId, useTemplateRef } from 'vue'
 
-defineProps<{
+const props = defineProps<{
   // Plain text; use the `title` slot instead for a formatted tag.
   title?: string
-  primaryLabel: string
-  secondaryLabel: string
-  // Highlights the secondary button when it is the expected action; primary stays the safe choice.
-  emphasizeSecondary?: boolean
+  // The safe choice (e.g. keep editing): focused first, and what Escape and a tap on the backdrop trigger.
+  safeLabel: string
+  // The other choice (e.g. discard, remove, save and open).
+  actionLabel: string
+  // The action is the expected one: it gets the filled button instead of the safe choice.
+  emphasizeAction?: boolean
 }>()
-// primary = the safe choice (e.g. keep editing); also triggered by backdrop tap and Escape.
-const emit = defineEmits<{ primary: []; secondary: [] }>()
+const emit = defineEmits<{ safe: []; action: [] }>()
 
 const filled =
   'flex h-14 w-full items-center justify-center gap-2.5 rounded-lg bg-ink text-lg font-bold text-paper'
 const outlined = 'h-14 w-full rounded-lg border-2 border-ink bg-paper text-[17px] font-bold'
 
+// The filled button stands on top, the outlined one below it. Order in the DOM too, so Tab follows what is seen.
+const buttons = computed(() => {
+  const safe = { key: 'safe' as const, label: props.safeLabel, isSafe: true }
+  const action = { key: 'action' as const, label: props.actionLabel, isSafe: false }
+  return props.emphasizeAction ? [action, safe] : [safe, action]
+})
+
 const titleId = useId()
-const primaryButton = useTemplateRef<HTMLButtonElement>('primaryButton')
+const buttonRow = useTemplateRef<HTMLElement>('buttonRow')
 
 function onKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape') {
-    emit('primary')
+    emit('safe')
   }
 }
 
 onMounted(() => {
   // Move focus into the dialog, so keyboard and screen reader users land on the safe choice.
-  primaryButton.value?.focus()
+  buttonRow.value?.querySelector<HTMLButtonElement>('[data-safe]')?.focus()
   document.addEventListener('keydown', onKeydown)
 })
 onUnmounted(() => document.removeEventListener('keydown', onKeydown))
@@ -38,7 +46,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
   <Teleport to="body">
     <div
       class="fixed inset-0 z-40 flex items-end justify-center bg-ink/50"
-      @click.self="emit('primary')"
+      @click.self="emit('safe')"
     >
       <div
         class="flex max-h-[90%] w-full max-w-[430px] flex-col gap-3.5 overflow-auto rounded-t-[14px] bg-paper pt-5 px-gutter pb-safe-5"
@@ -50,21 +58,16 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
           <slot name="title">{{ title }}</slot>
         </h2>
         <div class="text-[15px] leading-[1.45]"><slot /></div>
-        <div class="mt-1 flex flex-col gap-2">
+        <div ref="buttonRow" class="mt-1 flex flex-col gap-2">
           <button
-            ref="primaryButton"
+            v-for="button in buttons"
+            :key="button.key"
+            :data-safe="button.isSafe || undefined"
             type="button"
-            :class="emphasizeSecondary ? outlined : filled"
-            @click="emit('primary')"
+            :class="button.isSafe === !emphasizeAction ? filled : outlined"
+            @click="button.isSafe ? emit('safe') : emit('action')"
           >
-            {{ primaryLabel }}
-          </button>
-          <button
-            type="button"
-            :class="emphasizeSecondary ? filled : outlined"
-            @click="emit('secondary')"
-          >
-            {{ secondaryLabel }}
+            {{ button.label }}
           </button>
         </div>
       </div>
