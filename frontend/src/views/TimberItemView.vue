@@ -543,11 +543,11 @@ function onDiscard() {
     <!-- Wording as in the click prototype (confirmRemoveBeam). -->
     <ConfirmSheet
       v-if="beamToRemove"
-      primary-label="Abbrechen"
-      secondary-label="Balken entfernen"
-      emphasize-secondary
-      @primary="beamToRemove = null"
-      @secondary="onRemove"
+      safe-label="Abbrechen"
+      action-label="Balken entfernen"
+      emphasize-action
+      @safe="beamToRemove = null"
+      @action="onRemove"
     >
       <template #title>
         Balken <FormattedTag :tag-number="beamToRemove.tag_number!" /> entfernen?
@@ -567,11 +567,11 @@ function onDiscard() {
     <ConfirmSheet
       v-if="beamToOpen"
       title="Erst speichern?"
-      primary-label="Abbrechen"
-      secondary-label="Speichern & öffnen"
-      emphasize-secondary
-      @primary="beamToOpen = null"
-      @secondary="onSaveAndOpen"
+      safe-label="Abbrechen"
+      action-label="Speichern & öffnen"
+      emphasize-action
+      @safe="beamToOpen = null"
+      @action="onSaveAndOpen"
     >
       <p>
         Dein Stand für {{ kind }} <FormattedTag :tag-number="tagNumber" /> ist noch nicht
@@ -582,11 +582,11 @@ function onDiscard() {
     <ConfirmSheet
       v-if="photoToRemove"
       title="Foto entfernen?"
-      primary-label="Abbrechen"
-      secondary-label="Foto entfernen"
-      emphasize-secondary
-      @primary="photoToRemove = null"
-      @secondary="onRemovePhoto"
+      safe-label="Abbrechen"
+      action-label="Foto entfernen"
+      emphasize-action
+      @safe="photoToRemove = null"
+      @action="onRemovePhoto"
     >
       <p>Das Foto ist noch nicht hochgeladen und wird vom Gerät gelöscht.</p>
     </ConfirmSheet>
@@ -594,10 +594,10 @@ function onDiscard() {
     <ConfirmSheet
       v-if="pendingLeave"
       :title="`${discardSummary} verwerfen?`"
-      primary-label="Weiter bearbeiten"
-      secondary-label="Verwerfen"
-      @primary="onKeepEditing"
-      @secondary="onDiscard"
+      safe-label="Weiter bearbeiten"
+      action-label="Verwerfen"
+      @safe="onKeepEditing"
+      @action="onDiscard"
     >
       <p>
         Deine Eingaben für {{ kind }} <FormattedTag :tag-number="tagNumber" /> sind noch nicht
