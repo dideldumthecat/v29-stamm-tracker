@@ -358,8 +358,8 @@ function onDiscard() {
       >
       <p v-if="beams.length === 0" class="text-sm leading-[1.4] text-body">
         Nur wenn der Stamm in mehrere Balken gesägt wird: je Balken einmal tippen und die Kennung
-        mit Filzstift auf den Balken schreiben. Angaben, die für alle Balken gelten, vorher am Stamm
-        erfassen – danach ist der Stamm gesperrt.
+        auf den Balken schreiben. Angaben, die für alle Balken gelten, vorher am Stamm erfassen –
+        danach ist der Stamm gesperrt.
       </p>
       <span v-if="beams.some((beam) => !store.canRemove(beam.id))" class="text-[13px] text-mute"
         >Übertragene Balken kann nur die Administration entfernen.</span
