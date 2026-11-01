@@ -3,7 +3,7 @@ import { addDiagnostic, loadDiagnostics, removeDiagnostics } from '@/persistence
 import { createEntry, captureErrors, record } from '@/diagnostics/record'
 import { sendDiagnostics, reportWithoutBuffer } from '@/diagnostics/send'
 import { api, ApiError } from '@/api/client'
-import { DIAGNOSTICS_MAX_AGE_MS, DIAGNOSTICS_MAX_ENTRIES } from '@/config/constants'
+import { APP_BUILD, DIAGNOSTICS_MAX_AGE_MS, DIAGNOSTICS_MAX_ENTRIES } from '@/config/constants'
 
 // The device storage is shared by the tests of this file, so every test starts with an empty buffer.
 async function clearBuffer() {
@@ -83,7 +83,13 @@ describe('diagnostics buffer', () => {
       b: { nested: true } as never,
       c: undefined,
     })
-    expect(entry.context).toEqual({ route: '/sync', online: true, visible: true, a: 1 })
+    expect(entry.context).toEqual({
+      recorded_build: APP_BUILD,
+      route: '/sync',
+      online: true,
+      visible: true,
+      a: 1,
+    })
     history.replaceState(null, '', '/')
   })
 
@@ -108,6 +114,18 @@ describe('sending diagnostics', () => {
     await record('error', 'photo_upload', 'Photo upload failed (400)')
   })
   afterEach(() => vi.restoreAllMocks())
+
+  it('sends the build that recorded an entry, not the one that sends it', async () => {
+    await clearBuffer()
+    const entry = createEntry('info', 'update', 'Update waiting')
+    expect(entry.context.recorded_build).toBe(APP_BUILD)
+    entry.context.recorded_build = 'older-build'
+    await addDiagnostic(entry)
+
+    await sendDiagnostics()
+
+    expect(send.mock.calls[0]![0].entries[0]!.context.recorded_build).toBe('older-build')
+  })
 
   it('deletes the entries after the server confirmed them', async () => {
     await sendDiagnostics()
