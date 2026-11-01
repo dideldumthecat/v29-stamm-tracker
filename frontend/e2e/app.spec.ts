@@ -46,11 +46,12 @@ test('beam inherits a stem value and can override it', async ({ page }) => {
   await page.getByRole('button', { name: /öffnen/i }).click()
   await expect(page.getByText('Traubeneiche')).toBeVisible()
 
-  // Adding stays on the stem; the new beam is listed right below.
+  // Adding only joins the draft; saving creates the beam and stays on the stem, where it is listed.
   await page.getByRole('button', { name: 'Balken 01777-A hinzufügen' }).click()
+  await expect(page.getByText('nicht gespeichert')).toBeVisible()
+  await page.getByRole('button', { name: 'Speichern', exact: true }).click()
   await expect(page.locator('a[href="/timber-item/1777-A"]')).toBeVisible()
   await expect(page.locator('h1')).toContainText('STAMM')
-  await expect(page.locator('body > div > [role="status"]')).toHaveCount(0)
   await page.locator('a[href="/timber-item/1777-A"]').click()
   await expect(page.locator('h1')).toContainText('BALKEN')
   await expect(page.locator('h1')).toContainText('01777-A')
@@ -76,9 +77,9 @@ test('beam inherits a stem value and can override it', async ({ page }) => {
 test('beam letters run to Z, are reused after removal, and stop after 26', async ({ page }) => {
   await page.goto('/timber-item/1888')
   await page.getByRole('button', { name: 'Balken 01888-A hinzufügen' }).click()
+  // A draft beam goes without a question.
   await page.getByRole('button', { name: 'Balken 1888-A entfernen' }).click()
-  await page.getByRole('button', { name: 'Balken entfernen', exact: true }).click()
-  await expect(page.getByRole('link', { name: /01888-A/ })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Balken 1888-A entfernen' })).toHaveCount(0)
 
   for (let count = 0; count < 25; count++) {
     await page.getByRole('button', { name: /^Balken \d+-[A-Z] hinzufügen$/ }).click()
@@ -86,6 +87,54 @@ test('beam letters run to Z, are reused after removal, and stop after 26', async
   await page.getByRole('button', { name: 'Balken 01888-Z hinzufügen' }).click()
   await expect(page.getByRole('button', { name: 'Balken hinzufügen' })).toBeDisabled()
   await expect(page.getByText('Höchstens 26 Balken je Stamm')).toBeVisible()
+})
+
+// Flow: stem values and new beams are saved together; the beams inherit; the app stays on the stem.
+test('records a stem with "Gesägt" and two beams in one save; the beams inherit it', async ({
+  page,
+}) => {
+  await page.goto('/timber-item/1444')
+  await page.getByRole('button', { name: 'Gesägt', exact: true }).click()
+  await page.getByRole('button', { name: 'Balken 01444-A hinzufügen' }).click()
+  await page.getByRole('button', { name: 'Balken 01444-B hinzufügen' }).click()
+  await expect(page.getByText('nicht gespeichert')).toHaveCount(2)
+  await page.getByRole('button', { name: 'Stamm anlegen', exact: true }).click()
+
+  await expect(page.getByText('Stamm 01444 gespeichert')).toBeVisible()
+  await expect(page.locator('h1')).toContainText('STAMM')
+  await expect(page.locator('a[href="/timber-item/1444-A"]')).toBeVisible()
+  await expect(page.locator('a[href="/timber-item/1444-B"]')).toBeVisible()
+
+  await page.locator('a[href="/timber-item/1444-B"]').click()
+  const gesaegt = page.locator('section', { hasText: 'Gesägt' }).first()
+  await expect(gesaegt).toContainText('vom Stamm')
+
+  // Sent in one go: stem and beams, 1 + 1 + 1 entries.
+  await page.goto('/sync')
+  await expect(page.locator('h1')).toHaveText('Synchronisierung (4)')
+  await page.getByRole('button', { name: 'Jetzt synchronisieren' }).click()
+  await expect(page.getByText('4 Einträge übertragen')).toBeVisible()
+})
+
+// A split stem stays locked, but new beams can still be added and saved.
+test('saves a further beam on a split stem; it is queued and removing it asks', async ({
+  page,
+}) => {
+  await page.goto('/timber-item/789')
+  await expect(page.getByRole('button', { name: 'Zurück zum Start' })).toBeVisible()
+  await page.getByRole('button', { name: 'Balken 00789-C hinzufügen' }).click()
+  await expect(page.getByRole('button', { name: 'Zurück zum Start' })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Speichern', exact: true }).click()
+  await expect(page.getByText('Stamm 00789 gespeichert')).toBeVisible()
+  await expect(page.locator('a[href="/timber-item/789-C"]')).toBeVisible()
+
+  await page.goto('/sync')
+  await expect(page.locator('h1')).toHaveText('Synchronisierung (1)')
+  await expect(page.getByRole('link', { name: /789-C/ })).toBeVisible()
+
+  await page.goto('/timber-item/789')
+  await page.getByRole('button', { name: 'Balken 789-C entfernen' }).click()
+  await expect(page.getByRole('dialog')).toContainText('Balken 00789-C entfernen?')
 })
 
 // Narrowest supported phone: both save labels stay on one line.

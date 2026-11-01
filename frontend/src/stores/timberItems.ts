@@ -528,14 +528,19 @@ export const useTimberItemStore = defineStore('timberItems', () => {
 
   // undefined parent = stem not created yet, so no beams either. A removed unsynced beam frees its letter,
   // a voided one does not. A snapshot stored before voided_beam_tags existed lacks it until the next sync.
-  function nextBeamTagOf(parent: TimberItem | undefined, parentTag: string): string | null {
+  // draftTags: beams of a draft that is not saved yet; they count, so a letter once shown is never handed out twice.
+  function nextBeamTagOf(
+    parent: TimberItem | undefined,
+    parentTag: string,
+    draftTags: string[] = [],
+  ): string | null {
     const beamTags = parent
       ? [
           ...childrenOf(parent.id).map((beam) => beam.tag_number),
           ...(parent.voided_beam_tags ?? []),
         ]
       : []
-    return nextBeamTag(parentTag, beamTags)
+    return nextBeamTag(parentTag, [...beamTags, ...draftTags])
   }
 
   // Inherited = the beam shows the very recording its parent holds.
@@ -569,13 +574,14 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     return create(String(tagNumber), null)
   }
 
-  // Beams are added one at a time; the parent is split from then on and accepts no more recordings.
-  function addBeam(parentId: string): TimberItem {
+  // The parent is split from then on and accepts no more recordings.
+  // tag: the letter the draft showed already; without it the next free one.
+  function addBeam(parentId: string, tag?: string | null): TimberItem {
     const parent = findById(parentId)
     if (!parent?.tag_number || parent.parent_id) {
       throw new Error(`Cannot add a beam to timber item ${parentId}`)
     }
-    const tag = nextBeamTagOf(parent, parent.tag_number)
+    tag ??= nextBeamTagOf(parent, parent.tag_number)
     if (!tag) {
       throw new Error(`Timber item ${parentId} has no beam letters left`)
     }

@@ -656,27 +656,53 @@ describe('App', () => {
         text.test(button.textContent ?? ''),
       )!
 
-    it('adds a beam on the stem screen and lists it right there', async () => {
+    const rowOf = (tag: string) =>
+      [...document.body.querySelectorAll('[class*="border-b"]')].find((row) =>
+        row.querySelector(`button[aria-label="Balken ${tag} entfernen"]`),
+      )!
+
+    it('adds a beam to the draft of the stem: listed right away, nothing is saved', async () => {
       const { wrapper, router } = await mountAt('/timber-item/42')
       buttonByText(/Balken 00042-A hinzufügen/).click()
       await flushPromises()
       expect(router.currentRoute.value.params.tagNumber).toBe('42')
       expect(document.body.querySelector(':scope > [role="status"]')).toBeNull()
-      expect(wrapper.find('a[href="/timber-item/42-A"]').text()).toContain(
-        'noch keine eigenen Angaben',
-      )
+      expect(wrapper.text()).toContain('00042-A')
+      expect(wrapper.text()).toContain('nicht gespeichert')
+      expect(useTimberItemStore().events).toEqual([])
+      expect(useTimberItemStore().findByTag('42')).toBeUndefined()
+      // The save button says that the stem stays open.
+      expect(buttonByText(/Stamm anlegen/).textContent?.trim()).toBe('Stamm anlegen')
     })
 
-    it('offers "Zurück zum Start" on a split stem, right after the first beam', async () => {
+    it('creates the stem with its draft beams on save and stays on the stem', async () => {
       const { router } = await mountAt('/timber-item/42')
-      expect(buttonByText(/Stamm anlegen & schließen/)).toBeDefined()
       buttonByText(/Balken 00042-A hinzufügen/).click()
       await flushPromises()
-      expect(buttonByText(/Stamm anlegen & schließen/)).toBeUndefined()
+      buttonByText(/Balken 00042-B hinzufügen/).click()
+      await flushPromises()
+      buttonByText(/^\s*Stamm anlegen\s*$/).click()
+      await flushPromises()
+
+      const store = useTimberItemStore()
+      expect(store.childrenOf(store.findByTag('42')!.id).map((beam) => beam.tag_number)).toEqual([
+        '42-A',
+        '42-B',
+      ])
+      expect(router.currentRoute.value.params.tagNumber).toBe('42')
+      expect(document.body.textContent).toContain('Stamm 00042 gespeichert')
+      // Split now: read-only, the bar leads back to the start screen.
+      expect(buttonByText(/Stamm anlegen/)).toBeUndefined()
       buttonByText(/^\s*Zurück zum Start\s*$/).click()
       await flushPromises()
       expect(router.currentRoute.value.name).toBe('start')
-      expect(document.body.querySelector(':scope > [role="status"]')).toBeNull()
+    })
+
+    it('still returns to the start screen after recording a stem without beams', async () => {
+      const { router } = await mountAt('/timber-item/42')
+      buttonByText(/Stamm anlegen & schließen/).click()
+      await flushPromises()
+      expect(router.currentRoute.value.name).toBe('start')
     })
 
     it('keeps the save label on a beam', async () => {
@@ -729,36 +755,160 @@ describe('App', () => {
       expect(wrapper.findAll('select, textarea, input').length).toBe(0)
     })
 
-    it('saves a valid draft before adding a beam', async () => {
+    it('saves new beams on a split stem: "Speichern" instead of "Zurück zum Start", the stem stays locked', async () => {
+      const { wrapper, router } = await mountAt('/timber-item/789')
+      expect(buttonByText(/Zurück zum Start/)).toBeDefined()
+      buttonByText(/00789-C hinzufügen/).click()
+      await flushPromises()
+      expect(buttonByText(/Zurück zum Start/)).toBeUndefined()
+      expect(buttonByText(/^\s*Speichern\s*$/)).toBeDefined()
+      expect(useTimberItemStore().events).toEqual([])
+
+      buttonByText(/^\s*Speichern\s*$/).click()
+      await flushPromises()
+      const store = useTimberItemStore()
+      expect(store.events.map((event) => [event.type, event.data])).toEqual([
+        ['created', { parent_id: store.findByTag('789')!.id }],
+        ['tag_assigned', { tag_number: '789-C' }],
+      ])
+      expect(router.currentRoute.value.params.tagNumber).toBe('789')
+      expect(document.body.textContent).toContain('Stamm 00789 gespeichert')
+      expect(wrapper.findAll('select, textarea, input')).toHaveLength(0)
+      // Saved now: no draft left, the bar leads back to the start screen again, and removing asks.
+      expect(buttonByText(/Zurück zum Start/)).toBeDefined()
+      expect(wrapper.text()).toContain('nicht synchronisiert')
+      await wrapper.find('button[aria-label="Balken 789-C entfernen"]').trigger('click')
+      expect(document.body.querySelector('[role="dialog"]')).not.toBeNull()
+    })
+
+    it('protects draft beams on a split stem when leaving, and names them when discarding', async () => {
+      const { wrapper, router } = await mountAt('/timber-item/789')
+      buttonByText(/00789-C hinzufügen/).click()
+      await flushPromises()
+      await wrapper.find('button[aria-label="Schließen"]').trigger('click')
+      await flushPromises()
+      expect(router.currentRoute.value.params.tagNumber).toBe('789')
+      expect(document.body.textContent).toContain('1 Balken verwerfen?')
+
+      buttonByText(/^Verwerfen$/).click()
+      await flushPromises()
+      expect(router.currentRoute.value.name).toBe('start')
+      expect(useTimberItemStore().events).toEqual([])
+    })
+
+    it('records the stem values and the new beams in one save; the beams inherit the values', async () => {
       const { wrapper, router } = await mountAt('/timber-item/42')
       await wrapper.find('select').setValue(optionLabel('Holzart', 'Stieleiche'))
       buttonByText(/00042-A hinzufügen/).click()
       await flushPromises()
+      expect(useTimberItemStore().events).toEqual([])
+
+      buttonByText(/^\s*Stamm anlegen\s*$/).click()
+      await flushPromises()
+      const store = useTimberItemStore()
+      expect(store.events.map((event) => event.type)).toEqual([
+        'created',
+        'tag_assigned',
+        'attribute_recorded',
+        'created',
+        'tag_assigned',
+      ])
+      const holzart = store.attributes.find((attribute) => attribute.name === 'Holzart')!.id
+      expect(store.findByTag('42-A')!.values[holzart]).toEqual(
+        store.findByTag('42')!.values[holzart],
+      )
       expect(router.currentRoute.value.params.tagNumber).toBe('42')
-      expect(document.body.querySelector(':scope > [role="status"]')).toBeNull()
-      expect(wrapper.text()).toContain('Stieleiche')
-      expect(useTimberItemStore().findByTag('42-A')).toBeDefined()
     })
 
-    it('adds no beam while the draft is invalid', async () => {
+    it('adds a beam while the input is invalid, but saving is blocked until it is fixed', async () => {
       const { wrapper } = await mountAt('/timber-item/42')
       await wrapper.find('input[inputmode="decimal"]').setValue('abc')
       buttonByText(/00042-A hinzufügen/).click()
+      await flushPromises()
+      expect(wrapper.text()).toContain('nicht gespeichert')
+      buttonByText(/^\s*Stamm anlegen\s*$/).click()
       await flushPromises()
       expect(wrapper.find('[role="alert"]').exists()).toBe(true)
       expect(useTimberItemStore().findByTag('42')).toBeUndefined()
       expect(useTimberItemStore().findByTag('42-A')).toBeUndefined()
     })
 
-    it('reuses the letter of a removed beam', async () => {
+    it('removes a draft beam without asking; letters never change, the free one is handed out next', async () => {
       const { wrapper } = await mountAt('/timber-item/42')
+      for (const letter of ['A', 'B', 'C']) {
+        buttonByText(new RegExp(`Balken 00042-${letter} hinzufügen`)).click()
+        await flushPromises()
+      }
+      await wrapper.find('button[aria-label="Balken 42-A entfernen"]').trigger('click')
+      expect(document.body.querySelector('[role="dialog"]')).toBeNull()
+      expect(rowOf('42-A')).toBeUndefined()
+      expect(rowOf('42-B')).toBeDefined()
+      expect(rowOf('42-C')).toBeDefined()
+      expect(buttonByText(/hinzufügen/).textContent).toContain('00042-A')
+      expect(useTimberItemStore().events).toEqual([])
+    })
+
+    it('names the beams when the stem draft is discarded, and drops them', async () => {
+      const { wrapper, router } = await mountAt('/timber-item/42')
+      await wrapper.find('select').setValue(optionLabel('Holzart', 'Stieleiche'))
       buttonByText(/00042-A hinzufügen/).click()
       await flushPromises()
-      await wrapper.find('button[aria-label="Balken 42-A entfernen"]').trigger('click')
-      buttonByText(/^Balken entfernen$/).click()
+      buttonByText(/00042-B hinzufügen/).click()
       await flushPromises()
-      expect(wrapper.find('a[href="/timber-item/42-A"]').exists()).toBe(false)
-      expect(buttonByText(/hinzufügen/).textContent).toContain('00042-A')
+      await wrapper.find('button[aria-label="Schließen"]').trigger('click')
+      await flushPromises()
+      expect(document.body.textContent).toContain('2 Balken und 1 Änderung verwerfen?')
+
+      buttonByText(/^Verwerfen$/).click()
+      await flushPromises()
+      expect(router.currentRoute.value.name).toBe('start')
+      expect(useTimberItemStore().events).toEqual([])
+    })
+
+    it('asks "Speichern & öffnen" when a draft beam is tapped, without a discard option', async () => {
+      const { wrapper, router } = await mountAt('/timber-item/42')
+      buttonByText(/00042-A hinzufügen/).click()
+      await flushPromises()
+      await wrapper.find('button.flex-1.items-center').trigger('click')
+      await flushPromises()
+      const dialog = document.body.querySelector('[role="dialog"]')!
+      expect(dialog.textContent).toContain('Speichern & öffnen')
+      expect(dialog.textContent).toContain('Abbrechen')
+      expect(dialog.textContent).not.toContain('Verwerfen')
+
+      buttonByText(/^Abbrechen$/).click()
+      await flushPromises()
+      expect(document.body.querySelector('[role="dialog"]')).toBeNull()
+      expect(router.currentRoute.value.params.tagNumber).toBe('42')
+      expect(useTimberItemStore().events).toEqual([])
+
+      await wrapper.find('button.flex-1.items-center').trigger('click')
+      buttonByText(/Speichern & öffnen/).click()
+      await flushPromises()
+      expect(router.currentRoute.value.params.tagNumber).toBe('42-A')
+      expect(useTimberItemStore().findByTag('42-A')).toBeDefined()
+      expect(document.body.textContent).not.toContain('verwerfen?')
+    })
+
+    it('asks before opening a saved beam while its stem has a draft, and opens it right away otherwise', async () => {
+      const { wrapper, router } = await mountAt('/timber-item/789')
+      await wrapper.find('a[href="/timber-item/789-A"]').trigger('click')
+      await flushPromises()
+      expect(router.currentRoute.value.params.tagNumber).toBe('789-A')
+
+      await router.push('/timber-item/789')
+      await flushPromises()
+      buttonByText(/00789-C hinzufügen/).click()
+      await flushPromises()
+      await wrapper.find('a[href="/timber-item/789-A"]').trigger('click')
+      await flushPromises()
+      expect(router.currentRoute.value.params.tagNumber).toBe('789')
+      expect(document.body.textContent).toContain('Speichern & öffnen')
+
+      buttonByText(/Speichern & öffnen/).click()
+      await flushPromises()
+      expect(router.currentRoute.value.params.tagNumber).toBe('789-A')
+      expect(useTimberItemStore().findByTag('789-C')).toBeDefined()
     })
   })
 

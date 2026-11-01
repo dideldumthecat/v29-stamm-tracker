@@ -137,6 +137,48 @@ describe('timber item store: beams and inheritance', () => {
   })
 })
 
+describe('timber item store: beams in a draft', () => {
+  beforeEach(() => setActivePinia(createPinia()))
+
+  it('counts draft beams when handing out letters, so a letter shown once is never reused', () => {
+    const store = useTimberItemStore()
+    // A stem not saved yet has no beams of its own.
+    expect(store.nextBeamTagOf(undefined, '9')).toBe('9-A')
+    expect(store.nextBeamTagOf(undefined, '9', ['9-A'])).toBe('9-B')
+    // A, B and C in the draft, A removed: B and C stay, the next beam takes the free A.
+    expect(store.nextBeamTagOf(undefined, '9', ['9-B', '9-C'])).toBe('9-A')
+    // Draft letters come on top of the saved beams.
+    expect(store.nextBeamTagOf(store.findByTag('789'), '789', ['789-C'])).toBe('789-D')
+  })
+
+  it('saves a new stem, its values and its beams in one go; the beams inherit those values', () => {
+    const store = useTimberItemStore()
+    const holzart = attributeId('Holzart')
+    store.inOneTransaction(() => {
+      const stem = store.createTimberItem(9)
+      store.recordAttribute(stem.id, holzart, 'oak')
+      store.addBeam(stem.id, '9-A')
+      store.addBeam(stem.id, '9-B')
+    })
+
+    expect(store.events.map((event) => event.type)).toEqual([
+      'created',
+      'tag_assigned',
+      'attribute_recorded',
+      'created',
+      'tag_assigned',
+      'created',
+      'tag_assigned',
+    ])
+    expect(store.childrenOf(store.findByTag('9')!.id).map((beam) => beam.tag_number)).toEqual([
+      '9-A',
+      '9-B',
+    ])
+    expect(store.findByTag('9-B')!.values[holzart]![0]!.value).toBe('oak')
+    expect(store.findByTag('9')!.has_children).toBe(true)
+  })
+})
+
 describe('timber item store: discarding pending entries', () => {
   beforeEach(() => setActivePinia(createPinia()))
 

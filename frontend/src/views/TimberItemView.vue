@@ -6,7 +6,7 @@ import {
   useRouter,
   type RouteLocationRaw,
 } from 'vue-router'
-import { ChevronRightIcon, PlusIcon, Trash2Icon } from '@lucide/vue'
+import { PlusIcon, Trash2Icon } from '@lucide/vue'
 import { useTimberItemStore, type TimberItem } from '@/stores/timberItems'
 import type { AttributeValue } from '@/api/contract'
 import { collectDraft, formatValue, type DraftInput } from '@/utils/attributeDraft'
@@ -23,6 +23,7 @@ import MonthAttributeField from '@/components/MonthAttributeField.vue'
 import NumberAttributeField from '@/components/NumberAttributeField.vue'
 import TextAttributeField from '@/components/TextAttributeField.vue'
 import PhotoSection from '@/components/PhotoSection.vue'
+import BeamRowLabel from '@/components/BeamRowLabel.vue'
 import SaveBar from '@/components/SaveBar.vue'
 import ConfirmSheet from '@/components/ConfirmSheet.vue'
 import FormattedTag from '@/components/FormattedTag.vue'
@@ -59,6 +60,10 @@ const attributes = computed(() =>
 // `id` only keys the preview; the store gives the saved photo its own.
 const draftPhotos = ref<{ id: string; attributeId: string; blob: Blob }[]>([])
 
+// Beams added but not saved yet (stem screen only). Their letters are shown at once and never change,
+// because the beam may be chalked before it is saved; they are created together with the stem on save.
+const draftBeams = ref<string[]>([])
+
 // Raw input per attribute id (see DraftInput). Only touched attributes have an entry.
 const draft = ref<Record<string, DraftInput | undefined>>({})
 // Series only: values already added with "Hinzufügen".
@@ -87,7 +92,8 @@ const isDirty = computed(
   () =>
     changes.value.length > 0 ||
     Object.keys(collected.value.errors).length > 0 ||
-    draftPhotos.value.length > 0,
+    draftPhotos.value.length > 0 ||
+    draftBeams.value.length > 0,
 )
 
 // An error appears only after a failed save and disappears once the input changes (as in the click prototype):
@@ -101,8 +107,13 @@ const shownErrors = computed(() =>
   ),
 )
 
-const saveLabel = computed(() =>
-  item.value ? 'Speichern & schließen' : 'Stamm anlegen & schließen',
+// A split stem is read-only; the bar only leads back to the start screen, unless new beams wait to be saved.
+const isClosing = computed(() => isSplit.value && draftBeams.value.length === 0)
+
+// A stem saved with new beams stays open (the beams are the next step); anything else closes.
+const saveLabel = computed(
+  () =>
+    `${item.value ? 'Speichern' : 'Stamm anlegen'}${draftBeams.value.length > 0 ? '' : ' & schließen'}`,
 )
 
 // Records the draft and resets the form. null = invalid input blocks it; the errors are shown.
@@ -119,9 +130,11 @@ async function saveDraft(): Promise<TimberItem | null> {
   // Take the lists before writing: afterwards the draft equals the store and `changes` would be empty.
   const toSave = changes.value
   const photosToSave = draftPhotos.value
+  const beamsToSave = draftBeams.value
   // Like the click prototype: a new item is created even without values.
   // Only plain tags get here without an item: unknown beams are sent back by the router guard.
   // One transaction: a crash must not leave a photo without its stem or a stem without its photo.
+  // The beams come last: once a stem has beams, it accepts no more values, and they inherit what was just recorded.
   const target = store.inOneTransaction(() => {
     const target = item.value ?? store.createTimberItem(Number(props.tagNumber))
     for (const change of toSave) {
@@ -130,26 +143,34 @@ async function saveDraft(): Promise<TimberItem | null> {
     for (const photo of photosToSave) {
       store.addPhoto(target.id, photo.attributeId, photo.blob)
     }
+    for (const tag of beamsToSave) {
+      store.addBeam(target.id, tag)
+    }
     return target
   })
 
   draft.value = {}
   added.value = {}
   draftPhotos.value = []
+  draftBeams.value = []
   failedInputs.value = {}
   formKey.value++
   return target
 }
 
 // Saving closes the item: a beam goes back to its stem, a stem to the start screen.
+// Not a stem with new beams: it stays, where the beams are listed.
 async function onSave() {
+  const staysOpen = draftBeams.value.length > 0
   if (await saveDraft()) {
     toast.show({ before: kind.value, tagNumber: props.tagNumber, after: 'gespeichert' })
-    await router.push(
-      parent.value
-        ? { name: 'timber-item', params: { tagNumber: parent.value.tag_number } }
-        : { name: 'start' },
-    )
+    if (!staysOpen) {
+      await router.push(
+        parent.value
+          ? { name: 'timber-item', params: { tagNumber: parent.value.tag_number } }
+          : { name: 'start' },
+      )
+    }
   }
 }
 
@@ -201,32 +222,70 @@ function onRemovePhoto() {
 }
 
 // --- Beams ---------------------------------------------------------------
-const nextBeam = computed(() => store.nextBeamTagOf(item.value, props.tagNumber))
+const nextBeam = computed(() => store.nextBeamTagOf(item.value, props.tagNumber, draftBeams.value))
+
+// Saved beams and the ones in the draft, by tag. A draft beam has no TimberItem yet.
+const beamRows = computed(() =>
+  [
+    ...beams.value.map((beam) => ({ tag: beam.tag_number!, beam })),
+    ...draftBeams.value.map((tag) => ({ tag, beam: undefined })),
+  ].sort((a, b) => a.tag.localeCompare(b.tag)),
+)
 
 // First two own values in the order V29 set; inherited ones are the stem's, not worth repeating.
-function beamSummary(beam: TimberItem): string {
-  const parts = [...store.attributes]
-    .sort(bySortOrder)
-    .filter((attribute) => beam.values[attribute.id] && !store.isInherited(beam.id, attribute.id))
-    .map((attribute) => formatValue(attribute, beam.values[attribute.id]!.slice(-1)[0]!.value))
-    .filter((text) => text !== null)
-    .slice(0, 2)
+function beamSummary(beam: TimberItem | undefined): string {
+  const parts = beam
+    ? [...store.attributes]
+        .sort(bySortOrder)
+        .filter(
+          (attribute) => beam.values[attribute.id] && !store.isInherited(beam.id, attribute.id),
+        )
+        .map((attribute) => formatValue(attribute, beam.values[attribute.id]!.slice(-1)[0]!.value))
+        .filter((text) => text !== null)
+        .slice(0, 2)
+    : []
   return parts.length > 0 ? parts.join(' · ') : 'noch keine eigenen Angaben'
 }
 
-async function onAddBeam() {
-  // Save first: once split, the stem is read-only and the draft could never be saved.
-  const saved = isDirty.value ? await saveDraft() : undefined
-  if (saved === null) {
-    return
+// Nothing is saved or created here: the beam joins the draft and is created with "Speichern".
+function onAddBeam() {
+  if (nextBeam.value) {
+    draftBeams.value.push(nextBeam.value)
   }
-  // Like the click prototype: a stem not recorded yet is created by its first beam.
-  // No toast: the new beam appears in the list right away.
-  const stem = saved ?? item.value ?? store.createTimberItem(Number(props.tagNumber))
-  store.addBeam(stem.id)
+}
+
+// Opening a beam leaves this screen, so unsaved changes need an answer first.
+const beamToOpen = ref<string | null>(null)
+
+function onBeamLink(event: MouseEvent, tag: string, navigate: (event: MouseEvent) => void) {
+  if (isDirty.value) {
+    event.preventDefault()
+    beamToOpen.value = tag
+  } else {
+    navigate(event)
+  }
+}
+
+async function onSaveAndOpen() {
+  const tag = beamToOpen.value!
+  beamToOpen.value = null
+  if (await saveDraft()) {
+    toast.show({ before: kind.value, tagNumber: props.tagNumber, after: 'gespeichert' })
+    await router.push({ name: 'timber-item', params: { tagNumber: tag } })
+  }
 }
 
 const beamToRemove = ref<TimberItem | null>(null)
+
+// A draft beam goes without asking; a saved one needs the confirmation.
+function onRemoveRow(row: { tag: string; beam: TimberItem | undefined }) {
+  if (row.beam) {
+    beamToRemove.value = row.beam
+  } else {
+    draftBeams.value = draftBeams.value.filter((tag) => tag !== row.tag)
+  }
+}
+
 // Own recordings only: `store.items` holds no inherited values.
 const ownRecordingCount = computed(
   () =>
@@ -271,16 +330,19 @@ function onKeepEditing() {
   pendingLeave.value = null
 }
 
-// "2 Fotos und 1 Änderung": only the parts that exist.
+// "2 Balken und 1 Änderung": only the parts that exist.
 const discardSummary = computed(() => {
+  const beamCount = draftBeams.value.length
   const photoCount = draftPhotos.value.length
   const fieldCount = changes.value.length + Object.keys(collected.value.errors).length
-  return [
+  const parts = [
+    beamCount > 0 && `${beamCount} Balken`,
     photoCount > 0 && `${photoCount} ${photoCount === 1 ? 'Foto' : 'Fotos'}`,
     fieldCount > 0 && `${fieldCount} ${fieldCount === 1 ? 'Änderung' : 'Änderungen'}`,
-  ]
-    .filter(Boolean)
-    .join(' und ')
+  ].filter((part) => part !== false)
+  return parts.length > 1
+    ? `${parts.slice(0, -1).join(', ')} und ${parts[parts.length - 1]}`
+    : parts[0]
 })
 
 function onDiscard() {
@@ -311,33 +373,50 @@ function onDiscard() {
       class="flex flex-col gap-2.5 border-t border-line py-3.5 px-gutter *:max-w-full *:min-w-0"
     >
       <h2 class="flex items-center gap-2 text-[17px] font-bold">
-        Balken<template v-if="beams.length > 0"> ({{ beams.length }})</template>
+        Balken<template v-if="beamRows.length > 0"> ({{ beamRows.length }})</template>
       </h2>
-      <div v-if="beams.length > 0">
+      <div v-if="beamRows.length > 0">
         <div
-          v-for="beam in beams"
-          :key="beam.id"
+          v-for="row in beamRows"
+          :key="row.tag"
           class="flex items-center gap-2 border-b border-line"
         >
           <RouterLink
-            :to="{ name: 'timber-item', params: { tagNumber: beam.tag_number } }"
-            class="flex min-h-[60px] min-w-0 flex-1 items-center gap-3 py-1.5 text-left"
+            v-if="row.beam"
+            v-slot="{ href, navigate }"
+            custom
+            :to="{ name: 'timber-item', params: { tagNumber: row.tag } }"
           >
-            <strong class="text-xl whitespace-nowrap tabular-nums"
-              ><FormattedTag :tag-number="beam.tag_number!"
-            /></strong>
-            <span class="flex min-w-0 flex-1 flex-col gap-0.5 text-[13px] text-mute">
-              <span>{{ beamSummary(beam) }}</span>
-              <span v-if="store.canRemove(beam.id)">nicht synchronisiert</span>
-            </span>
-            <ChevronRightIcon :size="22" aria-hidden="true" />
+            <a
+              :href="href"
+              class="flex min-h-[60px] min-w-0 flex-1 items-center gap-3 py-1.5 text-left"
+              @click="onBeamLink($event, row.tag, navigate)"
+            >
+              <BeamRowLabel
+                :tag-number="row.tag"
+                :summary="beamSummary(row.beam)"
+                :note="store.canRemove(row.beam.id) ? 'nicht synchronisiert' : undefined"
+              />
+            </a>
           </RouterLink>
           <button
-            v-if="store.canRemove(beam.id)"
+            v-else
+            type="button"
+            class="flex min-h-[60px] min-w-0 flex-1 items-center gap-3 py-1.5 text-left"
+            @click="beamToOpen = row.tag"
+          >
+            <BeamRowLabel
+              :tag-number="row.tag"
+              :summary="beamSummary(undefined)"
+              note="nicht gespeichert"
+            />
+          </button>
+          <button
+            v-if="!row.beam || store.canRemove(row.beam.id)"
             type="button"
             class="flex size-11 shrink-0 items-center justify-center rounded-md border-2 border-ink bg-paper text-ink"
-            :aria-label="`Balken ${beam.tag_number} entfernen`"
-            @click="beamToRemove = beam"
+            :aria-label="`Balken ${row.tag} entfernen`"
+            @click="onRemoveRow(row)"
           >
             <Trash2Icon :size="20" :stroke-width="2.5" aria-hidden="true" />
           </button>
@@ -356,10 +435,10 @@ function onDiscard() {
       <span v-if="!nextBeam" class="text-[13px] text-mute"
         >Höchstens {{ MAX_BEAMS }} Balken je Stamm</span
       >
-      <p v-if="beams.length === 0" class="text-sm leading-[1.4] text-body">
+      <p v-if="beamRows.length === 0" class="text-sm leading-[1.4] text-body">
         Nur wenn der Stamm in mehrere Balken gesägt wird: je Balken einmal tippen und die Kennung
-        auf den Balken schreiben. Angaben, die für alle Balken gelten, vorher am Stamm erfassen –
-        danach ist der Stamm gesperrt.
+        auf den Balken schreiben. Angaben, die für alle Balken gelten, am Stamm erfassen – mit dem
+        Speichern ist der Stamm gesperrt.
       </p>
       <span v-if="beams.some((beam) => !store.canRemove(beam.id))" class="text-[13px] text-mute"
         >Übertragene Balken kann nur die Administration entfernen.</span
@@ -458,11 +537,11 @@ function onDiscard() {
     <div class="flex-auto"></div>
 
     <!-- A stem not recorded yet can always be saved: creating it is the change.
-         A split stem is read-only, so the bar only leads back to the start screen. -->
+         A split stem is read-only, so the bar only leads back to the start screen, unless it has draft beams. -->
     <SaveBar
-      :label="isSplit ? 'Zurück zum Start' : saveLabel"
-      :disabled="isCompressing || (!isSplit && !!item && !isDirty)"
-      @save="isSplit ? onClose() : onSave()"
+      :label="isClosing ? 'Zurück zum Start' : saveLabel"
+      :disabled="isCompressing || (!isClosing && !!item && !isDirty)"
+      @save="isClosing ? onClose() : onSave()"
     />
 
     <!-- Wording as in the click prototype (confirmRemoveBeam). -->
@@ -484,6 +563,21 @@ function onDiscard() {
         </template>
         Die Kennung <FormattedTag :tag-number="beamToRemove.tag_number!" /> wird nicht neu vergeben,
         der nächste Balken bekommt den nächsten Buchstaben.
+      </p>
+    </ConfirmSheet>
+
+    <ConfirmSheet
+      v-if="beamToOpen"
+      title="Erst speichern?"
+      primary-label="Abbrechen"
+      secondary-label="Speichern & öffnen"
+      emphasize-secondary
+      @primary="beamToOpen = null"
+      @secondary="onSaveAndOpen"
+    >
+      <p>
+        Dein Stand für {{ kind }} <FormattedTag :tag-number="tagNumber" /> ist noch nicht
+        gespeichert. Der Balken <FormattedTag :tag-number="beamToOpen" /> wird danach geöffnet.
       </p>
     </ConfirmSheet>
 
