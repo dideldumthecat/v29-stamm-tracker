@@ -146,11 +146,11 @@ The file lands in the current directory, so run it from the home directory, not 
 
 ### Photos
 
-Photos are JPEGs, compressed on the device (4032 px long edge, quality 0.7); the server stores them unchanged and rejects files over 10 MB. They live in `var/photos/` (outside `public/`, set another folder with `PHOTO_DIR`) and are served only by `GET /api/photos/{id}` to signed-in users. A photo is an ordinary value of the one photo attribute ("Fotos", a series): the id is synced as an event, the file is uploaded separately via `POST /api/photos`, in any order.
+Photos are JPEGs, compressed on the device (4032 px long edge; quality 0.6 on Apple's encoder, i.e. every browser on iOS and Safari on the Mac, otherwise 0.85); the server stores them unchanged and rejects files over 10 MB. They live in `var/photos/` (outside `public/`, set another folder with `PHOTO_DIR`) and are served only by `GET /api/photos/{id}` to signed-in users. A photo is an ordinary value of the one photo attribute ("Fotos", a series): the id is synced as an event, the file is uploaded separately via `POST /api/photos`, in any order.
 
 `app:photo:import` attaches existing photos to stems and beams. The CSV has the header `file,tag` or `file;tag` (the separator is taken from the header; quoted fields work as usual), file paths are relative to the CSV, the tag may have leading zeros. Rows with an unknown tag, a missing file, a non-JPEG or a file over 10 MB are skipped and listed at the end. Run `--dry-run` first.
 
-- **Convert the originals only once** (Mac: `sips -Z 4032 -s format jpeg -s formatOptions 70`). Converting again gives different checksums, and the import treats the files as new photos: duplicates are detected by checksum per stem or beam.
+- **Convert the originals only once** (Mac: `sips -Z 4032 -s format jpeg -s formatOptions 60`). Converting again gives different checksums, and the import treats the files as new photos: duplicates are detected by checksum per stem or beam.
 - A second run with the same files adds nothing.
 - The capture time comes from the EXIF date (`DateTimeOriginal`, read as Berlin time), otherwise from the file date. Needs the PHP extension `exif` (`php -m`).
 - The photos are recorded under the only admin, or under the user given with `--user` (name or ID).

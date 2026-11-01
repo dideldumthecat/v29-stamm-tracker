@@ -463,8 +463,13 @@ test('uploads photos after the data and leaves the count tile', async ({ page })
   await expect(count).toHaveText('1')
 })
 
+// The fake upload hangs until the sync is stopped, so the stop can never come too late.
+const HOLD_PHOTOS = () => localStorage.setItem('fake-api-hold-photos', '1')
+const RELEASE_PHOTOS = () => localStorage.removeItem('fake-api-hold-photos')
+
 test('stopping the photos keeps them; the next sync uploads them', async ({ page }) => {
   await page.goto('/timber-item/123')
+  await page.evaluate(HOLD_PHOTOS)
   await takePhoto(page)
   await takePhoto(page)
   await expect(preview(page)).toHaveCount(2)
@@ -479,6 +484,7 @@ test('stopping the photos keeps them; the next sync uploads them', async ({ page
   )
   await expect(page.locator('h1')).toHaveText('Synchronisierung (2)')
 
+  await page.evaluate(RELEASE_PHOTOS)
   await page.getByRole('button', { name: 'Jetzt synchronisieren' }).click()
   await expect(page.getByText('Angehalten.')).toBeHidden()
   await expect(page.getByText('2 Fotos hochgeladen, aktueller Stand geladen.')).toBeVisible()
@@ -488,6 +494,7 @@ test('a sync started on an earlier visit of the sync page can be stopped after c
   page,
 }) => {
   await page.goto('/timber-item/123')
+  await page.evaluate(HOLD_PHOTOS)
   await takePhoto(page)
   await takePhoto(page)
   await saveDraft(page)
@@ -498,7 +505,7 @@ test('a sync started on an earlier visit of the sync page can be stopped after c
   await page.getByRole('button', { name: 'Schließen' }).click()
   // The sync runs on: the button says so.
   await page.getByRole('link', { name: 'Synchronisierung läuft, 2 offene Einträge' }).click()
-  await expect(page.getByText(/Foto \d von 2/)).toBeVisible()
+  await expect(page.getByText('Foto 1 von 2')).toBeVisible()
   await page.getByRole('button', { name: 'Synchronisierung anhalten' }).click()
   await expect(page.getByRole('status')).toContainText('Angehalten.')
   await expect(page.getByRole('button', { name: 'Jetzt synchronisieren' })).toBeVisible()

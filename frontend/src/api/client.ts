@@ -183,10 +183,13 @@ const fake: typeof real = {
     return structuredClone(fixtureSnapshot)
   },
   // Slow on purpose: the progress bar must be visible (and cancellable) in the tests.
+  // Test hook: localStorage "fake-api-hold-photos" = "1" never finishes an upload by itself (only stopping ends it),
+  // so a test can stop a sync while a photo is certainly still on its way.
   uploadPhoto: async (_photo, signal) => {
     signedIn()
+    const hold = localStorage.getItem('fake-api-hold-photos') === '1'
     await new Promise<void>((resolve, reject) => {
-      const timer = setTimeout(resolve, FAKE_UPLOAD_MS)
+      const timer = hold ? undefined : setTimeout(resolve, FAKE_UPLOAD_MS)
       signal?.addEventListener('abort', () => {
         clearTimeout(timer)
         reject(new ApiError(0, 'aborted'))

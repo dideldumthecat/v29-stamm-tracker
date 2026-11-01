@@ -1,9 +1,18 @@
-import { PHOTO_MAX_EDGE, PHOTO_QUALITY } from '@/config/constants'
+import { PHOTO_MAX_EDGE, PHOTO_QUALITY_APPLE, PHOTO_QUALITY_DEFAULT } from '@/config/constants'
 
 /** Size that fits the longest edge into `maxEdge`, keeping the ratio. Never scales up. */
 export function fitWithin(width: number, height: number, maxEdge = PHOTO_MAX_EDGE) {
   const scale = Math.min(1, maxEdge / Math.max(width, height))
   return { width: Math.round(width * scale), height: Math.round(height * scale) }
+}
+
+/**
+ * JPEG quality for the encoder behind the user agent. WebKit on iOS is the only engine here that uses Apple's
+ * encoder (all iOS browsers, Safari on the Mac, iPad in desktop mode); Chrome-based browsers also say "AppleWebKit".
+ */
+export function photoQuality(userAgent: string): number {
+  const apple = /AppleWebKit/.test(userAgent) && !/Chrome|Chromium|Android/.test(userAgent)
+  return apple ? PHOTO_QUALITY_APPLE : PHOTO_QUALITY_DEFAULT
 }
 
 /**
@@ -23,7 +32,7 @@ export async function compressPhoto(file: Blob): Promise<Blob> {
       canvas.toBlob(
         (blob) => (blob ? resolve(blob) : reject(new Error('Photo could not be encoded'))),
         'image/jpeg',
-        PHOTO_QUALITY,
+        photoQuality(navigator.userAgent),
       ),
     )
   } finally {
