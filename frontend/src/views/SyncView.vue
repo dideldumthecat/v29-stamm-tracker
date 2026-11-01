@@ -66,10 +66,13 @@ const groups = computed(() => {
     }
   }
   return [...byItem].map(([itemId, { events, photos }]) => {
-    const item = store.items.find((candidate) => candidate.id === itemId)
+    // A removed beam is gone from the items, but its row must still name it.
+    const removed = store.removedBeams.get(itemId)
+    const item = removed ?? store.items.find((candidate) => candidate.id === itemId)
     return {
       itemId,
       tagNumber: item?.tag_number ?? null,
+      isRemoved: removed !== undefined,
       kind: item?.parent_id ? 'Balken' : 'Stamm',
       isNew: events.some((event) => event.type === 'created'),
       events,
@@ -251,8 +254,9 @@ function onMainButton() {
     <div v-else class="flex flex-col gap-5 py-4 px-gutter">
       <RejectedAlerts :rejected="result?.rejected ?? []" />
       <section v-for="group in groups" :key="group.itemId">
+        <!-- A removed beam has no screen to link to: its row stands alone. -->
         <RouterLink
-          v-if="group.tagNumber"
+          v-if="group.tagNumber && !group.isRemoved"
           :to="{ name: 'timber-item', params: { tagNumber: group.tagNumber } }"
           class="flex min-h-11 w-full items-center justify-between border-b-2 border-ink text-left"
         >
@@ -275,7 +279,10 @@ function onMainButton() {
           class="flex items-center gap-2 border-b border-line"
         >
           <div class="flex min-h-14 min-w-0 flex-1 flex-col justify-center py-1.5">
-            <b class="font-semibold wrap-anywhere">{{ describe(event, group.kind) }}</b>
+            <b v-if="event.type === 'voided'" class="font-semibold wrap-anywhere"
+              >{{ group.kind }} <FormattedTag :tag-number="group.tagNumber!" /> entfernen</b
+            >
+            <b v-else class="font-semibold wrap-anywhere">{{ describe(event, group.kind) }}</b>
             <span class="text-[13px] text-mute">{{ formatShortDateTime(event.recorded_at) }}</span>
           </div>
           <button
@@ -403,9 +410,16 @@ function onMainButton() {
           >
           verwerfen?
         </template>
+        <template v-else-if="toDiscard.event.type === 'voided'">
+          Entfernen von {{ toDiscard.group.kind }}
+          <FormattedTag :tag-number="toDiscard.group.tagNumber!" /> verwerfen?
+        </template>
         <template v-else>Eintrag verwerfen?</template>
       </template>
-      <p v-if="toDiscard.event.type !== 'created'">
+      <p v-if="toDiscard.event.type === 'voided'">
+        Der {{ toDiscard.group.kind }} ist danach wieder da.
+      </p>
+      <p v-else-if="toDiscard.event.type !== 'created'">
         {{ describe(toDiscard.event, toDiscard.group.kind) }}<br /><template
           v-if="photoOf(toDiscard.event)"
           >Das Foto wird vom Gerät gelöscht.<br /></template

@@ -171,16 +171,25 @@ const signedIn = () => {
 // The type inferred from the JSON (empty arrays as never[], optional keys per item) does not overlap Snapshot enough for a direct cast.
 const fixtureSnapshot = snapshotFixture as unknown as Snapshot
 
+// Beams the fake server has been told to void; in localStorage, so a reload (which downloads again) keeps them away.
+const voidedIds = () => new Set<string>(JSON.parse(localStorage.getItem('fake-api-voided') ?? '[]'))
+
 // structuredClone: callers may mutate the result, the imported fixture must stay as it is.
 const fake: typeof real = {
   redeemInvite: async () => {
     localStorage.removeItem('fake-api')
     return structuredClone(sessionFixture)
   },
-  // Always the fixture: events "synced" here are accepted and then gone.
+  // The fixture: events "synced" here are accepted and then gone, except voids, which hide the fixture's beams.
   loadSnapshot: async () => {
     signedIn()
-    return structuredClone(fixtureSnapshot)
+    const snapshot = structuredClone(fixtureSnapshot)
+    const voided = voidedIds()
+    snapshot.timber_items = snapshot.timber_items.filter((item) => !voided.has(item.id))
+    for (const stem of snapshot.timber_items) {
+      stem.has_children &&= snapshot.timber_items.some((item) => item.parent_id === stem.id)
+    }
+    return snapshot
   },
   // Slow on purpose: the progress bar must be visible (and cancellable) in the tests.
   // Test hook: localStorage "fake-api-hold-photos" = "1" never finishes an upload by itself (only stopping ends it),
@@ -198,6 +207,11 @@ const fake: typeof real = {
   },
   sync: async (events) => {
     signedIn()
+    const voided = voidedIds()
+    events
+      .filter((event) => event.type === 'voided')
+      .forEach((event) => voided.add(event.timber_item_id))
+    localStorage.setItem('fake-api-voided', JSON.stringify([...voided]))
     return { accepted_event_ids: events.map((event) => event.id), rejected: [] }
   },
   // Accepts everything; the reports stay in localStorage for the end-to-end tests to read.

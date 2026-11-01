@@ -93,14 +93,14 @@ describe('timber item store: beams and inheritance', () => {
     expect(store.childrenOf(stem.id).map((beam) => beam.tag_number)).toEqual(['789-A', '789-B'])
   })
 
-  it('letters beams, locks the parent and removes unsynced beams only', () => {
+  it('letters beams, locks the parent and removes beams but no stems', () => {
     const store = useTimberItemStore()
     const stem = store.findByTag('789')!
     expect(store.addBeam(stem.id).tag_number).toBe('789-C')
     expect(() => store.recordAttribute(stem.id, attributeId('Holzart'), 'x')).toThrow()
 
-    const synced = store.findByTag('789-A')!
-    expect(store.canRemove(synced.id)).toBe(false)
+    expect(store.canRemove(store.findByTag('789-A')!.id)).toBe(true)
+    expect(store.canRemove(stem.id)).toBe(false)
 
     const before = store.pendingCount
     const fresh = store.createTimberItem(6)
@@ -176,6 +176,92 @@ describe('timber item store: beams in a draft', () => {
     ])
     expect(store.findByTag('9-B')!.values[holzart]![0]!.value).toBe('oak')
     expect(store.findByTag('9')!.has_children).toBe(true)
+  })
+})
+
+describe('timber item store: removing synced beams', () => {
+  beforeEach(() => setActivePinia(createPinia()))
+  afterEach(() => vi.restoreAllMocks())
+
+  const jpeg = () => new NodeBlob(['x'], { type: 'image/jpeg' }) as unknown as Blob
+  const photoAttribute = () =>
+    useTimberItemStore().attributes.find((attribute) => attribute.type === 'photo')!.id
+
+  it('queues a voided event, hides the beam at once and frees its letter', () => {
+    const store = useTimberItemStore()
+    const beam = store.findByTag('789-A')!
+    store.removeTimberItem(beam.id)
+
+    expect(store.events.map((event) => [event.type, event.timber_item_id])).toEqual([
+      ['voided', beam.id],
+    ])
+    expect(store.pendingCount).toBe(1)
+    expect(store.findByTag('789-A')).toBeUndefined()
+    expect(store.removedBeams.get(beam.id)?.tag_number).toBe('789-A')
+    expect(store.nextBeamTagOf(store.findByTag('789'), '789')).toBe('789-A')
+    expect(store.addBeam(store.findByTag('789')!.id).tag_number).toBe('789-A')
+  })
+
+  it('drops open values and photos of the beam, but keeps those of other items', () => {
+    const store = useTimberItemStore()
+    const beam = store.findByTag('789-B')!
+    const other = store.findByTag('789-A')!
+    store.recordAttribute(beam.id, attributeId('Sortierklasse'), 'x')
+    store.addPhoto(beam.id, photoAttribute(), jpeg())
+    store.recordAttribute(other.id, attributeId('Sortierklasse'), 'y')
+    store.addPhoto(other.id, photoAttribute(), jpeg())
+
+    store.removeTimberItem(beam.id)
+    expect(store.events.map((event) => [event.type, event.timber_item_id])).toEqual([
+      ['attribute_recorded', other.id],
+      ['attribute_recorded', other.id],
+      ['voided', beam.id],
+    ])
+    expect(store.photos.map((photo) => photo.timber_item_id)).toEqual([other.id])
+    expect(cloneEverySave).not.toThrow()
+    // Leave no photo behind in the fake IndexedDB: later tests load from it.
+    store.removePhoto(store.photos[0]!.id)
+  })
+
+  it('makes the stem editable again once its last beam is removed, also offline', () => {
+    const store = useTimberItemStore()
+    const stem = store.findByTag('789')!
+    store.removeTimberItem(store.findByTag('789-A')!.id)
+    expect(store.findByTag('789')!.has_children).toBe(true)
+    expect(() => store.recordAttribute(stem.id, attributeId('Holzart'), 'x')).toThrow()
+
+    store.removeTimberItem(store.findByTag('789-B')!.id)
+    expect(store.findByTag('789')!.has_children).toBe(false)
+    store.recordAttribute(stem.id, attributeId('Holzart'), 'x')
+  })
+
+  it('brings the beam back with its data when the removal is discarded', () => {
+    const store = useTimberItemStore()
+    const beam = store.findByTag('789-A')!
+    store.removeTimberItem(beam.id)
+    store.discardEntry(store.events[0]!.id)
+
+    expect(store.events).toEqual([])
+    expect(store.findByTag('789-A')!.values).toEqual(beam.values)
+    expect(store.removedBeams.size).toBe(0)
+  })
+
+  it('leaves the queue after the sync and the beam stays gone with the new snapshot', async () => {
+    const store = useTimberItemStore()
+    const beam = store.findByTag('789-B')!
+    store.removeTimberItem(beam.id)
+    vi.spyOn(api, 'sync').mockImplementation(async (events) => ({
+      accepted_event_ids: events.map((event) => event.id),
+      rejected: [],
+    }))
+    const fresh = api.initialSnapshot()
+    fresh.timber_items = fresh.timber_items.filter((item) => item.id !== beam.id)
+    vi.spyOn(api, 'loadSnapshot').mockResolvedValue(fresh)
+
+    expect(await store.sync()).toEqual({ transferred: 1, rejected: [] })
+    expect(store.events).toEqual([])
+    expect(store.findByTag('789-B')).toBeUndefined()
+    expect(store.removedBeams.size).toBe(0)
   })
 })
 
@@ -399,7 +485,7 @@ describe('timber item store: sync', () => {
     expect(store.events).toEqual([])
   })
 
-  it('drops an item voided on the server and keeps the letter of a voided beam taken', async () => {
+  it('drops an item voided on the server and frees the letter of a voided beam', async () => {
     const store = useTimberItemStore()
     const stem = store.findByTag('789')!
     const voided = store.findByTag('789-B')!
@@ -411,13 +497,13 @@ describe('timber item store: sync', () => {
     })
     const fresh = api.initialSnapshot()
     fresh.timber_items = fresh.timber_items.filter((item) => item.id !== voided.id)
-    fresh.timber_items.find((item) => item.id === stem.id)!.voided_beam_tags = ['789-B']
     vi.spyOn(api, 'loadSnapshot').mockResolvedValue(fresh)
 
     await store.sync()
     expect(store.findByTag('789-B')).toBeUndefined()
     expect(store.events).toEqual([])
-    expect(store.nextBeamTagOf(store.findByTag('789'), '789')).toBe('789-C')
+    expect(store.nextBeamTagOf(store.findByTag('789'), '789')).toBe('789-B')
+    expect(stem.tag_number).toBe('789')
   })
 
   it('keeps the whole queue when the snapshot download fails after the upload', async () => {

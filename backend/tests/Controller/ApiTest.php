@@ -237,7 +237,9 @@ class ApiTest extends WebTestCase
             'malformed month' => self::event('attribute_recorded', $item, ['attribute_id' => self::FAELLDATUM, 'value' => '2026-13']),
             'date for a month' => self::event('attribute_recorded', $item, ['attribute_id' => self::FAELLDATUM, 'value' => '2026-10-01']),
             'unknown attribute' => self::event('attribute_recorded', $item, ['attribute_id' => Uuid::v4()->toRfc4122(), 'value' => true]),
-            'voided from the app' => self::event('voided', $item, []),
+            'voided with data' => self::event('voided', $item, ['reason' => 'x']),
+            'voided stem' => self::event('voided', self::ITEM_123, []),
+            'voided unknown item' => self::event('voided', Uuid::v4()->toRfc4122(), []),
             'missing recorded_at' => array_diff_key(self::event('tag_assigned', $item, ['tag_number' => '7']), ['recorded_at' => true]),
             'unknown item' => self::event('tag_assigned', Uuid::v4()->toRfc4122(), ['tag_number' => '7']),
             'unknown parent' => self::event('created', Uuid::v4()->toRfc4122(), ['parent_id' => Uuid::v4()->toRfc4122()]),
@@ -433,7 +435,7 @@ class ApiTest extends WebTestCase
         $items = array_column($snapshot['timber_items'], null, 'id');
         self::assertSame(array_keys($expected['timber_items'][0]), array_keys($items[self::ITEM_123]));
         self::assertSame(['id' => self::ITEM_123, 'parent_id' => null, 'tag_number' => '123', 'has_children' => false,
-            'created_at' => '2026-10-02T07:12:00.000Z', 'created_by' => self::KERSTIN, 'voided_beam_tags' => []],
+            'created_at' => '2026-10-02T07:12:00.000Z', 'created_by' => self::KERSTIN],
             array_diff_key($items[self::ITEM_123], ['values' => true]));
         // Series: both readings, oldest first, in contract form.
         $readings = $items[self::ITEM_123]['values'][self::HOLZFEUCHTE];
@@ -595,7 +597,7 @@ class ApiTest extends WebTestCase
         return array_column($this->request('GET', '/api/snapshot')['timber_items'], null, 'id');
     }
 
-    public function testAVoidedBeamLeavesTheSnapshotAndKeepsItsLetterTaken(): void
+    public function testAVoidedBeamLeavesTheSnapshot(): void
     {
         [$a, $b] = $this->syncBeams();
 
@@ -606,9 +608,57 @@ class ApiTest extends WebTestCase
 
         $items = $this->snapshotItems();
         self::assertSame([self::ITEM_123, $a], array_keys($items));
-        self::assertSame(['123-B'], $items[self::ITEM_123]['voided_beam_tags']);
         self::assertTrue($items[self::ITEM_123]['has_children']);
         self::assertSame('voided', $this->em->getConnection()->fetchOne('SELECT type FROM timber_item_events WHERE reference_id IS NOT NULL'));
+    }
+
+    public function testTheAppCanVoidABeamAndTheServerReferencesItsCreatedEvent(): void
+    {
+        [$a, $b] = $this->syncBeams();
+        $created = $this->em->getConnection()->fetchOne('SELECT id FROM timber_item_events WHERE timber_item_id = ? AND type = ?', [Uuid::fromString($b)->toBinary(), 'created']);
+        $void = self::event('voided', $b, []);
+
+        // Sent twice, and a second void of the same beam from another event: accepted without harm.
+        foreach ([[$void], [$void, self::event('voided', $b, [])]] as $events) {
+            $response = $this->request('POST', '/api/sync', ['events' => $events]);
+            self::assertResponseIsSuccessful();
+            self::assertSame(array_column($events, 'id'), $response['accepted_event_ids']);
+        }
+
+        self::assertSame([self::ITEM_123, $a], array_keys($this->snapshotItems()));
+        self::assertSame(3 + 5 + 2, $this->eventCount());
+        self::assertSame($created, $this->em->getConnection()->fetchOne('SELECT reference_id FROM timber_item_events WHERE id = ?', [Uuid::fromString($void['id'])->toBinary()]));
+        self::assertTrue($this->snapshotItems()[self::ITEM_123]['has_children']);
+
+        $this->request('POST', '/api/sync', ['events' => [self::event('voided', $a, [])]]);
+        self::assertFalse($this->snapshotItems()[self::ITEM_123]['has_children']);
+    }
+
+    public function testTheAppCannotVoidAStem(): void
+    {
+        $this->syncItem123();
+        $before = $this->eventCount();
+
+        $this->request('POST', '/api/sync', ['events' => [self::event('voided', self::ITEM_123, [])]]);
+
+        self::assertResponseStatusCodeSame(400);
+        self::assertSame($before, $this->eventCount());
+        self::assertArrayHasKey(self::ITEM_123, $this->snapshotItems());
+    }
+
+    public function testAVoidedBeamFreesItsLetterAlsoWithinTheSameRequest(): void
+    {
+        [, $b] = $this->syncBeams();
+        $again = Uuid::v4()->toRfc4122();
+
+        $response = $this->request('POST', '/api/sync', ['events' => [
+            self::event('voided', $b, []),
+            self::event('created', $again, ['parent_id' => self::ITEM_123]),
+            self::event('tag_assigned', $again, ['tag_number' => '123-B']),
+        ]]);
+
+        self::assertSame([], $response['rejected']);
+        self::assertSame('123-B', $this->snapshotItems()[$again]['tag_number']);
     }
 
     public function testTheTagOfAVoidedItemCanBeTakenAgain(): void
@@ -685,7 +735,6 @@ class ApiTest extends WebTestCase
 
         unset($live['generated_at'], $rebuilt['generated_at']);
         self::assertSame($live, $rebuilt);
-        self::assertSame(['123-B'], array_column($rebuilt['timber_items'], 'voided_beam_tags', 'id')[self::ITEM_123]);
     }
 
     public function testVoidNeedsExactlyOneAdmin(): void

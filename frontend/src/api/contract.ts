@@ -90,8 +90,6 @@ export interface TimberItem {
    * all other attributes exactly one (the current value).
    */
   values: Record<Uuid, AttributeValueRecord[]>
-  /** Latest tags of voided beams. Their letters stay taken: nextBeamTag() counts them like existing beams. */
-  voided_beam_tags: string[]
 }
 
 export interface AttributeValueRecord {
@@ -150,11 +148,14 @@ interface EventBase {
 export type Event =
   | (EventBase & { type: 'created'; data: { parent_id: Uuid | null } })
   | (EventBase & { type: 'tag_assigned'; data: { tag_number: string } })
+  | (EventBase & { type: 'voided'; data: Record<string, never> })
   | (EventBase & {
       type: 'attribute_recorded'
       data: { attribute_id: Uuid; value: AttributeValue }
     })
-// corrected and voided are created in the administration only and never sent by the app.
+// corrected is created in the administration only and never sent by the app.
+// voided: the app sends it to remove a beam it has already synced (a stem cannot be removed here). The server sets
+// reference_id to the created event of the beam. Unknown id or a stem: 400. A beam voided already is accepted, nothing changes.
 
 // --- POST /api/photos --------------------------------------------------------
 // multipart/form-data, one JPEG per request. Independent of POST /api/sync: before or after the event that
