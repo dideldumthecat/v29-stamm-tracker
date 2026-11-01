@@ -21,6 +21,8 @@ class RequestLogTest extends WebTestCase
 
     private KernelBrowser $client;
     private TestHandler $log;
+    /** @var array<string, TestHandler> the prod handlers that write to prod.log, by name */
+    private array $prodFile = [];
 
     protected function setUp(): void
     {
@@ -31,8 +33,42 @@ class RequestLogTest extends WebTestCase
         $container->get(EntityManagerInterface::class)->flush();
 
         $this->log = new TestHandler();
-        $container->get('monolog.logger.request')->pushHandler($this->log);
+        foreach (['request', 'api_request'] as $channel) {
+            $container->get('monolog.logger.'.$channel)->pushHandler($this->log);
+        }
         $container->get('logger')->pushHandler($this->log);
+        $this->wireProdFileHandlers();
+    }
+
+    /**
+     * The test environment writes nowhere, so the real prod handlers (level, channel filter) are rebuilt from
+     * monolog.yaml as TestHandlers: what they collect is what would end up in prod.log.
+     */
+    private function wireProdFileHandlers(): void
+    {
+        $handlers = Yaml::parseFile(__DIR__.'/../../config/packages/monolog.yaml')['when@prod']['monolog']['handlers'];
+        $channels = ['app' => 'logger', 'request' => 'monolog.logger.request', 'api_request' => 'monolog.logger.api_request'];
+        foreach (['main', 'request_problems'] as $name) {
+            $handler = new TestHandler(Level::fromName($handlers[$name]['level']));
+            $this->prodFile[$name] = $handler;
+            $listed = $handlers[$name]['channels'];
+            $excluding = str_starts_with($listed[0], '!');
+            foreach ($channels as $channel => $service) {
+                $included = $excluding ? !\in_array('!'.$channel, $listed, true) : \in_array($channel, $listed, true);
+                if ($included) {
+                    self::getContainer()->get($service)->pushHandler($handler);
+                }
+            }
+        }
+    }
+
+    /** @return list<LogRecord> */
+    private function prodLogLines(): array
+    {
+        $records = array_merge(...array_values(array_map(static fn (TestHandler $handler) => $handler->getRecords(), $this->prodFile)));
+        usort($records, static fn (LogRecord $a, LogRecord $b) => $a->datetime <=> $b->datetime);
+
+        return $records;
     }
 
     private function signIn(): void
@@ -57,13 +93,13 @@ class RequestLogTest extends WebTestCase
         $lines = $this->requestLines();
         self::assertCount(1, $lines);
         $context = $lines[0]->context;
-        self::assertSame('request', $lines[0]->channel);
+        self::assertSame('api_request', $lines[0]->channel);
         self::assertSame(['method' => 'GET', 'path' => '/api/ping', 'status' => 200, 'user_id' => null, 'user_name' => null, 'app_build' => 'abc1234 2026-10-31T10:00'],
             array_intersect_key($context, array_flip(['method', 'path', 'status', 'user_id', 'user_name', 'app_build'])));
         self::assertSame(120, mb_strlen($context['user_agent']));
         self::assertIsInt($context['duration_ms']);
         self::assertGreaterThan(0, $context['response_bytes']);
-        self::assertArrayHasKey('request_bytes', $context);
+        self::assertNull($context['request_bytes']);
         self::assertStringNotContainsString('secret', json_encode($lines[0]->toArray()));
     }
 
@@ -80,7 +116,7 @@ class RequestLogTest extends WebTestCase
         self::assertCount(2, $lines);
         self::assertSame('Kerstin', $lines[1]->context['user_name']);
         self::assertSame(['POST', '/api/sync', 200], [$lines[1]->context['method'], $lines[1]->context['path'], $lines[1]->context['status']]);
-        self::assertSame('1234', $lines[1]->context['request_bytes']);
+        self::assertSame(1234, $lines[1]->context['request_bytes']);
 
         $domain = array_values(array_filter($this->log->getRecords(), static fn (LogRecord $record) => 'app' === $record->channel));
         self::assertStringContainsString('2 received, 1 new, 1 known, 0 rejected', $domain[1]->message);
@@ -117,11 +153,23 @@ class RequestLogTest extends WebTestCase
         $this->client->request('GET', '/api/snapshot');
 
         self::assertResponseStatusCodeSame(401);
-        // Symfony's own "Matched route" line (info) is expected alongside, but not part of the claim.
-        $records = array_values(array_filter($this->log->getRecords(), static fn (LogRecord $record) => !str_starts_with($record->message, 'Matched route')));
+        $records = $this->prodLogLines();
         self::assertSame(['ERROR', 'INFO'], array_map(static fn (LogRecord $record) => $record->level->getName(), $records));
-        self::assertSame(['request', 'request'], array_map(static fn (LogRecord $record) => $record->channel, $records));
+        self::assertSame(['request', 'api_request'], array_map(static fn (LogRecord $record) => $record->channel, $records));
+        self::assertStringContainsString('Uncaught PHP Exception', $records[0]->message);
+        self::assertArrayHasKey('exception', $records[0]->context);
         self::assertSame(401, $records[1]->context['status']);
+    }
+
+    public function testANormalRequestAddsExactlyOneLineToProdLog(): void
+    {
+        $this->client->request('GET', '/api/ping');
+
+        // The router's "Matched route" is logged (here, as in dev), but does not reach prod.log.
+        self::assertTrue($this->log->hasInfoThatContains('Matched route'));
+        $lines = $this->prodLogLines();
+        self::assertCount(1, $lines);
+        self::assertSame('GET /api/ping 200', substr($lines[0]->message, 0, 17));
     }
 
     public function testUnknownPathsAndWrongMethodsAreNoticesButBadRequestsStayErrors(): void
@@ -133,6 +181,8 @@ class RequestLogTest extends WebTestCase
         self::assertResponseStatusCodeSame(405);
         self::assertSame([], array_filter($this->log->getRecords(), static fn (LogRecord $record) => $record->level->value >= Level::Error->value));
         self::assertTrue($this->log->hasNoticeThatContains('Uncaught PHP Exception'));
+        // Both reach prod.log: the notice from the "request" channel and the request line.
+        self::assertSame(['NOTICE', 'INFO', 'NOTICE', 'INFO'], array_map(static fn (LogRecord $record) => $record->level->getName(), $this->prodLogLines()));
         self::assertSame([404, 405], array_map(static fn (LogRecord $record) => $record->context['status'], $this->requestLines()));
 
         $this->client->jsonRequest('POST', '/api/sync', ['events' => 'no list']);
@@ -143,15 +193,19 @@ class RequestLogTest extends WebTestCase
         self::assertCount(2, array_filter($this->log->getRecords(), static fn (LogRecord $record) => Level::Error === $record->level && str_starts_with($record->message, 'Uncaught PHP Exception')));
     }
 
-    /** Production writes everything but the app's own reports to prod.log; the test environment cannot show that, so the configuration is checked. */
+    /** The prod.log handlers that wireProdFileHandlers() rebuilds, and the app's own reports in a file of their own. */
     public function testProductionLogsEverythingInfoAndAboveToOneRotatingFile(): void
     {
         $handlers = Yaml::parseFile(__DIR__.'/../../config/packages/monolog.yaml')['when@prod']['monolog']['handlers'];
 
-        self::assertSame(['main', 'client', 'console'], array_keys($handlers));
+        self::assertSame(['main', 'request_problems', 'client', 'console'], array_keys($handlers));
         self::assertSame(
-            ['type' => 'rotating_file', 'path' => '%kernel.logs_dir%/%kernel.environment%.log', 'level' => 'info', 'max_files' => 30, 'channels' => ['!event', '!doctrine', '!deprecation', '!client']],
+            ['type' => 'rotating_file', 'path' => '%kernel.logs_dir%/%kernel.environment%.log', 'level' => 'info', 'max_files' => 30, 'channels' => ['!event', '!doctrine', '!deprecation', '!client', '!request']],
             $handlers['main'],
+        );
+        self::assertSame(
+            ['type' => 'rotating_file', 'path' => '%kernel.logs_dir%/%kernel.environment%.log', 'level' => 'notice', 'max_files' => 30, 'channels' => ['request']],
+            $handlers['request_problems'],
         );
         self::assertSame(
             ['type' => 'rotating_file', 'path' => '%kernel.logs_dir%/client.log', 'level' => 'info', 'max_files' => 30, 'channels' => ['client'], 'formatter' => 'monolog.formatter.json'],
