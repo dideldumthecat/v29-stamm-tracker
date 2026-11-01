@@ -37,11 +37,8 @@ export type { StoredPhoto } from '@/persistence/database'
 // A type, not an interface: it travels as router history state, which needs an index signature.
 export type SyncResult = {
   transferred: number
-  /**
-   * Tags another item already holds. Without keptTag a duplicate capture: what this device recorded on it is gone.
-   * With keptTag a rejected tag change: the item keeps that tag.
-   */
-  rejected: { tagNumber: string; isBeam: boolean; keptTag?: string | null }[]
+  /** Tags another item already holds: a duplicate capture, what this device recorded on it is gone. */
+  rejected: { tagNumber: string; isBeam: boolean }[]
   /** Only set if photos were waiting. Failed ones stay on the device; errorStatus is the first failure's (ApiError). */
   photos?: { uploaded: number; failed: number; errorStatus: number | null }
   /** The user cancelled: during the data phase nothing changed, during the photos the rest stays pending. */
@@ -59,13 +56,8 @@ export const useTimberItemStore = defineStore('timberItems', () => {
   // Own events waiting for the sync, in the order they were recorded.
   const events = ref<Event[]>([])
   const lastSyncedAt = ref<Timestamp | null>(null)
-  // What the user did, not the wire format: the tag of a new item belongs to "created", a later one is a tag change.
-  const isEntryIn = (event: Event, queue: Event[]) =>
-    event.type !== 'tag_assigned' ||
-    !queue.some(
-      (other) => other.type === 'created' && other.timber_item_id === event.timber_item_id,
-    )
-  const isEntry = (event: Event) => isEntryIn(event, events.value)
+  // What the user did, not the wire format: the tag always belongs to the "created" of its item.
+  const isEntry = (event: Event) => event.type !== 'tag_assigned'
   // Photos not uploaded yet; the blobs live in their own object store, the event with the photo id in the queue.
   const photos = ref<StoredPhoto[]>([])
   // Captured since this start: the blob is still the one from the camera, not read back from IndexedDB (diagnostics only).
@@ -433,17 +425,15 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     const response = batch.length > 0 ? await api.sync(batch, signal) : null
     const accepted = new Set(response?.accepted_event_ids)
     const rejectedEvents = new Set(response?.rejected.map((entry) => entry.event_id))
-    // An item is gone only if its creation was rejected; a rejected tag change keeps the item with its previous tag.
+    // An item is gone only if its creation was rejected.
     const rejectedItems = new Set(
       batch
         .filter((event) => event.type === 'created' && rejectedEvents.has(event.id))
         .map((event) => event.timber_item_id),
     )
-    const rejectedEntries = response?.rejected ?? []
-    const duplicateTags = rejectedEntries
+    const duplicateTags = (response?.rejected ?? [])
       .filter((entry) => rejectedItems.has(entry.timber_item_id))
       .map((entry) => entry.tag_number)
-    const tagChanges = rejectedEntries.filter((entry) => !rejectedItems.has(entry.timber_item_id))
     // Read before the queue changes: afterwards the rejected items are gone.
     const rejected: SyncResult['rejected'] = [...new Set(duplicateTags)].map((tagNumber) => ({
       tagNumber,
@@ -457,23 +447,13 @@ export const useTimberItemStore = defineStore('timberItems', () => {
         accepted.has(event.id) ||
         rejectedEvents.has(event.id) ||
         rejectedItems.has(event.timber_item_id),
-      // The item is gone, so are its photos; a rejected tag change keeps the item and its photos.
+      // The item is gone, so are its photos.
       isPhotoDropped: (photo) => rejectedItems.has(photo.timber_item_id),
       signal,
     })
-    // Read after the download: the tag the item keeps is the server's.
-    for (const entry of tagChanges) {
-      const item = findById(entry.timber_item_id)
-      rejected.push({
-        tagNumber: entry.tag_number,
-        isBeam: item?.parent_id != null,
-        keptTag: item?.tag_number ?? null,
-      })
-    }
     return {
       transferred: batch.filter(
-        (event) =>
-          isEntryIn(event, batch) && accepted.has(event.id) && !photoEventIds.has(event.id),
+        (event) => isEntry(event) && accepted.has(event.id) && !photoEventIds.has(event.id),
       ).length,
       rejected,
     }
