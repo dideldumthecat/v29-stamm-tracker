@@ -286,9 +286,9 @@ The browser looks for a new service worker only when the app is opened or reload
 1. Put the access data in `backend/.env.local` (see `backend/.env.local.example`; never in the repository): `SYNC_SSH_HOST` (SSH alias or `user@host`), `SYNC_REMOTE_PATH` (app folder on the server) and `SYNC_PHP_BIN` (PHP 8.4 binary on IONOS).
 2. `ddev sync` (options `--skip-db`, `--skip-files`). It takes a snapshot `pre-sync-<timestamp>` first, replaces the local database with `app:db:dump` from the server, runs pending migrations and mirrors `var/photos/` (local photos not on the server are deleted).
 3. Go back to the earlier local state with `ddev snapshot restore pre-sync-<timestamp>` (database only; photos are not restored).
-4. Invite codes are stored hashed, so sign in locally with a new user: `ddev console app:user:create`.
+4. The live invite codes also work locally (the sync copies the hashes). A separate local user (`ddev console app:user:create`) is optional.
 
-**With production data in DDEV, do not run `ddev share`.**
+**With production data in DDEV, do not run `ddev share`:** the live invite codes would then be valid on a public address.
 
 Backup by hand (the dump contains no photos, they are files in `var/photos/`):
 
