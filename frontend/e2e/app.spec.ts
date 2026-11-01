@@ -116,6 +116,28 @@ test('records a stem with "Gesägt" and two beams in one save; the beams inherit
   await expect(page.getByText('4 Einträge übertragen')).toBeVisible()
 })
 
+// Flow: remove a synced beam, sync, and the next new beam takes its letter again.
+// The fake API forgets what it was sent, except voids: the fixture's stem 789 has the synced beams A and B.
+test('removes a synced beam, the sync sends the removal, and its letter is free again', async ({
+  page,
+}) => {
+  await page.goto('/timber-item/789')
+  await page.getByRole('button', { name: 'Balken 789-B entfernen' }).click()
+  await expect(page.getByRole('dialog')).toContainText('auch auf dem Server entfernt')
+  await page.getByRole('button', { name: 'Balken entfernen', exact: true }).click()
+  await expect(page.locator('a[href="/timber-item/789-B"]')).toHaveCount(0)
+
+  await page.goto('/sync')
+  await expect(page.getByText('Balken 00789-B entfernen')).toBeVisible()
+  await page.getByRole('button', { name: 'Jetzt synchronisieren' }).click()
+  await expect(page.getByText('1 Eintrag übertragen')).toBeVisible()
+
+  await page.goto('/timber-item/789')
+  await expect(page.locator('a[href="/timber-item/789-A"]')).toBeVisible()
+  await expect(page.locator('a[href="/timber-item/789-B"]')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Balken 00789-B hinzufügen' })).toBeVisible()
+})
+
 // A split stem stays locked, but new beams can still be added and saved.
 test('saves a further beam on a split stem; it is queued and removing it asks', async ({
   page,

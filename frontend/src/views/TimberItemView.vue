@@ -395,7 +395,7 @@ function onDiscard() {
               <BeamRowLabel
                 :tag-number="row.tag"
                 :summary="beamSummary(row.beam)"
-                :note="store.canRemove(row.beam.id) ? 'nicht synchronisiert' : undefined"
+                :note="store.isUnsynced(row.beam.id) ? 'nicht synchronisiert' : undefined"
               />
             </a>
           </RouterLink>
@@ -412,7 +412,6 @@ function onDiscard() {
             />
           </button>
           <button
-            v-if="!row.beam || store.canRemove(row.beam.id)"
             type="button"
             class="flex size-11 shrink-0 items-center justify-center rounded-md border-2 border-ink bg-paper text-ink"
             :aria-label="`Balken ${row.tag} entfernen`"
@@ -440,9 +439,6 @@ function onDiscard() {
         auf den Balken schreiben. Angaben, die für alle Balken gelten, am Stamm erfassen – mit dem
         Speichern ist der Stamm gesperrt.
       </p>
-      <span v-if="beams.some((beam) => !store.canRemove(beam.id))" class="text-[13px] text-mute"
-        >Übertragene Balken kann nur die Administration entfernen.</span
-      >
     </section>
 
     <p v-if="isSplit" class="my-2 mx-gutter rounded-lg bg-well p-3 text-sm leading-[1.4]">
@@ -522,7 +518,7 @@ function onDiscard() {
       </template>
     </div>
 
-    <section v-if="item && !isSplit && store.canRemove(item.id)" class="py-3.5 px-gutter">
+    <section v-if="item && !isSplit && parent" class="py-3.5 px-gutter">
       <button
         type="button"
         class="flex h-14 w-full items-center justify-center gap-2 rounded-lg border-2 border-ink bg-paper text-[17px] font-bold"
@@ -561,8 +557,10 @@ function onDiscard() {
         <template v-else-if="ownRecordingCount > 1"
           >Seine {{ ownRecordingCount }} Angaben werden mit entfernt.
         </template>
-        Die Kennung <FormattedTag :tag-number="beamToRemove.tag_number!" /> wird nicht neu vergeben,
-        der nächste Balken bekommt den nächsten Buchstaben.
+        <template v-if="!store.isUnsynced(beamToRemove.id)"
+          >Er wird beim nächsten Synchronisieren auch auf dem Server entfernt.
+        </template>
+        Der Buchstabe wird wieder frei und kann für einen neuen Balken vergeben werden.
       </p>
     </ConfirmSheet>
 

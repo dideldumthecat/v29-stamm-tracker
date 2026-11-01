@@ -190,7 +190,17 @@ export const useTimberItemStore = defineStore('timberItems', () => {
       }
     }
 
+    const stemsWithRemovedBeam = new Set<Uuid>()
     for (const event of events.value) {
+      if (event.type === 'voided') {
+        // Gone at once, like on the server after the sync; its letter is free again.
+        const beam = byId.get(event.timber_item_id)
+        byId.delete(event.timber_item_id)
+        if (beam?.parent_id) {
+          stemsWithRemovedBeam.add(beam.parent_id)
+        }
+        continue
+      }
       if (event.type === 'created') {
         const parentId = event.data.parent_id
         byId.set(event.timber_item_id, {
@@ -201,7 +211,6 @@ export const useTimberItemStore = defineStore('timberItems', () => {
           created_at: event.recorded_at,
           created_by: currentUser.value?.id ?? '',
           values: {},
-          voided_beam_tags: [],
         })
         const parent = parentId ? byId.get(parentId) : undefined
         if (parent) {
@@ -229,8 +238,30 @@ export const useTimberItemStore = defineStore('timberItems', () => {
       const isSeries = attributes.value.find((attribute) => attribute.id === attributeId)?.is_series
       item.values[attributeId] = isSeries ? [...(item.values[attributeId] ?? []), record] : [record]
     }
+    // A stem whose last beam is removed is editable again, also offline (the server does the same).
+    for (const stemId of stemsWithRemovedBeam) {
+      const stem = byId.get(stemId)
+      if (stem) {
+        stem.has_children = [...byId.values()].some((item) => item.parent_id === stemId)
+      }
+    }
     return [...byId.values()]
   })
+
+  // Synced beams the user removed and the sync has not sent yet: gone from `items`, but the sync screen still names them.
+  const removedBeams = computed(
+    () =>
+      new Map(
+        events.value
+          .filter((event) => event.type === 'voided')
+          .flatMap((event) => {
+            const beam = snapshot.value.timber_items.find(
+              (item) => item.id === event.timber_item_id,
+            )
+            return beam ? [[beam.id, beam] as const] : []
+          }),
+      ),
+  )
 
   const findById = (id: string | null) => items.value.find((item) => item.id === id)
 
@@ -526,20 +557,14 @@ export const useTimberItemStore = defineStore('timberItems', () => {
       )
   }
 
-  // undefined parent = stem not created yet, so no beams either. A removed unsynced beam frees its letter,
-  // a voided one does not. A snapshot stored before voided_beam_tags existed lacks it until the next sync.
+  // undefined parent = stem not created yet, so no beams either. A removed beam frees its letter.
   // draftTags: beams of a draft that is not saved yet; they count, so a letter once shown is never handed out twice.
   function nextBeamTagOf(
     parent: TimberItem | undefined,
     parentTag: string,
     draftTags: string[] = [],
   ): string | null {
-    const beamTags = parent
-      ? [
-          ...childrenOf(parent.id).map((beam) => beam.tag_number),
-          ...(parent.voided_beam_tags ?? []),
-        ]
-      : []
+    const beamTags = parent ? childrenOf(parent.id).map((beam) => beam.tag_number) : []
     return nextBeamTag(parentTag, [...beamTags, ...draftTags])
   }
 
@@ -595,16 +620,27 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     return findById(id)!
   }
 
-  // Once synced, a beam can only be voided in the administration – the app sends no void event.
+  // Beams only; stems are voided in the administration.
   function canRemove(itemId: string): boolean {
-    return hasPendingCreated(itemId) && findById(itemId)?.parent_id != null
+    return findById(itemId)?.parent_id != null
   }
 
+  /**
+   * An unsynced beam just vanishes from the queue. A synced one gets a "voided" event, and whatever is still
+   * pending for it (values, photo files) is dropped: the server would only store it on a voided beam.
+   * Photos already uploaded stay on the server.
+   */
   function removeTimberItem(itemId: string) {
     if (!canRemove(itemId)) {
       throw new Error(`Timber item ${itemId} cannot be removed`)
     }
-    discard((event) => event.timber_item_id === itemId, new Set([itemId]))
+    if (!hasPendingCreated(itemId)) {
+      emit('voided', itemId, {})
+    }
+    discard(
+      (event) => event.timber_item_id === itemId && event.type !== 'voided',
+      new Set([itemId]),
+    )
   }
 
   /**
@@ -692,6 +728,7 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     users,
     attributes,
     items,
+    removedBeams,
     events,
     pendingCount,
     photos,
@@ -706,6 +743,7 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     childrenOf,
     nextBeamTagOf,
     isInherited,
+    isUnsynced: hasPendingCreated,
     userName,
     inOneTransaction,
     createTimberItem,

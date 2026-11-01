@@ -38,12 +38,9 @@ final class SnapshotController extends AbstractController
         }
 
         $items = [];
-        $voidedBeamTags = [];
         foreach ($em->getRepository(TimberItem::class)->findBy([], ['createdAt' => 'ASC']) as $item) {
             if (!$item->voidedAt) {
                 $items[] = $item;
-            } elseif ($item->parentId) {
-                $voidedBeamTags[$item->parentId->toRfc4122()][] = $item->tagNumber;
             }
         }
 
@@ -77,7 +74,6 @@ final class SnapshotController extends AbstractController
                 'created_by' => $item->createdBy->toRfc4122(),
                 // An object, also when empty: a PHP array without keys would become [].
                 'values' => (object) ($values[$item->id->toRfc4122()] ?? []),
-                'voided_beam_tags' => $voidedBeamTags[$item->id->toRfc4122()] ?? [],
             ], $items),
         ]);
     }

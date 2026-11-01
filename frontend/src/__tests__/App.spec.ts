@@ -727,7 +727,7 @@ describe('App', () => {
       // 789-A: Holzart and Lieferdatum are inherited, only Sortierklasse is its own.
       expect(rows).toEqual(['00789-AA', '00789-B01.10.2026 · B'])
       expect(rows.join()).not.toContain('nicht synchronisiert')
-      expect(wrapper.text()).toContain('Übertragene Balken kann nur die Administration entfernen.')
+      expect(wrapper.text()).not.toContain('kann nur die Administration entfernen')
     })
 
     it('stops at Z: the 26th beam is "-Z", then adding is disabled', async () => {
@@ -910,6 +910,33 @@ describe('App', () => {
       expect(router.currentRoute.value.params.tagNumber).toBe('789-A')
       expect(useTimberItemStore().findByTag('789-C')).toBeDefined()
     })
+
+    it('removes a synced beam after confirming: it leaves the list, its letter is free', async () => {
+      const { wrapper } = await mountAt('/timber-item/789')
+      await wrapper.find('button[aria-label="Balken 789-B entfernen"]').trigger('click')
+      expect(document.body.querySelector('[role="dialog"]')!.textContent).toContain(
+        'auch auf dem Server entfernt',
+      )
+      buttonByText(/^Balken entfernen$/).click()
+      await flushPromises()
+
+      const store = useTimberItemStore()
+      expect(store.events.map((event) => event.type)).toEqual(['voided'])
+      expect(wrapper.find('a[href="/timber-item/789-B"]').exists()).toBe(false)
+      expect(buttonByText(/hinzufügen/).textContent).toContain('00789-B')
+    })
+
+    it('offers to remove a synced beam on its own screen too', async () => {
+      const { wrapper, router } = await mountAt('/timber-item/789-A')
+      const button = [...wrapper.findAll('button')].find((candidate) =>
+        /^\s*Balken entfernen\s*$/.test(candidate.text()),
+      )!
+      await button.trigger('click')
+      buttonByText(/^Balken entfernen$/).click()
+      await flushPromises()
+      expect(router.currentRoute.value.params.tagNumber).toBe('789')
+      expect(useTimberItemStore().findByTag('789-A')).toBeUndefined()
+    })
   })
 
   describe('sign-in field', () => {
@@ -1019,6 +1046,27 @@ describe('App', () => {
 
       expect(wrapper.find('[role="alert"]').text()).toBe(DUPLICATE_HINT)
       expect(useTimberItemStore().events).toEqual([])
+    })
+
+    it('lists the removal of a synced beam as a row that can be discarded; the beam is back afterwards', async () => {
+      const store = useTimberItemStore()
+      store.removeTimberItem(store.findByTag('789-B')!.id)
+      const { wrapper } = await mountAt('/sync')
+      expect(wrapper.text()).toContain('Balken 00789-B entfernen')
+      expect(wrapper.find('h1').text()).toBe('Synchronisierung (1)')
+
+      await wrapper.find('button[aria-label="Eintrag verwerfen"]').trigger('click')
+      expect(document.body.querySelector('[role="dialog"]')!.textContent).toContain(
+        'Entfernen von Balken 00789-B verwerfen?',
+      )
+      ;[...document.body.querySelectorAll('button')]
+        .find((button) => button.textContent === 'Verwerfen')!
+        .click()
+      await flushPromises()
+
+      expect(store.events).toEqual([])
+      expect(store.findByTag('789-B')).toBeDefined()
+      expect(wrapper.text()).not.toContain('entfernen')
     })
 
     it('stops through the main button: secondary style while syncing, disabled until it has stopped, then a toast and the entries stay', async () => {

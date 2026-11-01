@@ -102,6 +102,11 @@ final class SyncController extends AbstractController
             foreach ($new as $event) {
                 $this->em->persist($event);
                 $affected[$event->timberItemId->toRfc4122()] = $event->timberItemId;
+                if (EventType::Voided === $event->type) {
+                    // The stem's has_children may change; projecting it re-projects the beam too.
+                    $stem = $this->em->find(TimberItem::class, $event->timberItemId)->parentId;
+                    $affected[$stem->toRfc4122()] = $stem;
+                }
                 if (EventType::Created === $event->type && $event->data['parent_id']) {
                     $affected[$event->data['parent_id']] = Uuid::fromString($event->data['parent_id']);
                 }
@@ -146,10 +151,12 @@ final class SyncController extends AbstractController
         }
 
         $claimed = [];
-        // ponytail: a tag given up earlier in the same request still counts as taken; it is free from the next sync on.
-        $claim = function (string $tag, string $itemId) use (&$claimed): bool {
-            // A voided item gives its tag free.
+        $voidedHere = [];
+        // ponytail: a tag given up by a new plate earlier in the same request still counts as taken; it is free from the next sync on.
+        $claim = function (string $tag, string $itemId) use (&$claimed, &$voidedHere): bool {
+            // A voided item gives its tag free, also one voided earlier in this request (remove a beam, add the next one).
             $holders = array_map(static fn (TimberItem $item) => $item->id->toRfc4122(), $this->em->getRepository(TimberItem::class)->findBy(['tagNumber' => $tag, 'voidedAt' => null]));
+            $holders = array_diff($holders, array_keys($voidedHere));
             if (array_diff([...$holders, $claimed[$tag] ?? $itemId], [$itemId])) {
                 return false;
             }
@@ -165,7 +172,9 @@ final class SyncController extends AbstractController
             if (isset($takenItems[$itemId])) {
                 continue;
             }
-            if (EventType::Created === $event->type) {
+            if (EventType::Voided === $event->type) {
+                $voidedHere[$itemId] = true;
+            } elseif (EventType::Created === $event->type) {
                 $parentId = $event->data['parent_id'];
                 $tag = isset($firstTagIndex[$itemId]) ? $events[$firstTagIndex[$itemId]]->data['tag_number'] : null;
                 if ($parentId && isset($takenItems[$parentId])) {
@@ -225,10 +234,24 @@ final class SyncController extends AbstractController
                 ? ['tag_number' => $data['tag_number']]
                 : throw $fail('data.tag_number must be a non-empty string.'),
             EventType::AttributeRecorded => $this->attributeData($data, $fail),
-            default => throw $fail('type must be created, tag_assigned or attribute_recorded.'),
+            EventType::Voided => [] === $data ? [] : throw $fail('data must be empty.'),
+            default => throw $fail('type must be created, tag_assigned, attribute_recorded or voided.'),
         };
+        // The app names the beam only; the reference to its created event is the server's business.
+        $referenceId = EventType::Voided === $type ? $this->createdEventOfBeam($timberItemId) ?? throw $fail('voided needs an existing beam.') : null;
 
-        return new TimberItemEvent($id, $timberItemId, $type, $data, $recordedAt, $user, receivedAt: $receivedAt);
+        return new TimberItemEvent($id, $timberItemId, $type, $data, $recordedAt, $user, $referenceId, $receivedAt);
+    }
+
+    /** Null for a stem or an unknown item: the app removes beams only. Also finds beams that are voided already. */
+    private function createdEventOfBeam(Uuid $timberItemId): ?Uuid
+    {
+        $created = $this->em->getConnection()->fetchAssociative(
+            'SELECT id FROM timber_item_events WHERE timber_item_id = ? AND type = ? AND JSON_VALUE(data, ?) IS NOT NULL',
+            [$timberItemId->toBinary(), EventType::Created->value, '$.parent_id'],
+        );
+
+        return $created ? Uuid::fromBinary($created['id']) : null;
     }
 
     /**
