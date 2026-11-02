@@ -37,6 +37,18 @@ URL.revokeObjectURL = () => {}
 const mounted: { unmount: () => void }[] = []
 
 // Memory history: no browser URL needed in the test environment.
+// The leave dialog: title, intro line and the listed parts (text of the elements, blanks collapsed).
+function leaveDialog() {
+  const text = (element: Element | null | undefined) =>
+    element?.textContent?.replace(/\s+/g, ' ').trim()
+  const dialog = document.body.querySelector('[role="dialog"]')
+  return {
+    title: text(dialog?.querySelector('h2')),
+    intro: text(dialog?.querySelector('p')),
+    items: [...(dialog?.querySelectorAll('li') ?? [])].map(text),
+  }
+}
+
 async function mountAt(path: string) {
   const router = createRouter({ history: createMemoryHistory(), routes })
   router.push(path)
@@ -132,7 +144,11 @@ describe('App', () => {
     await wrapper.find('button[aria-label="Schließen"]').trigger('click')
     await flushPromises()
     expect(router.currentRoute.value.name).toBe('timber-item')
-    expect(document.body.textContent).toContain('1 Änderung verwerfen?')
+    expect(leaveDialog()).toEqual({
+      title: 'Änderungen verwerfen?',
+      intro: 'Noch nicht gespeichert für Stamm 00042:',
+      items: ['1 Änderung'],
+    })
   })
 
   describe('photos in the draft', () => {
@@ -163,7 +179,7 @@ describe('App', () => {
 
       await closeButton(wrapper).trigger('click')
       await flushPromises()
-      expect(document.body.textContent).toContain('1 Foto verwerfen?')
+      expect(leaveDialog().items).toEqual(['1 Foto'])
       sheetButton('Verwerfen').click()
       await flushPromises()
 
@@ -198,7 +214,7 @@ describe('App', () => {
 
       await closeButton(wrapper).trigger('click')
       await flushPromises()
-      expect(document.body.textContent).toContain('1 Foto und 1 Änderung verwerfen?')
+      expect(leaveDialog().items).toEqual(['1 Foto', '1 Änderung'])
       sheetButton('Weiter bearbeiten').click()
       await flushPromises()
       expect(previews(wrapper)).toHaveLength(1)
@@ -268,7 +284,7 @@ describe('App', () => {
     await flushPromises()
     expect(router.currentRoute.value.name).toBe('start')
     expect(document.body.textContent).toContain('Stamm 00456 gespeichert')
-    expect(document.body.textContent).not.toContain('1 Änderung verwerfen?')
+    expect(document.body.textContent).not.toContain('Änderungen verwerfen?')
   })
 
   it('enables saving only with changes, but always for a stem not recorded yet', async () => {
@@ -473,7 +489,7 @@ describe('App', () => {
     await wrapper.find('button[aria-label="Schließen"]').trigger('click')
     await flushPromises()
     expect(router.currentRoute.value.name).toBe('timber-item')
-    expect(document.body.textContent).toContain('1 Änderung verwerfen?')
+    expect(leaveDialog().items).toEqual(['1 Änderung'])
   })
 
   it('records added series values and the pending input on save', async () => {
@@ -718,7 +734,7 @@ describe('App', () => {
       await flushPromises()
       expect(router.currentRoute.value.params.tagNumber).toBe('789')
       expect(document.body.textContent).toContain('Balken 00789-A gespeichert')
-      expect(document.body.textContent).not.toContain('1 Änderung verwerfen?')
+      expect(document.body.textContent).not.toContain('Änderungen verwerfen?')
     })
 
     it('summarises own values only, first two in sort order', async () => {
@@ -788,7 +804,11 @@ describe('App', () => {
       await wrapper.find('button[aria-label="Schließen"]').trigger('click')
       await flushPromises()
       expect(router.currentRoute.value.params.tagNumber).toBe('789')
-      expect(document.body.textContent).toContain('1 Balken verwerfen?')
+      expect(leaveDialog()).toEqual({
+        title: 'Änderungen verwerfen?',
+        intro: 'Noch nicht gespeichert für Stamm 00789:',
+        items: ['Balken 00789-C'],
+      })
 
       buttonByText(/^Verwerfen$/).click()
       await flushPromises()
@@ -848,6 +868,35 @@ describe('App', () => {
       expect(useTimberItemStore().events).toEqual([])
     })
 
+    it('lists beams, photo and changes of a stem draft in that order', async () => {
+      const { wrapper } = await mountAt('/timber-item/42')
+      await wrapper.find('select').setValue(optionLabel('Holzart', 'Stieleiche'))
+      buttonByText(/00042-A hinzufügen/).click()
+      await flushPromises()
+      const input = wrapper.find('input[accept="image/*"][multiple]')
+      Object.defineProperty(input.element, 'files', {
+        value: [new NodeBlob(['x']) as unknown as Blob],
+        configurable: true,
+      })
+      await input.trigger('change')
+      await flushPromises()
+      await wrapper.find('button[aria-label="Schließen"]').trigger('click')
+      await flushPromises()
+      expect(leaveDialog().items).toEqual(['Balken 00042-A', '1 Foto', '1 Änderung'])
+    })
+
+    it('names the beam, not the stem, in the leave dialog of a beam', async () => {
+      const { wrapper } = await mountAt('/timber-item/789-A')
+      await wrapper.find('textarea').setValue('Riss')
+      await wrapper.find('button[aria-label="Schließen"]').trigger('click')
+      await flushPromises()
+      expect(leaveDialog()).toEqual({
+        title: 'Änderungen verwerfen?',
+        intro: 'Noch nicht gespeichert für Balken 00789-A:',
+        items: ['1 Änderung'],
+      })
+    })
+
     it('names the beams when the stem draft is discarded, and drops them', async () => {
       const { wrapper, router } = await mountAt('/timber-item/42')
       await wrapper.find('select').setValue(optionLabel('Holzart', 'Stieleiche'))
@@ -857,7 +906,7 @@ describe('App', () => {
       await flushPromises()
       await wrapper.find('button[aria-label="Schließen"]').trigger('click')
       await flushPromises()
-      expect(document.body.textContent).toContain('2 Balken und 1 Änderung verwerfen?')
+      expect(leaveDialog().items).toEqual(['Balken 00042-A, 00042-B', '1 Änderung'])
 
       buttonByText(/^Verwerfen$/).click()
       await flushPromises()

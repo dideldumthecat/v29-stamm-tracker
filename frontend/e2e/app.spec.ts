@@ -397,7 +397,8 @@ test('a photo on an unknown stem creates nothing when discarded', async ({ page 
   await expect(page.getByText('Noch nicht erfasst')).toBeVisible()
 
   await close(page)
-  await expect(page.getByRole('dialog')).toContainText('1 Foto verwerfen?')
+  await expect(page.getByRole('dialog')).toContainText('Noch nicht gespeichert für Stamm')
+  await expect(page.getByRole('dialog').getByRole('listitem')).toHaveText(['1 Foto'])
   await page.getByRole('button', { name: 'Verwerfen', exact: true }).click()
   await expect(page.locator('h1')).toHaveText('V29 Stamm-Tracker')
   await expect(syncLink(page, 0)).toBeVisible()
@@ -437,7 +438,8 @@ test('leaving an existing stem with a photo asks first; "Weiter bearbeiten" keep
   await expect(preview(page)).toHaveCount(1)
 
   await close(page)
-  await expect(page.getByRole('dialog')).toContainText('1 Foto verwerfen?')
+  await expect(page.getByRole('dialog')).toContainText('Noch nicht gespeichert für Stamm')
+  await expect(page.getByRole('dialog').getByRole('listitem')).toHaveText(['1 Foto'])
   await page.getByRole('button', { name: 'Weiter bearbeiten' }).click()
   await expect(preview(page)).toHaveCount(1)
 
@@ -456,7 +458,8 @@ test('a photo and a field change are saved together and survive a reload', async
   await takePhoto(page)
   await page.getByLabel('Holzart').selectOption({ label: 'Traubeneiche' })
   await close(page)
-  await expect(page.getByRole('dialog')).toContainText('1 Foto und 1 Änderung verwerfen?')
+  await expect(page.getByRole('dialog')).toContainText('Änderungen verwerfen?')
+  await expect(page.getByRole('dialog').getByRole('listitem')).toHaveText(['1 Foto', '1 Änderung'])
   await page.getByRole('button', { name: 'Weiter bearbeiten' }).click()
 
   await saveDraft(page)
@@ -633,7 +636,8 @@ test('three photos from the library stay in the draft until saving, then upload 
   await pickPhotos(page, [PHOTO, 'e2e/fixtures/photo-2.jpg', PHOTO])
   await expect(preview(page)).toHaveCount(3)
   await close(page)
-  await expect(page.getByRole('dialog')).toContainText('3 Fotos verwerfen?')
+  await expect(page.getByRole('dialog')).toContainText('Änderungen verwerfen?')
+  await expect(page.getByRole('dialog').getByRole('listitem')).toHaveText(['3 Fotos'])
   await page.getByRole('button', { name: 'Weiter bearbeiten' }).click()
   await saveDraft(page)
 
