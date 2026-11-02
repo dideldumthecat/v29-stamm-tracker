@@ -643,6 +643,14 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     )
   }
 
+  // A removed beam comes back with its tag; that is impossible once a newer beam took the tag (the server rejects duplicates).
+  // Null if nothing is in the way, else the tag in question. `items` leaves out removed beams, so only live ones count.
+  function tagTakenOver(event: Event): string | null {
+    const tag =
+      event.type === 'voided' ? removedBeams.value.get(event.timber_item_id)?.tag_number : null
+    return tag && items.value.some((item) => item.tag_number === tag) ? tag : null
+  }
+
   /**
    * Drops one pending entry from the queue. Dropping "created" takes the whole item with it, and a new
    * stem also its new beams (an item that is not synced yet cannot have synced beams).
@@ -651,6 +659,10 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     const event = events.value.find((candidate) => candidate.id === eventId)
     if (!event || !isEntry(event)) {
       throw new Error(`Event ${eventId} is not a pending entry`)
+    }
+    const taken = tagTakenOver(event)
+    if (taken) {
+      throw new Error(`Tag ${taken} is taken by a new beam, the removal cannot be discarded`)
     }
     if (event.type !== 'created') {
       discard((candidate) => candidate.id === eventId)
@@ -751,6 +763,7 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     canRemove,
     removeTimberItem,
     discardEntry,
+    tagTakenOver,
     recordAttribute,
     addPhoto,
     removePhoto,

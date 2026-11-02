@@ -138,6 +138,43 @@ test('removes a synced beam, the sync sends the removal, and its letter is free 
   await expect(page.getByRole('button', { name: 'Balken 00789-B hinzufügen' })).toBeVisible()
 })
 
+// A new beam took the letter of the removed one: bringing the old beam back would give two beams B.
+test('cannot discard the removal of a beam whose letter a new beam took', async ({ page }) => {
+  await page.goto('/timber-item/789')
+  await page.getByRole('button', { name: 'Balken 789-B entfernen' }).click()
+  await page.getByRole('button', { name: 'Balken entfernen', exact: true }).click()
+  await page.getByRole('button', { name: 'Balken 00789-B hinzufügen' }).click()
+  await page.getByRole('button', { name: 'Speichern', exact: true }).click()
+  await expect(page.locator('a[href="/timber-item/789-B"]')).toBeVisible()
+
+  await page.goto('/sync')
+  await expect(page.locator('h1')).toHaveText('Synchronisierung (2)')
+  await page.getByRole('button', { name: 'Eintrag verwerfen' }).first().click()
+  const dialog = page.getByRole('dialog')
+  await expect(dialog).toContainText(
+    'Der Buchstabe B ist inzwischen an einen neuen Balken vergeben.',
+  )
+  await expect(dialog.getByRole('button')).toHaveText(['Verstanden'])
+  await dialog.getByRole('button', { name: 'Verstanden' }).click()
+  await expect(page.locator('h1')).toHaveText('Synchronisierung (2)')
+
+  // Once the new beam is gone, the removal can be discarded and the old beam is back.
+  await page.goto('/timber-item/789')
+  await page.getByRole('button', { name: 'Balken 789-B entfernen' }).click()
+  await page.getByRole('button', { name: 'Balken entfernen', exact: true }).click()
+  await page.goto('/sync')
+  await expect(page.locator('h1')).toHaveText('Synchronisierung (1)')
+  await page.getByRole('button', { name: 'Eintrag verwerfen' }).click()
+  await expect(page.getByRole('dialog')).toContainText(
+    'Der Balken ist danach wieder da. Der Buchstabe B ist dann wieder belegt.',
+  )
+  await page.getByRole('button', { name: 'Verwerfen', exact: true }).click()
+  await expect(page.getByText('Keine Änderungen auf diesem Gerät')).toBeVisible()
+
+  await page.goto('/timber-item/789')
+  await expect(page.locator('a[href="/timber-item/789-B"]')).toBeVisible()
+})
+
 // A split stem stays locked, but new beams can still be added and saved.
 test('saves a further beam on a split stem; it is queued and removing it asks', async ({
   page,
