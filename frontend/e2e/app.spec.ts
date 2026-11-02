@@ -75,6 +75,8 @@ test('beam inherits a stem value and can override it', async ({ page }) => {
 })
 
 test('beam letters run to Z, are reused after removal, and stop after 26', async ({ page }) => {
+  // 27 clicks, each re-checked for stability: about 17 s on WebKit normally, over the 30 s limit when the machine is busy.
+  test.slow()
   await page.goto('/timber-item/1888')
   await page.getByRole('button', { name: 'Balken 01888-A hinzufügen' }).click()
   // A draft beam goes without a question.
