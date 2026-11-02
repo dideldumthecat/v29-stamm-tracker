@@ -10,6 +10,7 @@ use App\Entity\User;
 use App\Entity\UserRole;
 use App\Photo\PhotoStorage;
 use Doctrine\ORM\EntityManagerInterface;
+use OpenSpout\Reader\XLSX\Reader;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -240,6 +241,7 @@ class ApiTest extends WebTestCase
             'voided with data' => self::event('voided', $item, ['reason' => 'x']),
             'voided stem' => self::event('voided', self::ITEM_123, []),
             'voided unknown item' => self::event('voided', Uuid::v4()->toRfc4122(), []),
+            'restored, server only' => self::event('restored', $item, []),
             'missing recorded_at' => array_diff_key(self::event('tag_assigned', $item, ['tag_number' => '7']), ['recorded_at' => true]),
             'unknown item' => self::event('tag_assigned', Uuid::v4()->toRfc4122(), ['tag_number' => '7']),
             'unknown parent' => self::event('created', Uuid::v4()->toRfc4122(), ['parent_id' => Uuid::v4()->toRfc4122()]),
@@ -595,6 +597,147 @@ class ApiTest extends WebTestCase
     private function snapshotItems(): array
     {
         return array_column($this->request('GET', '/api/snapshot')['timber_items'], null, 'id');
+    }
+
+    private function restore(string $tag, array $options = []): CommandTester
+    {
+        if (!$this->em->getRepository(User::class)->findBy(['role' => UserRole::Admin])) {
+            $this->em->persist(new User('Admin', UserRole::Admin, User::hashToken('admin-test-token')));
+            $this->em->flush();
+        }
+        // The projections are written through DBAL; a real command run starts with an empty identity map.
+        $this->client->getContainer()->get(EntityManagerInterface::class)->clear();
+        $tester = new CommandTester((new Application($this->client->getKernel()))->find('app:item:restore'));
+        $tester->execute(['tag' => $tag, ...$options], ['interactive' => false]);
+
+        return $tester;
+    }
+
+    /** @return list<string> tags in the Excel export, in plaque format */
+    private function exportedTags(): array
+    {
+        $file = tempnam(sys_get_temp_dir(), 'export').'.xlsx';
+        (new CommandTester((new Application($this->client->getKernel()))->find('app:export')))->execute(['file' => $file]);
+        $reader = new Reader();
+        $reader->open($file);
+        $tags = [];
+        foreach ($reader->getSheetIterator() as $sheet) {
+            foreach ($sheet->getRowIterator() as $row) {
+                $tags[] = $row->toArray()[0];
+            }
+        }
+        $reader->close();
+        unlink($file);
+
+        return \array_slice($tags, 1);
+    }
+
+    public function testARestoredBeamReturnsToSnapshotAndExportAndLocksItsStemAgain(): void
+    {
+        [$a, $b] = $this->syncBeams();
+        // One beam voided by the command, the other removed in the app.
+        $this->void('123-A');
+        $this->request('POST', '/api/sync', ['events' => [self::event('voided', $b, [])]]);
+        self::assertFalse($this->snapshotItems()[self::ITEM_123]['has_children']);
+        self::assertSame(['00123'], $this->exportedTags());
+
+        $tester = $this->restore('0123-a');
+        self::assertSame(0, $tester->getStatusCode());
+        self::assertMatchesRegularExpression('/Stem\s+123/', $tester->getDisplay());
+        self::assertMatchesRegularExpression('/Voided\s+\d{4}-\d\d-\d\d \d\d:\d\d by Admin/', $tester->getDisplay());
+        self::assertSame(0, $this->restore('123-B')->getStatusCode());
+
+        $items = $this->snapshotItems();
+        self::assertSame([self::ITEM_123, $a, $b], array_keys($items));
+        self::assertTrue($items[self::ITEM_123]['has_children']);
+        self::assertSame(['00123', '00123-A', '00123-B'], $this->exportedTags());
+        self::assertSame(2, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM timber_item_events WHERE type = ?', ['restored']));
+    }
+
+    public function testOneRestoreLiftsEveryVoidOfTheBeam(): void
+    {
+        [, $b] = $this->syncBeams();
+        // The app removes a beam twice (a second phone, or a repeated tap): two voided events.
+        $this->request('POST', '/api/sync', ['events' => [self::event('voided', $b, []), self::event('voided', $b, [])]]);
+        self::assertArrayNotHasKey($b, $this->snapshotItems());
+
+        self::assertSame(0, $this->restore('123-B')->getStatusCode());
+        self::assertArrayHasKey($b, $this->snapshotItems());
+        self::assertSame(1, $this->restore('123-B')->getStatusCode());
+    }
+
+    public function testAVoidCanFollowARestoreAgainAndAgain(): void
+    {
+        [, $b] = $this->syncBeams();
+
+        foreach ([1, 2] as $round) {
+            self::assertSame(0, $this->void('123-B')->getStatusCode(), "void $round");
+            self::assertArrayNotHasKey($b, $this->snapshotItems());
+            self::assertSame(0, $this->restore('123-B')->getStatusCode(), "restore $round");
+            self::assertArrayHasKey($b, $this->snapshotItems());
+        }
+        // The app can void the restored beam again as well.
+        $this->request('POST', '/api/sync', ['events' => [self::event('voided', $b, [])]]);
+        self::assertArrayNotHasKey($b, $this->snapshotItems());
+    }
+
+    public function testRestoreRefusesATagTakenMeanwhileAndWritesNothing(): void
+    {
+        [, $b] = $this->syncBeams();
+        $this->request('POST', '/api/sync', ['events' => [self::event('voided', $b, [])]]);
+        $again = Uuid::v4()->toRfc4122();
+        $this->request('POST', '/api/sync', ['events' => [
+            self::event('created', $again, ['parent_id' => self::ITEM_123]),
+            self::event('tag_assigned', $again, ['tag_number' => '123-B']),
+        ]]);
+        $before = $this->eventCount();
+
+        $tester = $this->restore('123-B');
+
+        self::assertSame(1, $tester->getStatusCode());
+        self::assertStringContainsString('taken by another beam of stem 123', $tester->getDisplay());
+        self::assertStringContainsString('Void that one first', $tester->getDisplay());
+        self::assertSame($before, $this->eventCount());
+        self::assertArrayNotHasKey($b, $this->snapshotItems());
+    }
+
+    public function testRestoreRefusesABeamUnderAVoidedStemUntilTheStemIsRestored(): void
+    {
+        [$a, $b] = $this->syncBeams();
+        $this->void('123-A');
+        $this->void('123-B');
+        $this->void('123');
+        $before = $this->eventCount();
+
+        $tester = $this->restore('123-A');
+        self::assertSame(1, $tester->getStatusCode());
+        self::assertStringContainsString('Restore the stem first', $tester->getDisplay());
+        self::assertSame($before, $this->eventCount());
+
+        // The stem comes back without its beams.
+        self::assertSame(0, $this->restore('123')->getStatusCode());
+        self::assertSame([self::ITEM_123], array_keys($this->snapshotItems()));
+        self::assertSame(0, $this->restore('123-A')->getStatusCode());
+        self::assertSame(0, $this->restore('123-B')->getStatusCode());
+        self::assertSame([self::ITEM_123, $a, $b], array_keys($this->snapshotItems()));
+        self::assertTrue($this->snapshotItems()[self::ITEM_123]['has_children']);
+    }
+
+    public function testRestoreDryRunAndUnknownTagWriteNothing(): void
+    {
+        $this->syncBeams();
+        $this->void('123-B');
+        $before = $this->eventCount();
+
+        $tester = $this->restore('123-B', ['--dry-run' => true]);
+        self::assertSame(0, $tester->getStatusCode());
+        self::assertStringContainsString('Would restore 123-B', $tester->getDisplay());
+        self::assertStringContainsString('Admin', $tester->getDisplay());
+
+        $tester = $this->restore('123-A');
+        self::assertSame(1, $tester->getStatusCode());
+        self::assertStringContainsString('No voided timber item with tag 123-A', $tester->getDisplay());
+        self::assertSame($before, $this->eventCount());
     }
 
     public function testAVoidedBeamLeavesTheSnapshot(): void
