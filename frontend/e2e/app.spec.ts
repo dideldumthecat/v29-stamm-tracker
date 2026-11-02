@@ -189,7 +189,7 @@ test('saves a further beam on a split stem; it is queued and removing it asks', 
 
   await page.goto('/sync')
   await expect(page.locator('h1')).toHaveText('Synchronisierung (1)')
-  await expect(page.getByRole('link', { name: /789-C/ })).toBeVisible()
+  await expect(page.getByText('Balken angelegt: 00789-C')).toBeVisible()
 
   await page.goto('/timber-item/789')
   await page.getByRole('button', { name: 'Balken 789-C entfernen' }).click()
