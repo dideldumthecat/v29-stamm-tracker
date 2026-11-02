@@ -60,7 +60,7 @@ function itemInfo(itemId: string) {
 
 type Group = ReturnType<typeof itemInfo>
 
-// One section per item, in the order of its first entry, entries in recording order.
+// One section per item, the most recently changed on top; entries within a section in recording order.
 // Exception: "created" and "voided" of a beam are rows of its stem's section, so a beam only gets
 // a section of its own for values and photos. The tag of a new item belongs to "angelegt" and gets no row.
 // Photos whose event is already on the server (only the file is left) have no event: they get a row of their own.
@@ -94,7 +94,13 @@ const sections = computed(() => {
       of(photo.timber_item_id).photos.push(photo)
     }
   }
-  return [...byItem.values()]
+  // Display only. Reversing first lets sections with the same latest time keep the reverse queue order.
+  const latest = (section: { rows: { event: Event }[]; photos: StoredPhoto[] }) =>
+    Math.max(
+      ...section.rows.map(({ event }) => Date.parse(event.recorded_at)),
+      ...section.photos.map((photo) => Date.parse(photo.taken_at)),
+    )
+  return [...byItem.values()].reverse().sort((a, b) => latest(b) - latest(a))
 })
 
 const photoBytes = computed(() => store.photos.reduce((sum, photo) => sum + photo.size, 0))

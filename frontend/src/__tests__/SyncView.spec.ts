@@ -81,10 +81,10 @@ describe('SyncView: sections by item', () => {
     const wrapper = await mountView()
 
     const sections = wrapper.findAll('section')
-    expect(sections.map(heading)).toEqual(['Stamm 00789', 'Balken 00789-C'])
-    expect(rowTexts(sections[0]!)).toEqual(['Balken angelegt: 00789-C'])
-    expect(rowTexts(sections[1]!)).toEqual([expect.stringContaining('Sortierklasse')])
-    expect(sections[1]!.findAll('a').map((link) => link.attributes('href'))).toEqual([
+    expect(sections.map(heading)).toEqual(['Balken 00789-C', 'Stamm 00789'])
+    expect(rowTexts(sections[1]!)).toEqual(['Balken angelegt: 00789-C'])
+    expect(rowTexts(sections[0]!)).toEqual([expect.stringContaining('Sortierklasse')])
+    expect(sections[0]!.findAll('a').map((link) => link.attributes('href'))).toEqual([
       '/timber-item/789-C',
     ])
   })
@@ -111,12 +111,72 @@ describe('SyncView: sections by item', () => {
     const wrapper = await mountView()
 
     const sections = wrapper.findAll('section')
-    expect(sections.map(heading)).toEqual(['Stamm 00789', 'Balken 00789-B'])
-    expect(sections[0]!.findAll('a').map((link) => link.attributes('href'))).toEqual([
+    // The late value is newer than the removal, so the beam comes first.
+    expect(sections.map(heading)).toEqual(['Balken 00789-B', 'Stamm 00789'])
+    expect(sections[0]!.findAll('a')).toHaveLength(0)
+    expect(sections[1]!.findAll('a').map((link) => link.attributes('href'))).toEqual([
       '/timber-item/789',
     ])
-    expect(sections[1]!.findAll('a')).toHaveLength(0)
-    expect(rowTexts(sections[0]!)).toEqual(['Balken 00789-B entfernen'])
+    expect(rowTexts(sections[1]!)).toEqual(['Balken 00789-B entfernen'])
+  })
+
+  it('puts the most recently changed section on top, rows within it stay in recording order', async () => {
+    const store = useTimberItemStore()
+    const stem = store.createTimberItem(42)
+    store.recordAttribute(stem.id, attributeId('Sortierklasse'), 'x')
+    store.recordAttribute(store.findByTag('123')!.id, attributeId('Sortierklasse'), 'y')
+    const time = (event: { type: string; timber_item_id: string }) =>
+      event.timber_item_id !== stem.id
+        ? '2026-11-02T08:03:00.000Z'
+        : event.type === 'attribute_recorded'
+          ? '2026-11-02T08:05:00.000Z'
+          : '2026-11-02T08:00:00.000Z'
+    store.events.forEach((event) => (event.recorded_at = time(event)))
+    const wrapper = await mountView()
+
+    const sections = wrapper.findAll('section')
+    expect(sections.map(heading)).toEqual(['Stamm 00042 neu', 'Stamm 00123'])
+    expect(rowTexts(sections[0]!)).toEqual([
+      'Stamm angelegt',
+      expect.stringContaining('Sortierklasse'),
+    ])
+  })
+
+  it('orders sections with the same latest time by the reverse queue order', async () => {
+    const store = useTimberItemStore()
+    store.createTimberItem(42)
+    store.createTimberItem(43)
+    store.createTimberItem(44)
+    store.events.forEach((event) => (event.recorded_at = '2026-11-02T08:00:00.000Z'))
+    const wrapper = await mountView()
+
+    expect(wrapper.findAll('section').map(heading)).toEqual([
+      'Stamm 00044 neu',
+      'Stamm 00043 neu',
+      'Stamm 00042 neu',
+    ])
+  })
+
+  it('counts a photo file without an event with its time of capture', async () => {
+    const store = useTimberItemStore()
+    store.recordAttribute(store.findByTag('123')!.id, attributeId('Sortierklasse'), 'y')
+    store.events[0]!.recorded_at = '2026-11-02T08:00:00.000Z'
+    const beam = store.findByTag('789-A')!
+    const photoAttribute = store.attributes.find((attribute) => attribute.type === 'photo')!.id
+    store.addPhoto(
+      beam.id,
+      photoAttribute,
+      new NodeBlob(['x'], { type: 'image/jpeg' }) as unknown as Blob,
+    )
+    const photo = store.photos[0]!
+    photo.taken_at = '2026-11-02T09:00:00.000Z'
+    // The event is on the server already, only the file is left.
+    const queued = store.events.splice(1)
+    const wrapper = await mountView()
+
+    expect(wrapper.findAll('section').map(heading)).toEqual(['Balken 00789-A', 'Stamm 00123'])
+    store.events.push(...queued)
+    store.removePhoto(photo.id)
   })
 
   it('lists the photo files left of a beam under that beam', async () => {
