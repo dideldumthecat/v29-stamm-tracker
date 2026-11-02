@@ -56,6 +56,13 @@ export function formatValue(attribute: Attribute, value: AttributeValue): string
   }
 }
 
+/** One line for a value, as shown on the sync screen and in the leave dialog: "Holzart: Stieleiche", "Gesägt: Nein". */
+export function formatValueLine(attribute: Attribute, value: AttributeValue): string {
+  const text = formatValue(attribute, value) ?? String(value)
+  // Boolean values already read as a sentence ("Gesägt", "Gesägt: Nein").
+  return attribute.type === 'boolean' ? text : `${attribute.name}: ${text}`
+}
+
 type Parsed = { value: AttributeValue } | { error: string } | undefined
 
 // undefined = nothing entered. Empty input never clears a recorded value (append-only log).

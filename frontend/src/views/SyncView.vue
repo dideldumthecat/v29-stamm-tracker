@@ -13,7 +13,7 @@ import { ApiError } from '@/api/client'
 import type { Event } from '@/api/contract'
 import { useTimberItemStore, type StoredPhoto, type SyncResult } from '@/stores/timberItems'
 import { checkForUpdateNow } from '@/composables/useUpdateCheck'
-import { formatValue } from '@/utils/attributeDraft'
+import { formatValueLine } from '@/utils/attributeDraft'
 import { formatShortDateTime } from '@/utils/date'
 import { formatBytes } from '@/utils/photo'
 import { useToast } from '@/composables/useToast'
@@ -139,9 +139,7 @@ function describe(event: Event, kind: string): string {
     const photo = photoOf(event)
     return photo ? photoLabel(photo) : 'Foto'
   }
-  const value = formatValue(attribute, event.data.value) ?? String(event.data.value)
-  // Boolean values already read as a sentence ("Gesägt", "Gesägt: Nein").
-  return attribute.type === 'boolean' ? value : `${attribute.name}: ${value}`
+  return formatValueLine(attribute, event.data.value)
 }
 
 const toDiscard = ref<{ event: Event; group: Group } | null>(null)
