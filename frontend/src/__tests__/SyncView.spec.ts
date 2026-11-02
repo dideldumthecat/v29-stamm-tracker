@@ -78,6 +78,9 @@ describe('SyncView: sections by item', () => {
     const store = useTimberItemStore()
     const beam = store.addBeam(store.findByTag('789')!.id)
     store.recordAttribute(beam.id, attributeId('Sortierklasse'), 'x')
+    // Fixed times, not the clock: the value is newer than the creation of the beam.
+    store.events[0]!.recorded_at = '2026-11-02T08:00:00.000Z'
+    store.events[1]!.recorded_at = '2026-11-02T08:05:00.000Z'
     const wrapper = await mountView()
 
     const sections = wrapper.findAll('section')
@@ -108,6 +111,9 @@ describe('SyncView: sections by item', () => {
     store.removeTimberItem(beam.id)
     // Removing drops what is pending; a value that reached the queue after the removal is faked this way.
     store.events.push(...late)
+    // Fixed times, not the clock: the late value must really be newer than the removal.
+    store.events[0]!.recorded_at = '2026-11-02T08:00:00.000Z'
+    store.events[1]!.recorded_at = '2026-11-02T08:05:00.000Z'
     const wrapper = await mountView()
 
     const sections = wrapper.findAll('section')
