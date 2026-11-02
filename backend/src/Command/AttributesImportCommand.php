@@ -17,13 +17,13 @@ use Symfony\Component\Yaml\Exception\ParseException;
 use Symfony\Component\Yaml\Yaml;
 
 /**
- * Attributes are matched by name and options by label, never recreated: events reference their ids.
- * Nothing is ever deleted; what is missing from the file stays as it is.
+ * Attributes are matched by key if the entry has one (so a changed name renames), else by name; options by label.
+ * Never recreated: events reference their ids. Nothing is ever deleted; what is missing from the file stays as it is.
  */
 #[AsCommand(name: 'app:attributes:import', description: 'Create or update attributes and their options from a YAML file, see data/attributes.example.yaml')]
 class AttributesImportCommand
 {
-    private const array KEYS = ['name', 'description', 'type', 'unit', 'is_series', 'is_inheritable', 'active', 'options'];
+    private const array KEYS = ['key', 'name', 'description', 'type', 'unit', 'is_series', 'is_inheritable', 'active', 'options'];
 
     public function __construct(
         private readonly EntityManagerInterface $em,
@@ -49,12 +49,10 @@ class AttributesImportCommand
         if (!\is_array($entries) || !array_is_list($entries)) {
             $errors[] = 'The file must contain a list of attributes.';
         }
-        $existing = [];
-        foreach ($this->em->getRepository(Attribute::class)->findAll() as $attribute) {
-            $existing[$attribute->name] = $attribute;
-        }
+        $existing = $this->em->getRepository(Attribute::class)->findAll();
+        $matches = $this->match($attributes, $existing, $errors);
         foreach ($attributes as $name => $a) {
-            $current = $existing[$name] ?? null;
+            $current = $matches[$name] ?? null;
             if ($current && $current->type !== $a['type'] && $this->hasEvents($current)) {
                 $errors[] = \sprintf('"%s": type cannot change from %s to %s, values have already been recorded.', $name, $current->type->value, $a['type']->value);
             }
@@ -65,12 +63,12 @@ class AttributesImportCommand
             return Command::FAILURE;
         }
 
-        $run = function () use ($io, $attributes, $existing, $dryRun): void {
+        $run = function () use ($io, $attributes, $existing, $matches, $dryRun): void {
             $rebuild = false;
             foreach ($attributes as $name => $a) {
-                $attribute = $existing[$name] ?? null;
+                $attribute = $matches[$name] ?? null;
                 if (!$attribute) {
-                    $attribute = new Attribute($name, $a['type'], $a['description'], $a['unit'], $a['is_series'], $a['is_inheritable'], $a['sort_order'], $a['active']);
+                    $attribute = new Attribute($name, $a['type'], $a['description'], $a['unit'], $a['is_series'], $a['is_inheritable'], $a['sort_order'], $a['active'], key: $a['key']);
                     $this->persist($attribute, $dryRun);
                     foreach ($a['options'] as $label => $o) {
                         $this->persist(new AttributeOption($attribute, $label, $o['sort_order'], $o['active']), $dryRun);
@@ -79,10 +77,22 @@ class AttributesImportCommand
                     continue;
                 }
 
+                $renamed = $attribute->name !== $name;
+                if ($renamed) {
+                    $io->writeln("renamed    {$attribute->name} → $name");
+                }
                 $changes = $this->apply($attribute, [
+                    'name' => $name,
                     'type' => $a['type'], 'description' => $a['description'], 'unit' => $a['unit'], 'isSeries' => $a['is_series'],
                     'isInheritable' => $a['is_inheritable'], 'sortOrder' => $a['sort_order'], 'active' => $a['active'],
                 ], $dryRun);
+                $changes = array_values(array_diff($changes, ['name']));
+                if ($a['key'] && null === $attribute->key) {
+                    $changes[] = 'key';
+                    if (!$dryRun) {
+                        $attribute->assignKey($a['key']);
+                    }
+                }
                 // Both decide how events turn into projected values.
                 $rebuild = $rebuild || array_intersect($changes, ['isSeries', 'isInheritable']);
 
@@ -98,13 +108,17 @@ class AttributesImportCommand
                         $changes[] = "option $label";
                     }
                 }
-                $io->writeln($changes ? "updated    $name (".implode(', ', $changes).')' : "unchanged  $name");
+                if ($changes) {
+                    $io->writeln("updated    $name (".implode(', ', $changes).')');
+                } elseif (!$renamed) {
+                    $io->writeln("unchanged  $name");
+                }
                 foreach (array_diff_key($options, $a['options']) as $label => $option) {
                     $io->writeln("           option not in file: $label");
                 }
             }
-            foreach (array_diff_key($existing, $attributes) as $name => $attribute) {
-                $io->writeln("not in file  $name");
+            foreach (array_udiff($existing, $matches, static fn (Attribute $x, Attribute $y) => $x->id <=> $y->id) as $attribute) {
+                $io->writeln("not in file  {$attribute->name}");
             }
 
             if (!$dryRun) {
@@ -124,6 +138,35 @@ class AttributesImportCommand
         }
 
         return Command::SUCCESS;
+    }
+
+    /**
+     * Finds the existing attribute for each entry: by key, else by name. Entries with no match are created.
+     *
+     * @param array<string, array> $attributes by name
+     * @param list<Attribute>      $existing
+     *
+     * @return array<string, Attribute> by name in the file
+     */
+    private function match(array $attributes, array $existing, array &$errors): array
+    {
+        $matches = [];
+        foreach ($attributes as $name => $a) {
+            $byKey = $a['key'] ? array_find($existing, static fn (Attribute $e) => $e->key === $a['key']) : null;
+            $byName = array_find($existing, static fn (Attribute $e) => $e->name === $name);
+            $match = $byKey ?? $byName;
+            if ($match && $a['key'] && null !== $match->key && $match->key !== $a['key']) {
+                $errors[] = \sprintf('"%s": key cannot change from %s to %s.', $name, $match->key, $a['key']);
+            } elseif ($byKey && $byName && $byKey !== $byName) {
+                $errors[] = \sprintf('"%s": the name belongs to another attribute than the key %s.', $name, $a['key']);
+            } elseif ($match && \in_array($match, $matches, true)) {
+                $errors[] = \sprintf('"%s": matches the same attribute as another entry.', $name);
+            } elseif ($match) {
+                $matches[$name] = $match;
+            }
+        }
+
+        return $matches;
     }
 
     /**
@@ -186,6 +229,13 @@ class AttributesImportCommand
             } elseif (isset($attributes[$name])) {
                 $fail('name appears more than once.');
             }
+            $attributeKey = $entry['key'] ?? null;
+            if (null !== $attributeKey && (!\is_string($attributeKey) || !Attribute::isValidKey($attributeKey))) {
+                $fail(\sprintf('key must be lowercase letters, digits and underscores, starting with a letter, at most %d characters.', Attribute::KEY_MAX_LENGTH));
+                $attributeKey = null;
+            } elseif (null !== $attributeKey && \in_array($attributeKey, array_column($attributes, 'key'), true)) {
+                $fail('key appears more than once.');
+            }
             $type = \is_string($entry['type'] ?? null) ? AttributeType::tryFrom($entry['type']) : null;
             if (!$type) {
                 $fail(\sprintf('type must be one of %s.', implode(', ', array_column(AttributeType::cases(), 'value'))));
@@ -229,6 +279,7 @@ class AttributesImportCommand
 
             if ('' !== $name && $type) {
                 $attributes[$name] = [
+                    'key' => $attributeKey,
                     'type' => $type,
                     'description' => $entry['description'] ?? '',
                     'unit' => $entry['unit'] ?? null,

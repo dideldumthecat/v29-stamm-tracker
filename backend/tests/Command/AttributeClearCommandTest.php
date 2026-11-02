@@ -33,7 +33,7 @@ class AttributeClearCommandTest extends KernelTestCase
         $this->tester = new CommandTester((new Application($kernel))->find('app:attribute:clear'));
 
         $this->em->persist($this->admin = new User('Alexander', UserRole::Admin, User::hashToken('a')));
-        $this->em->persist($this->diameter = new Attribute('Größter Stammdurchmesser', AttributeType::Number, isInheritable: true));
+        $this->em->persist($this->diameter = new Attribute('Größter Stammdurchmesser', AttributeType::Number, isInheritable: true, key: 'mid_diameter_max'));
         $this->em->persist($this->other = new Attribute('Länge', AttributeType::Number, isInheritable: true));
         $this->em->flush();
     }
@@ -102,6 +102,21 @@ class AttributeClearCommandTest extends KernelTestCase
         self::assertSame(['Alexander'], $this->em->getConnection()->fetchFirstColumn('SELECT DISTINCT u.name FROM timber_item_events e JOIN users u ON u.id = e.user_id WHERE e.type = ?', ['voided']));
     }
 
+    public function testAttributeIsFoundByKeyOrByExactName(): void
+    {
+        $a = $this->item('1');
+        $b = $this->item('2');
+        $this->record($a, $this->diameter, 20);
+        $this->record($b, $this->diameter, 25);
+
+        self::assertSame(Command::SUCCESS, $this->clear(['attribute' => 'mid_diameter_max', '--range' => '1']));
+        self::assertSame([], $this->values($a));
+        self::assertSame([25], $this->values($b));
+
+        self::assertSame(Command::SUCCESS, $this->clear(['--range' => '2']));
+        self::assertSame([], $this->values($b));
+    }
+
     public function testAValueRecordedAfterwardsCountsAgainAndAnotherRunDoesNothing(): void
     {
         $stem = $this->item('1');
@@ -168,7 +183,7 @@ class AttributeClearCommandTest extends KernelTestCase
 
         $cases = [
             'series' => [['attribute' => 'Notiz'], 'is a series'],
-            'unknown attribute' => [['attribute' => 'größter stammdurchmesser'], 'No attribute named'],
+            'unknown attribute' => [['attribute' => 'größter stammdurchmesser'], 'No attribute with the key or name'],
             'bad range' => [['--range' => '10-1'], 'is not a range'],
             'unknown user' => [['--user' => 'Nobody'], 'No active user'],
         ];

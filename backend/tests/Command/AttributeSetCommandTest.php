@@ -35,7 +35,7 @@ class AttributeSetCommandTest extends KernelTestCase
         $this->tester = new CommandTester((new Application($kernel))->find('app:attribute:set'));
 
         $this->em->persist($this->admin = new User('Alexander', UserRole::Admin, User::hashToken('a')));
-        $this->em->persist($this->length = new Attribute('Länge', AttributeType::Choice, isInheritable: true));
+        $this->em->persist($this->length = new Attribute('Länge', AttributeType::Choice, isInheritable: true, key: 'length'));
         $this->em->persist($this->long = new AttributeOption($this->length, '4,10 m'));
         $this->em->persist($this->short = new AttributeOption($this->length, '3,60 m'));
         $this->em->flush();
@@ -99,6 +99,20 @@ class AttributeSetCommandTest extends KernelTestCase
         self::assertSame([$this->long->id->toRfc4122()], $this->values($b));
         self::assertSame(2, $this->events());
         self::assertSame(['Alexander'], $this->em->getConnection()->fetchFirstColumn('SELECT DISTINCT u.name FROM timber_item_events e JOIN users u ON u.id = e.user_id WHERE e.type = ?', ['attribute_recorded']));
+    }
+
+    public function testAttributeIsFoundByKeyOrByExactName(): void
+    {
+        $a = $this->item('1');
+        $b = $this->item('2');
+
+        self::assertSame(Command::SUCCESS, $this->set(['attribute' => 'length', '--range' => '1']));
+        self::assertSame(Command::SUCCESS, $this->set(['attribute' => 'Länge', '--range' => '2']));
+
+        self::assertSame([$this->long->id->toRfc4122()], $this->values($a));
+        self::assertSame([$this->long->id->toRfc4122()], $this->values($b));
+        self::assertSame(Command::FAILURE, $this->set(['attribute' => 'LENGTH']));
+        self::assertSame(2, $this->events());
     }
 
     public function testKeepsDifferentValuesByDefaultAndReplacesThemWithOverwrite(): void
@@ -230,7 +244,7 @@ class AttributeSetCommandTest extends KernelTestCase
             'series' => [['attribute' => 'Notiz', 'value' => 'x'], 'a series'],
             'not inheritable' => [['attribute' => 'Entrindet', 'value' => 'ja'], 'not inheritable'],
             'inactive' => [['attribute' => 'Alt', 'value' => 'ja'], 'inactive'],
-            'unknown attribute' => [['attribute' => 'länge', 'value' => '4,10 m'], 'No attribute named'],
+            'unknown attribute' => [['attribute' => 'länge', 'value' => '4,10 m'], 'No attribute with the key or name'],
             'unknown option' => [['value' => '5,00 m'], 'Valid options: 4,10 m, 3,60 m'],
             'bad number' => [['attribute' => 'Durchmesser', 'value' => '34abc'], 'must be a number'],
             'bad month' => [['attribute' => 'Fällzeitpunkt', 'value' => '2026-13'], 'must be a month'],

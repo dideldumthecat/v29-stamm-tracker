@@ -9,7 +9,7 @@ use App\Entity\UserRole;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
- * What app:attribute:set and app:attribute:clear share: reading --range, finding the attribute, the stems and the user.
+ * What app:attribute:set and app:attribute:clear share: reading --range, finding the attribute by key or name, the stems and the user.
  */
 class StemSelection
 {
@@ -47,10 +47,16 @@ class StemSelection
         return \sprintf('"%s" is not a range. Use all, 119, 1-10 or 1-10,15,20-25 (numbers 1 to %d).', $range, self::MAX_TAG_NUMBER);
     }
 
-    public function attribute(string $name): ?Attribute
+    /**
+     * @param string $keyOrName the attribute's key, else its exact name
+     */
+    public function attribute(string $keyOrName): ?Attribute
     {
-        // The database compares names case-insensitively; "exact" is checked here.
-        return array_find($this->em->getRepository(Attribute::class)->findBy(['name' => $name]), static fn (Attribute $a) => $a->name === $name);
+        // The database compares case-insensitively; "exact" is checked here.
+        $repository = $this->em->getRepository(Attribute::class);
+
+        return array_find($repository->findBy(['key' => $keyOrName]), static fn (Attribute $a) => $a->key === $keyOrName)
+            ?? array_find($repository->findBy(['name' => $keyOrName]), static fn (Attribute $a) => $a->name === $keyOrName);
     }
 
     /**
