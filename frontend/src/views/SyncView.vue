@@ -45,78 +45,56 @@ const transferredText = computed(() =>
 )
 const failure = ref<ApiError | null>(null)
 
-// Pending events grouped by item, in recording order; the tag of a new item belongs to "angelegt" and gets no row.
+function itemInfo(itemId: string) {
+  // A removed beam is gone from the items, but its rows must still name it.
+  const removed = store.removedBeams.get(itemId)
+  const item = removed ?? store.items.find((candidate) => candidate.id === itemId)
+  return {
+    itemId,
+    parentId: item?.parent_id ?? null,
+    tagNumber: item?.tag_number ?? null,
+    isRemoved: removed !== undefined,
+    kind: item?.parent_id ? 'Balken' : 'Stamm',
+  }
+}
+
+type Group = ReturnType<typeof itemInfo>
+
+// One section per item, in the order of its first entry, entries in recording order.
+// Exception: "created" and "voided" of a beam are rows of its stem's section, so a beam only gets
+// a section of its own for values and photos. The tag of a new item belongs to "angelegt" and gets no row.
 // Photos whose event is already on the server (only the file is left) have no event: they get a row of their own.
-const groups = computed(() => {
-  const byItem = new Map<string, { events: Event[]; photos: StoredPhoto[] }>()
+const sections = computed(() => {
+  const byItem = new Map<
+    string,
+    Group & {
+      isNew: boolean
+      rows: { event: Event; group: Group }[]
+      photos: StoredPhoto[]
+    }
+  >()
   const of = (itemId: string) => {
     if (!byItem.has(itemId)) {
-      byItem.set(itemId, { events: [], photos: [] })
+      byItem.set(itemId, { ...itemInfo(itemId), isNew: false, rows: [], photos: [] })
     }
     return byItem.get(itemId)!
   }
   for (const event of store.events) {
-    if (store.isEntry(event)) {
-      of(event.timber_item_id).events.push(event)
+    if (!store.isEntry(event)) {
+      continue
     }
+    const group = itemInfo(event.timber_item_id)
+    const isBeamRow = group.parentId && event.type !== 'attribute_recorded'
+    const section = of(isBeamRow ? group.parentId! : group.itemId)
+    section.isNew ||= event.type === 'created' && !group.parentId
+    section.rows.push({ event, group })
   }
   for (const photo of store.photos) {
     if (!store.isPhotoQueued(photo.id)) {
       of(photo.timber_item_id).photos.push(photo)
     }
   }
-  return [...byItem].map(([itemId, { events, photos }]) => {
-    // A removed beam is gone from the items, but its row must still name it.
-    const removed = store.removedBeams.get(itemId)
-    const item = removed ?? store.items.find((candidate) => candidate.id === itemId)
-    return {
-      itemId,
-      parentId: item?.parent_id ?? null,
-      tagNumber: item?.tag_number ?? null,
-      isRemoved: removed !== undefined,
-      kind: item?.parent_id ? 'Balken' : 'Stamm',
-      isNew: events.some((event) => event.type === 'created'),
-      events,
-      photos,
-    }
-  })
-})
-
-type Group = (typeof groups.value)[number]
-
-// One section per stem, whatever the entry belongs to: the only way to a beam leads through its stem.
-// A section is the stem block (even without entries of its own), then one block per beam by tag.
-// Sections come in the order of their first entry.
-const sections = computed(() => {
-  const byStem = new Map<string, { stem?: Group; beams: Group[] }>()
-  for (const group of groups.value) {
-    const stemId = group.parentId ?? group.itemId
-    if (!byStem.has(stemId)) {
-      byStem.set(stemId, { beams: [] })
-    }
-    const section = byStem.get(stemId)!
-    if (group.parentId) {
-      section.beams.push(group)
-    } else {
-      section.stem = group
-    }
-  }
-  return [...byStem].map(([stemId, { stem, beams }]) => ({
-    stemId,
-    blocks: [
-      stem ?? {
-        itemId: stemId,
-        parentId: null,
-        tagNumber: store.items.find((item) => item.id === stemId)?.tag_number ?? null,
-        isRemoved: false,
-        kind: 'Stamm',
-        isNew: false,
-        events: [],
-        photos: [],
-      },
-      ...beams.sort((a, b) => (a.tagNumber ?? '').localeCompare(b.tagNumber ?? '')),
-    ],
-  }))
+  return [...byItem.values()]
 })
 
 const photoBytes = computed(() => store.photos.reduce((sum, photo) => sum + photo.size, 0))
@@ -295,80 +273,73 @@ function onMainButton() {
 
     <div v-else class="flex flex-col gap-5 py-4 px-gutter">
       <RejectedAlerts :rejected="result?.rejected ?? []" />
-      <section v-for="section in sections" :key="section.stemId">
-        <template v-for="group in section.blocks" :key="group.itemId">
-          <!-- A removed beam has no screen to link to: its heading stands alone. -->
-          <component
-            :is="group.tagNumber && !group.isRemoved ? RouterLink : 'div'"
-            v-if="group.tagNumber"
-            v-bind="
-              group.tagNumber && !group.isRemoved
-                ? { to: { name: 'timber-item', params: { tagNumber: group.tagNumber } } }
-                : {}
-            "
-            class="flex min-h-11 items-center justify-between text-left"
-            :class="
-              group.parentId
-                ? 'ml-4 w-[calc(100%-1rem)] border-b border-line'
-                : 'w-full border-b-2 border-ink'
-            "
-          >
-            <strong
-              class="flex items-center gap-2 tabular-nums"
-              :class="group.parentId ? 'text-base' : 'text-lg'"
+      <section v-for="section in sections" :key="section.itemId">
+        <!-- A removed beam has no screen to link to: its heading stands alone. -->
+        <component
+          :is="section.isRemoved ? 'div' : RouterLink"
+          v-if="section.tagNumber"
+          v-bind="
+            section.isRemoved
+              ? {}
+              : { to: { name: 'timber-item', params: { tagNumber: section.tagNumber } } }
+          "
+          class="flex min-h-11 w-full items-center justify-between border-b-2 border-ink text-left"
+        >
+          <strong class="flex items-center gap-2 text-lg tabular-nums">
+            <span
+              >{{ section.kind }}
+              <FormattedTag
+                :tag-number="section.tagNumber"
+                :class="section.isRemoved ? '' : 'underline underline-offset-4'"
+            /></span>
+            <span
+              v-if="section.isNew"
+              class="rounded-xl border-[1.5px] border-current px-2 py-[3px] text-xs font-semibold whitespace-nowrap"
+              >neu</span
             >
-              <span
-                >{{ group.kind }}
-                <FormattedTag
-                  :tag-number="group.tagNumber"
-                  :class="group.isRemoved ? '' : 'underline underline-offset-4'"
-              /></span>
-              <span
-                v-if="group.isNew"
-                class="rounded-xl border-[1.5px] border-current px-2 py-[3px] text-xs font-semibold whitespace-nowrap"
-                >neu</span
-              >
-            </strong>
-            <ChevronRightIcon
-              v-if="!group.isRemoved"
-              :size="group.parentId ? 20 : 24"
-              class="shrink-0"
-              aria-hidden="true"
-            />
-          </component>
-          <div
-            v-for="event in group.events"
-            :key="event.id"
-            class="flex items-center gap-2 border-b border-line"
-          >
-            <div class="flex min-h-14 min-w-0 flex-1 flex-col justify-center py-1.5">
-              <b v-if="event.type === 'voided'" class="font-semibold wrap-anywhere"
-                >{{ group.kind }} <FormattedTag :tag-number="group.tagNumber!" /> entfernen</b
-              >
-              <b v-else class="font-semibold wrap-anywhere">{{ describe(event, group.kind) }}</b>
-              <span class="text-[13px] text-mute">{{
-                formatShortDateTime(event.recorded_at)
-              }}</span>
-            </div>
-            <button
-              type="button"
-              class="flex size-11 shrink-0 items-center justify-center rounded-md border-2 border-ink bg-paper text-ink disabled:border-lockline disabled:text-mute"
-              aria-label="Eintrag verwerfen"
-              :disabled="store.isSyncing"
-              @click="toDiscard = { event, group }"
+          </strong>
+          <ChevronRightIcon
+            v-if="!section.isRemoved"
+            :size="24"
+            class="shrink-0"
+            aria-hidden="true"
+          />
+        </component>
+        <div
+          v-for="{ event, group } in section.rows"
+          :key="event.id"
+          class="flex items-center gap-2 border-b border-line"
+        >
+          <div class="flex min-h-14 min-w-0 flex-1 flex-col justify-center py-1.5">
+            <b v-if="event.type === 'voided'" class="font-semibold wrap-anywhere"
+              >{{ group.kind }} <FormattedTag :tag-number="group.tagNumber!" /> entfernen</b
             >
-              <Trash2Icon :size="20" :stroke-width="2.5" aria-hidden="true" />
-            </button>
+            <b
+              v-else-if="event.type === 'created' && group.parentId"
+              class="font-semibold wrap-anywhere"
+              >Balken angelegt: <FormattedTag :tag-number="group.tagNumber!"
+            /></b>
+            <b v-else class="font-semibold wrap-anywhere">{{ describe(event, group.kind) }}</b>
+            <span class="text-[13px] text-mute">{{ formatShortDateTime(event.recorded_at) }}</span>
           </div>
-          <div
-            v-for="photo in group.photos"
-            :key="photo.id"
-            class="flex min-h-14 flex-col justify-center border-b border-line py-1.5"
+          <button
+            type="button"
+            class="flex size-11 shrink-0 items-center justify-center rounded-md border-2 border-ink bg-paper text-ink disabled:border-lockline disabled:text-mute"
+            aria-label="Eintrag verwerfen"
+            :disabled="store.isSyncing"
+            @click="toDiscard = { event, group }"
           >
-            <b class="font-semibold">{{ photoLabel(photo) }}</b>
-            <span class="text-[13px] text-mute">{{ formatShortDateTime(photo.taken_at) }}</span>
-          </div>
-        </template>
+            <Trash2Icon :size="20" :stroke-width="2.5" aria-hidden="true" />
+          </button>
+        </div>
+        <div
+          v-for="photo in section.photos"
+          :key="photo.id"
+          class="flex min-h-14 flex-col justify-center border-b border-line py-1.5"
+        >
+          <b class="font-semibold">{{ photoLabel(photo) }}</b>
+          <span class="text-[13px] text-mute">{{ formatShortDateTime(photo.taken_at) }}</span>
+        </div>
       </section>
     </div>
 
@@ -449,7 +420,7 @@ function onMainButton() {
                 ? 'Anhalten'
                 : failure
                   ? 'Erneut versuchen'
-                  : groups.length
+                  : sections.length
                     ? 'Jetzt synchronisieren'
                     : 'Daten aktualisieren'
           }}

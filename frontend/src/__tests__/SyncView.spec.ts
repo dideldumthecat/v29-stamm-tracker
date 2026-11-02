@@ -27,72 +27,96 @@ const dialog = () => document.body.querySelector('[role="dialog"]')!
 const dialogButtons = () =>
   [...dialog().querySelectorAll('button')].map((b) => b.textContent?.trim())
 
-// Headings of a section: the stem first, then its beams, each with link target and "neu" badge.
-const headings = (section: DOMWrapper<Element>) =>
-  section
-    .findAll('strong')
-    .map((heading) =>
-      [...heading.element.children]
-        .map((part) => part.textContent?.replace(/\s+/g, ' ').trim())
-        .join(' '),
-    )
+// Heading of a section with "neu" badge.
+const heading = (section: DOMWrapper<Element>) =>
+  [...section.find('strong').element.children]
+    .map((part) => part.textContent?.replace(/\s+/g, ' ').trim())
+    .join(' ')
+const rowTexts = (section: DOMWrapper<Element>) =>
+  section.findAll('b').map((row) => row.element.textContent?.replace(/\s+/g, ' ').trim())
 const attributeId = (name: string) =>
   useTimberItemStore().attributes.find((attribute) => attribute.name === name)!.id
 
-describe('SyncView: sections by stem', () => {
+describe('SyncView: sections by item', () => {
   beforeEach(() => setActivePinia(createPinia()))
   afterEach(() => mounted.splice(0).forEach((wrapper) => wrapper.unmount()))
 
-  it('gives a stem with entries of its beams only its own heading', async () => {
+  it('gives a new stem its values and the creation of its new beams in one section', async () => {
     const store = useTimberItemStore()
-    store.recordAttribute(store.findByTag('789-A')!.id, attributeId('Sortierklasse'), 'x')
+    const stem = store.createTimberItem(42)
+    store.recordAttribute(stem.id, attributeId('Sortierklasse'), 'x')
+    store.addBeam(stem.id)
+    store.addBeam(stem.id)
     const wrapper = await mountView()
 
     const sections = wrapper.findAll('section')
     expect(sections).toHaveLength(1)
-    expect(headings(sections[0]!)).toEqual(['Stamm 00789', 'Balken 00789-A'])
+    expect(heading(sections[0]!)).toBe('Stamm 00042 neu')
     expect(sections[0]!.findAll('a').map((link) => link.attributes('href'))).toEqual([
-      '/timber-item/789',
-      '/timber-item/789-A',
+      '/timber-item/42',
     ])
-    expect(sections[0]!.text()).toContain('Sortierklasse')
+    expect(rowTexts(sections[0]!)).toEqual([
+      'Stamm angelegt',
+      expect.stringContaining('Sortierklasse'),
+      'Balken angelegt: 00042-A',
+      'Balken angelegt: 00042-B',
+    ])
   })
 
-  it('shows a removed beam under its stem, without a link', async () => {
-    const store = useTimberItemStore()
-    store.removeTimberItem(store.findByTag('789-B')!.id)
-    const wrapper = await mountView()
-
-    const section = wrapper.find('section')
-    expect(headings(section)).toEqual(['Stamm 00789', 'Balken 00789-B'])
-    expect(section.findAll('a').map((link) => link.attributes('href'))).toEqual([
-      '/timber-item/789',
-    ])
-    expect(section.text()).toContain('Balken 00789-B entfernen')
-  })
-
-  it('marks a new beam of an existing stem as new, not the stem', async () => {
+  it('shows a new beam of a locked stem as a row of the stem, without a badge', async () => {
     const store = useTimberItemStore()
     store.addBeam(store.findByTag('789')!.id)
     const wrapper = await mountView()
 
-    expect(headings(wrapper.find('section'))).toEqual(['Stamm 00789', 'Balken 00789-C neu'])
+    const sections = wrapper.findAll('section')
+    expect(sections).toHaveLength(1)
+    expect(heading(sections[0]!)).toBe('Stamm 00789')
+    expect(rowTexts(sections[0]!)).toEqual(['Balken angelegt: 00789-C'])
   })
 
-  it('puts a new stem and its new beams into one section, beams by tag', async () => {
+  it('gives a new beam with values of its own a section of its own', async () => {
     const store = useTimberItemStore()
-    const stem = store.createTimberItem(42)
-    store.addBeam(stem.id)
-    store.addBeam(stem.id)
+    const beam = store.addBeam(store.findByTag('789')!.id)
+    store.recordAttribute(beam.id, attributeId('Sortierklasse'), 'x')
+    const wrapper = await mountView()
+
+    const sections = wrapper.findAll('section')
+    expect(sections.map(heading)).toEqual(['Stamm 00789', 'Balken 00789-C'])
+    expect(rowTexts(sections[0]!)).toEqual(['Balken angelegt: 00789-C'])
+    expect(rowTexts(sections[1]!)).toEqual([expect.stringContaining('Sortierklasse')])
+    expect(sections[1]!.findAll('a').map((link) => link.attributes('href'))).toEqual([
+      '/timber-item/789-C',
+    ])
+  })
+
+  it('shows a removed beam as a row of its stem', async () => {
+    const store = useTimberItemStore()
+    store.removeTimberItem(store.findByTag('789-B')!.id)
     const wrapper = await mountView()
 
     const sections = wrapper.findAll('section')
     expect(sections).toHaveLength(1)
-    expect(headings(sections[0]!)).toEqual([
-      'Stamm 00042 neu',
-      'Balken 00042-A neu',
-      'Balken 00042-B neu',
+    expect(heading(sections[0]!)).toBe('Stamm 00789')
+    expect(rowTexts(sections[0]!)).toEqual(['Balken 00789-B entfernen'])
+  })
+
+  it('heads the open values of a removed beam without a link', async () => {
+    const store = useTimberItemStore()
+    const beam = store.findByTag('789-B')!
+    store.recordAttribute(beam.id, attributeId('Sortierklasse'), 'x')
+    const late = store.events.splice(0)
+    store.removeTimberItem(beam.id)
+    // Removing drops what is pending; a value that reached the queue after the removal is faked this way.
+    store.events.push(...late)
+    const wrapper = await mountView()
+
+    const sections = wrapper.findAll('section')
+    expect(sections.map(heading)).toEqual(['Stamm 00789', 'Balken 00789-B'])
+    expect(sections[0]!.findAll('a').map((link) => link.attributes('href'))).toEqual([
+      '/timber-item/789',
     ])
+    expect(sections[1]!.findAll('a')).toHaveLength(0)
+    expect(rowTexts(sections[0]!)).toEqual(['Balken 00789-B entfernen'])
   })
 
   it('lists the photo files left of a beam under that beam', async () => {
@@ -110,8 +134,8 @@ describe('SyncView: sections by stem', () => {
     const wrapper = await mountView()
 
     const section = wrapper.find('section')
-    expect(headings(section)).toEqual(['Stamm 00789', 'Balken 00789-A'])
-    expect(section.text()).toMatch(/Balken 00789-A[\s\S]*Foto \(/)
+    expect(heading(section)).toBe('Balken 00789-A')
+    expect(section.text()).toContain('Foto (')
     store.events.push(...queued)
     store.removePhoto(photoId)
   })
