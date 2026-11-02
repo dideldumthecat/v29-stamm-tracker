@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
 import {
   ChevronRightIcon,
   CircleCheckIcon,
@@ -71,6 +71,7 @@ const groups = computed(() => {
     const item = removed ?? store.items.find((candidate) => candidate.id === itemId)
     return {
       itemId,
+      parentId: item?.parent_id ?? null,
       tagNumber: item?.tag_number ?? null,
       isRemoved: removed !== undefined,
       kind: item?.parent_id ? 'Balken' : 'Stamm',
@@ -79,6 +80,43 @@ const groups = computed(() => {
       photos,
     }
   })
+})
+
+type Group = (typeof groups.value)[number]
+
+// One section per stem, whatever the entry belongs to: the only way to a beam leads through its stem.
+// A section is the stem block (even without entries of its own), then one block per beam by tag.
+// Sections come in the order of their first entry.
+const sections = computed(() => {
+  const byStem = new Map<string, { stem?: Group; beams: Group[] }>()
+  for (const group of groups.value) {
+    const stemId = group.parentId ?? group.itemId
+    if (!byStem.has(stemId)) {
+      byStem.set(stemId, { beams: [] })
+    }
+    const section = byStem.get(stemId)!
+    if (group.parentId) {
+      section.beams.push(group)
+    } else {
+      section.stem = group
+    }
+  }
+  return [...byStem].map(([stemId, { stem, beams }]) => ({
+    stemId,
+    blocks: [
+      stem ?? {
+        itemId: stemId,
+        parentId: null,
+        tagNumber: store.items.find((item) => item.id === stemId)?.tag_number ?? null,
+        isRemoved: false,
+        kind: 'Stamm',
+        isNew: false,
+        events: [],
+        photos: [],
+      },
+      ...beams.sort((a, b) => (a.tagNumber ?? '').localeCompare(b.tagNumber ?? '')),
+    ],
+  }))
 })
 
 const photoBytes = computed(() => store.photos.reduce((sum, photo) => sum + photo.size, 0))
@@ -122,7 +160,6 @@ function describe(event: Event, kind: string): string {
   return attribute.type === 'boolean' ? value : `${attribute.name}: ${value}`
 }
 
-type Group = (typeof groups.value)[number]
 const toDiscard = ref<{ event: Event; group: Group } | null>(null)
 // A new stem takes its new beams along; a beam has none.
 const discardedBeamCount = computed(() =>
@@ -258,56 +295,80 @@ function onMainButton() {
 
     <div v-else class="flex flex-col gap-5 py-4 px-gutter">
       <RejectedAlerts :rejected="result?.rejected ?? []" />
-      <section v-for="group in groups" :key="group.itemId">
-        <!-- A removed beam has no screen to link to: its row stands alone. -->
-        <RouterLink
-          v-if="group.tagNumber && !group.isRemoved"
-          :to="{ name: 'timber-item', params: { tagNumber: group.tagNumber } }"
-          class="flex min-h-11 w-full items-center justify-between border-b-2 border-ink text-left"
-        >
-          <strong class="flex items-center gap-2 text-lg tabular-nums">
-            <span
-              >{{ group.kind }}
-              <FormattedTag :tag-number="group.tagNumber" class="underline underline-offset-4"
-            /></span>
-            <span
-              v-if="group.isNew"
-              class="rounded-xl border-[1.5px] border-current px-2 py-[3px] text-xs font-semibold whitespace-nowrap"
-              >neu</span
-            >
-          </strong>
-          <ChevronRightIcon :size="24" class="shrink-0" aria-hidden="true" />
-        </RouterLink>
-        <div
-          v-for="event in group.events"
-          :key="event.id"
-          class="flex items-center gap-2 border-b border-line"
-        >
-          <div class="flex min-h-14 min-w-0 flex-1 flex-col justify-center py-1.5">
-            <b v-if="event.type === 'voided'" class="font-semibold wrap-anywhere"
-              >{{ group.kind }} <FormattedTag :tag-number="group.tagNumber!" /> entfernen</b
-            >
-            <b v-else class="font-semibold wrap-anywhere">{{ describe(event, group.kind) }}</b>
-            <span class="text-[13px] text-mute">{{ formatShortDateTime(event.recorded_at) }}</span>
-          </div>
-          <button
-            type="button"
-            class="flex size-11 shrink-0 items-center justify-center rounded-md border-2 border-ink bg-paper text-ink disabled:border-lockline disabled:text-mute"
-            aria-label="Eintrag verwerfen"
-            :disabled="store.isSyncing"
-            @click="toDiscard = { event, group }"
+      <section v-for="section in sections" :key="section.stemId">
+        <template v-for="group in section.blocks" :key="group.itemId">
+          <!-- A removed beam has no screen to link to: its heading stands alone. -->
+          <component
+            :is="group.tagNumber && !group.isRemoved ? RouterLink : 'div'"
+            v-if="group.tagNumber"
+            v-bind="
+              group.tagNumber && !group.isRemoved
+                ? { to: { name: 'timber-item', params: { tagNumber: group.tagNumber } } }
+                : {}
+            "
+            class="flex min-h-11 items-center justify-between text-left"
+            :class="
+              group.parentId
+                ? 'ml-4 w-[calc(100%-1rem)] border-b border-line'
+                : 'w-full border-b-2 border-ink'
+            "
           >
-            <Trash2Icon :size="20" :stroke-width="2.5" aria-hidden="true" />
-          </button>
-        </div>
-        <div
-          v-for="photo in group.photos"
-          :key="photo.id"
-          class="flex min-h-14 flex-col justify-center border-b border-line py-1.5"
-        >
-          <b class="font-semibold">{{ photoLabel(photo) }}</b>
-          <span class="text-[13px] text-mute">{{ formatShortDateTime(photo.taken_at) }}</span>
-        </div>
+            <strong
+              class="flex items-center gap-2 tabular-nums"
+              :class="group.parentId ? 'text-base' : 'text-lg'"
+            >
+              <span
+                >{{ group.kind }}
+                <FormattedTag
+                  :tag-number="group.tagNumber"
+                  :class="group.isRemoved ? '' : 'underline underline-offset-4'"
+              /></span>
+              <span
+                v-if="group.isNew"
+                class="rounded-xl border-[1.5px] border-current px-2 py-[3px] text-xs font-semibold whitespace-nowrap"
+                >neu</span
+              >
+            </strong>
+            <ChevronRightIcon
+              v-if="!group.isRemoved"
+              :size="group.parentId ? 20 : 24"
+              class="shrink-0"
+              aria-hidden="true"
+            />
+          </component>
+          <div
+            v-for="event in group.events"
+            :key="event.id"
+            class="flex items-center gap-2 border-b border-line"
+          >
+            <div class="flex min-h-14 min-w-0 flex-1 flex-col justify-center py-1.5">
+              <b v-if="event.type === 'voided'" class="font-semibold wrap-anywhere"
+                >{{ group.kind }} <FormattedTag :tag-number="group.tagNumber!" /> entfernen</b
+              >
+              <b v-else class="font-semibold wrap-anywhere">{{ describe(event, group.kind) }}</b>
+              <span class="text-[13px] text-mute">{{
+                formatShortDateTime(event.recorded_at)
+              }}</span>
+            </div>
+            <button
+              type="button"
+              class="flex size-11 shrink-0 items-center justify-center rounded-md border-2 border-ink bg-paper text-ink disabled:border-lockline disabled:text-mute"
+              aria-label="Eintrag verwerfen"
+              :disabled="store.isSyncing"
+              @click="toDiscard = { event, group }"
+            >
+              <Trash2Icon :size="20" :stroke-width="2.5" aria-hidden="true" />
+            </button>
+          </div>
+          <div
+            v-for="photo in group.photos"
+            :key="photo.id"
+            class="flex min-h-14 flex-col justify-center border-b border-line py-1.5"
+          >
+            <b class="font-semibold">{{ photoLabel(photo) }}</b>
+            <span class="text-[13px] text-mute">{{ formatShortDateTime(photo.taken_at) }}</span>
+          </div>
+        </template>
       </section>
     </div>
 
