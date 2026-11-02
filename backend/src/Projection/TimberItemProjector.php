@@ -182,7 +182,7 @@ final class TimberItemProjector
                     $voidedAt = $event->receivedAt;
                     break 2;
                 default:
-                    // TODO: apply corrected events.
+                    // Restored is applied up front, see $restoredVoids.
             }
         }
 

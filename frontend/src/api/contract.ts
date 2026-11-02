@@ -153,7 +153,6 @@ export type Event =
       type: 'attribute_recorded'
       data: { attribute_id: Uuid; value: AttributeValue }
     })
-// corrected is created in the administration only and never sent by the app.
 // voided: the app sends it to remove a beam it has already synced (a stem cannot be removed here). The server sets
 // reference_id to the created event of the beam. Unknown id or a stem: 400. A beam voided already is accepted, nothing changes.
 
