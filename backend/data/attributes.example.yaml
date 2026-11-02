@@ -1,7 +1,10 @@
 # Attributes ("Merkmale") and their options, imported with: ddev console app:attributes:import <file> [--dry-run] (path relative to backend/)
-# Order in this file = order in the app. Matched by name (attributes) and label (options): renaming creates a new one.
+# Order in this file = order in the app. Attributes are matched by key if they have one (renaming is safe), else by name
+# (renaming creates a new attribute). Options are matched by label: renaming creates a new one.
 #
 # Keys per attribute (defaults in brackets):
+#   key [none] – stable identifier for code and console commands, set by the developer only for attributes code refers to:
+#     lowercase letters, digits, underscore, starts with a letter, max. 64 characters, unique. Never changes once set.
 #   name, type (boolean | choice | number | text | date | month | photo)
 #   description [''], unit [none, only for number], is_series [false], is_inheritable [false], active [true]
 #   options – only for choice, required there: a label, or { label: …, active: false }
@@ -23,6 +26,7 @@
   type: choice
   options: [Polter Nord, Polter Süd, { label: Waldweg Ost, active: false }]
 - name: Gesägt
+  key: sawn
   description: Stamm ist im Sägewerk aufgeteilt
   type: boolean
   is_inheritable: true
@@ -41,10 +45,12 @@
   unit: '%'
   is_series: true
 - name: Notiz
+  key: notes
   description: Freitext
   type: text
   is_series: true
 - name: Fotos
+  key: photos
   description: Übersichtsfotos
   type: photo
   is_series: true

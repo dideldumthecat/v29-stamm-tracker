@@ -159,4 +159,85 @@ class AttributesImportCommandTest extends KernelTestCase
         self::assertSame(Command::SUCCESS, $this->import("- { name: Länge, type: number, unit: m }\n")->getStatusCode());
         self::assertSame(AttributeType::Number, $this->attributes()['Länge']->type);
     }
+
+    public function testKeyIsStoredAndAttributesWithoutOneStayWithout(): void
+    {
+        $this->import("- { name: Länge, key: length, type: text }\n- { name: Notiz, type: text }\n");
+
+        $attributes = $this->attributes();
+        self::assertSame('length', $attributes['Länge']->key);
+        self::assertNull($attributes['Notiz']->key);
+        self::assertStringContainsString('unchanged  Länge', $this->import("- { name: Länge, key: length, type: text }\n- { name: Notiz, type: text }\n")->getDisplay());
+    }
+
+    public function testChangedNameWithKeyRenamesAlsoInDryRun(): void
+    {
+        $this->import("- { name: Durchmesser, key: diameter, type: number, unit: cm }\n");
+        $id = $this->attributes()['Durchmesser']->id;
+        $yaml = "- { name: Stammdurchmesser, key: diameter, type: number, unit: cm }\n";
+
+        $display = $this->import($yaml, true)->getDisplay();
+        self::assertStringContainsString('renamed    Durchmesser → Stammdurchmesser', $display);
+        self::assertSame(['Durchmesser'], array_keys($this->attributes()));
+
+        $this->import($yaml);
+        self::assertSame(['Stammdurchmesser'], array_keys($this->attributes()));
+        self::assertEquals($id, $this->attributes()['Stammdurchmesser']->id);
+        self::assertStringContainsString('unchanged  Stammdurchmesser', $this->import($yaml)->getDisplay());
+    }
+
+    public function testKeyIsSetOnAnAttributeWithoutOneMatchedByName(): void
+    {
+        $this->import("- { name: Notiz, type: text }\n");
+        $id = $this->attributes()['Notiz']->id;
+
+        $display = $this->import("- { name: Notiz, key: notes, type: text }\n")->getDisplay();
+
+        self::assertStringContainsString('updated    Notiz (key)', $display);
+        self::assertSame('notes', $this->attributes()['Notiz']->key);
+        self::assertEquals($id, $this->attributes()['Notiz']->id);
+    }
+
+    public function testRefusesAnotherKeyForAnAttributeThatHasOne(): void
+    {
+        $this->import("- { name: Notiz, key: notes, type: text }\n- { name: Länge, type: text }\n");
+
+        $tester = $this->import("- { name: Notiz, key: remarks, type: text }\n- { name: Länge, type: text, description: Neu }\n");
+
+        self::assertSame(Command::FAILURE, $tester->getStatusCode());
+        self::assertStringContainsString('"Notiz": key cannot change from notes to remarks', $tester->getDisplay());
+        self::assertSame('notes', $this->attributes()['Notiz']->key);
+        self::assertSame('', $this->attributes()['Länge']->description, 'nothing is written');
+    }
+
+    public function testRefusesRenameOntoTheNameOfAnotherAttribute(): void
+    {
+        $this->import("- { name: A, key: a, type: text }\n- { name: B, type: text }\n");
+
+        $tester = $this->import("- { name: B, key: a, type: text }\n");
+
+        self::assertSame(Command::FAILURE, $tester->getStatusCode());
+        self::assertStringContainsString('belongs to another attribute', $tester->getDisplay());
+    }
+
+    public function testRefusesDuplicateAndMalformedKeys(): void
+    {
+        $tester = $this->import(<<<'YAML'
+            - { name: A, key: same, type: text }
+            - { name: B, key: same, type: text }
+            - { name: C, key: Length, type: text }
+            - { name: D, key: 1st, type: text }
+            - { name: E, key: has-dash, type: text }
+            - { name: F, key: 12, type: text }
+            - { name: G, key: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa, type: text }
+            YAML);
+
+        self::assertSame(Command::FAILURE, $tester->getStatusCode());
+        $display = preg_replace('/\s+/', ' ', $tester->getDisplay());
+        self::assertStringContainsString('"B": key appears more than once', $display);
+        foreach (['C', 'D', 'E', 'F', 'G'] as $name) {
+            self::assertStringContainsString("\"$name\": key must be lowercase", $display);
+        }
+        self::assertSame([], $this->attributes());
+    }
 }

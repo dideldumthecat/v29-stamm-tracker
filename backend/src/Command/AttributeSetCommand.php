@@ -34,7 +34,7 @@ class AttributeSetCommand
 
     public function __invoke(
         SymfonyStyle $io,
-        #[Argument(description: 'Exact attribute name, e.g. Länge')] string $attribute,
+        #[Argument(description: 'Attribute key or exact name, e.g. length or Länge')] string $attribute,
         #[Argument(description: 'Option text for choices (e.g. "4,10 m"), 34,5 for numbers, ja/nein for booleans, JJJJ-MM for months')] string $value,
         #[Option(description: 'Stems to change: all, 119, 1-10 or a list like 1-10,15,20-25 (leading zeros do not matter)')] ?string $range = null,
         #[Option(description: 'Also replace a different value that is already set')] bool $overwrite = false,
@@ -46,7 +46,7 @@ class AttributeSetCommand
         $error = match (true) {
             null === $range => '--range is required: all, a number, from-to or a list like 1-10,15.',
             false === $numbers => $this->selection->notARange($range),
-            null === $attr => \sprintf('No attribute named "%s".', $attribute),
+            null === $attr => \sprintf('No attribute with the key or name "%s".', $attribute),
             !$attr->active => \sprintf('Attribute "%s" is inactive.', $attribute),
             $attr->isSeries || !$attr->isInheritable => \sprintf('"%s" is %s; only inheritable attributes that are not a series can be set for many stems.', $attribute, $attr->isSeries ? 'a series' : 'not inheritable'),
             default => null,

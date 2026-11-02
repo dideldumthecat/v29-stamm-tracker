@@ -30,7 +30,7 @@ class AttributeClearCommand
 
     public function __invoke(
         SymfonyStyle $io,
-        #[Argument(description: 'Exact attribute name, e.g. "Größter Stammdurchmesser"')] string $attribute,
+        #[Argument(description: 'Attribute key or exact name, e.g. mid_diameter_max or Länge')] string $attribute,
         #[Option(description: 'Stems to clear: all, 119, 1-10 or a list like 1-10,15,20-25 (leading zeros do not matter)')] ?string $range = null,
         #[Option(description: 'Show what would happen without writing anything')] bool $dryRun = false,
         #[Option(description: 'Name or ID of the user the voids are recorded under; default: the only admin')] ?string $user = null,
@@ -40,7 +40,7 @@ class AttributeClearCommand
         $error = match (true) {
             null === $range => '--range is required: all, a number, from-to or a list like 1-10,15.',
             false === $numbers => $this->selection->notARange($range),
-            null === $attr => \sprintf('No attribute named "%s".', $attribute),
+            null === $attr => \sprintf('No attribute with the key or name "%s".', $attribute),
             $attr->isSeries => \sprintf('"%s" is a series; a series cannot be cleared for many stems.', $attribute),
             default => null,
         };

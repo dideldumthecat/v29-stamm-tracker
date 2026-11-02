@@ -1,7 +1,8 @@
 # Attributes for capture, as agreed with V29 (26.10.2026).
 # Import: ddev console app:attributes:import data/attributes.yaml
-# Order in this file = order in the app. Never rename an attribute or option that already has values:
-# the import matches by name/label and would create a new one.
+# Order in this file = order in the app. An attribute with a key can be renamed safely: the import matches by key.
+# Without a key it matches by name, so renaming would create a new attribute. Options always match by label:
+# never rename an option that already has values. A key is never changed once set (see the README).
 
 - name: Holzart
   type: choice
@@ -21,27 +22,32 @@
   is_inheritable: true
 
 - name: Stammmittendurchmesser groß
+  key: mid_diameter_max
   type: number
   unit: cm
   is_inheritable: true
 
 - name: Stammmittendurchmesser klein
+  key: mid_diameter_min
   type: number
   unit: cm
   is_inheritable: true
 
 # Same value for a stem and the beams sawn lengthwise from it; set the beam's own value after a cross cut.
 - name: Länge
+  key: length
   type: choice
   is_inheritable: true
   options: ['4,10 m', '3,60 m', '3,20 m']
 
 - name: Gesägt
+  key: sawn
   type: boolean
   is_inheritable: true
 
 # Recorded on each beam: the cross-section is a property of the sawn beam, not of the stem.
 - name: Gesägter Querschnitt
+  key: sawn_cross_section
   type: choice
   is_inheritable: false
   options: ['14,7 x 14,7 cm', '10,5 x 14,7 cm']
@@ -55,9 +61,11 @@
   is_inheritable: true
 
 - name: Notiz
+  key: notes
   type: text
   is_series: true
 
 - name: Fotos
+  key: photos
   type: photo
   is_series: true
