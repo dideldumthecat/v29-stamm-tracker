@@ -114,7 +114,7 @@ The dev server uses a **fake API** with the fixtures by default, so UI work need
 | Users | `app:user:create`, `app:user:list`, `app:user:revoke` |
 | Void a stem or beam created by mistake or twice (it leaves the snapshot, its tag is free again; a stem only once its beams are voided; recorded under the only admin or `--user`; `--dry-run` shows the item and writes nothing; on IONOS: dry run first, then the real run) | `ddev console app:item:void 123` or `app:item:void 123-A [--dry-run] [--user Name]` |
 | Undo a void, e.g. a beam the sawyer removed in the app by mistake: have the tag named, dry run, restore, then the sawyer syncs again (the beam returns to the snapshot and its stem is locked again). Appends `restored` events, nothing is deleted. Refused if the tag is taken by another item meanwhile (void that one first) or the stem of a beam is voided (restore the stem first); restoring a stem does not restore its beams, each beam is restored on its own. Same options as the void | `ddev console app:item:restore 123-A [--dry-run] [--user Name]` |
-| Export all stems and beams (current state, without voided) to Excel; without a path `stamm-tracker-export-YYYY-MM-DD-HHMM.xlsx` (Berlin time) in the current directory, see [Excel export](#excel-export) | `ddev console app:export [path.xlsx]` |
+| Export the evaluation (stems, beams, round wood, sawn timber, yield; without voided) to Excel; without a path `stamm-tracker-export-YYYY-MM-DD-HHMM.xlsx` (Berlin time) in the current directory, see [Excel export](#excel-export) | `ddev console app:export [path.xlsx]` |
 | Attach photos to stems and beams from a CSV (`file,tag` or `file;tag`), see [Photos](#photos) | `ddev console app:photo:import photos.csv [--dry-run]` |
 | Set one attribute on many stems, see [Setting a value for many stems](#setting-a-value-for-many-stems) | `ddev console app:attribute:set length "'4,10 m'" --range all [--overwrite] [--dry-run] [--user Name]` |
 | Clear one attribute on many stems (voids its recordings, the events stay), see [Clearing a value for many stems](#clearing-a-value-for-many-stems) | `ddev console app:attribute:clear mid_diameter_max --range all [--dry-run] [--user Name]` |
@@ -124,7 +124,15 @@ The dev server uses a **fake API** with the fixtures by default, so UI work need
 
 ### Excel export
 
-`app:export` writes one sheet with a row per stem or beam: tag (plaque format), type, stem, created, created by, last change, then one column per attribute in attribute order. Inactive attributes appear only if an item has a value for them. Voided items are left out. It reads the same projections as the snapshot, so the file shows what the apps show after a sync.
+`app:export` is the prototype of the key figures V29 asked for: how much round wood was sawn, how much sawn timber came out, and the yield, per stem and in total. The calculation lives in `App\Report\TimberReport` (the later dashboard reuses it), `ExcelWriter` only formats. Three sheets:
+
+- **Stämme**: one row per stem, sawn or not: the active attributes and the inactive ones some listed item still has a value for (effective values, diameters in cm, length as a number in m, "Gesägt" derived), number of beams, round wood (fm), sawn timber (m³), yield, created, created by, last change, notes, photo count and photo ids.
+- **Balken**: one row per sawn piece, i.e. every beam plus every stem sawn whole without beams (beam column = stem column): effective values, cross-section as text, width, height, sawn timber (m³), then as above.
+- **Hinweise**: the export time, the basic rules and the meaning, unit and formula of every column. Read it first; it is also meant as context when the file goes to an AI tool.
+
+Values are effective: the item's own value, or the stem's for inheritable attributes (`timber_item_state` already holds both). "Gesägt" is derived (has beams, has a cross-section, or recorded as yes); the recorded value is not shown. Numbers are read from option texts ("4,10 m" → 4.10, "14,7 x 14,7 cm" → 14.7 × 14.7); text that cannot be read leaves the cell empty and prints a warning (tag, attribute, text). Diameter 0 counts as not measured. Round wood = π/4 × diameter max × diameter min × length (provisional until V29 confirms), sawn timber = width × height × length, yield = sawn timber ÷ round wood. All values are plain numbers, no Excel formulas, and column widths are computed from the content.
+
+The code finds attributes only by key (`mid_diameter_max`, `mid_diameter_min`, `length`, `sawn`, `sawn_cross_section`, `notes`, `photos`); if one is missing the export aborts with a message. Headings and notes use the names from the database, so renaming an attribute changes the heading and nothing else. Photo ids never wrap (last column, the text runs over to the right); notes do. Voided items are left out. The file shows what the apps show after a sync.
 
 On IONOS, run it over SSH from the home directory and download the file with `scp`:
 
