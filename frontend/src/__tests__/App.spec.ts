@@ -49,6 +49,11 @@ function leaveDialog() {
   }
 }
 
+const optionLabel = (name: string, label: string) =>
+  useTimberItemStore()
+    .attributes.find((attribute) => attribute.name === name)!
+    .options.find((option) => option.label === label)!.id
+
 async function mountAt(path: string) {
   const router = createRouter({ history: createMemoryHistory(), routes })
   router.push(path)
@@ -147,7 +152,39 @@ describe('App', () => {
     expect(leaveDialog()).toEqual({
       title: 'Änderungen verwerfen?',
       intro: 'Noch nicht gespeichert für Stamm 00042:',
-      items: ['1 Änderung'],
+      items: ['Holzart: Traubeneiche'],
+    })
+  })
+
+  describe('leave dialog lines', () => {
+    const closeAndRead = async (wrapper: Awaited<ReturnType<typeof mountAt>>['wrapper']) => {
+      await wrapper.find('button[aria-label="Schließen"]').trigger('click')
+      await flushPromises()
+      return leaveDialog().items
+    }
+
+    it('words choice, number and yes/no values like the sync screen, in the order of the form', async () => {
+      const { wrapper } = await mountAt('/timber-item/456')
+      // Typed first, but its attribute comes after Holzart and Gesägt in the form.
+      await wrapper.find('input[inputmode="decimal"]').setValue('41,5')
+      await wrapper.find('button[aria-pressed]').trigger('click')
+      await wrapper.find('select').setValue(optionLabel('Holzart', 'Stieleiche'))
+      expect(await closeAndRead(wrapper)).toEqual([
+        'Holzart: Stieleiche',
+        'Gesägt',
+        'Holzfeuchte: 41,5 %',
+      ])
+    })
+
+    it('words a recorded value turned to "no" as "Gesägt: Nein"', async () => {
+      const { wrapper } = await mountAt('/timber-item/456')
+      const store = useTimberItemStore()
+      const gesaegt = store.attributes.find((attribute) => attribute.name === 'Gesägt')!
+      store.recordAttribute(store.findByTagNumber(456)!.id, gesaegt.id, true)
+      await flushPromises()
+      await wrapper.find('button[aria-label="Gesägt ändern"]').trigger('click')
+      await wrapper.find('button[aria-pressed]').trigger('click')
+      expect(await closeAndRead(wrapper)).toEqual(['Gesägt: Nein'])
     })
   })
 
@@ -214,7 +251,7 @@ describe('App', () => {
 
       await closeButton(wrapper).trigger('click')
       await flushPromises()
-      expect(leaveDialog().items).toEqual(['1 Foto', '1 Änderung'])
+      expect(leaveDialog().items).toEqual(['Sortierklasse: A', '1 Foto'])
       sheetButton('Weiter bearbeiten').click()
       await flushPromises()
       expect(previews(wrapper)).toHaveLength(1)
@@ -489,7 +526,7 @@ describe('App', () => {
     await wrapper.find('button[aria-label="Schließen"]').trigger('click')
     await flushPromises()
     expect(router.currentRoute.value.name).toBe('timber-item')
-    expect(leaveDialog().items).toEqual(['1 Änderung'])
+    expect(leaveDialog().items).toEqual(['Holzfeuchte: ungültige Eingabe'])
   })
 
   it('records added series values and the pending input on save', async () => {
@@ -758,11 +795,6 @@ describe('App', () => {
       expect(document.body.textContent).toContain('Höchstens 26 Balken je Stamm')
     })
 
-    const optionLabel = (name: string, label: string) =>
-      useTimberItemStore()
-        .attributes.find((attribute) => attribute.name === name)!
-        .options.find((option) => option.label === label)!.id
-
     it('keeps a split stem fully read-only, without save bar', async () => {
       const { wrapper } = await mountAt('/timber-item/789')
       expect(wrapper.text()).toContain('Aufgeteilter Stamm')
@@ -868,9 +900,10 @@ describe('App', () => {
       expect(useTimberItemStore().events).toEqual([])
     })
 
-    it('lists beams, photo and changes of a stem draft in that order', async () => {
+    it('lists values, invalid input, beams and photo of a stem draft in that order', async () => {
       const { wrapper } = await mountAt('/timber-item/42')
       await wrapper.find('select').setValue(optionLabel('Holzart', 'Stieleiche'))
+      await wrapper.find('input[inputmode="decimal"]').setValue('34abc')
       buttonByText(/00042-A hinzufügen/).click()
       await flushPromises()
       const input = wrapper.find('input[accept="image/*"][multiple]')
@@ -882,7 +915,12 @@ describe('App', () => {
       await flushPromises()
       await wrapper.find('button[aria-label="Schließen"]').trigger('click')
       await flushPromises()
-      expect(leaveDialog().items).toEqual(['Balken 00042-A', '1 Foto', '1 Änderung'])
+      expect(leaveDialog().items).toEqual([
+        'Holzart: Stieleiche',
+        'Holzfeuchte: ungültige Eingabe',
+        'Balken 00042-A',
+        '1 Foto',
+      ])
     })
 
     it('names the beam, not the stem, in the leave dialog of a beam', async () => {
@@ -893,7 +931,7 @@ describe('App', () => {
       expect(leaveDialog()).toEqual({
         title: 'Änderungen verwerfen?',
         intro: 'Noch nicht gespeichert für Balken 00789-A:',
-        items: ['1 Änderung'],
+        items: ['Notiz: Riss'],
       })
     })
 
@@ -906,7 +944,7 @@ describe('App', () => {
       await flushPromises()
       await wrapper.find('button[aria-label="Schließen"]').trigger('click')
       await flushPromises()
-      expect(leaveDialog().items).toEqual(['Balken 00042-A, 00042-B', '1 Änderung'])
+      expect(leaveDialog().items).toEqual(['Holzart: Stieleiche', 'Balken 00042-A, 00042-B'])
 
       buttonByText(/^Verwerfen$/).click()
       await flushPromises()

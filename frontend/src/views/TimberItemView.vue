@@ -9,7 +9,7 @@ import {
 import { PlusIcon, Trash2Icon } from '@lucide/vue'
 import { useTimberItemStore, type TimberItem } from '@/stores/timberItems'
 import type { AttributeValue } from '@/api/contract'
-import { collectDraft, formatValue, type DraftInput } from '@/utils/attributeDraft'
+import { collectDraft, formatValue, formatValueLine, type DraftInput } from '@/utils/attributeDraft'
 import { attachPhotos } from '@/utils/photo'
 import { bySortOrder } from '@/utils/sort'
 import { MAX_BEAMS } from '@/config/constants'
@@ -330,14 +330,25 @@ function onKeepEditing() {
   pendingLeave.value = null
 }
 
-// What the leave dialog lists: only the parts that exist.
+// What the leave dialog lists: only the parts that exist. Values and invalid input follow the form's order.
 const unsaved = computed(() => {
   const photoCount = draftPhotos.value.length
-  const fieldCount = changes.value.length + Object.keys(collected.value.errors).length
+  const values: string[] = []
+  const invalid: string[] = []
+  for (const attribute of attributes.value) {
+    for (const change of changes.value) {
+      if (change.attributeId === attribute.id) {
+        values.push(formatValueLine(attribute, change.value))
+      }
+    }
+    if (attribute.id in collected.value.errors) {
+      invalid.push(`${attribute.name}: ungültige Eingabe`)
+    }
+  }
   return {
+    fields: [...values, ...invalid],
     beams: [...draftBeams.value].sort((a, b) => a.localeCompare(b)),
     photos: photoCount > 0 ? `${photoCount} ${photoCount === 1 ? 'Foto' : 'Fotos'}` : null,
-    fields: fieldCount > 0 ? `${fieldCount} ${fieldCount === 1 ? 'Änderung' : 'Änderungen'}` : null,
   }
 })
 
@@ -597,6 +608,7 @@ function onDiscard() {
     >
       <p>Noch nicht gespeichert für {{ kind }} <FormattedTag :tag-number="tagNumber" />:</p>
       <ul class="mt-1 list-disc pl-5">
+        <li v-for="line in unsaved.fields" :key="line">{{ line }}</li>
         <li v-if="unsaved.beams.length > 0">
           Balken
           <template v-for="(tag, index) in unsaved.beams" :key="tag"
@@ -604,7 +616,6 @@ function onDiscard() {
           /></template>
         </li>
         <li v-if="unsaved.photos">{{ unsaved.photos }}</li>
-        <li v-if="unsaved.fields">{{ unsaved.fields }}</li>
       </ul>
     </ConfirmSheet>
   </div>

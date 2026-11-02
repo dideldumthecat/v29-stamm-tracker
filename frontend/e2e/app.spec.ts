@@ -459,7 +459,10 @@ test('a photo and a field change are saved together and survive a reload', async
   await page.getByLabel('Holzart').selectOption({ label: 'Traubeneiche' })
   await close(page)
   await expect(page.getByRole('dialog')).toContainText('Änderungen verwerfen?')
-  await expect(page.getByRole('dialog').getByRole('listitem')).toHaveText(['1 Foto', '1 Änderung'])
+  await expect(page.getByRole('dialog').getByRole('listitem')).toHaveText([
+    'Holzart: Traubeneiche',
+    '1 Foto',
+  ])
   await page.getByRole('button', { name: 'Weiter bearbeiten' }).click()
 
   await saveDraft(page)

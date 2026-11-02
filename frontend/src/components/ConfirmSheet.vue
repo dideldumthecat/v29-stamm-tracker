@@ -52,16 +52,17 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
       @click.self="emit('safe')"
     >
       <div
-        class="flex max-h-[90%] w-full max-w-[430px] flex-col gap-3.5 overflow-auto rounded-t-[14px] bg-paper pt-5 px-gutter pb-safe-5"
+        class="flex max-h-[90%] w-full max-w-[430px] flex-col gap-3.5 rounded-t-[14px] bg-paper pt-5 px-gutter pb-safe-5"
         role="dialog"
         aria-modal="true"
         :aria-labelledby="titleId"
       >
-        <h2 :id="titleId" class="text-xl font-bold text-balance">
+        <h2 :id="titleId" class="shrink-0 text-xl font-bold text-balance">
           <slot name="title">{{ title }}</slot>
         </h2>
-        <div class="text-[15px] leading-[1.45]"><slot /></div>
-        <div ref="buttonRow" class="mt-1 flex flex-col gap-2">
+        <!-- Long content scrolls on its own; title and buttons stay in view. -->
+        <div class="min-h-0 overflow-y-auto text-[15px] leading-[1.45]"><slot /></div>
+        <div ref="buttonRow" class="mt-1 flex shrink-0 flex-col gap-2">
           <button
             v-for="button in buttons"
             :key="button.key"
