@@ -246,6 +246,25 @@ describe('timber item store: removing synced beams', () => {
     expect(store.removedBeams.size).toBe(0)
   })
 
+  it('refuses to discard a removal once a new beam took the tag, and allows it after that beam is removed', () => {
+    const store = useTimberItemStore()
+    const stemId = store.findByTag('789')!.id
+    const old = store.findByTag('789-B')!
+    store.removeTimberItem(old.id)
+    const removal = store.events[0]!
+    expect(store.tagTakenOver(removal)).toBeNull()
+
+    const fresh = store.addBeam(stemId)
+    expect(fresh.tag_number).toBe('789-B')
+    expect(store.tagTakenOver(removal)).toBe('789-B')
+    expect(() => store.discardEntry(removal.id)).toThrow()
+    expect(store.events).toContainEqual(removal)
+
+    store.removeTimberItem(fresh.id)
+    store.discardEntry(removal.id)
+    expect(store.findByTag('789-B')!.id).toBe(old.id)
+  })
+
   it('leaves the queue after the sync and the beam stays gone with the new snapshot', async () => {
     const store = useTimberItemStore()
     const beam = store.findByTag('789-B')!

@@ -131,6 +131,11 @@ const discardedBeamCount = computed(() =>
     : 0,
 )
 
+// Tag of the new beam that blocks discarding a removal; null if the removal can be discarded.
+const blockedTag = computed(() =>
+  toDiscard.value ? store.tagTakenOver(toDiscard.value.event) : null,
+)
+
 function onDiscard() {
   store.discardEntry(toDiscard.value!.event.id)
   toDiscard.value = null
@@ -396,8 +401,8 @@ function onMainButton() {
 
     <ConfirmSheet
       v-if="toDiscard"
-      safe-label="Abbrechen"
-      action-label="Verwerfen"
+      :safe-label="blockedTag ? 'Verstanden' : 'Abbrechen'"
+      :action-label="blockedTag ? undefined : 'Verwerfen'"
       emphasize-action
       @safe="toDiscard = null"
       @action="onDiscard"
@@ -416,8 +421,14 @@ function onMainButton() {
         </template>
         <template v-else>Eintrag verwerfen?</template>
       </template>
-      <p v-if="toDiscard.event.type === 'voided'">
-        Der {{ toDiscard.group.kind }} ist danach wieder da.
+      <p v-if="blockedTag">
+        Der Buchstabe {{ blockedTag.slice(-1) }} ist inzwischen an einen neuen Balken vergeben. Um
+        <FormattedTag :tag-number="blockedTag" /> zurückzuholen, erst den neuen Balken
+        <FormattedTag :tag-number="blockedTag" /> entfernen.
+      </p>
+      <p v-else-if="toDiscard.event.type === 'voided'">
+        Der Balken ist danach wieder da. Der Buchstabe
+        {{ toDiscard.group.tagNumber!.slice(-1) }} ist dann wieder belegt.
       </p>
       <p v-else-if="toDiscard.event.type !== 'created'">
         {{ describe(toDiscard.event, toDiscard.group.kind) }}<br /><template

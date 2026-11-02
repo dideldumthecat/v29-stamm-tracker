@@ -6,8 +6,8 @@ const props = defineProps<{
   title?: string
   // The safe choice (e.g. keep editing): focused first, and what Escape and a tap on the backdrop trigger.
   safeLabel: string
-  // The other choice (e.g. discard, remove, save and open).
-  actionLabel: string
+  // The other choice (e.g. discard, remove, save and open). Without it the sheet only informs.
+  actionLabel?: string
   // The action is the expected one: it gets the filled button instead of the safe choice.
   emphasizeAction?: boolean
 }>()
@@ -20,6 +20,9 @@ const outlined = 'h-14 w-full rounded-lg border-2 border-ink bg-paper text-[17px
 // The filled button stands on top, the outlined one below it. Order in the DOM too, so Tab follows what is seen.
 const buttons = computed(() => {
   const safe = { key: 'safe' as const, label: props.safeLabel, isSafe: true }
+  if (!props.actionLabel) {
+    return [safe]
+  }
   const action = { key: 'action' as const, label: props.actionLabel, isSafe: false }
   return props.emphasizeAction ? [action, safe] : [safe, action]
 })
