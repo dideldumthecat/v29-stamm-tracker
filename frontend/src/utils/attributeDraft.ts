@@ -63,6 +63,11 @@ export function formatValueLine(attribute: Attribute, value: AttributeValue): st
   return attribute.type === 'boolean' ? text : `${attribute.name}: ${text}`
 }
 
+/** "1 Foto" / "3 Fotos", as listed in the leave and remove dialogs. */
+export function formatPhotoCount(count: number): string {
+  return `${count} ${count === 1 ? 'Foto' : 'Fotos'}`
+}
+
 type Parsed = { value: AttributeValue } | { error: string } | undefined
 
 // undefined = nothing entered. Empty input never clears a recorded value (append-only log).
