@@ -9,7 +9,13 @@ import {
 import { PlusIcon, Trash2Icon } from '@lucide/vue'
 import { useTimberItemStore, type TimberItem } from '@/stores/timberItems'
 import type { AttributeValue } from '@/api/contract'
-import { collectDraft, formatValue, formatValueLine, type DraftInput } from '@/utils/attributeDraft'
+import {
+  collectDraft,
+  formatPhotoCount,
+  formatValue,
+  formatValueLine,
+  type DraftInput,
+} from '@/utils/attributeDraft'
 import { attachPhotos } from '@/utils/photo'
 import { bySortOrder } from '@/utils/sort'
 import { MAX_BEAMS } from '@/config/constants'
@@ -286,13 +292,25 @@ function onRemoveRow(row: { tag: string; beam: TimberItem | undefined }) {
   }
 }
 
-// Own recordings only: `store.items` holds no inherited values.
-const ownRecordingCount = computed(
-  () =>
-    Object.values(
-      store.items.find((candidate) => candidate.id === beamToRemove.value?.id)?.values ?? {},
-    ).flat().length,
-)
+// What the remove dialog lists: the beam's own values (`store.items` holds no inherited ones) in the
+// order of the form, then its photos, uploaded or not. Photos are told apart by the attribute type.
+const removeLines = computed(() => {
+  const own = store.items.find((candidate) => candidate.id === beamToRemove.value?.id)?.values ?? {}
+  const values: string[] = []
+  let photoCount = 0
+  for (const attribute of [...store.attributes].sort(bySortOrder)) {
+    const recorded = own[attribute.id] ?? []
+    if (attribute.type === 'photo') {
+      photoCount += recorded.length
+    } else {
+      // Only a series keeps more than its latest value.
+      for (const record of attribute.is_series ? recorded : recorded.slice(-1)) {
+        values.push(formatValueLine(attribute, record.value))
+      }
+    }
+  }
+  return photoCount > 0 ? [...values, formatPhotoCount(photoCount)] : values
+})
 
 async function onRemove() {
   const beam = beamToRemove.value!
@@ -348,7 +366,7 @@ const unsaved = computed(() => {
   return {
     fields: [...values, ...invalid],
     beams: [...draftBeams.value].sort((a, b) => a.localeCompare(b)),
-    photos: photoCount > 0 ? `${photoCount} ${photoCount === 1 ? 'Foto' : 'Fotos'}` : null,
+    photos: photoCount > 0 ? formatPhotoCount(photoCount) : null,
   }
 })
 
@@ -559,15 +577,18 @@ function onDiscard() {
       <template #title>
         Balken <FormattedTag :tag-number="beamToRemove.tag_number!" /> entfernen?
       </template>
+      <template v-if="removeLines.length > 0">
+        <p>Wird mit entfernt:</p>
+        <ul class="mt-1 mb-2 list-disc pl-5">
+          <li v-for="(line, index) in removeLines" :key="index">{{ line }}</li>
+        </ul>
+      </template>
       <p>
-        <template v-if="ownRecordingCount === 1">Seine Angabe wird mit entfernt. </template>
-        <template v-else-if="ownRecordingCount > 1"
-          >Seine {{ ownRecordingCount }} Angaben werden mit entfernt.
-        </template>
         <template v-if="!store.isUnsynced(beamToRemove.id)"
           >Er wird beim nächsten Synchronisieren auch auf dem Server entfernt.
         </template>
-        Der Buchstabe wird wieder frei und kann für einen neuen Balken vergeben werden.
+        Der Buchstabe {{ beamToRemove.tag_number!.slice(-1) }} wird wieder frei und kann für einen
+        neuen Balken vergeben werden.
       </p>
     </ConfirmSheet>
 

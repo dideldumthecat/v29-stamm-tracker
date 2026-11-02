@@ -998,6 +998,75 @@ describe('App', () => {
       expect(useTimberItemStore().findByTag('789-C')).toBeDefined()
     })
 
+    describe('remove dialog', () => {
+      // A stem with the inherited Holzart and one beam; `fill` adds the beam's own data.
+      async function openRemoveDialog(
+        fill: (store: ReturnType<typeof useTimberItemStore>, beamId: string) => void,
+      ) {
+        const store = useTimberItemStore()
+        const stem = store.createTimberItem(1555)
+        const holzart = store.attributes.find((attribute) => attribute.name === 'Holzart')!
+        store.recordAttribute(stem.id, holzart.id, holzart.options[0]!.id)
+        const beam = store.addBeam(stem.id)
+        fill(store, beam.id)
+        const { wrapper } = await mountAt('/timber-item/1555')
+        await wrapper.find('button[aria-label="Balken 1555-A entfernen"]').trigger('click')
+        const dialog = document.body.querySelector('[role="dialog"]')!
+        return {
+          text: dialog.textContent!.replace(/\s+/g, ' '),
+          lines: [...dialog.querySelectorAll('li')].map((li) => li.textContent),
+        }
+      }
+      const attributeId = (store: ReturnType<typeof useTimberItemStore>, name: string) =>
+        store.attributes.find((attribute) => attribute.name === name)!.id
+      const addPhotos = (
+        store: ReturnType<typeof useTimberItemStore>,
+        beamId: string,
+        n: number,
+      ) => {
+        for (let count = 0; count < n; count++) {
+          store.addPhoto(
+            beamId,
+            attributeId(store, 'Fotos'),
+            new NodeBlob(['x']) as unknown as Blob,
+          )
+        }
+      }
+
+      it('lists nothing for a beam without own values, and names the freed letter', async () => {
+        const { text, lines } = await openRemoveDialog(() => {})
+        expect(lines).toEqual([])
+        expect(text).not.toContain('Wird mit entfernt')
+        expect(text).toContain(
+          'Der Buchstabe A wird wieder frei und kann für einen neuen Balken vergeben werden.',
+        )
+      })
+
+      it("lists own values in the order of the form, but not the stem's inherited ones", async () => {
+        const { text, lines } = await openRemoveDialog((store, beamId) => {
+          store.recordAttribute(beamId, attributeId(store, 'Notiz'), 'Riss')
+          store.recordAttribute(beamId, attributeId(store, 'Holzfeuchte'), 41.5)
+          store.recordAttribute(beamId, attributeId(store, 'Holzfeuchte'), 38)
+        })
+        expect(text).toContain('Wird mit entfernt:')
+        expect(lines).toEqual(['Holzfeuchte: 41,5 %', 'Holzfeuchte: 38 %', 'Notiz: Riss'])
+      })
+
+      it('counts photos in one line instead of listing them as values', async () => {
+        expect((await openRemoveDialog((store, id) => addPhotos(store, id, 1))).lines).toEqual([
+          '1 Foto',
+        ])
+      })
+
+      it('lists values, then the photo line', async () => {
+        const { lines } = await openRemoveDialog((store, beamId) => {
+          addPhotos(store, beamId, 3)
+          store.recordAttribute(beamId, attributeId(store, 'Notiz'), 'Riss')
+        })
+        expect(lines).toEqual(['Notiz: Riss', '3 Fotos'])
+      })
+    })
+
     it('removes a synced beam after confirming: it leaves the list, its letter is free', async () => {
       const { wrapper } = await mountAt('/timber-item/789')
       await wrapper.find('button[aria-label="Balken 789-B entfernen"]').trigger('click')
