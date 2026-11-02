@@ -330,19 +330,15 @@ function onKeepEditing() {
   pendingLeave.value = null
 }
 
-// "2 Balken und 1 Änderung": only the parts that exist.
-const discardSummary = computed(() => {
-  const beamCount = draftBeams.value.length
+// What the leave dialog lists: only the parts that exist.
+const unsaved = computed(() => {
   const photoCount = draftPhotos.value.length
   const fieldCount = changes.value.length + Object.keys(collected.value.errors).length
-  const parts = [
-    beamCount > 0 && `${beamCount} Balken`,
-    photoCount > 0 && `${photoCount} ${photoCount === 1 ? 'Foto' : 'Fotos'}`,
-    fieldCount > 0 && `${fieldCount} ${fieldCount === 1 ? 'Änderung' : 'Änderungen'}`,
-  ].filter((part) => part !== false)
-  return parts.length > 1
-    ? `${parts.slice(0, -1).join(', ')} und ${parts[parts.length - 1]}`
-    : parts[0]
+  return {
+    beams: [...draftBeams.value].sort((a, b) => a.localeCompare(b)),
+    photos: photoCount > 0 ? `${photoCount} ${photoCount === 1 ? 'Foto' : 'Fotos'}` : null,
+    fields: fieldCount > 0 ? `${fieldCount} ${fieldCount === 1 ? 'Änderung' : 'Änderungen'}` : null,
+  }
 })
 
 function onDiscard() {
@@ -593,16 +589,23 @@ function onDiscard() {
 
     <ConfirmSheet
       v-if="pendingLeave"
-      :title="`${discardSummary} verwerfen?`"
+      title="Änderungen verwerfen?"
       safe-label="Weiter bearbeiten"
       action-label="Verwerfen"
       @safe="onKeepEditing"
       @action="onDiscard"
     >
-      <p>
-        Deine Eingaben für {{ kind }} <FormattedTag :tag-number="tagNumber" /> sind noch nicht
-        gespeichert.
-      </p>
+      <p>Noch nicht gespeichert für {{ kind }} <FormattedTag :tag-number="tagNumber" />:</p>
+      <ul class="mt-1 list-disc pl-5">
+        <li v-if="unsaved.beams.length > 0">
+          Balken
+          <template v-for="(tag, index) in unsaved.beams" :key="tag"
+            ><template v-if="index > 0">, </template><FormattedTag :tag-number="tag"
+          /></template>
+        </li>
+        <li v-if="unsaved.photos">{{ unsaved.photos }}</li>
+        <li v-if="unsaved.fields">{{ unsaved.fields }}</li>
+      </ul>
     </ConfirmSheet>
   </div>
 </template>
