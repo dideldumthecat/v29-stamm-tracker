@@ -42,13 +42,6 @@ flowchart LR
     Proj -- "2. GET /api/snapshot<br/>state of all logs" --> Store
 ```
 
-## Status
-
-Deployed; first use in the field (at the sawmill) planned for the end of October 2026. Development continues.
-
-- Done: capture app (number pad, logs, attributes, beams with inheritance), offline storage, manual sync, update prompt for new app versions, build identifier on the help page, invite codes, event log with projections, voiding entries by console command, deployment.
-- Next: photos, administration, evaluation and export.
-
 ## Tech stack
 
 | Part | Technology |
