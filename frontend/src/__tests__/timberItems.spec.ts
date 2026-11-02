@@ -827,7 +827,10 @@ describe('timber item store: photos', () => {
     )
     acceptAll()
     emptySnapshot()
-    vi.spyOn(api, 'uploadPhoto').mockRejectedValueOnce(new ApiError(400, 'Bad Request', '<html>'))
+    // The fake API would take 600 ms for every photo other tests left in the shared fake IndexedDB.
+    vi.spyOn(api, 'uploadPhoto')
+      .mockRejectedValueOnce(new ApiError(400, 'Bad Request', '<html>'))
+      .mockResolvedValue()
     const entryFor = async (message: string) =>
       vi.waitFor(async () => {
         const entry = (await loadDiagnostics()).find((candidate) => candidate.message === message)
