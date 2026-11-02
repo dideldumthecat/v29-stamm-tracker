@@ -29,7 +29,7 @@ class TimberItemEvent
      * @param Uuid                 $id           generated on the device, makes resending harmless
      * @param Uuid                 $timberItemId no foreign key: timber_items is a projection of these events
      * @param array<string, mixed> $data         payload per type, see Event in contract.ts
-     * @param Uuid|null            $referenceId  the event a "corrected" or "voided" event refers to
+     * @param Uuid|null            $referenceId  the event a "voided" or "restored" event refers to
      * @param \DateTimeImmutable   $receivedAt   strictly increasing within a sync, see SyncController
      */
     public function __construct(
