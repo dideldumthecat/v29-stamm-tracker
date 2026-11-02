@@ -38,6 +38,15 @@ class ApiTest extends WebTestCase
     private const FOTOS = 'c8bcdbf8-6f14-46e2-b82d-b6962ba1ae10';
     private const STIELEICHE = '8b2b5909-3247-4abe-8604-08909006f9e9';
 
+    /** Keys of the fixture attributes by name. */
+    private const KEYS = ['Gesägt' => 'sawn', 'Notiz' => 'notes', 'Fotos' => 'photos'];
+    private const EXPORT_ONLY = [
+        ['Stammmittendurchmesser groß', 'mid_diameter_max', AttributeType::Number],
+        ['Stammmittendurchmesser klein', 'mid_diameter_min', AttributeType::Number],
+        ['Länge', 'length', AttributeType::Choice],
+        ['Gesägter Querschnitt', 'sawn_cross_section', AttributeType::Choice],
+    ];
+
     private KernelBrowser $client;
     private EntityManagerInterface $em;
 
@@ -52,11 +61,16 @@ class ApiTest extends WebTestCase
         }
         foreach ($snapshot['attributes'] as $a) {
             $attribute = new Attribute($a['name'], AttributeType::from($a['type']), $a['description'], $a['unit'], $a['is_series'],
-                $a['is_inheritable'], $a['sort_order'], $a['active'], Uuid::fromString($a['id']));
+                $a['is_inheritable'], $a['sort_order'], $a['active'], Uuid::fromString($a['id']), self::KEYS[$a['name']] ?? null);
             $this->em->persist($attribute);
             foreach ($a['options'] as $o) {
                 $this->em->persist(new AttributeOption($attribute, $o['label'], $o['sort_order'], $o['active'], Uuid::fromString($o['id'])));
             }
+        }
+        // Keys are not part of the contract, so they are not in the fixture. Like in production, the attributes the export
+        // refers to have one; the rest are only here for the export, after the fixture attributes.
+        foreach (self::EXPORT_ONLY as $order => [$name, $key, $type]) {
+            $this->em->persist(new Attribute($name, $type, sortOrder: 1000 + $order, key: $key));
         }
         $this->em->flush();
     }
@@ -432,7 +446,8 @@ class ApiTest extends WebTestCase
         self::assertSame(array_keys($expected), array_keys($snapshot));
         self::assertMatchesRegularExpression('/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/', $snapshot['generated_at']);
         self::assertEqualsCanonicalizing($expected['users'], $snapshot['users']);
-        self::assertSame($expected['attributes'], $snapshot['attributes']);
+        // Without the attributes setUp() adds for the export.
+        self::assertSame($expected['attributes'], \array_slice($snapshot['attributes'], 0, \count($expected['attributes'])));
 
         $items = array_column($snapshot['timber_items'], null, 'id');
         self::assertSame(array_keys($expected['timber_items'][0]), array_keys($items[self::ITEM_123]));
@@ -613,7 +628,7 @@ class ApiTest extends WebTestCase
         return $tester;
     }
 
-    /** @return list<string> tags in the Excel export, in plaque format */
+    /** @return list<string> tags on the sheets "Stämme" and "Balken" of the Excel export, in plaque format */
     private function exportedTags(): array
     {
         $file = tempnam(sys_get_temp_dir(), 'export').'.xlsx';
@@ -622,14 +637,19 @@ class ApiTest extends WebTestCase
         $reader->open($file);
         $tags = [];
         foreach ($reader->getSheetIterator() as $sheet) {
-            foreach ($sheet->getRowIterator() as $row) {
-                $tags[] = $row->toArray()[0];
+            if ('Hinweise' === $sheet->getName()) {
+                continue;
+            }
+            foreach ($sheet->getRowIterator() as $index => $row) {
+                if ($index > 1) {
+                    $tags[] = $row->toArray()[0];
+                }
             }
         }
         $reader->close();
         unlink($file);
 
-        return \array_slice($tags, 1);
+        return $tags;
     }
 
     public function testARestoredBeamReturnsToSnapshotAndExportAndLocksItsStemAgain(): void
