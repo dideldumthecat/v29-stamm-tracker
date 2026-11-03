@@ -35,7 +35,7 @@ final class TimberReport
     private array $options = [];
     /** @var array<string, string> */
     private array $users = [];
-    /** @var array<string, string> */
+    /** @var array<string, array{0: string, 1: string}> received_at and user id of the last own event, by item id */
     private array $changed = [];
     /** @var array<string, ?string> */
     private array $tags = [];
@@ -125,9 +125,10 @@ final class TimberReport
             $this->users[$user->id->toRfc4122()] = $user->name;
         }
         // Own events only: a beam does not show a later change of a value inherited from its stem.
+        // Same order as the projections (received_at, then id), so the last row per item wins and ties are decided the same way every time.
         $this->changed = [];
-        foreach ($this->em->getConnection()->fetchAllNumeric('SELECT timber_item_id, MAX(received_at) FROM timber_item_events GROUP BY timber_item_id') as [$itemId, $receivedAt]) {
-            $this->changed[Uuid::fromBinary($itemId)->toRfc4122()] = $receivedAt;
+        foreach ($this->em->getConnection()->fetchAllNumeric('SELECT timber_item_id, received_at, user_id FROM timber_item_events ORDER BY received_at, id') as [$itemId, $receivedAt, $userId]) {
+            $this->changed[Uuid::fromBinary($itemId)->toRfc4122()] = [$receivedAt, Uuid::fromBinary($userId)->toRfc4122()];
         }
     }
 
@@ -196,10 +197,11 @@ final class TimberReport
         $photos = $this->key['photos'];
 
         return [
+            [$notes->name, null, \sprintf('Alle „%s“-Einträge %s, durch Zeilenumbruch getrennt', $notes->name, $whose), fn (TimberItem $item) => implode("\n", array_map(fn (array $record) => $this->text($notes, $record['value']), $this->records($item, $notes))) ?: null],
             ['Angelegt am', self::DATE_TIME, 'Zeitpunkt, zu dem der Eintrag in der App angelegt wurde (Gerätezeit, Europa/Berlin)', fn (TimberItem $item) => $item->createdAt->setTimezone($this->berlin)],
             ['Angelegt von', null, 'Person, die den Eintrag angelegt hat', fn (TimberItem $item) => $this->users[$item->createdBy->toRfc4122()] ?? null],
-            ['Zuletzt geändert am', self::DATE_TIME, 'Eingang des letzten eigenen Ereignisses beim Server (Europa/Berlin); eine spätere Änderung am Stamm zählt bei Balken nicht', fn (TimberItem $item) => $dateTime($this->changed[$item->id->toRfc4122()] ?? null)],
-            [$notes->name, null, \sprintf('Alle „%s“-Einträge %s, durch Zeilenumbruch getrennt', $notes->name, $whose), fn (TimberItem $item) => implode("\n", array_map(fn (array $record) => $this->text($notes, $record['value']), $this->records($item, $notes))) ?: null],
+            ['Zuletzt geändert am', self::DATE_TIME, 'Eingang des letzten eigenen Ereignisses beim Server (Europa/Berlin); eine spätere Änderung am Stamm zählt bei Balken nicht', fn (TimberItem $item) => $dateTime($this->changed[$item->id->toRfc4122()][0] ?? null)],
+            ['Zuletzt geändert von', null, 'Person, die das Ereignis von „Zuletzt geändert am“ erzeugt hat; eine spätere Änderung am Stamm zählt bei Balken nicht', fn (TimberItem $item) => $this->users[$this->changed[$item->id->toRfc4122()][1] ?? ''] ?? null],
             ['Anzahl Fotos', null, \sprintf('Anzahl der „%s“ %s', $photos->name, $whose), fn (TimberItem $item) => \count($this->records($item, $photos))],
             [self::PHOTO_IDS, null, \sprintf('IDs der „%s“ %s, durch Komma getrennt', $photos->name, $whose), fn (TimberItem $item) => implode(', ', array_column($this->records($item, $photos), 'value')) ?: null],
         ];

@@ -247,6 +247,45 @@ class TimberReportTest extends KernelTestCase
         self::assertNotNull($beam);
     }
 
+    public function testLastChangedByIsTheAuthorOfTheLastOwnEvent(): void
+    {
+        $this->attributes();
+        $this->em->persist($anna = new User('Anna', UserRole::User, User::hashToken('a')));
+        $stem = $this->item('30');
+        $beam = $this->item('30-A', $stem);
+        $tie = $this->item('31');
+        $none = $this->item('32');
+        $late = new \DateTimeImmutable('2026-10-21 08:00:00 UTC');
+        $attribute = $this->attribute['notes']->id->toRfc4122();
+        $this->em->persist(new TimberItemEvent(Uuid::v7(), $stem, EventType::AttributeRecorded, ['attribute_id' => $attribute, 'value' => 'x'], $late, $anna, null, $late));
+        // Same received_at: the event with the higher id wins, as in the projections.
+        $this->em->persist(new TimberItemEvent(Uuid::fromString('00000000-0000-7000-8000-000000000001'), $tie, EventType::AttributeRecorded, ['attribute_id' => $attribute, 'value' => 'a'], $late, $this->user, null, $late));
+        $this->em->persist(new TimberItemEvent(Uuid::fromString('00000000-0000-7000-8000-000000000002'), $tie, EventType::AttributeRecorded, ['attribute_id' => $attribute, 'value' => 'b'], $late, $anna, null, $late));
+
+        $report = $this->build();
+
+        $stems = $this->table($report->stems);
+        self::assertSame(['Anna', '2026-10-21 10:00'], [$stems['00030']['Zuletzt geändert von'], $stems['00030']['Zuletzt geändert am']->format('Y-m-d H:i')]);
+        self::assertSame('Anna', $stems['00031']['Zuletzt geändert von']);
+        self::assertSame('Kerstin', $this->table($report->beams)['00030-A']['Zuletzt geändert von'], 'own events only');
+        self::assertNotNull($beam);
+        self::assertNotNull($none);
+    }
+
+    public function testClosingColumnsHaveTheSameOrderOnBothSheets(): void
+    {
+        $this->attributes();
+        $this->item('33');
+
+        $report = $this->build();
+
+        $closing = ['Notiz', 'Angelegt am', 'Angelegt von', 'Zuletzt geändert am', 'Zuletzt geändert von', 'Anzahl Fotos', 'Foto-IDs'];
+        foreach ([$report->stems, $report->beams] as $sheet) {
+            self::assertSame($closing, \array_slice($sheet->headers, -\count($closing)));
+        }
+        self::assertSame($closing, array_slice(array_column(array_filter($report->notes->rows, static fn (array $row) => 'Balken' === $row[0]), 1), -\count($closing)));
+    }
+
     public function testVoidedItemsAreMissing(): void
     {
         $this->attributes();
