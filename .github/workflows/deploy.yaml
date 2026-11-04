@@ -39,6 +39,12 @@ jobs:
           npm ci
           npm run build
 
+      # Equal identifiers across deploys = the phones get no app update.
+      - name: Write build identifier to summary
+        working-directory: frontend/app
+        run: |
+          echo "App build: \`$(node build-id.ts)\` · commit: \`$GITHUB_SHA\`" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Prepare SSH
         env:
           KNOWN_HOST_KEY: ${{ secrets.KNOWN_HOST_KEY }}

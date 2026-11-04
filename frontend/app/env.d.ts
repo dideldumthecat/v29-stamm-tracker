@@ -6,7 +6,5 @@ interface ImportMetaEnv {
   readonly VITE_API?: 'fake'
 }
 
-/** Short commit hash at build time, "-dirty" with uncommitted changes; null without git (vite.config.ts). */
-declare const __APP_REVISION__: string | null
-/** Build time as ISO timestamp (vite.config.ts). */
-declare const __APP_BUILD_TIME__: string
+/** Short content hash of the app files (vite.config.ts). */
+declare const __APP_BUILD__: string

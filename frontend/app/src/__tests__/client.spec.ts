@@ -18,9 +18,7 @@ describe('real API client', () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(2)
     for (const [, init] of fetchMock.mock.calls as unknown as [string, RequestInit][]) {
-      expect((init.headers as Record<string, string>)['X-App-Build']).toMatch(
-        /^\S* ?\d{4}-\d\d-\d\dT\d\d:\d\d$/,
-      )
+      expect((init.headers as Record<string, string>)['X-App-Build']).toMatch(/^[0-9a-f]{8}$/)
     }
   })
 })
