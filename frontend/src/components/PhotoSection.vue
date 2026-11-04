@@ -20,12 +20,23 @@ const props = defineProps<{
   busy: boolean
 }>()
 // `add`: the files from the camera (one) or the gallery (any number).
-const emit = defineEmits<{ add: [files: File[]]; remove: [photoId: string] }>()
+const emit = defineEmits<{
+  add: [files: File[]]
+  remove: [photoId: string]
+  // The system camera or library is open (true) or has answered (false); the page may be reloaded meanwhile.
+  picker: [open: boolean]
+}>()
 
 const camera = useTemplateRef<HTMLInputElement>('camera')
 const gallery = useTemplateRef<HTMLInputElement>('gallery')
 
+function open(input: HTMLInputElement | null) {
+  emit('picker', true)
+  input?.click()
+}
+
 function onChange(input: HTMLInputElement | null) {
+  emit('picker', false)
   const files = [...(input?.files ?? [])]
   if (files.length > 0) {
     emit('add', files)
@@ -82,6 +93,7 @@ const captureButton =
         capture="environment"
         class="hidden"
         @change="onChange(camera)"
+        @cancel="emit('picker', false)"
       />
       <input
         ref="gallery"
@@ -90,6 +102,7 @@ const captureButton =
         multiple
         class="hidden"
         @change="onChange(gallery)"
+        @cancel="emit('picker', false)"
       />
     </template>
 
@@ -148,7 +161,7 @@ const captureButton =
           type="button"
           :class="[captureButton, beside ? 'px-1 text-sm' : 'min-h-[72px] px-2 text-base']"
           :disabled="busy"
-          @click="camera?.click()"
+          @click="open(camera)"
         >
           <CameraIcon :size="22" :stroke-width="2.5" aria-hidden="true" />
           Foto aufnehmen
@@ -157,7 +170,7 @@ const captureButton =
           type="button"
           :class="[captureButton, beside ? 'px-1 text-sm' : 'min-h-[72px] px-2 text-base']"
           :disabled="busy"
-          @click="gallery?.click()"
+          @click="open(gallery)"
         >
           <LoaderCircleIcon
             v-if="busy"

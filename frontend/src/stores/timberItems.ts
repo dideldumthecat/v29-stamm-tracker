@@ -77,6 +77,12 @@ export const useTimberItemStore = defineStore('timberItems', () => {
   const isSyncing = ref(false)
   // Between `stopSync()` and the actual end of the sync.
   const isStopping = ref(false)
+  // Set by the timber item screen while it holds input that exists only in memory (fields, photos, beams, a camera
+  // that has not delivered yet). A reload would drop it, and a download would change attributes under it.
+  const isDraftOpen = ref(false)
+  // The single definition of "a reload loses or interrupts nothing"; the automatic app update waits for it.
+  // A photo upload is part of the sync.
+  const isSafeToReload = computed(() => !isDraftOpen.value && !isSyncing.value)
   let syncController: AbortController | undefined
 
   // Writes collected by `inOneTransaction`; null = write each change on its own.
@@ -747,6 +753,8 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     progress,
     isSyncing,
     isStopping,
+    isDraftOpen,
+    isSafeToReload,
     stopSync,
     isEntry,
     lastSyncedAt,

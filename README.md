@@ -256,35 +256,35 @@ Service workers and the camera require HTTPS with a trusted certificate, so phon
 
 ```sh
 brew install cloudflared                          # once
-ddev frontend run build -- --mode share           # new service worker takes over immediately
+ddev frontend run build
 ddev share --provider=cloudflared                 # open the printed address on the phone
 ```
 
-After a new build, reload the page on the phone twice. Restarting `ddev share` yields a new address – a new origin, so local test data on the phone is gone.
+After a new build, close the app on the phone and open it again: the update installs itself. Restarting `ddev share` yields a new address – a new origin, so local test data on the phone is gone.
 
-### Testing the update prompt
+### Testing the automatic update
 
-Once the app is live, new versions reach phones only through the "Neue Version verfügbar" hint, so test it before every release that touches it. Use the regular build (`registerType: 'prompt'`), never the Vite dev server or `--mode share`: both skip the waiting state, so the hint never appears. Every build gets a new build time and therefore a new service worker – no code change is needed to produce an "update".
+New versions reach phones without any action: the new service worker waits (`registerType: 'prompt'`) and the app installs it as soon as nothing would be lost by a reload – no open draft (fields, photos, beams, camera open), no running sync or photo upload (`isSafeToReload` in the store). From the start of the installation until the reload (about a second, at most 4) a full-screen lock "App wird aktualisiert …" blocks all input, so no draft can be begun that the reload would drop. If the reload fails to come (iOS freezes timers in the background), the lock offers a button "Neu laden" and the line "Falls nichts passiert: App schließen und neu öffnen" after 10 seconds, counted from the start of the lock and shown at once when the app returns to the foreground after that time; never earlier, because an early tap would load the old version and start the update again. Afterwards the toast "App aktualisiert" appears once. Test it before every release that touches this. Use the regular build, never the Vite dev server (it skips the waiting state). Every build gets a new build time and therefore a new service worker – no code change is needed to produce an "update".
 
 **Desktop (Chrome)**
 
 1. `ddev frontend run build`, open https://v29-stamm-tracker.ddev.site (without `:5173`), sign in, capture one or two stems without syncing.
 2. DevTools → Application → Service Workers: turn **"Update on reload" off** (otherwise Chrome skips the waiting state).
-3. `ddev frontend run build` again, reload the page once.
+3. Open a stem and enter a value (do not save). `ddev frontend run build` again, reload is not needed: switch to another tab and back.
 4. Check:
-   - The hint appears on the start screen only. On the capture form it does not; going back to start shows it.
-   - The close button hides it.
-   - "Aktualisieren" reloads; the help page shows the new build time.
-   - Pending (unsynced) stems are still there.
+   - The form keeps its input; nothing reloads. The diagnostics log (`client-<day>.log`, kind `update`) records "Update deferred" and "Refresh deferred (draft open)".
+   - After saving or discarding, the lock "App wird aktualisiert …" appears briefly, the app reloads by itself and shows "App aktualisiert" once; the help page shows the new build time and the log "Update applied automatically".
+   - Pending (unsynced) stems are still there. Another restart shows no toast.
 
 **Phone**
 
-1. `ddev frontend run build` (without `--mode share`), then `ddev share --provider=cloudflared`.
+1. `ddev frontend run build`, then `ddev share --provider=cloudflared`.
 2. Open the address on the phone and add the app to the home screen.
 3. Keep `ddev share` running (a restart means a new address and a new origin) and build again.
-4. Close the app completely (swipe it away in the app switcher) and reopen it from the icon – the hint should appear.
+4. With a draft open, take a photo with the system camera: the draft must survive the return. Save it; the lock appears and the app then updates (tap during the lock: nothing reacts; the button must not appear in the normal case). To see the way out, background the app for more than 10 seconds right after the lock appears: on return the button is there at once.
+5. Close the app completely (swipe it away in the app switcher) and reopen it from the icon – it updates on its own and shows "App aktualisiert".
 
-The browser looks for a new service worker only when the app is opened or reloaded. An app left open in the background shows the hint only after it has been closed and reopened.
+The browser looks for a new service worker when the app is opened, returns to the foreground (at most once a minute) and every 60 minutes while open.
 
 ### Mirroring production locally
 
@@ -326,7 +326,7 @@ On the server, `.htaccess` routes `/api/*` and `/admin/*` to Symfony, serves exi
 ### Logs and php.ini (IONOS)
 
 - **Symfony log:** `<REMOTE_PATH>/var/log/prod-YYYY-MM-DD.log`, one file for everything, one file per day, the last 30 are kept, level info and above. It holds one line per `/api` request (from `RequestLogListener`; the router's own "Matched route" lines are left out) – method, path, status, duration, request and response size in bytes (`null` when unknown), user (ID and name), shortened user agent and app build (header `X-App-Build`) – one line per sync (received / new / known / rejected, rejected ones with reason), photo upload (ID, bytes, stored or rejected) and snapshot (number of timber items), and every error with its full context and stack trace, including uncaught exceptions in console commands (handled failures that only print `[ERROR]`, e.g. an unreadable CSV, are not logged). 404 and 405 (bots probing for `/wp-login.php`, `/.env`) are logged as `NOTICE`, not as errors. Requests outside `/api` (the app files) are not logged. The request line holds the path only, never the query string; Symfony's own error and 404/405 messages carry the full address including the query string. Never logged: IP addresses, invite codes, cookies, request and response bodies.
-- **App diagnostics log:** `<REMOTE_PATH>/var/log/client-YYYY-MM-DD.log`, what the app reports about itself (`POST /api/diagnostics`, sent automatically, no button), one JSON object per line, one file per day, the last 30 are kept; these lines are not in `prod-*.log`. Each line is one entry the app recorded on the phone: uncaught errors, failed requests (status, duration, the first 500 characters of an answer that is not JSON), the result of every photo upload (bytes, attempt, `blob_source`: `fresh` = captured since the app started, `stored` = read back from device storage), and steps of a sync and of an update (found, waiting, "Aktualisieren" tapped, new version active). The fields: `kind`, `count` (repeats of the same message while unsent), `device_time` (phone clock), `entry_id`, `user_name`, `app_build` (the build that sent the report, from the header `X-App-Build`), `user_agent`, and the entry's context (`recorded_build`, `route`, `online`, `visible`, `status`, …). `recorded_build` is the build that recorded the entry on the phone; it differs from `app_build` when a newer build sends what an older one recorded. Never contained: attribute values, invite codes, photo contents, URLs with query or hash. Messages are cut at 1,000 characters, other texts at 500.
+- **App diagnostics log:** `<REMOTE_PATH>/var/log/client-YYYY-MM-DD.log`, what the app reports about itself (`POST /api/diagnostics`, sent automatically, no button), one JSON object per line, one file per day, the last 30 are kept; these lines are not in `prod-*.log`. Each line is one entry the app recorded on the phone: uncaught errors, failed requests (status, duration, the first 500 characters of an answer that is not JSON), the result of every photo upload (bytes, attempt, `blob_source`: `fresh` = captured since the app started, `stored` = read back from device storage), and steps of a sync and of an update (found, waiting, deferred, applied automatically, new version active). The fields: `kind`, `count` (repeats of the same message while unsent), `device_time` (phone clock), `entry_id`, `user_name`, `app_build` (the build that sent the report, from the header `X-App-Build`), `user_agent`, and the entry's context (`recorded_build`, `route`, `online`, `visible`, `status`, …). `recorded_build` is the build that recorded the entry on the phone; it differs from `app_build` when a newer build sends what an older one recorded. Never contained: attribute values, invite codes, photo contents, URLs with query or hash. Messages are cut at 1,000 characters, other texts at 500.
 - **PHP errors before Symfony starts:** `<REMOTE_PATH>/var/log/php-errors.log`, set by `public/php.ini`. This file is **not rotated**; delete or truncate it now and then (`: > php-errors.log`).
 - `public/php.ini` exists only on the server (ignored by git, kept by the deploy, blocked in `.htaccess` – `/php.ini` answers 403). For our IONOS contract a `php.ini` applies to its own directory only, not to subfolders ([IONOS: customizing PHP settings](https://www.ionos.com/help/hosting/using-php-for-web-projects/customizing-the-php-settings-using-the-phpini-file/)). The documentation does not say whether the file adds to or replaces the default settings, so the template repeats the upload limits. Create it once from the template; the `var/log` folder must exist for PHP to write there:
 

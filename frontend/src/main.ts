@@ -5,6 +5,7 @@ import { createPinia } from 'pinia'
 
 import App from './App.vue'
 import router from './router'
+import { useToast } from './composables/useToast'
 import { useTimberItemStore } from './stores/timberItems'
 import { requestStoragePersistence } from './composables/useStoragePersistence'
 import { startAutoRefresh } from './composables/useAutoRefresh'
@@ -18,7 +19,7 @@ const app = createApp(App)
 app.use(createPinia())
 
 captureErrors(app)
-recordBuildChange()
+const isUpdated = recordBuildChange()
 requestStoragePersistence()
 
 // The router runs its first navigation on install, and its guards need the stored state.
@@ -28,6 +29,9 @@ useTimberItemStore()
     () => {
       app.use(router)
       app.mount('#app')
+      if (isUpdated) {
+        useToast().show({ before: 'App aktualisiert', centered: true })
+      }
       startAutoRefresh()
       startDiagnosticsSending()
     },

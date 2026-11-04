@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref } from 'vue'
+import { computed, nextTick, onUnmounted, ref, watchEffect } from 'vue'
 import {
   onBeforeRouteLeave,
   onBeforeRouteUpdate,
@@ -183,6 +183,18 @@ async function onSave() {
 // --- Photos --------------------------------------------------------------
 // Taken or picked photos are compressed and join the draft; they are stored with "Speichern & schließen".
 const isCompressing = ref(false)
+
+// Camera or library open: the page may be reloaded by the system meanwhile, and the photo is not in the draft yet.
+// Without `cancel` support the flag stays until the screen closes, which only delays an update.
+const isPicking = ref(false)
+
+// Tells the store, so the automatic app update and snapshot download wait for the draft.
+watchEffect(() => {
+  store.isDraftOpen = isDirty.value || isCompressing.value || isPicking.value
+})
+onUnmounted(() => {
+  store.isDraftOpen = false
+})
 
 async function onAddPhotos(attributeId: string, files: File[]) {
   isCompressing.value = true
@@ -538,6 +550,7 @@ function onDiscard() {
           :can-capture="attribute.active && !isSplit"
           :busy="isCompressing"
           @add="onAddPhotos(attribute.id, $event)"
+          @picker="isPicking = $event"
           @remove="photoToRemove = $event"
         />
       </template>

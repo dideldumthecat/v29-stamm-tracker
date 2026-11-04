@@ -1,8 +1,17 @@
 import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from 'vitest'
+import { nextTick } from 'vue'
+import { ref } from 'vue'
+import { createPinia, setActivePinia } from 'pinia'
+import { useTimberItemStore } from '@/stores/timberItems'
 import {
   APPLY_UPDATE_TIMEOUT_MS,
   applyUpdate,
   checkForUpdateNow,
+  installWhenSafe,
+  isInstalling,
+  isLockStuck,
+  LOCK_ESCAPE_MS,
+  reloadFromLock,
   MIN_UPDATE_CHECK_INTERVAL_MS,
   RELOAD_GRACE_MS,
   UPDATE_CHECK_PERIOD_MS,
@@ -149,6 +158,8 @@ describe('applying a waiting update', () => {
   }
 
   beforeEach(() => {
+    isInstalling.value = false
+    isLockStuck.value = false
     vi.useFakeTimers()
     waiting = Object.assign(new EventTarget(), { state: 'installed' })
     updateServiceWorker = vi.fn<(reloadPage?: boolean) => Promise<void>>().mockResolvedValue()
@@ -165,6 +176,10 @@ describe('applying a waiting update', () => {
     stop()
     vi.useRealTimers()
     vi.unstubAllGlobals()
+  })
+
+  it('blocks the app from the start of the installation', () => {
+    expect(isInstalling.value).toBe(true)
   })
 
   it('asks the plugin to activate the worker', () => {
@@ -186,9 +201,120 @@ describe('applying a waiting update', () => {
     expect(reload).toHaveBeenCalledTimes(1)
   })
 
+  describe('lock escape', () => {
+    it('shows nothing during the normal installation', () => {
+      vi.advanceTimersByTime(LOCK_ESCAPE_MS - 1)
+      expect(isLockStuck.value).toBe(false)
+    })
+
+    it('shows the way out after 10 seconds', () => {
+      vi.advanceTimersByTime(LOCK_ESCAPE_MS)
+      expect(isLockStuck.value).toBe(true)
+    })
+
+    it('shows it at once on return from the background if the time is up', () => {
+      // The clock moves on, but the frozen timer never fires.
+      vi.setSystemTime(Date.now() + LOCK_ESCAPE_MS)
+      expect(isLockStuck.value).toBe(false)
+      document.dispatchEvent(new Event('visibilitychange'))
+      expect(isLockStuck.value).toBe(true)
+    })
+
+    it('does not show it on return from the background before the time is up', () => {
+      vi.setSystemTime(Date.now() + LOCK_ESCAPE_MS - 1)
+      document.dispatchEvent(new Event('visibilitychange'))
+      expect(isLockStuck.value).toBe(false)
+    })
+
+    it('reloads on the button even after the timeout fallback has used up its own reload', () => {
+      vi.advanceTimersByTime(APPLY_UPDATE_TIMEOUT_MS + RELOAD_GRACE_MS)
+      expect(reload).toHaveBeenCalledTimes(1)
+      reloadFromLock()
+      vi.advanceTimersByTime(RELOAD_GRACE_MS)
+      expect(reload).toHaveBeenCalledTimes(2)
+    })
+  })
+
   it('reloads only once when both happen', () => {
     setState('activated')
     vi.advanceTimersByTime(APPLY_UPDATE_TIMEOUT_MS + RELOAD_GRACE_MS)
     expect(reload).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('installing an update in a safe state', () => {
+  let needRefresh: ReturnType<typeof ref<boolean>>
+  let updateServiceWorker: Mock<(reloadPage?: boolean) => Promise<void>>
+  let stop: () => void
+
+  function start(waiting: boolean) {
+    needRefresh.value = waiting
+    stop = installWhenSafe(needRefresh as never, updateServiceWorker)
+  }
+
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    isInstalling.value = false
+    needRefresh = ref(false)
+    updateServiceWorker = vi.fn<(reloadPage?: boolean) => Promise<void>>().mockResolvedValue()
+    vi.stubGlobal('location', { reload: vi.fn() })
+  })
+
+  afterEach(() => {
+    stop()
+    vi.unstubAllGlobals()
+  })
+
+  it('installs at once when the update already waits at start', () => {
+    start(true)
+    expect(isInstalling.value).toBe(true)
+    expect(updateServiceWorker).toHaveBeenCalledWith(true)
+  })
+
+  it('installs at once when an update arrives in a safe state', async () => {
+    start(false)
+    needRefresh.value = true
+    await nextTick()
+    expect(updateServiceWorker).toHaveBeenCalledTimes(1)
+  })
+
+  it('does nothing without a waiting update', async () => {
+    start(false)
+    useTimberItemStore().isDraftOpen = true
+    useTimberItemStore().isDraftOpen = false
+    await nextTick()
+    expect(updateServiceWorker).not.toHaveBeenCalled()
+  })
+
+  it('waits while a draft is open and installs when it is closed', async () => {
+    const store = useTimberItemStore()
+    store.isDraftOpen = true
+    start(true)
+    await nextTick()
+    expect(updateServiceWorker).not.toHaveBeenCalled()
+    expect(isInstalling.value).toBe(false)
+    store.isDraftOpen = false
+    await nextTick()
+    expect(updateServiceWorker).toHaveBeenCalledTimes(1)
+  })
+
+  it('waits while a sync runs and installs when it has ended', async () => {
+    const store = useTimberItemStore()
+    store.isSyncing = true
+    start(true)
+    await nextTick()
+    expect(updateServiceWorker).not.toHaveBeenCalled()
+    store.isSyncing = false
+    await nextTick()
+    expect(updateServiceWorker).toHaveBeenCalledTimes(1)
+  })
+
+  it('installs only once', async () => {
+    const store = useTimberItemStore()
+    start(true)
+    store.isDraftOpen = true
+    store.isDraftOpen = false
+    await nextTick()
+    expect(updateServiceWorker).toHaveBeenCalledTimes(1)
   })
 })

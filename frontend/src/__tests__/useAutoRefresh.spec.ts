@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { nextTick } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
 import { useTimberItemStore } from '@/stores/timberItems'
 import { MIN_REFRESH_INTERVAL_MS, startAutoRefresh } from '@/composables/useAutoRefresh'
@@ -92,6 +93,54 @@ describe('automatic refresh', () => {
     online = true
     setVisibility('visible')
     expect(refresh).toHaveBeenCalledTimes(1)
+  })
+
+  describe('with a draft open', () => {
+    it('does not download, not on start and not on return', () => {
+      useTimberItemStore().isDraftOpen = true
+      stop = startAutoRefresh()
+      vi.advanceTimersByTime(MIN_REFRESH_INTERVAL_MS)
+      setVisibility('visible')
+      expect(refresh).not.toHaveBeenCalled()
+    })
+
+    it('downloads once when the draft is closed, ignoring the minimum interval', async () => {
+      const store = useTimberItemStore()
+      stop = startAutoRefresh()
+      vi.advanceTimersByTime(MIN_REFRESH_INTERVAL_MS)
+      store.isDraftOpen = true
+      setVisibility('visible')
+      setVisibility('visible')
+      await nextTick()
+      expect(refresh).toHaveBeenCalledTimes(1)
+      store.isDraftOpen = false
+      await nextTick()
+      expect(refresh).toHaveBeenCalledTimes(2)
+      store.isDraftOpen = true
+      store.isDraftOpen = false
+      await nextTick()
+      expect(refresh).toHaveBeenCalledTimes(2)
+    })
+
+    it('catches up nothing if no download was held back', async () => {
+      const store = useTimberItemStore()
+      stop = startAutoRefresh()
+      store.isDraftOpen = true
+      await nextTick()
+      store.isDraftOpen = false
+      await nextTick()
+      expect(refresh).toHaveBeenCalledTimes(1)
+    })
+
+    it('does not catch up a return that the minimum interval would have skipped anyway', async () => {
+      const store = useTimberItemStore()
+      stop = startAutoRefresh()
+      store.isDraftOpen = true
+      setVisibility('visible')
+      store.isDraftOpen = false
+      await nextTick()
+      expect(refresh).toHaveBeenCalledTimes(1)
+    })
   })
 
   it('stops listening after cleanup', () => {
