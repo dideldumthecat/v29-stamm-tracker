@@ -7,7 +7,7 @@ use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * A configurable attribute ("Merkmal"), see Attribute in frontend/src/api/contract.ts.
+ * A configurable attribute ("Merkmal"), see Attribute in frontend/shared/contract.ts.
  * Never deleted, only deactivated: old values must stay displayable.
  *
  * The optional key is how code and console commands refer to an attribute; the name is only for display and may change.

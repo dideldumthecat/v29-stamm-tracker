@@ -3,7 +3,7 @@ import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import ChoiceAttributeField from '@/components/ChoiceAttributeField.vue'
 import { useTimberItemStore } from '@/stores/timberItems'
-import type { AttributeValueRecord } from '@/api/contract'
+import type { AttributeValueRecord } from '@v29/shared/contract'
 
 // Fixture: the first choice attribute (Holzart) has one inactive option (Roteiche).
 function setup(recordedOptionId?: string) {

@@ -13,7 +13,7 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\BrowserKit\Cookie;
 
 /**
- * The fixture in frontend/src/api/fixtures is the expectation for a valid report.
+ * The fixture in frontend/shared/fixtures is the expectation for a valid report.
  */
 class DiagnosticsTest extends WebTestCase
 {
@@ -37,7 +37,7 @@ class DiagnosticsTest extends WebTestCase
 
     private static function fixture(): array
     {
-        return json_decode(file_get_contents(__DIR__.'/../../../frontend/src/api/fixtures/diagnostics-request.json'), true, flags: \JSON_THROW_ON_ERROR);
+        return json_decode(file_get_contents(__DIR__.'/../../../frontend/shared/fixtures/diagnostics-request.json'), true, flags: \JSON_THROW_ON_ERROR);
     }
 
     private function report(array $body, string $build = 'abc1234 2026-10-31T10:00'): void

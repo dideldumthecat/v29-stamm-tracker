@@ -15,7 +15,7 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * DiagnosticsRequest in frontend/src/api/contract.ts. The reports of the app go to the Monolog channel "client"
+ * DiagnosticsRequest in frontend/shared/contract.ts. The reports of the app go to the Monolog channel "client"
  * (its own file in production), one line per entry, nothing to the database.
  */
 final class DiagnosticsController extends AbstractController

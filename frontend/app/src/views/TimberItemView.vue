@@ -8,7 +8,7 @@ import {
 } from 'vue-router'
 import { PlusIcon, Trash2Icon } from '@lucide/vue'
 import { useTimberItemStore, type TimberItem } from '@/stores/timberItems'
-import type { AttributeValue } from '@/api/contract'
+import type { AttributeValue } from '@v29/shared/contract'
 import {
   collectDraft,
   formatPhotoCount,

@@ -5,7 +5,7 @@ Vorlage für die Vue-Komponenten, keine Logik.
 
 ## Dateien
 - `app.css` – Tailwind-Einstieg: Farben, Schrift, eigene Hilfsklassen, Grundstile.
-  Wird später zu `frontend/src/assets/main.css`.
+  Wird später zu `frontend/app/src/assets/main.css`.
 - `build.css` – daraus generiertes CSS, nur damit sich die HTML-Dateien direkt im Browser öffnen lassen. Nicht bearbeiten.
 - `01-start.html` … `08-dialoge.html` – je ein Screen.
 

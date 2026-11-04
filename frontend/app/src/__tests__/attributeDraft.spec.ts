@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import type { Attribute, AttributeType, AttributeValueRecord } from '@/api/contract'
+import type { Attribute, AttributeType, AttributeValueRecord } from '@v29/shared/contract'
 import { collectDraft, parseNumber } from '@/utils/attributeDraft'
 import { formatDate, formatMonth } from '@/utils/date'
 

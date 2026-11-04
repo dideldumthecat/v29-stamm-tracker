@@ -3,7 +3,7 @@
 namespace App\Entity;
 
 /**
- * Same values as AttributeType in frontend/src/api/contract.ts.
+ * Same values as AttributeType in frontend/shared/contract.ts.
  */
 enum AttributeType: string
 {

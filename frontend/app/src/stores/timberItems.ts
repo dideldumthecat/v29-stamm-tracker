@@ -14,7 +14,7 @@ import type {
   TimberItem,
   Timestamp,
   Uuid,
-} from '@/api/contract'
+} from '@v29/shared/contract'
 import { api, ApiError, describeFailure, type User } from '@/api/client'
 import {
   load as loadStored,
@@ -30,7 +30,12 @@ import { SYNC_TIMEOUT_MS } from '@/config/constants'
 import { nextBeamTag } from '@/utils/tag'
 
 // The app uses the contract types directly (snake_case, as on the wire) – no second model, no mapper.
-export type { Attribute, AttributeOption, AttributeValueRecord, TimberItem } from '@/api/contract'
+export type {
+  Attribute,
+  AttributeOption,
+  AttributeValueRecord,
+  TimberItem,
+} from '@v29/shared/contract'
 export type { User } from '@/api/client'
 export type { StoredPhoto } from '@/persistence/database'
 

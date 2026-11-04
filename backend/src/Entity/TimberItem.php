@@ -8,7 +8,7 @@ use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * Projection of timber_item_events, see TimberItem in frontend/src/api/contract.ts.
+ * Projection of timber_item_events, see TimberItem in frontend/shared/contract.ts.
  * Written only by TimberItemProjector, read-only everywhere else.
  */
 #[ORM\Entity(readOnly: true)]

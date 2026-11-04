@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { Blob as NodeBlob } from 'node:buffer'
 import { load, save } from '@/persistence/database'
-import syncRequest from '@/api/fixtures/sync-request.json'
-import type { Event } from '@/api/contract'
+import syncRequest from '@v29/shared/fixtures/sync-request.json'
+import type { Event } from '@v29/shared/contract'
 
 describe('device storage', () => {
   it('starts empty and keeps the queue order across saves', async () => {

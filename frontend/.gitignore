@@ -30,8 +30,8 @@ coverage
 .eslintcache
 
 # Cypress
-/cypress/videos/
-/cypress/screenshots/
+cypress/videos/
+cypress/screenshots/
 
 # Vitest
 __screenshots__/
@@ -40,7 +40,7 @@ __screenshots__/
 *.timestamp-*-*.mjs
 
 # Playwright
-/test-results/
-/playwright-report/
-/blob-report/
-/playwright/.cache/
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/

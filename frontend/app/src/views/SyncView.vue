@@ -10,7 +10,7 @@ import {
   XIcon,
 } from '@lucide/vue'
 import { ApiError } from '@/api/client'
-import type { Event } from '@/api/contract'
+import type { Event } from '@v29/shared/contract'
 import { useTimberItemStore, type StoredPhoto, type SyncResult } from '@/stores/timberItems'
 import { checkForUpdateNow } from '@/composables/useUpdateCheck'
 import { formatValueLine } from '@/utils/attributeDraft'

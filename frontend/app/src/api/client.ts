@@ -10,10 +10,10 @@ import type {
   SessionResponse,
   Snapshot,
   SyncResponse,
-} from '@/api/contract'
+} from '@v29/shared/contract'
 // JSON imports are typed loosely (type: string instead of 'choice' | …), hence the casts.
-import snapshotFixture from '@/api/fixtures/snapshot.json'
-import sessionFixture from '@/api/fixtures/session-response.json'
+import snapshotFixture from '@v29/shared/fixtures/snapshot.json'
+import sessionFixture from '@v29/shared/fixtures/session-response.json'
 import { APP_BUILD } from '@/config/constants'
 import { record } from '@/diagnostics/record'
 
