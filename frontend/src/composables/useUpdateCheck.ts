@@ -139,7 +139,7 @@ export function installWhenSafe(
         applyUpdate(updateServiceWorker)
       } else {
         void record('info', 'update', 'Update deferred', {
-          reason: store.isSyncing ? 'sync' : 'draft',
+          reason: store.isSyncing ? 'sync' : store.isDraftOpen ? 'draft' : 'write',
         })
       }
     },
