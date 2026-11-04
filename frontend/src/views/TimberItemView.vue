@@ -284,12 +284,11 @@ function onBeamLink(event: MouseEvent, tag: string, navigate: (event: MouseEvent
   }
 }
 
-async function onSaveAndOpen() {
-  const tag = beamToOpen.value!
+// Only saves and stays: the beam is a normal link now, opened by tapping it again.
+async function onSaveBeforeOpen() {
   beamToOpen.value = null
   if (await saveDraft()) {
     toast.show({ before: kind.value, tagNumber: props.tagNumber, after: 'gespeichert' })
-    await router.push({ name: 'timber-item', params: { tagNumber: tag } })
   }
 }
 
@@ -609,14 +608,14 @@ function onDiscard() {
       v-if="beamToOpen"
       title="Erst speichern?"
       safe-label="Abbrechen"
-      action-label="Speichern & öffnen"
+      action-label="Speichern"
       emphasize-action
       @safe="beamToOpen = null"
-      @action="onSaveAndOpen"
+      @action="onSaveBeforeOpen"
     >
       <p>
         Dein Stand für {{ kind }} <FormattedTag :tag-number="tagNumber" /> ist noch nicht
-        gespeichert. Der Balken <FormattedTag :tag-number="beamToOpen" /> wird danach geöffnet.
+        gespeichert. Erst danach lässt sich der Balken öffnen.
       </p>
     </ConfirmSheet>
 

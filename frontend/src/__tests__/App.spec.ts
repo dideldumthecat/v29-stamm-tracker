@@ -991,14 +991,14 @@ describe('App', () => {
       expect(useTimberItemStore().events).toEqual([])
     })
 
-    it('asks "Speichern & öffnen" when a draft beam is tapped, without a discard option', async () => {
+    it('asks "Speichern" when a draft beam is tapped, without a discard option', async () => {
       const { wrapper, router } = await mountAt('/timber-item/42')
       buttonByText(/00042-A hinzufügen/).click()
       await flushPromises()
       await wrapper.find('button.flex-1.items-center').trigger('click')
       await flushPromises()
       const dialog = document.body.querySelector('[role="dialog"]')!
-      expect(dialog.textContent).toContain('Speichern & öffnen')
+      expect(dialog.textContent).toContain('Erst danach lässt sich der Balken öffnen')
       expect(dialog.textContent).toContain('Abbrechen')
       expect(dialog.textContent).not.toContain('Verwerfen')
 
@@ -1009,14 +1009,21 @@ describe('App', () => {
       expect(useTimberItemStore().events).toEqual([])
 
       await wrapper.find('button.flex-1.items-center').trigger('click')
-      buttonByText(/Speichern & öffnen/).click()
+      buttonByText(/^Speichern$/).click()
+      await flushPromises()
+      // Only saved: still on the stem, the beam is a plain link now and opens without a question.
+      expect(router.currentRoute.value.params.tagNumber).toBe('42')
+      expect(document.body.textContent).toContain('gespeichert')
+      expect(useTimberItemStore().findByTag('42-A')).toBeDefined()
+      expect(document.body.querySelector('[role="dialog"]')).toBeNull()
+
+      await wrapper.find('a[href="/timber-item/42-A"]').trigger('click')
       await flushPromises()
       expect(router.currentRoute.value.params.tagNumber).toBe('42-A')
-      expect(useTimberItemStore().findByTag('42-A')).toBeDefined()
-      expect(document.body.textContent).not.toContain('verwerfen?')
+      expect(document.body.querySelector('[role="dialog"]')).toBeNull()
     })
 
-    it('asks before opening a saved beam while its stem has a draft, and opens it right away otherwise', async () => {
+    it('asks before opening a saved beam while its stem has a draft, saves, and stays on the stem', async () => {
       const { wrapper, router } = await mountAt('/timber-item/789')
       await wrapper.find('a[href="/timber-item/789-A"]').trigger('click')
       await flushPromises()
@@ -1029,12 +1036,16 @@ describe('App', () => {
       await wrapper.find('a[href="/timber-item/789-A"]').trigger('click')
       await flushPromises()
       expect(router.currentRoute.value.params.tagNumber).toBe('789')
-      expect(document.body.textContent).toContain('Speichern & öffnen')
+      expect(document.body.textContent).toContain('Erst speichern?')
 
-      buttonByText(/Speichern & öffnen/).click()
+      buttonByText(/^Speichern$/).click()
+      await flushPromises()
+      expect(router.currentRoute.value.params.tagNumber).toBe('789')
+      expect(useTimberItemStore().findByTag('789-C')).toBeDefined()
+
+      await wrapper.find('a[href="/timber-item/789-A"]').trigger('click')
       await flushPromises()
       expect(router.currentRoute.value.params.tagNumber).toBe('789-A')
-      expect(useTimberItemStore().findByTag('789-C')).toBeDefined()
     })
 
     describe('remove dialog', () => {
