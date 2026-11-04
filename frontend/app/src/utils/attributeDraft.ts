@@ -1,4 +1,4 @@
-import type { Attribute, AttributeValue, AttributeValueRecord } from '@/api/contract'
+import type { Attribute, AttributeValue, AttributeValueRecord } from '@v29/shared/contract'
 import { formatDate, formatMonth } from '@/utils/date'
 
 /**

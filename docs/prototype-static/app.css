@@ -1,6 +1,6 @@
 /*
  * Tailwind-Einstieg für die Erfassungs-App.
- * Später 1:1 nach frontend/src/assets/main.css übernehmen (Tailwind 4 mit @tailwindcss/vite).
+ * Später 1:1 nach frontend/app/src/assets/main.css übernehmen (Tailwind 4 mit @tailwindcss/vite).
  */
 @import "tailwindcss";
 

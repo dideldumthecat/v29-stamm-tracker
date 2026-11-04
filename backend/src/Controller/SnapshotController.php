@@ -15,7 +15,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
- * Snapshot in frontend/src/api/contract.ts – the same for every user.
+ * Snapshot in frontend/shared/contract.ts – the same for every user.
  */
 final class SnapshotController extends AbstractController
 {

@@ -18,6 +18,6 @@
   "editor.codeActionsOnSave": { "source.fixAll.eslint": "explicit" },
 
   // Tailwind 4: the configuration lives in the CSS entry file
-  "tailwindCSS.experimental.configFile": "frontend/src/assets/main.css",
+  "tailwindCSS.experimental.configFile": "frontend/app/src/assets/main.css",
   "files.associations": { "*.css": "tailwindcss" }
 }

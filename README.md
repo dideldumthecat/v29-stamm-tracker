@@ -57,13 +57,13 @@ flowchart LR
 ```
 .
 ├── backend/     Symfony JSON API under /api, console commands, attribute definitions (data/)
-├── frontend/    Vue capture app; API contract and fixtures in src/api/
+├── frontend/    npm workspace: app/ (Vue capture app), shared/ (API contract and fixtures)
 ├── docs/        clickable prototype and static screens from the design phase
 ├── .ddev/       local development environment
 └── .github/     deployment workflow
 ```
 
-The API contract lives in `frontend/src/api/contract.ts`. Its JSON fixtures serve both as mock data for the app and as expected results in the backend tests, so frontend and backend cannot drift apart unnoticed.
+The API contract lives in `frontend/shared/contract.ts`. Its JSON fixtures (`frontend/shared/fixtures/`) serve both as mock data for the app and as expected results in the backend tests, so frontend and backend cannot drift apart unnoticed.
 
 ## Local development
 
@@ -79,7 +79,7 @@ ddev console app:attributes:import data/attributes.yaml
 ddev frontend run dev
 ```
 
-- App: https://v29-stamm-tracker.ddev.site:5173 – uses a fake API with the fixtures by default; set `VITE_API=` in `frontend/.env.development.local` for the real backend.
+- App: https://v29-stamm-tracker.ddev.site:5173 – uses a fake API with the fixtures by default; set `VITE_API=` in `frontend/app/.env.development.local` for the real backend.
 - API: https://v29-stamm-tracker.ddev.site/api/ping
 
 | Task | Command |

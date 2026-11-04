@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest'
 import { openDB } from 'idb'
 import { addDiagnostic, load, loadDiagnostics } from '@/persistence/database'
 import { createEntry } from '@/diagnostics/record'
-import syncRequest from '@/api/fixtures/sync-request.json'
-import type { Event } from '@/api/contract'
+import syncRequest from '@v29/shared/fixtures/sync-request.json'
+import type { Event } from '@v29/shared/contract'
 
 // Own file: the database is opened once per module, and this test needs the old version first.
 describe('device storage upgrade', () => {

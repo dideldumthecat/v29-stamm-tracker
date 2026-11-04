@@ -21,11 +21,11 @@ use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * The fixtures in frontend/src/api/fixtures are the expectation. Users and attributes come from snapshot.json.
+ * The fixtures in frontend/shared/fixtures are the expectation. Users and attributes come from snapshot.json.
  */
 class ApiTest extends WebTestCase
 {
-    private const FIXTURES = __DIR__.'/../../../frontend/src/api/fixtures/';
+    private const FIXTURES = __DIR__.'/../../../frontend/shared/fixtures/';
     private const KERSTIN = '993955be-5888-4f39-937c-56af8c5187c1';
     private const ALEXANDER = '1634106f-49e1-459f-9b11-bf0cd848292d';
     private const ITEM_123 = '9e12e819-ef6e-45c7-8801-494177724c56';

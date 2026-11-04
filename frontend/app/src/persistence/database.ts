@@ -9,7 +9,7 @@
  * Object store "diagnostics": the app's own error and flow reports until the server has them (src/diagnostics).
  */
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
-import type { DiagnosticEntry, Event, Snapshot, Timestamp, Uuid } from '@/api/contract'
+import type { DiagnosticEntry, Event, Snapshot, Timestamp, Uuid } from '@v29/shared/contract'
 import type { User } from '@/api/client'
 import { DIAGNOSTICS_MAX_AGE_MS, DIAGNOSTICS_MAX_ENTRIES } from '@/config/constants'
 

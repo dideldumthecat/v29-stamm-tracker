@@ -3,7 +3,7 @@ import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import NumberAttributeField from '@/components/NumberAttributeField.vue'
 import { useTimberItemStore } from '@/stores/timberItems'
-import type { AttributeValue } from '@/api/contract'
+import type { AttributeValue } from '@v29/shared/contract'
 
 // Item 123 has Holzfeuchte (series, unit %) recorded as 48.5 (Kerstin, 02.10.) and 41 (Jonas, 16.10.).
 // `series: false` turns the same attribute into a single-value number.

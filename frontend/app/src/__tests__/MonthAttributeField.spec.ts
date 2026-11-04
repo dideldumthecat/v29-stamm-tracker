@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import MonthAttributeField from '@/components/MonthAttributeField.vue'
-import type { AttributeValueRecord } from '@/api/contract'
+import type { AttributeValueRecord } from '@v29/shared/contract'
 import { useTimberItemStore } from '@/stores/timberItems'
 
 const recorded: AttributeValueRecord[] = [

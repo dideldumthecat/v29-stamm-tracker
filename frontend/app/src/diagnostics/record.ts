@@ -7,7 +7,7 @@
  * query or hash. Callers pass counts, ids, statuses and the like.
  */
 import type { App } from 'vue'
-import type { DiagnosticEntry } from '@/api/contract'
+import type { DiagnosticEntry } from '@v29/shared/contract'
 import { APP_BUILD } from '@/config/constants'
 import { addDiagnostic } from '@/persistence/database'
 

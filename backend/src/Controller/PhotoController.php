@@ -23,7 +23,7 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * POST /api/photos and GET /api/photos/{id} in frontend/src/api/contract.ts. Independent of the event sync:
+ * POST /api/photos and GET /api/photos/{id} in frontend/shared/contract.ts. Independent of the event sync:
  * neither the item nor the event that references the photo has to exist yet.
  */
 final class PhotoController extends AbstractController

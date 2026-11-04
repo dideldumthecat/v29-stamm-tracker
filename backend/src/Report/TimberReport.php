@@ -20,7 +20,7 @@ use Symfony\Component\Uid\Uuid;
  */
 final class TimberReport
 {
-    /** As TAG_DIGITS in frontend/src/config/constants.ts. */
+    /** As TAG_DIGITS in frontend/app/src/config/constants.ts. */
     private const TAG_DIGITS = 5;
     private const SERIES_SEPARATOR = ' | ';
     private const REQUIRED_KEYS = ['mid_diameter_max', 'mid_diameter_min', 'length', 'sawn', 'sawn_cross_section', 'notes', 'photos'];

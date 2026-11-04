@@ -23,7 +23,7 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * SyncRequest → SyncResponse in frontend/src/api/contract.ts. All events are checked before anything is
+ * SyncRequest → SyncResponse in frontend/shared/contract.ts. All events are checked before anything is
  * written, so a bad request (400) stores nothing. A taken tag is not a bad request: only the affected events are
  * rejected (kept in rejected_syncs), the rest of the batch is stored.
  */

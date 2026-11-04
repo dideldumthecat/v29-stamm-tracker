@@ -2,6 +2,6 @@
 
 ## Description: Run npm in frontend/ from anywhere
 ## Usage: frontend [npm args]
-## Example: "ddev frontend run build" or "ddev frontend install -D tailwindcss" or "ddev frontend exec vitest run"
+## Example: "ddev frontend run build", "ddev frontend install -D tailwindcss -w app" or "ddev frontend exec -w app vitest run"
 
 cd /var/www/html/frontend && npm "$@"

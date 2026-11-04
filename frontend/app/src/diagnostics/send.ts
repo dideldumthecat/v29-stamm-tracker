@@ -4,7 +4,7 @@
  * Entries leave the device buffer only after the server confirmed them (204). A failed report is not recorded itself:
  * that would be a loop. Nothing goes out without a sign-in: the server would answer 401 and log a false error.
  */
-import type { DiagnosticEntry } from '@/api/contract'
+import type { DiagnosticEntry } from '@v29/shared/contract'
 import { api, ApiError } from '@/api/client'
 import { DIAGNOSTICS_DEBOUNCE_MS } from '@/config/constants'
 import { loadDiagnostics, removeDiagnostics } from '@/persistence/database'

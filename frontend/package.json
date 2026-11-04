@@ -1,58 +1,35 @@
 {
-  "name": "frontend",
-  "version": "0.0.0",
+  "name": "v29-stamm-tracker",
   "private": true,
   "type": "module",
+  "workspaces": [
+    "app",
+    "shared"
+  ],
   "scripts": {
-    "dev": "vite",
-    "build": "run-p type-check \"build-only -- {@}\" --",
-    "preview": "vite preview",
-    "test:unit": "vitest",
-    "tests": "vitest run",
-    "build-only": "vite build",
-    "postbuild": "rsync -rt --omit-dir-times --delete --exclude=/index.php --exclude=/.htaccess --exclude=/php.ini --exclude=/bundles dist/ ../backend/public/",
-    "type-check": "vue-tsc --build",
-    "test:e2e": "playwright test",
+    "dev": "npm run dev -w app --",
+    "build": "npm run build -w app --",
+    "tests": "npm run tests -w app --",
+    "test:unit": "npm run test:unit -w app --",
+    "test:e2e": "npm run test:e2e -w app --",
     "lint": "eslint . --fix --cache",
-    "format": "prettier --write src/ e2e/"
-  },
-  "dependencies": {
-    "@lucide/vue": "^1.61.0",
-    "idb": "^8.0.4",
-    "pinia": "^4.0.3",
-    "vue": "^3.5.42",
-    "vue-router": "^5.3.1"
+    "format": "prettier --write app/src app/e2e shared"
   },
   "devDependencies": {
-    "@playwright/test": "^1.64.1",
-    "@tailwindcss/vite": "^4.3.3",
     "@tsconfig/node24": "^24.0.5",
-    "@types/jsdom": "^30.0.0",
     "@types/node": "^24.13.4",
-    "@vitejs/plugin-vue": "^6.0.8",
     "@vitest/eslint-plugin": "^1.6.28",
     "@vue/eslint-config-prettier": "^10.2.0",
     "@vue/eslint-config-typescript": "^14.9.0",
-    "@vue/test-utils": "^2.5.0",
     "@vue/tsconfig": "^0.9.1",
     "eslint": "^10.13.0",
     "eslint-plugin-better-tailwindcss": "^4.10.0",
     "eslint-plugin-playwright": "^2.12.1",
     "eslint-plugin-vue": "^10.11.1",
-    "fake-indexeddb": "^6.2.6",
     "jiti": "^2.7.0",
-    "jsdom": "^30.0.1",
-    "npm-run-all2": "^9.0.3",
     "prettier": "^3.9.10",
     "prettier-plugin-tailwindcss": "^0.8.1",
-    "tailwindcss": "^4.3.3",
-    "typescript": "~6.0.0",
-    "vite": "^8.2.2",
-    "vite-plugin-checker": "^0.14.5",
-    "vite-plugin-pwa": "^1.3.0",
-    "vite-plugin-vue-devtools": "^8.2.1",
-    "vitest": "^4.1.12",
-    "vue-tsc": "^3.3.11"
+    "typescript": "~6.0.0"
   },
   "engines": {
     "node": "^22.18.0 || >=24.12.0"
