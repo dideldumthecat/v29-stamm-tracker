@@ -7,6 +7,8 @@ export interface ToastMessage {
   after?: string
   // Success unless stated otherwise; decides the icon.
   kind?: 'success' | 'warning'
+  // Icon and text in the middle instead of at the left edge (for messages without a tag, e.g. "App aktualisiert").
+  centered?: boolean
 }
 
 // Warnings stay longer: they report something the user has to notice.

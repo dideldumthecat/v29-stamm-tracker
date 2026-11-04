@@ -26,7 +26,7 @@ function gitRevision(): string | null {
 }
 
 // https://vite.dev/config/
-export default defineConfig(({ mode }) => ({
+export default defineConfig(() => ({
   define: {
     __APP_REVISION__: JSON.stringify(gitRevision()),
     __APP_BUILD_TIME__: JSON.stringify(new Date().toISOString()),
@@ -48,10 +48,9 @@ export default defineConfig(({ mode }) => ({
         },
       }),
     VitePWA({
-      // 'prompt' instead of 'autoUpdate': a new version must never reload the app in the middle
-      // of a data entry. The user confirms the update (hint in components/AppToast.vue).
-      // `--mode share` (phone testing via `ddev share`) skips the waiting state instead.
-      registerType: mode === 'share' ? 'autoUpdate' : 'prompt',
+      // 'prompt' instead of 'autoUpdate': a new version must never reload the app in the middle of a data entry
+      // or a sync. The new worker waits; installWhenSafe (composables/useUpdateCheck.ts) installs it in a safe state.
+      registerType: 'prompt',
       includeAssets: ['favicon.ico', 'apple-touch-icon-180x180.png'],
       manifest: {
         name: 'V29 Stamm-Tracker',

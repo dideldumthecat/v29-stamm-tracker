@@ -116,17 +116,22 @@ export function captureErrors(app?: App): () => void {
 
 const BUILD_KEY = 'app-build'
 
-/** The first start of a new build is the proof that an update took effect. */
-export function recordBuildChange() {
+/**
+ * The first start of a new build is the proof that an update took effect.
+ * Returns true exactly then (not on first installation, not on a restart of the same build).
+ */
+export function recordBuildChange(): boolean {
   try {
     const previous = localStorage.getItem(BUILD_KEY)
     if (previous !== APP_BUILD) {
       localStorage.setItem(BUILD_KEY, APP_BUILD)
       if (previous) {
         void record('info', 'update', 'New version active', { from: previous, to: APP_BUILD })
+        return true
       }
     }
   } catch {
     // No localStorage (private window): nothing to compare with.
   }
+  return false
 }

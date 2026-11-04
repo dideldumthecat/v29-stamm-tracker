@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest'
 import { addDiagnostic, loadDiagnostics, removeDiagnostics } from '@/persistence/database'
-import { createEntry, captureErrors, record } from '@/diagnostics/record'
+import { createEntry, captureErrors, record, recordBuildChange } from '@/diagnostics/record'
 import { sendDiagnostics, reportWithoutBuffer } from '@/diagnostics/send'
 import { api, ApiError } from '@/api/client'
 import { APP_BUILD, DIAGNOSTICS_MAX_AGE_MS, DIAGNOSTICS_MAX_ENTRIES } from '@/config/constants'
@@ -206,5 +206,20 @@ describe('sending diagnostics', () => {
     expect(send.mock.calls[send.mock.calls.length - 1]![0].entries).toMatchObject([
       { level: 'error', kind: 'storage_unavailable', message: 'no storage', count: 1 },
     ])
+  })
+})
+
+describe('build change', () => {
+  beforeEach(() => localStorage.clear())
+
+  it('reports an update only on the first start of a new build', () => {
+    localStorage.setItem('app-build', 'older build')
+    expect(recordBuildChange()).toBe(true)
+    expect(recordBuildChange()).toBe(false)
+  })
+
+  it('reports nothing on first installation', () => {
+    expect(recordBuildChange()).toBe(false)
+    expect(localStorage.getItem('app-build')).toBe(APP_BUILD)
   })
 })
