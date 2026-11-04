@@ -3,6 +3,7 @@
   "extends": "../tsconfig.node.base.json",
   "include": [
     "vite.config.*",
+    "build-id.*",
     "vitest.config.*",
     "cypress.config.*",
     "playwright.config.*",

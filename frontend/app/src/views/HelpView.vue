@@ -4,13 +4,10 @@ import { HeartIcon, XIcon } from '@lucide/vue'
 import AndroidInstallSteps from '@/components/AndroidInstallSteps.vue'
 import IosInstallSteps from '@/components/IosInstallSteps.vue'
 import { useStoragePersistence } from '@/composables/useStoragePersistence'
-import { formatShortDateTime } from '@/utils/date'
+import { APP_BUILD } from '@/config/constants'
 
 const router = useRouter()
 const { isPersisted } = useStoragePersistence()
-const appVersion = [__APP_REVISION__, formatShortDateTime(__APP_BUILD_TIME__)]
-  .filter(Boolean)
-  .join(' · ')
 </script>
 
 <template>
@@ -75,7 +72,7 @@ const appVersion = [__APP_REVISION__, formatShortDateTime(__APP_BUILD_TIME__)]
         Speicher geschützt:
         {{ isPersisted === null ? 'unbekannt' : isPersisted ? 'ja' : 'nein' }}
       </p>
-      <p>App-Version: {{ appVersion }}</p>
+      <p>App-Version: {{ APP_BUILD }}</p>
       <p lang="en">
         Built with
         <HeartIcon
