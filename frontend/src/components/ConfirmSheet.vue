@@ -6,7 +6,7 @@ const props = defineProps<{
   title?: string
   // The safe choice (e.g. keep editing): focused first, and what Escape and a tap on the backdrop trigger.
   safeLabel: string
-  // The other choice (e.g. discard, remove, save and open). Without it the sheet only informs.
+  // The other choice (e.g. discard, remove, save). Without it the sheet only informs.
   actionLabel?: string
   // The action is the expected one: it gets the filled button instead of the safe choice.
   emphasizeAction?: boolean
