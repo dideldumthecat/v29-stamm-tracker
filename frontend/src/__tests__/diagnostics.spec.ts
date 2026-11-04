@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest'
 import { addDiagnostic, loadDiagnostics, removeDiagnostics } from '@/persistence/database'
 import { createEntry, captureErrors, record, recordBuildChange } from '@/diagnostics/record'
-import { sendDiagnostics, reportWithoutBuffer } from '@/diagnostics/send'
+import { sendDiagnostics, reportWithoutBuffer, setDiagnosticsSignedIn } from '@/diagnostics/send'
 import { api, ApiError } from '@/api/client'
 import { APP_BUILD, DIAGNOSTICS_MAX_AGE_MS, DIAGNOSTICS_MAX_ENTRIES } from '@/config/constants'
 
@@ -109,6 +109,7 @@ describe('sending diagnostics', () => {
 
   beforeEach(async () => {
     await clearBuffer()
+    setDiagnosticsSignedIn(true)
     send = vi.spyOn(api, 'sendDiagnostics').mockResolvedValue(undefined)
     await record('info', 'sync', 'Sync started')
     await record('error', 'photo_upload', 'Photo upload failed (400)')
@@ -157,8 +158,21 @@ describe('sending diagnostics', () => {
     expect(send).toHaveBeenCalledTimes(1)
     expect(await buffered()).toHaveLength(2)
 
-    await sendDiagnostics({ afterSignIn: true })
+    setDiagnosticsSignedIn(true)
+    await sendDiagnostics()
     expect(send).toHaveBeenCalledTimes(2)
+    expect(await buffered()).toEqual([])
+  })
+
+  it('sends nothing before a sign-in is known and keeps the entries', async () => {
+    setDiagnosticsSignedIn(false)
+    await sendDiagnostics()
+    expect(send).not.toHaveBeenCalled()
+    expect(await buffered()).toHaveLength(2)
+
+    setDiagnosticsSignedIn(true)
+    await sendDiagnostics()
+    expect(send).toHaveBeenCalledTimes(1)
     expect(await buffered()).toEqual([])
   })
 

@@ -3,8 +3,15 @@ import { createPinia, setActivePinia } from 'pinia'
 import { useTimberItemStore } from '@/stores/timberItems'
 import { api, ApiError } from '@/api/client'
 import { Blob as NodeBlob } from 'node:buffer'
-import { load as loadStored, loadDiagnostics, save } from '@/persistence/database'
-import { record } from '@/diagnostics/record'
+import {
+  addDiagnostic,
+  load as loadStored,
+  loadDiagnostics,
+  removeDiagnostics,
+  save,
+} from '@/persistence/database'
+import { createEntry, record } from '@/diagnostics/record'
+import { sendDiagnostics, startDiagnosticsSending } from '@/diagnostics/send'
 
 // Pass-through spy: tests can check what reaches IndexedDB.
 vi.mock('@/persistence/database', async (importOriginal) => {
@@ -578,6 +585,44 @@ describe('timber item store: sign-in', () => {
     await store.refresh()
     expect(store.currentUser).toEqual(own)
     expect(vi.mocked(save).mock.lastCall![0]).not.toHaveProperty('user')
+  })
+
+  // The start after an app update: the entries of the old version wait in the buffer.
+  it('sends the buffered diagnostics only once a sign-in is there', async () => {
+    vi.spyOn(api, 'loadSnapshot').mockResolvedValue(api.initialSnapshot())
+    const store = useTimberItemStore()
+    store.currentUser = null
+    // A send of an earlier test may still be running; it must neither take this test's entry nor be counted.
+    await sendDiagnostics()
+    await removeDiagnostics(await loadDiagnostics())
+    const send = vi.spyOn(api, 'sendDiagnostics').mockResolvedValue(undefined)
+    await addDiagnostic(createEntry('info', 'update', 'Update found'))
+
+    const stop = startDiagnosticsSending()
+    stop()
+    await vi.waitFor(async () => expect(await loadDiagnostics()).toHaveLength(1))
+    expect(send).not.toHaveBeenCalled()
+
+    await store.redeemInvite('token')
+    await vi.waitFor(() => expect(send).toHaveBeenCalledTimes(1))
+    expect(send.mock.calls[0]![0].entries.map((entry) => entry.message)).toEqual(['Update found'])
+    await vi.waitFor(async () => expect(await loadDiagnostics()).toEqual([]))
+  })
+
+  it('sends the buffered diagnostics at the start when the stored sign-in is loaded', async () => {
+    const store = useTimberItemStore()
+    const user = { ...store.currentUser! }
+    store.currentUser = null
+    await sendDiagnostics()
+    await removeDiagnostics(await loadDiagnostics())
+    const send = vi.spyOn(api, 'sendDiagnostics').mockResolvedValue(undefined)
+    await save({ user })
+    await addDiagnostic(createEntry('info', 'update', 'Update found'))
+
+    await store.load()
+    const stop = startDiagnosticsSending()
+    stop()
+    await vi.waitFor(() => expect(send).toHaveBeenCalledTimes(1))
   })
 
   it('keeps the sign-in when the snapshot cannot be loaded', async () => {
