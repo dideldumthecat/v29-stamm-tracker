@@ -17,6 +17,13 @@ import {
   UPDATE_CHECK_PERIOD_MS,
   startUpdateCheck,
 } from '@/composables/useUpdateCheck'
+import { save } from '@/persistence/database'
+
+// Pass-through spy: a test can hold back a write to the device.
+vi.mock('@/persistence/database', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/persistence/database')>()
+  return { ...original, save: vi.fn(original.save) }
+})
 
 let visibility: DocumentVisibilityState
 let online: boolean
@@ -307,6 +314,31 @@ describe('installing an update in a safe state', () => {
     store.isSyncing = false
     await nextTick()
     expect(updateServiceWorker).toHaveBeenCalledTimes(1)
+  })
+
+  it('waits while a slow write to the device runs and installs only after it ended', async () => {
+    // Every write is held back until the test lets it through; `written` is what reached the device.
+    const written: string[] = []
+    const releases: (() => void)[] = []
+    vi.mocked(save).mockImplementation(
+      (parts) =>
+        new Promise<void>((resolve) =>
+          releases.push(() => {
+            written.push(...(parts.events ?? []).map((event) => event.timber_item_id))
+            resolve()
+          }),
+        ),
+    )
+    const store = useTimberItemStore()
+    const stem = store.createTimberItem(1555)
+    start(true)
+    await nextTick()
+    expect(updateServiceWorker).not.toHaveBeenCalled()
+
+    releases.forEach((release) => release())
+    await vi.waitFor(() => expect(updateServiceWorker).toHaveBeenCalledTimes(1))
+    expect(written).toContain(stem.id)
+    vi.mocked(save).mockRestore()
   })
 
   it('installs only once', async () => {

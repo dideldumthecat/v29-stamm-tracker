@@ -1000,3 +1000,51 @@ describe('timber item store: photos', () => {
     expect(() => store.removePhoto(photo!.id)).toThrow()
   })
 })
+
+describe('timber item store: reload safety while writing', () => {
+  beforeEach(() => setActivePinia(createPinia()))
+
+  // A write the test finishes by hand, like a slow device.
+  function holdNextWrite() {
+    let finish!: (error?: Error) => void
+    vi.mocked(save).mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve, reject) => {
+          finish = (error) => (error ? reject(error) : resolve())
+        }),
+    )
+    return (error?: Error) => finish(error)
+  }
+
+  it('is unsafe while a write runs and safe after it ended', async () => {
+    const store = useTimberItemStore()
+    expect(store.isSafeToReload).toBe(true)
+    const finish = holdNextWrite()
+    store.createTimberItem(6)
+    expect(store.isSafeToReload).toBe(false)
+    finish()
+    await vi.waitFor(() => expect(store.isSafeToReload).toBe(true))
+  })
+
+  it('is safe again after a failed write', async () => {
+    const store = useTimberItemStore()
+    const finish = holdNextWrite()
+    store.createTimberItem(7)
+    expect(store.isSafeToReload).toBe(false)
+    finish(new Error('disk full'))
+    await vi.waitFor(() => expect(store.isSafeToReload).toBe(true))
+  })
+
+  it('stays unsafe until every write has ended, also for a batch', async () => {
+    const store = useTimberItemStore()
+    const first = holdNextWrite()
+    store.inOneTransaction(() => store.createTimberItem(8))
+    const second = holdNextWrite()
+    store.createTimberItem(9)
+    first()
+    await vi.waitFor(() => expect(store.pendingWrites).toBe(1))
+    expect(store.isSafeToReload).toBe(false)
+    second()
+    await vi.waitFor(() => expect(store.isSafeToReload).toBe(true))
+  })
+})

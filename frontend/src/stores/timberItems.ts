@@ -80,9 +80,14 @@ export const useTimberItemStore = defineStore('timberItems', () => {
   // Set by the timber item screen while it holds input that exists only in memory (fields, photos, beams, a camera
   // that has not delivered yet). A reload would drop it, and a download would change attributes under it.
   const isDraftOpen = ref(false)
+  // Writes to the device that have started and not yet ended (successfully or not). The screen changes before the
+  // write is through, and a reload in between aborts it.
+  const pendingWrites = ref(0)
   // The single definition of "a reload loses or interrupts nothing"; the automatic app update waits for it.
   // A photo upload is part of the sync.
-  const isSafeToReload = computed(() => !isDraftOpen.value && !isSyncing.value)
+  const isSafeToReload = computed(
+    () => !isDraftOpen.value && !isSyncing.value && pendingWrites.value === 0,
+  )
   let syncController: AbortController | undefined
 
   // Writes collected by `inOneTransaction`; null = write each change on its own.
@@ -99,9 +104,13 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     // Without photo changes the call stays as it was: only the parts.
     const hasPhotoChanges =
       photoChanges && (photoChanges.add?.length || photoChanges.remove?.length)
-    ;(hasPhotoChanges ? save(parts, photoChanges) : save(parts)).catch(() =>
-      useToast().show({ before: 'Speichern auf dem Gerät fehlgeschlagen', kind: 'warning' }),
-    )
+    pendingWrites.value++
+    ;(hasPhotoChanges ? save(parts, photoChanges) : save(parts))
+      .catch(() =>
+        useToast().show({ before: 'Speichern auf dem Gerät fehlgeschlagen', kind: 'warning' }),
+      )
+      // A failed write counts as ended too, or the update would wait forever.
+      .finally(() => pendingWrites.value--)
   }
 
   /**
@@ -755,6 +764,7 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     isStopping,
     isDraftOpen,
     isSafeToReload,
+    pendingWrites,
     stopSync,
     isEntry,
     lastSyncedAt,
