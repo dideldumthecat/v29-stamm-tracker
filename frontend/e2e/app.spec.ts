@@ -140,6 +140,24 @@ test('removes a synced beam, the sync sends the removal, and its letter is free 
   await expect(page.getByRole('button', { name: 'Balken 00789-B hinzufügen' })).toBeVisible()
 })
 
+// The screen changes before the write to the device is through; a reload (`goto`) in between would lose the change.
+// A write transaction queued now only starts after the earlier ones are committed, so waiting for it waits for them.
+const writesDone = (page: Page) =>
+  page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        const open = indexedDB.open('v29-stamm-tracker')
+        open.onsuccess = () => {
+          const tx = open.result.transaction('state', 'readwrite')
+          tx.oncomplete = () => {
+            open.result.close()
+            resolve()
+          }
+          tx.objectStore('state').get('none')
+        }
+      }),
+  )
+
 // A new beam took the letter of the removed one: bringing the old beam back would give two beams B.
 test('cannot discard the removal of a beam whose letter a new beam took', async ({ page }) => {
   await page.goto('/timber-item/789')
@@ -149,6 +167,7 @@ test('cannot discard the removal of a beam whose letter a new beam took', async 
   await page.getByRole('button', { name: 'Speichern', exact: true }).click()
   await expect(page.locator('a[href="/timber-item/789-B"]')).toBeVisible()
 
+  await writesDone(page)
   await page.goto('/sync')
   await expect(page.locator('h1')).toHaveText('Synchronisierung (2)')
   await page.getByRole('button', { name: 'Eintrag verwerfen' }).first().click()
@@ -161,9 +180,11 @@ test('cannot discard the removal of a beam whose letter a new beam took', async 
   await expect(page.locator('h1')).toHaveText('Synchronisierung (2)')
 
   // Once the new beam is gone, the removal can be discarded and the old beam is back.
+  await writesDone(page)
   await page.goto('/timber-item/789')
   await page.getByRole('button', { name: 'Balken 789-B entfernen' }).click()
   await page.getByRole('button', { name: 'Balken entfernen', exact: true }).click()
+  await writesDone(page)
   await page.goto('/sync')
   await expect(page.locator('h1')).toHaveText('Synchronisierung (1)')
   await page.getByRole('button', { name: 'Eintrag verwerfen' }).click()
@@ -173,6 +194,7 @@ test('cannot discard the removal of a beam whose letter a new beam took', async 
   await page.getByRole('button', { name: 'Verwerfen', exact: true }).click()
   await expect(page.getByText('Keine Änderungen auf diesem Gerät')).toBeVisible()
 
+  await writesDone(page)
   await page.goto('/timber-item/789')
   await expect(page.locator('a[href="/timber-item/789-B"]')).toBeVisible()
 })
@@ -327,9 +349,15 @@ test('landscape phone shows the rotate hint and keeps the entry', async ({ page 
 
   await page.setViewportSize({ width: 844, height: 390 })
   await expect(hint).toBeVisible()
-  await expect(
-    page.getByRole('button', { name: '7', exact: true }).click({ trial: true, timeout: 1000 }),
-  ).rejects.toThrow(/intercepts pointer events/)
+  // The overlay covers the whole viewport: whatever is hit at its centre belongs to the overlay, not to the keypad.
+  // (A trial click with a short timeout used to check this and failed when the machine was busy.)
+  await expect
+    .poll(() =>
+      hint.evaluate((el) =>
+        el.closest('.fixed')!.contains(document.elementFromPoint(innerWidth / 2, innerHeight / 2)),
+      ),
+    )
+    .toBe(true)
 
   await page.setViewportSize({ width: 390, height: 844 })
   await expect(hint).toBeHidden()

@@ -7,7 +7,8 @@ import { defineConfig, devices } from '@playwright/test'
  * Playwright builds and starts it itself and stops it after the run.
  * localhost counts as a secure context, so service worker and camera APIs are available.
  * The service worker stays on, as in production: every test gets a fresh browser context, so no new version is ever
- * waiting and the update prompt never appears.
+ * waiting, so the automatic update (which would reload the page) never triggers.
+ * Failures stay visible: no retries locally, and every failed test leaves a trace and screenshot (test-results/).
  */
 export default defineConfig({
   testDir: './e2e',
@@ -16,10 +17,12 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  reporter: 'html',
+  // `list` names every test (and project) as it finishes, so failures show up in the terminal; the HTML report stays.
+  reporter: [['list'], ['html', { open: 'never' }]],
   use: {
     baseURL: 'http://localhost:4173',
-    trace: 'on-first-retry',
+    trace: 'retain-on-failure',
+    screenshot: 'only-on-failure',
   },
 
   webServer: {
