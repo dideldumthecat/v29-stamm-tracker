@@ -2,7 +2,7 @@
  * Delivers the buffered entries (record.ts) to the server by itself: at app start, whenever the app comes back to
  * the foreground, after every sync and shortly after an error or warning. No button – the entries hold no capture data.
  * Entries leave the device buffer only after the server confirmed them (204). A failed report is not recorded itself:
- * that would be a loop.
+ * that would be a loop. Nothing goes out without a sign-in: the server would answer 401 and log a false error.
  */
 import type { DiagnosticEntry } from '@/api/contract'
 import { api, ApiError } from '@/api/client'
@@ -18,8 +18,12 @@ const MAX_CHARS_KEEPALIVE = 60_000
 let sending: Promise<void> | null = null
 // Asked again while a send was running: entries recorded meanwhile must not wait for the next trigger.
 let askedAgain: { keepalive: boolean } | null = null
-// After a 401 the entries wait for the next sign-in (redeemInvite asks again).
-let unauthorized = false
+// Set by the store (user known / not known). A 401 clears it: the entries then wait for the next sign-in.
+let signedIn = false
+
+export function setDiagnosticsSignedIn(value: boolean) {
+  signedIn = value
+}
 
 function nextBatch(entries: DiagnosticEntry[], maxChars: number): DiagnosticEntry[] {
   const batch: DiagnosticEntry[] = []
@@ -49,20 +53,19 @@ async function sendBuffered(keepalive: boolean) {
 }
 
 /** Never rejects. A send already running is followed by one more. */
-export function sendDiagnostics({ keepalive = false, afterSignIn = false } = {}): Promise<void> {
-  if (afterSignIn) {
-    unauthorized = false
-  }
+export function sendDiagnostics({ keepalive = false } = {}): Promise<void> {
   if (sending) {
     askedAgain = { keepalive: keepalive || !!askedAgain?.keepalive }
     return sending
   }
-  if (unauthorized || !navigator.onLine) {
+  if (!signedIn || !navigator.onLine) {
     return Promise.resolve()
   }
   sending = sendBuffered(keepalive)
     .catch((error) => {
-      unauthorized = error instanceof ApiError && error.status === 401
+      if (error instanceof ApiError && error.status === 401) {
+        signedIn = false
+      }
     })
     .finally(() => {
       sending = null

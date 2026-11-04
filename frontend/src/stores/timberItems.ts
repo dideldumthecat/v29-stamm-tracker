@@ -5,7 +5,7 @@
  *
  * `items` holds own values only; inherited values are added at read time (withInherited).
  */
-import { computed, ref, toRaw } from 'vue'
+import { computed, ref, toRaw, watch } from 'vue'
 import { defineStore } from 'pinia'
 import type {
   AttributeValueRecord,
@@ -25,7 +25,7 @@ import {
 } from '@/persistence/database'
 import { useToast } from '@/composables/useToast'
 import { record } from '@/diagnostics/record'
-import { sendDiagnostics } from '@/diagnostics/send'
+import { sendDiagnostics, setDiagnosticsSignedIn } from '@/diagnostics/send'
 import { SYNC_TIMEOUT_MS } from '@/config/constants'
 import { nextBeamTag } from '@/utils/tag'
 
@@ -51,6 +51,8 @@ export const useTimberItemStore = defineStore('timberItems', () => {
   const snapshot = ref(api.initialSnapshot())
   // Set by signing in with the invite code; null until then.
   const currentUser = ref<User | null>(api.initialUser())
+  // Sync, so that the send right after a sign-in already sees it.
+  watch(currentUser, (user) => setDiagnosticsSignedIn(!!user), { immediate: true, flush: 'sync' })
   const users = computed(() => snapshot.value.users)
   const attributes = computed(() => snapshot.value.attributes)
   // Own events waiting for the sync, in the order they were recorded.
@@ -603,8 +605,8 @@ export const useTimberItemStore = defineStore('timberItems', () => {
   async function redeemInvite(token: string) {
     currentUser.value = (await api.redeemInvite(token)).user
     persist({ user: toRaw(currentUser.value) })
-    // Reports kept after a 401 can go now.
-    void sendDiagnostics({ afterSignIn: true })
+    // Reports kept back until now (or after a 401) can go.
+    void sendDiagnostics()
     // Attributes come only with the snapshot; without them nothing can be recorded offline.
     // Failing here is fine: the sign-in stands and the next sync fetches it.
     await refresh().catch(() => {})
