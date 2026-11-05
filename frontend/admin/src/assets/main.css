@@ -1,0 +1,10 @@
+/* Tailwind entry point (Tailwind 4 via @tailwindcss/vite); colors and font come from the shared theme. */
+@import 'tailwindcss';
+@import '@v29/shared/theme.css';
+
+@layer base {
+  :focus-visible {
+    outline: 3px solid var(--color-ink);
+    outline-offset: 2px;
+  }
+}

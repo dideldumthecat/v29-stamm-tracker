@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     "./contract": "./contract.ts",
+    "./theme.css": "./theme.css",
     "./fixtures/*": "./fixtures/*"
   }
 }

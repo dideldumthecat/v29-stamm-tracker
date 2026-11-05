@@ -1,0 +1,35 @@
+{
+  "name": "admin",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "run-p type-check \"build-only -- {@}\" --",
+    "preview": "vite preview",
+    "test:unit": "vitest",
+    "tests": "vitest run",
+    "build-only": "vite build",
+    "postbuild": "rsync -rt --omit-dir-times --delete dist/ ../../backend/public/admin/",
+    "type-check": "vue-tsc --build",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "@v29/shared": "*",
+    "vue": "^3.5.42",
+    "vue-router": "^5.3.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.1",
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/jsdom": "^30.0.0",
+    "@vitejs/plugin-vue": "^6.0.8",
+    "@vue/test-utils": "^2.5.0",
+    "jsdom": "^30.0.1",
+    "npm-run-all2": "^9.0.3",
+    "tailwindcss": "^4.3.3",
+    "vite": "^8.2.2",
+    "vitest": "^4.1.12",
+    "vue-tsc": "^3.3.11"
+  }
+}

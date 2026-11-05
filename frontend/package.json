@@ -4,16 +4,18 @@
   "type": "module",
   "workspaces": [
     "app",
+    "admin",
     "shared"
   ],
   "scripts": {
     "dev": "npm run dev -w app --",
-    "build": "npm run build -w app --",
-    "tests": "npm run tests -w app --",
+    "dev:admin": "npm run dev -w admin --",
+    "build": "npm run build -w app -w admin --",
+    "tests": "npm run tests -w app -w admin --",
     "test:unit": "npm run test:unit -w app --",
-    "test:e2e": "npm run test:e2e -w app --",
+    "test:e2e": "npm run test:e2e -w app -w admin --",
     "lint": "eslint . --fix --cache",
-    "format": "prettier --write app/src app/e2e shared"
+    "format": "prettier --write app/src app/e2e admin/src admin/e2e shared"
   },
   "devDependencies": {
     "@tsconfig/node24": "^24.0.5",

@@ -16,7 +16,7 @@ Built pro bono for **V29**, a collective of architects building a publicly funde
 
 Everything is stored on the device first. Out in the woods there is usually no network, so the app works fully offline – including looking up what is already known about a log. New versions install themselves as soon as no unsaved input would be lost.
 
-**Administration** (desktop, planned): manage attributes, correct or void entries, manage users, evaluate and export data. Until then, these tasks run as console commands.
+**Administration** (desktop-first, online only, served below `/admin`; so far only a skeleton): manage attributes, correct or void entries, manage users, evaluate and export data. Until then, these tasks run as console commands.
 
 ## Design decisions
 
@@ -47,6 +47,7 @@ flowchart LR
 | Part | Technology |
 |---|---|
 | Capture app | Vue 3, TypeScript, Pinia, Vue Router, Tailwind CSS 4, vite-plugin-pwa, IndexedDB |
+| Administration | Vue 3, TypeScript, Vue Router, Tailwind CSS 4 (separate project, no service worker) |
 | API | PHP 8.4, Symfony 8, Doctrine ORM and Migrations |
 | Database | MariaDB 11.8 |
 | Tests | Vitest, Vue Test Utils, Playwright, PHPUnit |
@@ -57,7 +58,7 @@ flowchart LR
 ```
 .
 ├── backend/     Symfony JSON API under /api, console commands, attribute definitions (data/)
-├── frontend/    npm workspace: app/ (Vue capture app), shared/ (API contract and fixtures)
+├── frontend/    npm workspace: app/ (Vue capture app), admin/ (administration), shared/ (API contract, fixtures, design values)
 ├── docs/        clickable prototype and static screens from the design phase
 ├── .ddev/       local development environment
 └── .github/     deployment workflow
@@ -76,16 +77,17 @@ ddev frontend install
 ddev console doctrine:migrations:migrate -n
 ddev console app:user:create "Name" --admin     # prints the invite code once
 ddev console app:attributes:import data/attributes.yaml
-ddev frontend run dev
+ddev frontend run dev          # capture app; the administration: ddev frontend run dev:admin
 ```
 
+- Administration: https://v29-stamm-tracker.ddev.site:5174/admin/
 - App: https://v29-stamm-tracker.ddev.site:5173 – uses a fake API with the fixtures by default; set `VITE_API=` in `frontend/app/.env.development.local` for the real backend.
 - API: https://v29-stamm-tracker.ddev.site/api/ping
 
 | Task | Command |
 |---|---|
-| Frontend tests / end-to-end tests | `ddev frontend run tests` / `ddev frontend run test:e2e` |
-| Build incl. type check | `ddev frontend run build` |
+| Frontend tests / end-to-end tests (app and administration) | `ddev frontend run tests` / `ddev frontend run test:e2e` |
+| Build incl. type check (app and administration) | `ddev frontend run build` |
 | Backend tests | `ddev phpunit` |
 | Lint / format | `ddev frontend run lint`, `ddev frontend run format`, `ddev php-cs-fixer fix` |
 | Symfony console | `ddev console …` |
@@ -120,7 +122,7 @@ ddev share --provider=cloudflared                 # open the printed address on 
 
 ## Deployment
 
-A manually started GitHub Actions workflow (`.github/workflows/deploy.yaml`) builds the app into `backend/public/`, uploads `backend/` via rsync over SSH, clears the cache and runs migrations on the server.
+A manually started GitHub Actions workflow (`.github/workflows/deploy.yaml`) builds the app into `backend/public/` and the administration into `backend/public/admin/`, uploads `backend/` via rsync over SSH, clears the cache and runs migrations on the server.
 
 **One-time setup**
 
