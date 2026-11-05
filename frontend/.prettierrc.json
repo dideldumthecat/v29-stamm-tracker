@@ -4,5 +4,8 @@
   "singleQuote": true,
   "printWidth": 100,
   "plugins": ["prettier-plugin-tailwindcss"],
-  "tailwindStylesheet": "./app/src/assets/main.css"
+  "tailwindStylesheet": "./app/src/assets/main.css",
+  "overrides": [
+    { "files": "admin/**", "options": { "tailwindStylesheet": "./admin/src/assets/main.css" } }
+  ]
 }

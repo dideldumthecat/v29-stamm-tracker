@@ -31,27 +31,27 @@ export default defineConfigWithVueTs(
 
   // Tailwind: report unknown classes (typos like `bg-inc`) as errors.
   // Only the correctness rules – class order and line wrapping are left to Prettier.
-  {
-    name: 'app/tailwind',
-    files: ['app/src/**/*.vue'],
+  ...['app', 'admin'].map((workspace) => ({
+    name: `${workspace}/tailwind`,
+    files: [`${workspace}/src/**/*.vue`],
     ...pluginBetterTailwindcss.configs.correctness,
     settings: {
       // Tailwind 4 has no tailwind.config.js – the configuration lives in the CSS entry file
       // Absolute: vite-plugin-checker runs ESLint from app/, `npm run lint` from here
       'better-tailwindcss': {
-        entryPoint: fileURLToPath(new URL('./app/src/assets/main.css', import.meta.url)),
+        entryPoint: fileURLToPath(new URL(`./${workspace}/src/assets/main.css`, import.meta.url)),
       },
     },
-  },
+  })),
 
   {
     ...pluginVitest.configs.recommended,
-    files: ['app/src/**/__tests__/*'],
+    files: ['app/src/**/__tests__/*', 'admin/src/**/__tests__/*'],
   },
 
   {
     ...pluginPlaywright.configs['flat/recommended'],
-    files: ['app/e2e/**/*.{test,spec}.{js,ts,jsx,tsx}'],
+    files: ['{app,admin}/e2e/**/*.{test,spec}.{js,ts,jsx,tsx}'],
   },
 
   // Formatting is Prettier's job: turn off all ESLint rules that would conflict with it

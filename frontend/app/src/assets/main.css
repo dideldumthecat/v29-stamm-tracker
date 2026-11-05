@@ -1,8 +1,9 @@
 /*
  * Tailwind entry point (Tailwind 4 via @tailwindcss/vite).
- * Design tokens and custom utilities; template screens: docs/prototype-static/
+ * App-specific design tokens and custom utilities (colors and font: shared/theme.css); template screens: docs/prototype-static/
  */
 @import 'tailwindcss';
+@import '@v29/shared/theme.css';
 
 /* Low screens (small phones, browser bars): slightly flatter elements */
 @custom-variant short (@media (max-height: 760px));
@@ -11,26 +12,8 @@
 @custom-variant landscape-phone (@media (orientation: landscape) and (max-height: 500px));
 
 @theme {
-  /* Only our own colors – the default palette (red-500 etc.) is switched off */
-  --color-*: initial;
-  --color-paper: #ffffff; /* background */
-  --color-ink: #111111; /* text, borders, filled areas */
-  --color-mute: #555555; /* secondary text */
-  --color-body: #333333; /* description texts */
-  --color-dim: #777777; /* checked box in locked fields, placeholder icon */
-  --color-faint: #9a9a9a; /* leading zeros in the digit display */
-  --color-line: #cccccc; /* dividers */
-  --color-soft: #dddddd; /* subtle dividers, photo placeholder */
-  --color-well: #f2f2f2; /* tinted areas: keys, save bar, notes */
-  --color-locked: #e8e8e8; /* locked field */
-  --color-lockline: #b0b0b0; /* locked field border */
-  --color-desk: #e4e4e2; /* area beside the app column (desktop) */
-  --color-disabled: #cccccc;
-
   /* Shared height of all screen headers, so switching screens doesn't jump */
   --spacing-header: 90px;
-
-  --font-sans: 'Helvetica Neue', Helvetica, Arial, sans-serif;
 
   /* Progress bar without a known end: a bar that runs across */
   --animate-indeterminate: indeterminate 1.4s ease-in-out infinite;

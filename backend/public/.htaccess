@@ -1,4 +1,4 @@
-# The start page is the built Vue app (copied here by `npm run build`).
+# The start page is the built Vue app, the administration lives in admin/ (both copied here by `npm run build`).
 # Without a build, the front controller serves as fallback.
 DirectoryIndex index.html index.php
 
@@ -49,9 +49,18 @@ DirectoryIndex index.html index.php
     RewriteCond %{ENV:REDIRECT_STATUS} =""
     RewriteRule ^index\.php(?:/(.*)|$) %{ENV:BASE}/$1 [R=308,L]
 
-    # API and administration (plus the dev-only profiler) go to Symfony.
-    RewriteCond %{REQUEST_URI} ^/(api|admin|_profiler|_wdt)(/|$)
+    # The API (plus the dev-only profiler) goes to Symfony.
+    RewriteCond %{REQUEST_URI} ^/(api|_profiler|_wdt)(/|$)
     RewriteRule ^ %{ENV:BASE}/index.php [L]
+
+    # Administration (own Vue project in admin/): existing files as they are (missing assets stay 404),
+    # every other path gets its shell.
+    RewriteCond %{REQUEST_URI} ^/admin(/|$)
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_URI} ^/admin/assets/
+    RewriteRule ^ - [L]
+    RewriteCond %{REQUEST_URI} ^/admin(/|$)
+    RewriteRule ^ %{ENV:BASE}/admin/index.html [L]
 
     # Existing files (assets, service worker, manifest, icons) are served as they are.
     # Everything else is an app route and gets the SPA shell – except missing assets,
@@ -76,7 +85,7 @@ DirectoryIndex index.html index.php
     <FilesMatch "^(index\.html|sw\.js|registerSW\.js|manifest\.webmanifest)$">
         Header set Cache-Control "no-cache"
     </FilesMatch>
-    <If "%{REQUEST_URI} =~ m#^/assets/#">
+    <If "%{REQUEST_URI} =~ m#^/(admin/)?assets/#">
         Header set Cache-Control "public, max-age=31536000, immutable"
     </If>
 </IfModule>
