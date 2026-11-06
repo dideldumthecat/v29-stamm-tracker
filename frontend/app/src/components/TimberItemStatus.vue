@@ -3,7 +3,7 @@ import { CornerLeftUpIcon } from '@lucide/vue'
 import type { TimberItem } from '@/stores/timberItems'
 import { formatShortDate } from '@/utils/date'
 import { useTimberItemStore } from '@/stores/timberItems'
-import FormattedTag from '@/components/FormattedTag.vue'
+import FormattedTag from '@v29/shared/FormattedTag.vue'
 
 defineProps<{
   // undefined = not recorded yet, will be created on save

@@ -1,12 +1,15 @@
 import { vi } from 'vitest'
 
+import { activityAnswer } from './fakeActivity'
+
 /**
- * A stand-in for fetch that behaves like the three session endpoints.
+ * A stand-in for fetch that behaves like the session endpoints and the activity list (see fakeActivity.ts).
  * `codes` maps an invite code to the role of its user; an unknown code is 401. `offline` makes every request fail.
  */
-export function fakeApi(codes: Record<string, string>, { offline = false } = {}) {
+export function fakeApi(codes: Record<string, string>, { offline = false, pageSize = 50 } = {}) {
   let role: string | null = null
   let signOutFails = false
+  let activityFails = false
   const calls: string[] = []
   vi.stubGlobal(
     'fetch',
@@ -32,6 +35,13 @@ export function fakeApi(codes: Record<string, string>, { offline = false } = {})
         if (role === 'user') return json(403)
         return json(200, { user: { id: 'x', name: 'Ada', role } })
       }
+      if (call.startsWith('GET /api/admin/activity')) {
+        if (!role) return json(401)
+        if (activityFails) return json(500)
+        const query = new URL(url, 'http://localhost').searchParams
+        const answer = activityAnswer(query, pageSize)
+        return answer ? json(200, answer) : json(400)
+      }
       return json(404)
     }),
   )
@@ -39,5 +49,6 @@ export function fakeApi(codes: Record<string, string>, { offline = false } = {})
     calls,
     expireSession: () => (role = null),
     failSignOut: () => (signOutFails = true),
+    failActivity: (fails = true) => (activityFails = fails),
   }
 }

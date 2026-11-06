@@ -9,6 +9,11 @@
   @apply mx-auto w-full max-w-[1280px] px-4 sm:px-8;
 }
 
+/* A white card on the grey page background. */
+@utility card {
+  @apply rounded-xl border border-line bg-paper;
+}
+
 /* Running text limits its own line length (about 75 characters), the page stays as wide as the column. */
 @utility text-measure {
   max-width: 75ch;

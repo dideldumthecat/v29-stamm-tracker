@@ -263,12 +263,7 @@ final class TimberReport
 
     private function text(Attribute $attribute, bool|int|float|string $value): string
     {
-        return match ($attribute->type) {
-            AttributeType::Boolean => $value ? 'ja' : 'nein',
-            AttributeType::Choice => $this->options[$value] ?? (string) $value,
-            AttributeType::Date => (new \DateTimeImmutable((string) $value))->format('d.m.Y'),
-            default => (string) $value,
-        };
+        return ValueText::forExport($attribute->type, $value, $this->options);
     }
 
     /** @return list<array{value: bool|int|float|string, recorded_at: string, user_id: string, event_id: string}> */

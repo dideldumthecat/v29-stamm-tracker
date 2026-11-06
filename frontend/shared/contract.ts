@@ -51,6 +51,63 @@ export interface AdminMeResponse {
   user: { id: Uuid; name: string; role: UserRole }
 }
 
+// --- GET /api/admin/activity -------------------------------------------------
+// Who recorded what and when, newest first. Query (all optional): from=YYYY-MM-DD, to=YYYY-MM-DD (days in German time,
+// both inclusive), user=<uuid>, tags=104 or 100-120 or 1-10,15 (like --range of the console commands; a stem also matches its beams),
+// before=<next_cursor of the previous page>. A malformed filter is a 400.
+// An entry is a run of events from one person whose arrival times are less than a second apart (one sync, or
+// one console command), never split across pages. With a tag filter an entry keeps only the matching items;
+// event_count counts those. Fixture: fixtures/activity-response.json.
+
+export interface ActivityResponse {
+  /** Newest first, at most 50. */
+  entries: ActivityEntry[]
+  /** For "Ältere laden"; null = no more. */
+  next_cursor: string | null
+  /** Over the whole filter, not just this page. */
+  totals: { entries: number; events: number; photos: number; users: number }
+  /** Everyone with events, regardless of the filter: for the person menu. */
+  users: { id: Uuid; name: string }[]
+}
+
+export interface ActivityEntry {
+  /** The entry's first event. */
+  id: Uuid
+  /** Arrival of the first event at the server. */
+  received_at: Timestamp
+  user: { id: Uuid; name: string }
+  /** Earliest and latest device time of the entry (a console command writes its own instant). */
+  recorded_from: Timestamp
+  recorded_to: Timestamp
+  event_count: number
+  /** One per stem or beam, a stem before its beams, otherwise in the order the events came in. */
+  items: ActivityItem[]
+}
+
+export interface ActivityItem {
+  timber_item_id: Uuid
+  /** Current tag: "104", "104-C"; "ohne Kennung" if it has none. */
+  label: string
+  /** One per event, in the order they were recorded. */
+  changes: ActivityChange[]
+}
+
+export interface ActivityChange {
+  kind: 'created' | 'value' | 'photo' | 'tag' | 'voided' | 'restored'
+  /**
+   * Column "Merkmal", ready to show. By case: created → "Stamm" or "Balken" (a beam has a stem above it); tag → "Kennung";
+   * value or photo → the attribute's name (inactive ones too); voided or restored → the name of what it affects, in the same words
+   * ("Stamm"/"Balken" for the whole item, "Kennung", an attribute's name), "Ereignis" if that event cannot be found.
+   */
+  name: string
+  /**
+   * Column "Wert", ready to show, without a count. By case: created → "angelegt"; tag → the number, "104"; value → the value as in the export;
+   * photo → "hinzugefügt"; voided → "storniert"; restored → "wiederhergestellt".
+   */
+  value: string
+  recorded_at: Timestamp
+}
+
 // --- GET /api/snapshot -------------------------------------------------------
 
 export interface Snapshot {
