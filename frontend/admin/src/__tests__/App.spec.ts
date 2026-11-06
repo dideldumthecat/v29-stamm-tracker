@@ -148,7 +148,7 @@ describe('sign out', () => {
     await signIn(wrapper, ADMIN)
     expect(wrapper.get('header').text()).toContain('Ada')
 
-    await wrapper.get('header button').trigger('click')
+    await wrapper.get('button[aria-label="Abmelden"]').trigger('click')
     await flushPromises()
 
     expect(api.calls).toContain('DELETE /api/session')
@@ -157,5 +157,48 @@ describe('sign out', () => {
 
     await router.push('/x')
     expect(router.currentRoute.value.name).toBe('login')
+  })
+})
+
+describe('frame', () => {
+  it('marks the page of the current route in the navigation', async () => {
+    fakeApi(CODES)
+    const { router, wrapper } = await start('/login')
+    await signIn(wrapper, ADMIN)
+    await router.push('/')
+
+    const current = wrapper.get('nav [aria-current=page]')
+    expect(current.text()).toBe('Dashboard')
+
+    await router.push('/x')
+    expect(wrapper.find('nav [aria-current]').exists()).toBe(false)
+  })
+
+  it('keeps the sign-out button with the name "Abmelden" and shows an error if it fails', async () => {
+    const api = fakeApi(CODES)
+    const { router, wrapper } = await start('/login')
+    await signIn(wrapper, ADMIN)
+    api.failSignOut()
+
+    const button = wrapper.get('button[aria-label="Abmelden"]')
+    expect(button.attributes('title')).toBe('Abmelden')
+    await button.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('[role=alert]').text()).toBe('Abmelden fehlgeschlagen.')
+    expect(router.currentRoute.value.name).not.toBe('login')
+  })
+
+  it.each(['/login', '/'])('shows the credit with the link below %s', async (path) => {
+    fakeApi(CODES)
+    const { router, wrapper } = await start('/login')
+    if (path === '/') {
+      await signIn(wrapper, ADMIN)
+      await router.push(path)
+    }
+
+    const link = wrapper.get('footer a[href="https://alexandersumma.de"]')
+    expect(link.text()).toBe('Alexander Summa')
+    expect(wrapper.get('footer').text()).toContain('love')
   })
 })

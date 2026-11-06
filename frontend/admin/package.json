@@ -15,6 +15,7 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@lucide/vue": "^1.61.0",
     "@v29/shared": "*",
     "vue": "^3.5.42",
     "vue-router": "^5.3.1"

@@ -1,6 +1,18 @@
 /* Tailwind entry point (Tailwind 4 via @tailwindcss/vite); colors and font come from the shared theme. */
 @import 'tailwindcss';
 @import '@v29/shared/theme.css';
+/* Shared components live outside this project: Tailwind scans them for classes too */
+@source '../../../shared/*.vue';
+
+/* The one column of every page (header, content, footer): the left edge stays put when switching pages. */
+@utility page-column {
+  @apply mx-auto w-full max-w-[1280px] px-4 sm:px-8;
+}
+
+/* Running text limits its own line length (about 75 characters), the page stays as wide as the column. */
+@utility text-measure {
+  max-width: 75ch;
+}
 
 @layer base {
   :focus-visible {

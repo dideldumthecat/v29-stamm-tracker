@@ -52,43 +52,45 @@ async function onSubmit() {
 </script>
 
 <template>
-  <main class="mx-auto flex max-w-sm flex-col gap-4 px-4 py-16">
-    <h1 class="text-2xl font-bold">V29 Stamm-Tracker – Administration</h1>
-    <form class="flex flex-col gap-3" @submit.prevent="onSubmit">
-      <label for="invite-code" class="font-bold">Einladungscode</label>
-      <div class="relative">
-        <input
-          id="invite-code"
-          ref="inputElement"
-          v-model="code"
-          type="text"
-          autocomplete="off"
-          autocapitalize="characters"
-          autocorrect="off"
-          maxlength="14"
-          enterkeyhint="go"
-          spellcheck="false"
-          placeholder="K7QM-4XHT-9RDP"
-          class="h-14 w-full rounded-lg border-2 border-ink bg-paper px-12 text-center text-xl font-semibold"
-        />
+  <main class="page-column py-16">
+    <div class="mx-auto flex max-w-sm flex-col gap-4">
+      <h1 class="text-2xl font-bold">V29 Stamm-Tracker – Administration</h1>
+      <form class="flex flex-col gap-3" @submit.prevent="onSubmit">
+        <label for="invite-code" class="font-bold">Einladungscode</label>
+        <div class="relative">
+          <input
+            id="invite-code"
+            ref="inputElement"
+            v-model="code"
+            type="text"
+            autocomplete="off"
+            autocapitalize="characters"
+            autocorrect="off"
+            maxlength="14"
+            enterkeyhint="go"
+            spellcheck="false"
+            placeholder="K7QM-4XHT-9RDP"
+            class="h-14 w-full rounded-lg border-2 border-ink bg-paper px-12 text-center text-xl font-semibold"
+          />
+          <button
+            v-if="code && !isBusy"
+            type="button"
+            class="absolute top-1/2 right-0.5 flex size-11 -translate-y-1/2 items-center justify-center rounded-md text-2xl"
+            aria-label="Code löschen"
+            @click="clear"
+          >
+            ×
+          </button>
+        </div>
+        <p v-if="error" class="text-sm font-semibold" role="alert">{{ error }}</p>
         <button
-          v-if="code && !isBusy"
-          type="button"
-          class="absolute top-1/2 right-0.5 flex size-11 -translate-y-1/2 items-center justify-center rounded-md text-2xl"
-          aria-label="Code löschen"
-          @click="clear"
+          type="submit"
+          class="h-14 rounded-lg bg-ink text-lg font-bold text-paper disabled:bg-disabled"
+          :disabled="isBusy"
         >
-          ×
+          {{ isBusy ? 'Anmelden …' : 'Anmelden' }}
         </button>
-      </div>
-      <p v-if="error" class="text-sm font-semibold" role="alert">{{ error }}</p>
-      <button
-        type="submit"
-        class="h-14 rounded-lg bg-ink text-lg font-bold text-paper disabled:bg-disabled"
-        :disabled="isBusy"
-      >
-        {{ isBusy ? 'Anmelden …' : 'Anmelden' }}
-      </button>
-    </form>
+      </form>
+    </div>
   </main>
 </template>

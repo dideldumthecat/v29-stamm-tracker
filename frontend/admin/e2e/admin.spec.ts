@@ -49,6 +49,48 @@ for (const path of ['/admin/', '/admin/x']) {
   })
 }
 
+test('the frame: active navigation item, credit, and one 1280px column from header to footer', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1920, height: 900 })
+  await page.goto('/admin/login')
+  await expect(page.locator('header')).toHaveCount(0)
+  await expect(page.getByRole('link', { name: 'Alexander Summa' })).toBeVisible()
+  await signIn(page, 'K7QM4XHT9RDP')
+
+  await expect(page.getByRole('link', { name: 'Dashboard' })).toHaveAttribute(
+    'aria-current',
+    'page',
+  )
+  const left = (selector: string) =>
+    page
+      .locator(selector)
+      .first()
+      .evaluate((element) => element.getBoundingClientRect().left)
+  // header brand, page heading and footer credit start on the same line: (1920 - 1280) / 2 + 32
+  const edge = 352
+  expect(await left('header div.font-bold')).toBe(edge)
+  expect(await left('main h1')).toBe(edge)
+  await expect(page.getByRole('contentinfo')).toContainText('Built with')
+  await expect(page.getByRole('link', { name: 'Alexander Summa' })).toHaveAttribute(
+    'href',
+    'https://alexandersumma.de',
+  )
+})
+
+for (const width of [1000, 390]) {
+  test(`no horizontal scroll at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 800 })
+    await page.goto('/admin/')
+    await signIn(page, 'K7QM4XHT9RDP')
+    await expect(page.locator('header')).toBeVisible()
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    )
+    expect(overflow).toBe(0)
+  })
+}
+
 test('formats the code while typing and refuses an incomplete one without asking the server', async ({
   page,
 }) => {
