@@ -34,7 +34,7 @@ class AttributeSetCommandTest extends KernelTestCase
         $this->projector = self::getContainer()->get(TimberItemProjector::class);
         $this->tester = new CommandTester((new Application($kernel))->find('app:attribute:set'));
 
-        $this->em->persist($this->admin = new User('Alexander', UserRole::Admin, User::hashToken('a')));
+        $this->em->persist($this->admin = new User('Alexander', UserRole::Superadmin, User::hashToken('a')));
         $this->em->persist($this->length = new Attribute('Länge', AttributeType::Choice, isInheritable: true, key: 'length'));
         $this->em->persist($this->long = new AttributeOption($this->length, '4,10 m'));
         $this->em->persist($this->short = new AttributeOption($this->length, '3,60 m'));
@@ -70,6 +70,17 @@ class AttributeSetCommandTest extends KernelTestCase
     private function set(array $input): int
     {
         return $this->tester->execute($input + ['attribute' => 'Länge', 'value' => '4,10 m', '--range' => 'all']);
+    }
+
+    public function testWithoutASuperadminNothingIsWritten(): void
+    {
+        $this->item('1');
+        $this->admin->role = UserRole::Admin;
+        $this->em->flush();
+
+        self::assertSame(Command::FAILURE, $this->set([]));
+        self::assertStringContainsString('app:user:role', $this->tester->getDisplay());
+        self::assertSame(0, $this->events());
     }
 
     private function events(): int
@@ -251,7 +262,6 @@ class AttributeSetCommandTest extends KernelTestCase
             'bad range' => [['--range' => '10-1'], 'is not a range'],
             'bad range list' => [['--range' => '1,abc'], 'is not a range'],
             'range beyond plaques' => [['--range' => '1-2000'], 'is not a range'],
-            'unknown user' => [['--user' => 'Nobody'], 'No active user'],
         ];
         foreach ($cases as $name => [$input, $message]) {
             self::assertSame(Command::FAILURE, $this->set($input), $name);

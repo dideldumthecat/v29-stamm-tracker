@@ -32,7 +32,7 @@ class PhotoImportCommandTest extends KernelTestCase
         $this->dir = sys_get_temp_dir().'/photo-import-'.bin2hex(random_bytes(4));
         mkdir($this->dir);
 
-        $this->em->persist($admin = new User('Alexander', UserRole::Admin, User::hashToken('a')));
+        $this->em->persist($admin = new User('Alexander', UserRole::Superadmin, User::hashToken('a')));
         $this->em->persist($this->fotos = new Attribute('Fotos', AttributeType::Photo, isSeries: true));
         $id = Uuid::v7();
         foreach ([[EventType::Created, ['parent_id' => null]], [EventType::TagAssigned, ['tag_number' => '123']]] as [$type, $data]) {
@@ -154,20 +154,15 @@ class PhotoImportCommandTest extends KernelTestCase
         self::assertDirectoryDoesNotExist('/tmp/v29-photos-test');
     }
 
-    public function testSeveralAdminsNeedAUserOption(): void
+    public function testWithoutASuperadminNothingIsWritten(): void
     {
-        $this->em->persist($florian = new User('Florian', UserRole::Admin, User::hashToken('f')));
+        $this->em->getRepository(User::class)->findOneBy(['name' => 'Alexander'])->role = UserRole::Admin;
         $this->em->flush();
         $rows = [['a.jpg', '123']];
 
         self::assertSame(Command::FAILURE, $this->import($rows, ['a.jpg' => self::jpeg()]));
-        self::assertStringContainsString('--user', $this->tester->getDisplay());
+        self::assertStringContainsString('app:user:role', $this->tester->getDisplay());
         self::assertSame(0, $this->rows('photos'));
-
-        file_put_contents($this->dir.'/a.jpg', self::jpeg());
-        self::assertSame(Command::SUCCESS, $this->tester->execute(['csv' => $this->dir.'/photos.csv', '--user' => 'Florian']));
-        self::assertSame(1, $this->rows('photos'));
-        self::assertSame($florian->id->toBinary(), $this->em->getConnection()->fetchOne('SELECT user_id FROM photos'));
     }
 
     public function testWithoutAPhotoAttributeNothingHappens(): void

@@ -32,7 +32,7 @@ class AttributeClearCommandTest extends KernelTestCase
         $this->projector = self::getContainer()->get(TimberItemProjector::class);
         $this->tester = new CommandTester((new Application($kernel))->find('app:attribute:clear'));
 
-        $this->em->persist($this->admin = new User('Alexander', UserRole::Admin, User::hashToken('a')));
+        $this->em->persist($this->admin = new User('Alexander', UserRole::Superadmin, User::hashToken('a')));
         $this->em->persist($this->diameter = new Attribute('Größter Stammdurchmesser', AttributeType::Number, isInheritable: true, key: 'mid_diameter_max'));
         $this->em->persist($this->other = new Attribute('Länge', AttributeType::Number, isInheritable: true));
         $this->em->flush();
@@ -64,6 +64,18 @@ class AttributeClearCommandTest extends KernelTestCase
     private function clear(array $input): int
     {
         return $this->tester->execute($input + ['attribute' => 'Größter Stammdurchmesser', '--range' => 'all']);
+    }
+
+    public function testWithoutASuperadminNothingIsWritten(): void
+    {
+        $a = $this->item('1');
+        $this->record($a, $this->diameter, 20);
+        $this->admin->role = UserRole::Admin;
+        $this->em->flush();
+
+        self::assertSame(Command::FAILURE, $this->clear([]));
+        self::assertStringContainsString('app:user:role', $this->tester->getDisplay());
+        self::assertSame(0, $this->events(EventType::Voided));
     }
 
     private function events(EventType $type): int
@@ -185,7 +197,6 @@ class AttributeClearCommandTest extends KernelTestCase
             'series' => [['attribute' => 'Notiz'], 'is a series'],
             'unknown attribute' => [['attribute' => 'größter stammdurchmesser'], 'No attribute with the key or name'],
             'bad range' => [['--range' => '10-1'], 'is not a range'],
-            'unknown user' => [['--user' => 'Nobody'], 'No active user'],
         ];
         foreach ($cases as $name => [$input, $message]) {
             self::assertSame(Command::FAILURE, $this->clear($input), $name);

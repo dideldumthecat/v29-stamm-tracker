@@ -4,12 +4,10 @@ namespace App\Command;
 
 use App\Entity\Attribute;
 use App\Entity\TimberItem;
-use App\Entity\User;
-use App\Entity\UserRole;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
- * What app:attribute:set and app:attribute:clear share: reading --range, finding the attribute by key or name, the stems and the user.
+ * What app:attribute:set and app:attribute:clear share: reading --range, finding the attribute by key or name, and the stems.
  */
 class StemSelection
 {
@@ -72,21 +70,5 @@ class StemSelection
         }
 
         return $stems;
-    }
-
-    /**
-     * @return User|string the user the events are recorded under, or the reason there is none
-     */
-    public function user(?string $name): User|string
-    {
-        $users = $this->em->getRepository(User::class)->findBy(null === $name ? ['role' => UserRole::Admin, 'revokedAt' => null] : ['revokedAt' => null]);
-        $users = null === $name ? $users : array_values(array_filter($users, static fn (User $u) => $u->name === $name || $u->id->toRfc4122() === $name));
-        if (1 === \count($users)) {
-            return $users[0];
-        }
-
-        return null === $name
-            ? 'The values are recorded under the admin, but there are '.($users ? 'several' : 'none').'. Choose one with --user (name or ID, see app:user:list).'
-            : \sprintf('No active user "%s" found, or the name is not unique. Use the ID from app:user:list.', $name);
     }
 }

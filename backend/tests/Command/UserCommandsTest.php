@@ -70,9 +70,9 @@ class UserCommandsTest extends KernelTestCase
         self::assertNull($users[0]->revokedAt);
     }
 
-    public function testCreateWithAdminOptionAndUniqueTokens(): void
+    public function testCreateWithRoleOptionAndUniqueTokens(): void
     {
-        $first = $this->execute('app:user:create', ['name' => 'Alexander', '--admin' => true]);
+        $first = $this->execute('app:user:create', ['name' => 'Alexander', '--role' => 'admin']);
         $second = $this->execute('app:user:create', ['name' => 'Jonas']);
 
         $users = $this->users();
@@ -81,6 +81,66 @@ class UserCommandsTest extends KernelTestCase
         self::assertSame(UserRole::User, $users[1]->role);
         self::assertNotSame($first->getDisplay(), $second->getDisplay());
         self::assertNotSame($users[0]->tokenHash, $users[1]->tokenHash);
+    }
+
+    public function testCreateAllowsOnlyOneSuperadminAndKnowsOnlyThreeRoles(): void
+    {
+        self::assertSame(Command::SUCCESS, $this->execute('app:user:create', ['name' => 'Alexander', '--role' => 'superadmin'])->getStatusCode());
+
+        $second = $this->execute('app:user:create', ['name' => 'Jonas', '--role' => 'superadmin']);
+        self::assertSame(Command::FAILURE, $second->getStatusCode());
+        self::assertStringContainsString('Es gibt schon einen Superadmin: Alexander', $second->getDisplay());
+        self::assertSame(Command::FAILURE, $this->execute('app:user:create', ['name' => 'Jonas', '--role' => 'root'])->getStatusCode());
+        self::assertCount(1, $this->users());
+    }
+
+    public function testRoleChangesTheRoleOfAnActiveUserByNameOrId(): void
+    {
+        $user = new User('Kerstin', UserRole::User, User::hashToken('t'));
+        $this->em->persist($user);
+        $this->em->flush();
+
+        self::assertSame(Command::SUCCESS, $this->execute('app:user:role', ['user' => 'Kerstin', 'role' => 'admin'])->getStatusCode());
+        self::assertSame(UserRole::Admin, $this->users()[0]->role);
+        self::assertSame(Command::SUCCESS, $this->execute('app:user:role', ['user' => $user->id->toRfc4122(), 'role' => 'user'])->getStatusCode());
+        self::assertSame(UserRole::User, $this->users()[0]->role);
+    }
+
+    public function testRoleRefusesUnknownRevokedAndAmbiguousUsersAndUnknownRoles(): void
+    {
+        $this->em->persist(new User('Kerstin', UserRole::User, User::hashToken('a')));
+        $this->em->persist(new User('Kerstin', UserRole::User, User::hashToken('b')));
+        $revoked = new User('Jonas', UserRole::User, User::hashToken('c'));
+        $revoked->revokedAt = new \DateTimeImmutable();
+        $this->em->persist($revoked);
+        $this->em->flush();
+
+        foreach ([['Kerstin', 'admin'], ['Jonas', 'admin'], ['Nobody', 'admin']] as [$user, $role]) {
+            $tester = $this->execute('app:user:role', ['user' => $user, 'role' => $role]);
+            self::assertSame(Command::FAILURE, $tester->getStatusCode(), $user);
+            self::assertStringContainsString('No active user', $tester->getDisplay(), $user);
+        }
+        $this->em->persist(new User('Anna', UserRole::User, User::hashToken('d')));
+        $this->em->flush();
+        $tester = $this->execute('app:user:role', ['user' => 'Anna', 'role' => 'root']);
+        self::assertSame(Command::FAILURE, $tester->getStatusCode());
+        self::assertStringContainsString('is not a role', $tester->getDisplay());
+        self::assertSame([UserRole::User], array_unique(array_map(static fn (User $u) => $u->role, $this->users()), SORT_REGULAR));
+    }
+
+    public function testRoleAllowsOnlyOneSuperadminButTheSameOneAgain(): void
+    {
+        $this->em->persist($alexander = new User('Alexander', UserRole::Superadmin, User::hashToken('a')));
+        $this->em->persist($jonas = new User('Jonas', UserRole::Admin, User::hashToken('j')));
+        $this->em->flush();
+
+        $tester = $this->execute('app:user:role', ['user' => 'Jonas', 'role' => 'superadmin']);
+        self::assertSame(Command::FAILURE, $tester->getStatusCode());
+        self::assertStringContainsString('Es gibt schon einen Superadmin: Alexander', $tester->getDisplay());
+        self::assertSame(Command::SUCCESS, $this->execute('app:user:role', ['user' => 'Alexander', 'role' => 'superadmin'])->getStatusCode());
+
+        $this->execute('app:user:role', ['user' => 'Alexander', 'role' => 'admin']);
+        self::assertSame(Command::SUCCESS, $this->execute('app:user:role', ['user' => 'Jonas', 'role' => 'superadmin'])->getStatusCode());
     }
 
     public function testCodesUseOnlyTheCodeAlphabet(): void
@@ -133,31 +193,47 @@ class UserCommandsTest extends KernelTestCase
         self::assertStringNotContainsString($revoked->tokenHash, $display);
     }
 
-    public function testRevokeSetsRevokedAtAndKeepsTheFirstTimeOnRepeat(): void
+    public function testRevokeSetsRevokedAtByIdOrNameAndKeepsTheFirstTimeOnRepeat(): void
     {
-        $user = new User('Kerstin', UserRole::User, User::hashToken('t'));
-        $this->em->persist($user);
+        $this->em->persist($kerstin = new User('Kerstin', UserRole::User, User::hashToken('t')));
+        $this->em->persist($jonas = new User('Jonas', UserRole::User, User::hashToken('j')));
         $this->em->flush();
-        $id = $user->id->toRfc4122();
 
-        $tester = $this->execute('app:user:revoke', ['id' => $id]);
+        $tester = $this->execute('app:user:revoke', ['user' => $kerstin->id->toRfc4122()]);
         self::assertSame(Command::SUCCESS, $tester->getStatusCode());
-        $first = $this->users()[0]->revokedAt;
+        $first = $this->revokedAt('Kerstin');
         self::assertNotNull($first);
+        self::assertNull($this->revokedAt('Jonas'));
 
-        $tester = $this->execute('app:user:revoke', ['id' => $id]);
-        self::assertSame(Command::SUCCESS, $tester->getStatusCode());
-        self::assertStringContainsString('already revoked', $tester->getDisplay());
-        self::assertEquals($first, $this->users()[0]->revokedAt);
+        // Already revoked users are found by name too; the second revoke is a note and keeps the time.
+        foreach (['Kerstin', $kerstin->id->toRfc4122()] as $again) {
+            $tester = $this->execute('app:user:revoke', ['user' => $again]);
+            self::assertSame(Command::SUCCESS, $tester->getStatusCode());
+            self::assertStringContainsString('already revoked', $tester->getDisplay());
+            self::assertEquals($first, $this->revokedAt('Kerstin'));
+        }
+
+        self::assertSame(Command::SUCCESS, $this->execute('app:user:revoke', ['user' => 'Jonas'])->getStatusCode());
+        self::assertNotNull($this->revokedAt('Jonas'));
     }
 
-    public function testRevokeReportsAnUnknownOrMalformedId(): void
+    public function testRevokeReportsAnUnknownOrAmbiguousUserAndRevokesNobody(): void
     {
-        foreach ([Uuid::v7()->toRfc4122(), 'nope'] as $id) {
-            $tester = $this->execute('app:user:revoke', ['id' => $id]);
+        $this->em->persist(new User('Kerstin', UserRole::User, User::hashToken('a')));
+        $this->em->persist(new User('Kerstin', UserRole::User, User::hashToken('b')));
+        $this->em->flush();
 
-            self::assertSame(Command::FAILURE, $tester->getStatusCode(), $id);
-            self::assertStringContainsString('No user with ID', $tester->getDisplay());
+        foreach ([Uuid::v7()->toRfc4122(), 'nope', 'Kerstin'] as $user) {
+            $tester = $this->execute('app:user:revoke', ['user' => $user]);
+
+            self::assertSame(Command::FAILURE, $tester->getStatusCode(), $user);
+            self::assertStringContainsString('or the name is not unique. Use the ID from app:user:list.', $tester->getDisplay());
         }
+        self::assertSame([null, null], array_map(static fn (User $u) => $u->revokedAt, $this->users()));
+    }
+
+    private function revokedAt(string $name): ?\DateTimeImmutable
+    {
+        return array_find($this->users(), static fn (User $u) => $u->name === $name)->revokedAt;
     }
 }

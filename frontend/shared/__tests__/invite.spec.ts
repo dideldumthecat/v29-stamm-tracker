@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatInviteInput, isInviteCode } from '@/utils/invite'
+import { formatInviteInput, isInviteCode } from '../invite'
 
 describe('formatInviteInput', () => {
   it.each([

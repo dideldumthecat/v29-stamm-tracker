@@ -28,7 +28,7 @@ class ItemVoidCommandTest extends KernelTestCase
         $this->projector = self::getContainer()->get(TimberItemProjector::class);
         $this->tester = new CommandTester((new Application($kernel))->find('app:item:void'));
 
-        $this->em->persist($this->admin = new User('Alexander', UserRole::Admin, User::hashToken('a')));
+        $this->em->persist($this->admin = new User('Alexander', UserRole::Superadmin, User::hashToken('a')));
         $this->em->flush();
     }
 
@@ -46,12 +46,6 @@ class ItemVoidCommandTest extends KernelTestCase
     private function voids(): int
     {
         return (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM timber_item_events WHERE type = ?', [EventType::Voided->value]);
-    }
-
-    private function addAdmin(): void
-    {
-        $this->em->persist(new User('Florian', UserRole::Admin, User::hashToken('f')));
-        $this->em->flush();
     }
 
     public function testDryRunShowsTheItemAndWritesNothing(): void
@@ -80,20 +74,21 @@ class ItemVoidCommandTest extends KernelTestCase
         self::assertSame(1, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM timber_items WHERE tag_number = ? AND voided_at IS NULL', ['5']));
     }
 
-    public function testSeveralAdminsNeedUserAndWriteNothingWithout(): void
+    public function testWithoutASuperadminNothingIsWrittenAndWithOneItIsRecordedUnderThem(): void
     {
         $this->item('1999');
-        $this->addAdmin();
+        $this->admin->role = UserRole::Admin;
+        $this->em->flush();
 
         self::assertSame(Command::FAILURE, $this->tester->execute(['tag' => '1999']));
-        self::assertStringContainsString('--user', $this->tester->getDisplay());
+        self::assertStringContainsString('app:user:role', $this->tester->getDisplay());
         self::assertSame(0, $this->voids());
 
-        self::assertSame(Command::SUCCESS, $this->tester->execute(['tag' => '1999', '--user' => 'Alexander', '--dry-run' => true]));
-        self::assertSame(0, $this->voids());
-
-        self::assertSame(Command::SUCCESS, $this->tester->execute(['tag' => '1999', '--user' => 'Alexander']));
+        $this->admin->role = UserRole::Superadmin;
+        $this->em->flush();
+        self::assertSame(Command::SUCCESS, $this->tester->execute(['tag' => '1999']));
         self::assertSame(1, $this->voids());
+        self::assertSame($this->admin->id->toBinary(), $this->em->getConnection()->fetchOne('SELECT user_id FROM timber_item_events WHERE type = ?', [EventType::Voided->value]));
     }
 
     public function testBeamsMustBeVoidedFirst(): void

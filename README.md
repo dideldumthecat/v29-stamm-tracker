@@ -16,7 +16,7 @@ Built pro bono for **V29**, a collective of architects building a publicly funde
 
 Everything is stored on the device first. Out in the woods there is usually no network, so the app works fully offline – including looking up what is already known about a log. New versions install themselves as soon as no unsaved input would be lost.
 
-**Administration** (desktop-first, online only, served below `/admin`; so far only a skeleton): manage attributes, correct or void entries, manage users, evaluate and export data. Until then, these tasks run as console commands.
+**Administration** (desktop-first, online only, served below `/admin`; so far a skeleton behind the sign-in): manage attributes, correct or void entries, manage users, evaluate and export data. Until then, these tasks run as console commands.
 
 ## Design decisions
 
@@ -75,7 +75,7 @@ ddev start
 ddev composer install
 ddev frontend install
 ddev console doctrine:migrations:migrate -n
-ddev console app:user:create "Name" --admin     # prints the invite code once
+ddev console app:user:create "Name" --role=superadmin   # prints the invite code once; roles: user (default), admin, superadmin
 ddev console app:attributes:import data/attributes.yaml
 ddev frontend run dev          # capture app; the administration: ddev frontend run dev:admin
 ```
@@ -92,13 +92,20 @@ ddev frontend run dev          # capture app; the administration: ddev frontend 
 | Lint / format | `ddev frontend run lint`, `ddev frontend run format`, `ddev php-cs-fixer fix` |
 | Symfony console | `ddev console …` |
 
+### Roles and sign-in
+
+- `user` – the capture app only. `admin` – additionally the administration. `superadmin` – like `admin`; there is at most one (`app:user:create` and `app:user:role` refuse a second).
+- The administration signs in with the same invite codes as the app (`/admin/login`) and lets in `admin` and `superadmin` only; `GET /api/admin/me` and everything else below `/api/admin/` answers 403 for `user`.
+- The app and the administration share the sign-in cookie: signing out in the administration signs the app out in the same browser too.
+
 ### Console commands
 
-Every command explains its options with `--help`; bulk changes, imports and voids offer `--dry-run`.
+Every command explains its options with `--help`; bulk changes, imports and voids offer `--dry-run`. The commands that write events (`app:attribute:set`/`clear`, `app:item:void`/`restore`, `app:photo:import`) record them under the superadmin and stop without a change if there is no active one.
 
 | Command | Purpose |
 |---|---|
-| `app:user:create` / `list` / `revoke` | Manage users and invite codes |
+| `app:user:create` / `list` / `revoke` | Manage users and invite codes (`create --role=user, admin or superadmin`) |
+| `app:user:role <name or ID> <role>` | Change the role of an active user |
 | `app:attributes:import` | Create and update attributes from YAML |
 | `app:attribute:set` / `clear` | Set or clear one attribute on many logs |
 | `app:item:void` / `restore` | Void a log or beam created by mistake, or undo that |

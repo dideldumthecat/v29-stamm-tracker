@@ -11,7 +11,8 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 
 /**
  * Every /api endpoint except ping and session needs the token cookie. The user lands in the request
- * attribute "user", so a controller gets it simply as a `User $user` argument.
+ * attribute "user", so a controller gets it simply as a `User $user` argument. Everything below /api/admin/
+ * additionally needs the admin or superadmin role, so the endpoints there do not check it themselves.
  */
 #[AsEventListener]
 final class AuthenticateListener
@@ -35,6 +36,9 @@ final class AuthenticateListener
             ->findOneBy(['tokenHash' => User::hashToken(User::normalizeToken($token)), 'revokedAt' => null]);
         if (!$user) {
             throw new HttpException(401, 'Unknown or revoked invite link.');
+        }
+        if (str_starts_with($path, '/api/admin/') && !$user->role->canAdminister()) {
+            throw new HttpException(403, 'This invite link has no access to the administration.');
         }
         $request->attributes->set('user', $user);
     }
