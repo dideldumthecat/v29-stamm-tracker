@@ -30,7 +30,7 @@ useTimberItemStore()
       app.use(router)
       app.mount('#app')
       if (isUpdated) {
-        useToast().show({ before: 'App aktualisiert', centered: true })
+        useToast().show({ before: 'App aktualisiert' })
       }
       startAutoRefresh()
       startDiagnosticsSending()
