@@ -251,6 +251,40 @@ class ApiTest extends WebTestCase
         }
     }
 
+    public function testSnapshotIsGzippedWhenTheClientAsksForIt(): void
+    {
+        $this->client->getCookieJar()->set(new Cookie(SessionController::COOKIE, 'Alexander-test-token'));
+        $this->client->request('GET', '/api/snapshot', server: ['HTTP_ACCEPT_ENCODING' => 'gzip, deflate, br']);
+
+        $response = $this->client->getResponse();
+        $body = $response->getContent();
+        self::assertSame('gzip', $response->headers->get('Content-Encoding'));
+        self::assertStringContainsString('Accept-Encoding', $response->headers->get('Vary'));
+        self::assertSame((string) \strlen($body), $response->headers->get('Content-Length'));
+        self::assertArrayHasKey('users', json_decode(gzdecode($body), true));
+    }
+
+    public function testSnapshotIsPlainWithoutGzipInAcceptEncoding(): void
+    {
+        $this->client->getCookieJar()->set(new Cookie(SessionController::COOKIE, 'Alexander-test-token'));
+        $this->client->request('GET', '/api/snapshot');
+
+        $response = $this->client->getResponse();
+        self::assertFalse($response->headers->has('Content-Encoding'));
+        self::assertStringContainsString('Accept-Encoding', $response->headers->get('Vary'));
+        self::assertArrayHasKey('users', json_decode($response->getContent(), true));
+    }
+
+    public function testPhotosAreNeverGzipped(): void
+    {
+        $jpeg = self::jpeg();
+        $this->upload($jpeg);
+        $this->client->request('GET', '/api/photos/'.self::fixture('photo-upload-response')['id'], server: ['HTTP_ACCEPT_ENCODING' => 'gzip']);
+
+        self::assertFalse($this->client->getResponse()->headers->has('Content-Encoding'));
+        self::assertSame($jpeg, $this->client->getInternalResponse()->getContent());
+    }
+
     public function testSnapshotAndSyncNeedAValidCookie(): void
     {
         foreach ([null, 'Unknown'] as $as) {

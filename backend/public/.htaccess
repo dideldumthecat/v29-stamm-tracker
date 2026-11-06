@@ -90,10 +90,11 @@ DirectoryIndex index.html index.php
     </If>
 </IfModule>
 
-# The snapshot is about 1.7 KB per timber item (roughly 3 MB at 1,800 items) and IONOS does not compress by itself.
-# Only text types: photos are JPEG already. PHP's own compression stays off (zlib.output_compression), otherwise it would run twice.
+# Apache compresses static files only (text types; photos are JPEG already). JSON from the API is compressed by Symfony
+# (GzipJsonListener): on IONOS, mod_deflate does not reach responses from PHP. PHP's own compression stays off
+# (zlib.output_compression), otherwise it would run twice.
 <IfModule mod_deflate.c>
-    AddOutputFilterByType DEFLATE application/json text/html text/css text/javascript application/javascript application/manifest+json image/svg+xml
+    AddOutputFilterByType DEFLATE text/html text/css text/javascript application/javascript application/manifest+json image/svg+xml
 </IfModule>
 
 <IfModule !mod_rewrite.c>
