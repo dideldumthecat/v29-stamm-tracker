@@ -61,7 +61,18 @@ describe('router guard', () => {
     const { router, wrapper } = await start('/login?redirect=//evil.example')
     await signIn(wrapper, ADMIN)
 
-    expect(router.currentRoute.value.fullPath).toBe('/')
+    expect(router.currentRoute.value.fullPath).toBe('/aktivitaet')
+  })
+
+  it('opens the activity for "/" and shows the placeholder for an unknown path', async () => {
+    fakeApi(CODES)
+    const { router, wrapper } = await start('/login')
+    await signIn(wrapper, ADMIN)
+    await router.push('/')
+    expect(router.currentRoute.value.name).toBe('activity')
+
+    await router.push('/gibt-es-nicht')
+    expect(wrapper.get('h1').text()).toBe('V29 Stamm-Tracker – Administration')
   })
 
   it('goes to the login when a later request is refused', async () => {
@@ -167,8 +178,9 @@ describe('frame', () => {
     await signIn(wrapper, ADMIN)
     await router.push('/')
 
+    expect(wrapper.findAll('nav a')).toHaveLength(1)
     const current = wrapper.get('nav [aria-current=page]')
-    expect(current.text()).toBe('Dashboard')
+    expect(current.text()).toBe('Aktivität')
 
     await router.push('/x')
     expect(wrapper.find('nav [aria-current]').exists()).toBe(false)

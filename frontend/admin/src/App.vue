@@ -6,8 +6,8 @@ import AuthorCredit from '@v29/shared/AuthorCredit.vue'
 
 import { signOut, user } from '@/auth'
 
-// One line per page, in the order of the design: Dashboard, Stämme, Balken, Merkmale, Nutzer, Aktivität.
-const navigation = [{ label: 'Dashboard', to: { name: 'dashboard' } }]
+// Only pages that exist, one line each, in the order of the design: Dashboard, Stämme, Balken, Merkmale, Nutzer, Aktivität.
+const navigation = [{ label: 'Aktivität', to: { name: 'activity' } }]
 
 const route = useRoute()
 const router = useRouter()

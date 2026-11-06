@@ -1,12 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatTag, isValidTag, isValidTagNumber, nextBeamTag } from '../utils/tag'
-
-describe('formatTag', () => {
-  it('pads to the plaque format', () => {
-    expect(formatTag(42)).toBe('00042')
-    expect(formatTag(1999)).toBe('01999')
-  })
-})
+import { isValidTag, isValidTagNumber, nextBeamTag } from '../utils/tag'
 
 describe('isValidTagNumber', () => {
   it('accepts whole numbers in the plaque range only', () => {

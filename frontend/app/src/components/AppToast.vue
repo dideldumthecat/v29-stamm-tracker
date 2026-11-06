@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { CircleCheckIcon, TriangleAlertIcon } from '@lucide/vue'
-import FormattedTag from '@/components/FormattedTag.vue'
+import FormattedTag from '@v29/shared/FormattedTag.vue'
 import { useToast } from '@/composables/useToast'
 
 const { current } = useToast()

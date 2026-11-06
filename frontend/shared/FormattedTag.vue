@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { formatTag } from '@/utils/tag'
+import { formatTag } from './tag'
 
 const props = withDefaults(
   defineProps<{

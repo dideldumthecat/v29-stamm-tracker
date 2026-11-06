@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { XIcon } from '@lucide/vue'
-import FormattedTag from '@/components/FormattedTag.vue'
+import FormattedTag from '@v29/shared/FormattedTag.vue'
 import SyncButton from '@/components/SyncButton.vue'
 
 defineProps<{
