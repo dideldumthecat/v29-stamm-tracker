@@ -204,6 +204,40 @@ class ApiTest extends WebTestCase
         }
     }
 
+    public function testAdminMeAnswersAdminsAndRefusesUsersAndUnknownCookies(): void
+    {
+        foreach (['Ada' => UserRole::Admin, 'Sam' => UserRole::Superadmin, 'Uli' => UserRole::User] as $name => $role) {
+            $this->em->persist(new User($name, $role, User::hashToken(User::normalizeToken($name.'-test-token'))));
+        }
+        $this->em->flush();
+
+        foreach (['Ada' => 'admin', 'Sam' => 'superadmin'] as $name => $role) {
+            $response = $this->request('GET', '/api/admin/me', as: $name);
+            self::assertResponseStatusCodeSame(200, $name);
+            self::assertSame(['name' => $name, 'role' => $role], ['name' => $response['user']['name'], 'role' => $response['user']['role']]);
+            self::assertTrue(Uuid::isValid($response['user']['id']));
+        }
+        $this->request('GET', '/api/admin/me', as: 'Uli');
+        self::assertResponseStatusCodeSame(403);
+        foreach ([null, 'Unknown'] as $as) {
+            $this->request('GET', '/api/admin/me', as: $as);
+            self::assertResponseStatusCodeSame(401);
+        }
+    }
+
+    public function testSignOutClearsTheCookieWithoutASignIn(): void
+    {
+        $this->request('DELETE', '/api/session', as: null);
+
+        self::assertResponseStatusCodeSame(204);
+        $cookie = array_find($this->client->getResponse()->headers->getCookies(), static fn ($c) => SessionController::COOKIE === $c->getName());
+        self::assertNotNull($cookie);
+        self::assertTrue($cookie->isCleared());
+        self::assertSame('/api', $cookie->getPath());
+        self::assertTrue($cookie->isSecure() && $cookie->isHttpOnly());
+        self::assertSame('strict', $cookie->getSameSite());
+    }
+
     public function testCookieWithACodeIsCheckedNormalized(): void
     {
         $this->em->find(User::class, Uuid::fromString(self::KERSTIN))->tokenHash = User::hashToken('K7QM4XHT9RD1');
@@ -597,16 +631,23 @@ class ApiTest extends WebTestCase
         return [$a, $b];
     }
 
-    private function void(string $tag, array $options = [], bool $withAdmin = true): CommandTester
+    private function void(string $tag, array $options = [], bool $withSuperadmin = true): CommandTester
     {
-        if ($withAdmin && !$this->em->getRepository(User::class)->findBy(['role' => UserRole::Admin])) {
-            $this->em->persist(new User('Admin', UserRole::Admin, User::hashToken('admin-test-token')));
-            $this->em->flush();
+        if ($withSuperadmin) {
+            $this->ensureSuperadmin();
         }
         $tester = new CommandTester((new Application($this->client->getKernel()))->find('app:item:void'));
         $tester->execute(['tag' => $tag, ...$options], ['interactive' => false]);
 
         return $tester;
+    }
+
+    private function ensureSuperadmin(): void
+    {
+        if (!$this->em->getRepository(User::class)->findBy(['role' => UserRole::Superadmin])) {
+            $this->em->persist(new User('Admin', UserRole::Superadmin, User::hashToken('admin-test-token')));
+            $this->em->flush();
+        }
     }
 
     private function snapshotItems(): array
@@ -616,10 +657,7 @@ class ApiTest extends WebTestCase
 
     private function restore(string $tag, array $options = []): CommandTester
     {
-        if (!$this->em->getRepository(User::class)->findBy(['role' => UserRole::Admin])) {
-            $this->em->persist(new User('Admin', UserRole::Admin, User::hashToken('admin-test-token')));
-            $this->em->flush();
-        }
+        $this->ensureSuperadmin();
         // The projections are written through DBAL; a real command run starts with an empty identity map.
         $this->client->getContainer()->get(EntityManagerInterface::class)->clear();
         $tester = new CommandTester((new Application($this->client->getKernel()))->find('app:item:restore'));
@@ -900,12 +938,12 @@ class ApiTest extends WebTestCase
         self::assertSame($live, $rebuilt);
     }
 
-    public function testVoidNeedsExactlyOneAdmin(): void
+    public function testVoidNeedsASuperadmin(): void
     {
         $this->syncItem123();
-        $tester = $this->void('123', withAdmin: false);
+        $tester = $this->void('123', withSuperadmin: false);
         self::assertSame(1, $tester->getStatusCode());
-        self::assertStringContainsString('--user', $tester->getDisplay());
+        self::assertStringContainsString('app:user:role', $tester->getDisplay());
 
         self::assertSame(1, $this->void('12x')->getStatusCode());
         self::assertArrayHasKey(self::ITEM_123, $this->snapshotItems());

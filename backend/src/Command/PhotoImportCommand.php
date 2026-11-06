@@ -10,7 +10,6 @@ use App\Entity\Photo;
 use App\Entity\TimberItem;
 use App\Entity\TimberItemEvent;
 use App\Entity\User;
-use App\Entity\UserRole;
 use App\Photo\PhotoStorage;
 use App\Projection\TimberItemProjector;
 use Doctrine\ORM\EntityManagerInterface;
@@ -33,6 +32,7 @@ class PhotoImportCommand
         private readonly EntityManagerInterface $em,
         private readonly TimberItemProjector $projector,
         private readonly PhotoStorage $storage,
+        private readonly Superadmin $superadmin,
     ) {
     }
 
@@ -40,17 +40,13 @@ class PhotoImportCommand
         SymfonyStyle $io,
         #[Argument(description: 'CSV with the header file,tag or file;tag (separator as in the header), file paths relative to the CSV')] string $csv,
         #[Option(description: 'Show what would happen without writing anything')] bool $dryRun = false,
-        #[Option(description: 'Name or ID of the user the photos are recorded under; default: the only admin')] ?string $user = null,
     ): int {
         $rows = $this->readCsv($csv, $error);
         $attributes = $this->em->getRepository(Attribute::class)->findBy(['type' => AttributeType::Photo, 'active' => true]);
-        $users = $this->em->getRepository(User::class)->findBy(null === $user ? ['role' => UserRole::Admin, 'revokedAt' => null] : ['revokedAt' => null]);
-        $users = null === $user ? $users : array_values(array_filter($users, static fn (User $u) => $u->name === $user || $u->id->toRfc4122() === $user));
+        $author = $this->superadmin->author();
         $error ??= match (true) {
             1 !== \count($attributes) => \sprintf('Expected exactly one active attribute of type photo, found %d. Create it with app:attributes:import.', \count($attributes)),
-            1 !== \count($users) => null === $user
-                ? 'The photos are recorded under the admin, but there are '.($users ? 'several' : 'none').'. Choose one with --user (name or ID, see app:user:list).'
-                : \sprintf('No active user "%s" found, or the name is not unique. Use the ID from app:user:list.', $user),
+            \is_string($author) => $author,
             default => null,
         };
         if (null !== $error) {
@@ -63,7 +59,7 @@ class PhotoImportCommand
         $skipped = [];
         $seen = [];
         foreach ($rows as $line => [$file, $tag]) {
-            $reason = $this->importRow(dirname($csv), $file, $tag, $attributes[0], $users[0], $seen, $dryRun);
+            $reason = $this->importRow(dirname($csv), $file, $tag, $attributes[0], $author, $seen, $dryRun);
             if (null === $reason) {
                 $imported[] = [$line, $file, $tag];
             } else {

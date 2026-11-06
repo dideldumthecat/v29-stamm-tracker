@@ -17,6 +17,7 @@ class UserCreateCommand
 {
     public function __construct(
         private readonly EntityManagerInterface $em,
+        private readonly Superadmin $superadmin,
         #[Autowire(env: 'DEFAULT_URI')]
         private readonly string $address,
     ) {
@@ -25,11 +26,18 @@ class UserCreateCommand
     public function __invoke(
         SymfonyStyle $io,
         #[Argument(description: 'Name shown as "recorded by"')] string $name,
-        #[Option(description: 'Give the user the admin role')] bool $admin = false,
+        #[Option(description: 'user, admin (administration) or superadmin (administration; the console commands record under it; at most one)')] string $role = 'user',
     ): int {
         $name = trim($name);
-        if ('' === $name) {
-            $io->error('The name must not be empty.');
+        $userRole = UserRole::tryFrom($role);
+        $error = match (true) {
+            '' === $name => 'The name must not be empty.',
+            null === $userRole => \sprintf('"%s" is not a role. Use user, admin or superadmin.', $role),
+            UserRole::Superadmin === $userRole => $this->superadmin->conflict(),
+            default => null,
+        };
+        if (null !== $error) {
+            $io->error($error);
 
             return Command::FAILURE;
         }
@@ -39,7 +47,7 @@ class UserCreateCommand
             $code .= User::CODE_ALPHABET[random_int(0, \strlen(User::CODE_ALPHABET) - 1)];
         }
         // Only the hash is stored.
-        $user = new User($name, $admin ? UserRole::Admin : UserRole::User, User::hashToken($code));
+        $user = new User($name, $userRole, User::hashToken($code));
         $formatted = implode('-', str_split($code, 4));
         $this->em->persist($user);
         $this->em->flush();

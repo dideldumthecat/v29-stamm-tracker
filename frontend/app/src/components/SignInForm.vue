@@ -3,7 +3,7 @@ import { ref, useTemplateRef, watch } from 'vue'
 import { XIcon } from '@lucide/vue'
 import { ApiError } from '@/api/client'
 import { useTimberItemStore } from '@/stores/timberItems'
-import { formatInviteInput, isInviteCode } from '@/utils/invite'
+import { formatInviteInput, isInviteCode } from '@v29/shared/invite'
 
 const emit = defineEmits<{ 'signed-in': [] }>()
 

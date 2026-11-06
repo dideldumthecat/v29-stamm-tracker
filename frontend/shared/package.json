@@ -3,9 +3,19 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "scripts": {
+    "tests": "vitest run"
+  },
   "exports": {
     "./contract": "./contract.ts",
     "./theme.css": "./theme.css",
+    "./invite": "./invite.ts",
     "./fixtures/*": "./fixtures/*"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.12"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.12"
   }
 }

@@ -25,6 +25,7 @@ class AttributeClearCommand
         private readonly EntityManagerInterface $em,
         private readonly TimberItemProjector $projector,
         private readonly StemSelection $selection,
+        private readonly Superadmin $superadmin,
     ) {
     }
 
@@ -33,7 +34,6 @@ class AttributeClearCommand
         #[Argument(description: 'Attribute key or exact name, e.g. mid_diameter_max or Länge')] string $attribute,
         #[Option(description: 'Stems to clear: all, 119, 1-10 or a list like 1-10,15,20-25 (leading zeros do not matter)')] ?string $range = null,
         #[Option(description: 'Show what would happen without writing anything')] bool $dryRun = false,
-        #[Option(description: 'Name or ID of the user the voids are recorded under; default: the only admin')] ?string $user = null,
     ): int {
         $numbers = null === $range ? null : $this->selection->parseRange($range);
         $attr = $this->selection->attribute($attribute);
@@ -44,7 +44,7 @@ class AttributeClearCommand
             $attr->isSeries => \sprintf('"%s" is a series; a series cannot be cleared for many stems.', $attribute),
             default => null,
         };
-        $author = $this->selection->user($user);
+        $author = $this->superadmin->author();
         $error ??= \is_string($author) ? $author : null;
         if (null !== $error) {
             $io->error($error);

@@ -26,6 +26,7 @@ class ItemRestoreCommand
         private readonly EntityManagerInterface $em,
         private readonly TimberItemProjector $projector,
         private readonly StemSelection $selection,
+        private readonly Superadmin $superadmin,
     ) {
     }
 
@@ -33,7 +34,6 @@ class ItemRestoreCommand
         SymfonyStyle $io,
         #[Argument(description: 'Tag, e.g. 123 or 123-A; leading zeros do not matter')] string $tag,
         #[Option(description: 'Show what would happen without writing anything')] bool $dryRun = false,
-        #[Option(description: 'Name or ID of the user the restore is recorded under; default: the only admin')] ?string $user = null,
     ): int {
         $normalized = Tag::normalize($tag);
         if (null === $normalized) {
@@ -55,7 +55,7 @@ class ItemRestoreCommand
 
             return Command::FAILURE;
         }
-        $author = $this->selection->user($user);
+        $author = $this->superadmin->author();
         if (\is_string($author)) {
             $io->error($author);
 

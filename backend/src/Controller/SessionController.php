@@ -8,6 +8,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Symfony\Component\Routing\Attribute\Route;
@@ -15,6 +16,7 @@ use Symfony\Component\Routing\Attribute\Route;
 final class SessionController extends AbstractController
 {
     public const COOKIE = 'v29_token';
+    private const COOKIE_PATH = '/api';
 
     #[Route('/api/session', methods: ['POST'])]
     public function __invoke(Request $request, EntityManagerInterface $em): JsonResponse
@@ -36,10 +38,21 @@ final class SessionController extends AbstractController
         // in the forest. Revoking the user ends access, since every request checks the token again.
         $response->headers->setCookie(Cookie::create(self::COOKIE, $token)
             ->withExpires(new \DateTimeImmutable('+5 years'))
-            ->withPath('/api')
+            ->withPath(self::COOKIE_PATH)
             ->withSecure()
             ->withHttpOnly()
             ->withSameSite(Cookie::SAMESITE_STRICT));
+
+        return $response;
+    }
+
+    /** Public like the sign-in: whoever has no valid cookie anymore can still end the session in the browser. */
+    #[Route('/api/session', methods: ['DELETE'])]
+    public function signOut(): Response
+    {
+        // Path and attributes as when setting, otherwise the browser keeps the cookie.
+        $response = new Response(status: Response::HTTP_NO_CONTENT);
+        $response->headers->clearCookie(self::COOKIE, self::COOKIE_PATH, null, true, true, Cookie::SAMESITE_STRICT);
 
         return $response;
     }

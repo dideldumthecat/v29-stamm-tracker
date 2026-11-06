@@ -35,6 +35,22 @@ export interface SessionResponse {
   user: { id: Uuid; name: string }
 }
 
+// --- DELETE /api/session ----------------------------------------------------
+// 204, no body. Sets the cookie v29_token expired (same path and attributes as when it was set).
+// Needs no sign-in, like POST /api/session. The cookie is shared: signing out of the administration
+// signs the app out in the same browser too.
+
+// --- GET /api/admin/me -------------------------------------------------------
+// The administration's sign-in check. Everything below /api/admin/ needs the role admin or superadmin:
+// 401 without a cookie or with an unknown or revoked one, 403 for the role user (checked centrally,
+// the endpoints do not repeat it). Used by the administration only.
+
+export type UserRole = 'user' | 'admin' | 'superadmin'
+
+export interface AdminMeResponse {
+  user: { id: Uuid; name: string; role: UserRole }
+}
+
 // --- GET /api/snapshot -------------------------------------------------------
 
 export interface Snapshot {

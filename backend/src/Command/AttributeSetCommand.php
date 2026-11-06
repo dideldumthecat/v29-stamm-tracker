@@ -29,6 +29,7 @@ class AttributeSetCommand
         private readonly EntityManagerInterface $em,
         private readonly TimberItemProjector $projector,
         private readonly StemSelection $selection,
+        private readonly Superadmin $superadmin,
     ) {
     }
 
@@ -39,7 +40,6 @@ class AttributeSetCommand
         #[Option(description: 'Stems to change: all, 119, 1-10 or a list like 1-10,15,20-25 (leading zeros do not matter)')] ?string $range = null,
         #[Option(description: 'Also replace a different value that is already set')] bool $overwrite = false,
         #[Option(description: 'Show what would happen without writing anything')] bool $dryRun = false,
-        #[Option(description: 'Name or ID of the user the values are recorded under; default: the only admin')] ?string $user = null,
     ): int {
         $numbers = null === $range ? null : $this->selection->parseRange($range);
         $attr = $this->selection->attribute($attribute);
@@ -52,7 +52,7 @@ class AttributeSetCommand
             default => null,
         };
         $parsed = $error ?? $this->parseValue($attr, $value, $error);
-        $author = $this->selection->user($user);
+        $author = $this->superadmin->author();
         $error ??= \is_string($author) ? $author : null;
         if (null !== $error) {
             $io->error($error);
