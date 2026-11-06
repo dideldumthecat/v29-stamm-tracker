@@ -27,7 +27,14 @@ export default defineConfig({
       ? { host: DDEV_HOSTNAME.split(',')[0], protocol: 'wss', clientPort: 5174 }
       : undefined,
     // Symfony runs in the same container on port 80 → same origin, no CORS.
-    // The favicon lives at the root (built from frontend/app/public), outside this server's base.
-    proxy: { '/api': 'http://localhost', '/favicon.ico': 'http://localhost' },
+    // The favicon lives at the root (built from frontend/app/public). In dev mode Vite puts the base in front of
+    // the link from index.html, so the browser asks for /admin/favicon.ico; the build keeps /favicon.ico.
+    proxy: {
+      '/api': 'http://localhost',
+      '/admin/favicon.ico': {
+        target: 'http://localhost',
+        rewrite: () => '/favicon.ico',
+      },
+    },
   },
 })
