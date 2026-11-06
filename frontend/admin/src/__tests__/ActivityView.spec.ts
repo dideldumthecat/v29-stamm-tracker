@@ -63,14 +63,18 @@ describe('activity page', () => {
     const { wrapper } = await open()
 
     expect(wrapper.get('h1').text()).toBe('Aktivität')
-    expect(wrapper.text()).toContain('Wer hat wann was erfasst · neueste zuerst')
-    expect(wrapper.get('main > p.text-lg').text()).toBe('6 Einträge')
+    expect(wrapper.text()).toContain('Wer hat wann was erfasst')
+    expect(wrapper.text()).not.toContain('neueste zuerst')
+    expect(wrapper.get('main > p.flex span.text-lg').text()).toBe('6 Einträge')
+    // the note sits in the same line as the number, not below the list
+    expect(wrapper.get('main > p.flex').text()).toContain(
+      'Uhrzeit = Eingang am Server · „erfasst“ = Uhrzeit am Handy',
+    )
     expect(wrapper.text()).not.toContain('Personen')
     const days = wrapper.findAll('section')
     expect(days.map((day) => day.get('h2').text())).toEqual(['Di, 03.11.2026', 'Sa, 31.10.2026'])
     expect(days[1].get('h2').element.parentElement).toBe(days[1].element)
     expect(days[1].text()).not.toContain('31 Ereignisse')
-    expect(wrapper.text()).toContain('Uhrzeit = Eingang am Server · „erfasst“ = Uhrzeit am Handy')
   })
 
   it('writes an entry as time, person with counts behind it, and bullet points without tags', async () => {

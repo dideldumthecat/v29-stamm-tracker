@@ -153,7 +153,7 @@ const days = computed(() => groupByDay(entries.value))
 <template>
   <main class="page-column py-8">
     <h1 class="text-3xl font-bold">Aktivität</h1>
-    <p class="text-mute">Wer hat wann was erfasst · neueste zuerst</p>
+    <p class="text-mute">Wer hat wann was erfasst</p>
 
     <form class="mt-6 flex flex-wrap items-end gap-x-4 gap-y-3" @submit.prevent>
       <label class="flex flex-col text-sm text-mute">
@@ -302,7 +302,10 @@ const days = computed(() => groupByDay(entries.value))
     </StatusCard>
 
     <template v-else>
-      <p v-if="totals" class="mt-6 text-lg font-bold">{{ entriesText(totals.entries) }}</p>
+      <p v-if="totals" class="mt-6 flex flex-wrap items-baseline gap-x-3">
+        <span class="text-lg font-bold">{{ entriesText(totals.entries) }}</span>
+        <span class="text-sm text-mute">Uhrzeit = Eingang am Server · „erfasst“ = Uhrzeit am Handy</span>
+      </p>
 
       <section
         v-for="day in days"
@@ -318,19 +321,16 @@ const days = computed(() => groupByDay(entries.value))
         </div>
       </section>
 
-      <div class="mt-6 flex flex-wrap items-center justify-between gap-4">
-        <p class="text-sm text-mute">Uhrzeit = Eingang am Server · „erfasst“ = Uhrzeit am Handy</p>
-        <div v-if="cursor" class="flex items-center gap-3">
-          <p v-if="moreFailed" class="text-sm font-semibold" role="alert">Laden fehlgeschlagen.</p>
-          <button
-            type="button"
-            class="h-11 rounded-lg border-2 border-ink bg-paper px-4 font-bold disabled:text-mute"
-            :disabled="loadingMore"
-            @click="loadMore"
-          >
-            Ältere laden
-          </button>
-        </div>
+      <div v-if="cursor" class="mt-6 flex items-center gap-3">
+        <p v-if="moreFailed" class="text-sm font-semibold" role="alert">Laden fehlgeschlagen.</p>
+        <button
+          type="button"
+          class="h-11 rounded-lg border-2 border-ink bg-paper px-4 font-bold disabled:text-mute"
+          :disabled="loadingMore"
+          @click="loadMore"
+        >
+          Ältere laden
+        </button>
       </div>
     </template>
   </main>
