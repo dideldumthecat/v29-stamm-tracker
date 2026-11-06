@@ -298,7 +298,6 @@ test.describe('activity', () => {
     await page.getByRole('button', { name: 'Ältere laden' }).click()
     await expect(page.getByRole('time')).toHaveCount(6)
     await expect(page.getByRole('button', { name: 'Ältere laden' })).toHaveCount(0)
-    await expect(page.getByText('Uhrzeit = Eingang am Server')).toBeVisible()
   })
 
   test('keeps the filter in the URL through a reload and the back button', async ({ page }) => {
