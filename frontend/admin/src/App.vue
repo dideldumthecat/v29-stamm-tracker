@@ -38,7 +38,9 @@ async function onSignOut() {
           <!-- 42 = heading line (24) + gap (2) + name line (16), as in the app header -->
           <V29Logo :height="42" />
           <div class="flex flex-col gap-0.5">
-            <div class="text-[17px] leading-6 font-bold"><span class="sr-only">V29 </span>Stamm-Tracker</div>
+            <div class="text-[17px] leading-6 font-bold">
+              <span class="sr-only">V29 </span>Stamm-Tracker
+            </div>
             <!-- paper at 85 % on ink is about #dadada, contrast ≈ 14:1 -->
             <div class="text-xs text-paper/85">{{ user.name }}</div>
           </div>

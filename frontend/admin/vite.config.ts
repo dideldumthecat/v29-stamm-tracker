@@ -26,7 +26,8 @@ export default defineConfig({
     hmr: DDEV_HOSTNAME
       ? { host: DDEV_HOSTNAME.split(',')[0], protocol: 'wss', clientPort: 5174 }
       : undefined,
-    // Symfony runs in the same container on port 80 → same origin, no CORS
-    proxy: { '/api': 'http://localhost' },
+    // Symfony runs in the same container on port 80 → same origin, no CORS.
+    // The favicon lives at the root (built from frontend/app/public), outside this server's base.
+    proxy: { '/api': 'http://localhost', '/favicon.ico': 'http://localhost' },
   },
 })
