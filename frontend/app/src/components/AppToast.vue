@@ -24,11 +24,8 @@ const { current } = useToast()
       >
         <div
           v-if="current"
-          class="flex items-center gap-3 border-b border-line py-3.5 px-gutter text-[17px] leading-[1.3] font-normal text-ink shadow-sm select-none"
-          :class="[
-            current.kind === 'warning' ? 'bg-well' : 'bg-paper',
-            current.centered && 'justify-center text-center',
-          ]"
+          class="flex items-center justify-center gap-3 border-b border-line py-3.5 px-gutter text-center text-[17px] leading-[1.3] font-normal text-ink shadow-sm select-none"
+          :class="current.kind === 'warning' ? 'bg-well' : 'bg-paper'"
           role="status"
         >
           <TriangleAlertIcon
@@ -38,7 +35,7 @@ const { current } = useToast()
             aria-hidden="true"
           />
           <CircleCheckIcon v-else class="shrink-0 text-mute" :size="20" aria-hidden="true" />
-          <span class="min-w-0" :class="{ 'flex-1': !current.centered }"
+          <span class="min-w-0"
             >{{ current.before }}
             <FormattedTag v-if="current.tagNumber !== undefined" :tag-number="current.tagNumber" />
             {{ current.after }}</span
