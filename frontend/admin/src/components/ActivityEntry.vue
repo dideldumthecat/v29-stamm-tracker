@@ -75,7 +75,7 @@ const hasNumber = (label: string) => /^\d/.test(label)
                   v-if="index === 0"
                   scope="row"
                   :rowspan="item.rows.length"
-                  class="px-3 py-2 text-left font-semibold tabular-nums"
+                  class="px-3 py-2 text-left text-base leading-5 font-semibold tracking-[.05em] tabular-nums"
                 >
                   <FormattedTag v-if="hasNumber(item.label)" :tag-number="item.label" />
                   <template v-else>{{ item.label }}</template>
