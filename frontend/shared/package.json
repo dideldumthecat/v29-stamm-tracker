@@ -10,12 +10,13 @@
     "./contract": "./contract.ts",
     "./theme.css": "./theme.css",
     "./invite": "./invite.ts",
+    "./AuthorCredit.vue": "./AuthorCredit.vue",
     "./fixtures/*": "./fixtures/*"
   },
   "devDependencies": {
     "vitest": "^4.1.12"
   },
-  "devDependencies": {
-    "vitest": "^4.1.12"
+  "dependencies": {
+    "@lucide/vue": "^1.61.0"
   }
 }

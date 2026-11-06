@@ -4,6 +4,8 @@
  */
 @import 'tailwindcss';
 @import '@v29/shared/theme.css';
+/* Shared components live outside this project: Tailwind scans them for classes too */
+@source '../../../shared/*.vue';
 
 /* Low screens (small phones, browser bars): slightly flatter elements */
 @custom-variant short (@media (max-height: 760px));

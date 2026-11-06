@@ -11,6 +11,7 @@ export function createAdminRouter(history: RouterHistory = createWebHistory('/ad
     history,
     routes: [
       { path: '/login', name: 'login', component: LoginView },
+      { path: '/', name: 'dashboard', component: PlaceholderView },
       { path: '/:pathMatch(.*)*', component: PlaceholderView },
     ],
   })

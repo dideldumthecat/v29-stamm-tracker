@@ -6,6 +6,7 @@ import { vi } from 'vitest'
  */
 export function fakeApi(codes: Record<string, string>, { offline = false } = {}) {
   let role: string | null = null
+  let signOutFails = false
   const calls: string[] = []
   vi.stubGlobal(
     'fetch',
@@ -22,6 +23,7 @@ export function fakeApi(codes: Record<string, string>, { offline = false } = {})
         return json(200, { user: { id: 'x', name: 'Ada' } })
       }
       if (call === 'DELETE /api/session') {
+        if (signOutFails) return json(500)
         role = null
         return json(204)
       }
@@ -33,5 +35,9 @@ export function fakeApi(codes: Record<string, string>, { offline = false } = {})
       return json(404)
     }),
   )
-  return { calls, expireSession: () => (role = null) }
+  return {
+    calls,
+    expireSession: () => (role = null),
+    failSignOut: () => (signOutFails = true),
+  }
 }
