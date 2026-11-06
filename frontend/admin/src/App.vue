@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { LogOutIcon } from '@lucide/vue'
 import AuthorCredit from '@v29/shared/AuthorCredit.vue'
+import V29Logo from '@v29/shared/V29Logo.vue'
 
 import { signOut, user } from '@/auth'
 
@@ -33,9 +34,14 @@ async function onSignOut() {
       class="bg-ink text-paper **:focus-visible:outline-paper"
     >
       <div class="page-column flex min-h-[72px] flex-wrap items-center gap-x-4 gap-y-2 py-3">
-        <div class="mr-auto">
-          <div class="font-bold">V29 Stamm-Tracker</div>
-          <div class="text-sm">{{ user.name }}</div>
+        <div class="mr-auto flex items-center gap-3">
+          <!-- 42 = heading line (24) + gap (2) + name line (16), as in the app header -->
+          <V29Logo :height="42" />
+          <div class="flex flex-col gap-0.5">
+            <div class="text-[17px] leading-6 font-bold"><span class="sr-only">V29 </span>Stamm-Tracker</div>
+            <!-- paper at 85 % on ink is about #dadada, contrast ≈ 14:1 -->
+            <div class="text-xs text-paper/85">{{ user.name }}</div>
+          </div>
         </div>
         <nav
           aria-label="Hauptnavigation"
