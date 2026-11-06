@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { TAG_DIGITS, TAG_MIN_NUMBER, TAG_MAX_NUMBER } from '@/config/constants'
+import { TAG_DIGITS } from '@v29/shared/tag'
+import { TAG_MIN_NUMBER, TAG_MAX_NUMBER } from '@/config/constants'
 import { computed } from 'vue'
 
 const props = defineProps<{

@@ -32,7 +32,7 @@ import PhotoSection from '@/components/PhotoSection.vue'
 import BeamRowLabel from '@/components/BeamRowLabel.vue'
 import SaveBar from '@/components/SaveBar.vue'
 import ConfirmSheet from '@/components/ConfirmSheet.vue'
-import FormattedTag from '@/components/FormattedTag.vue'
+import FormattedTag from '@v29/shared/FormattedTag.vue'
 
 const props = defineProps<{
   // Tag from the URL, e.g. "85" or a beam's "85-A". Passed in by the router (`props: true`).

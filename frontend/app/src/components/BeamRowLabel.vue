@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ChevronRightIcon } from '@lucide/vue'
-import FormattedTag from '@/components/FormattedTag.vue'
+import FormattedTag from '@v29/shared/FormattedTag.vue'
 
 // The inside of a beam row on the stem screen; the saved ones are links, the draft ones buttons.
 defineProps<{ tagNumber: string; summary: string; note?: string }>()

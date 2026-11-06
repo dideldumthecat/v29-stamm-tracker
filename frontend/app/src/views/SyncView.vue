@@ -18,7 +18,7 @@ import { formatShortDateTime } from '@/utils/date'
 import { formatBytes } from '@/utils/photo'
 import { useToast } from '@/composables/useToast'
 import ConfirmSheet from '@/components/ConfirmSheet.vue'
-import FormattedTag from '@/components/FormattedTag.vue'
+import FormattedTag from '@v29/shared/FormattedTag.vue'
 import RejectedAlerts from '@/components/RejectedAlerts.vue'
 import SignInForm from '@/components/SignInForm.vue'
 

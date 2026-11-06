@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { SyncResult } from '@/stores/timberItems'
-import FormattedTag from '@/components/FormattedTag.vue'
+import FormattedTag from '@v29/shared/FormattedTag.vue'
 
 defineProps<{ rejected: SyncResult['rejected'] }>()
 </script>

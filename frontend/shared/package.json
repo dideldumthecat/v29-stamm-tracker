@@ -10,7 +10,10 @@
     "./contract": "./contract.ts",
     "./theme.css": "./theme.css",
     "./invite": "./invite.ts",
+    "./tag": "./tag.ts",
+    "./FormattedTag.vue": "./FormattedTag.vue",
     "./AuthorCredit.vue": "./AuthorCredit.vue",
+    "./SawBladeIcon.vue": "./SawBladeIcon.vue",
     "./fixtures/*": "./fixtures/*"
   },
   "devDependencies": {
