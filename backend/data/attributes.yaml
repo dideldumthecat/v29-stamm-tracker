@@ -40,6 +40,15 @@
   is_inheritable: true
   options: ['4,10 m', '3,60 m', '3,20 m']
 
+# The stem cannot be sawn into construction beams; other uses such as planks do not count. The reason stays in "Notiz".
+# Stems only, therefore not inheritable: a stem with beams is sawable by definition.
+# Sorting out sawn beams later is a separate attribute, not this one.
+- name: Nicht sägbar
+  key: unsawable
+  type: boolean
+  description: "Stamm lässt sich nicht zu Balken sägen, Grund in die Notiz."
+  is_inheritable: false
+
 - name: Gesägt
   key: sawn
   type: boolean
