@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, type Component } from 'vue'
+import { computed, nextTick, ref, useTemplateRef, type Component } from 'vue'
 import {
   onBeforeRouteLeave,
   onBeforeRouteUpdate,
@@ -8,8 +8,7 @@ import {
 } from 'vue-router'
 import { Trash2Icon } from '@lucide/vue'
 import { useTimberItemStore, type Attribute, type TimberItem } from '@/stores/timberItems'
-import type { AttributeValue } from '@v29/shared/contract'
-import { formatPhotoCount, formatValueLine } from '@/utils/attributeDraft'
+import { formatRecordedLines } from '@/utils/attributeDraft'
 import { bySortOrder } from '@/utils/sort'
 import { useToast } from '@/composables/useToast'
 import { useTimberItemDraft } from '@/composables/useTimberItemDraft'
@@ -65,11 +64,9 @@ const fieldComponents: Partial<Record<Attribute['type'], Component>> = {
 
 const {
   draft,
-  added,
   draftBeams,
   formKey,
   isDirty,
-  shownErrors,
   isCompressing,
   isPicking,
   addPhotos,
@@ -77,23 +74,8 @@ const {
   removePhoto,
   unsaved,
   save,
+  extraFieldProps,
 } = useTimberItemDraft(item, () => props.tagNumber, attributes)
-
-// Only where the component has them: an unknown prop would end up as an HTML attribute.
-function extraProps(attribute: Attribute) {
-  const error = shownErrors.value[attribute.id]
-  if (attribute.type === 'month') {
-    return { error }
-  }
-  if (attribute.type === 'number') {
-    return {
-      error,
-      added: added.value[attribute.id],
-      'onUpdate:added': (values: AttributeValue[]) => (added.value[attribute.id] = values),
-    }
-  }
-  return {}
-}
 
 // A split stem is read-only; the bar only leads back to the start screen, unless new beams wait to be saved.
 const isClosing = computed(() => isSplit.value && draftBeams.value.length === 0)
@@ -104,12 +86,15 @@ const saveLabel = computed(
     `${item.value ? 'Speichern' : 'Stamm anlegen'}${draftBeams.value.length > 0 ? '' : ' & schließen'}`,
 )
 
+// The fields render their own error; the form is where to look for the first one.
+const form = useTemplateRef<HTMLElement>('form')
+
 async function saveDraft(): Promise<TimberItem | null> {
   const target = save()
   if (!target) {
     // The save bar sticks to the bottom; without this the error may be off screen and "nothing happens".
     await nextTick()
-    document.querySelector('[role="alert"]')?.scrollIntoView({ block: 'center' })
+    form.value?.querySelector('[role="alert"]')?.scrollIntoView({ block: 'center' })
   }
   return target
 }
@@ -151,25 +136,13 @@ async function onSaveBeforeOpen() {
 
 const beamToRemove = ref<TimberItem | null>(null)
 
-// What the remove dialog lists: the beam's own values (`store.items` holds no inherited ones) in the
-// order of the form, then its photos, uploaded or not. Photos are told apart by the attribute type.
-const removeLines = computed(() => {
-  const own = store.items.find((candidate) => candidate.id === beamToRemove.value?.id)?.values ?? {}
-  const values: string[] = []
-  let photoCount = 0
-  for (const attribute of [...store.attributes].sort(bySortOrder)) {
-    const recorded = own[attribute.id] ?? []
-    if (attribute.type === 'photo') {
-      photoCount += recorded.length
-    } else {
-      // Only a series keeps more than its latest value.
-      for (const record of attribute.is_series ? recorded : recorded.slice(-1)) {
-        values.push(formatValueLine(attribute, record.value))
-      }
-    }
-  }
-  return photoCount > 0 ? [...values, formatPhotoCount(photoCount)] : values
-})
+// What the remove dialog lists: the beam's own values (`store.items` holds no inherited ones).
+const removeLines = computed(() =>
+  formatRecordedLines(
+    store.attributes,
+    store.items.find((candidate) => candidate.id === beamToRemove.value?.id)?.values ?? {},
+  ),
+)
 
 async function onRemove() {
   const beam = beamToRemove.value!
@@ -244,7 +217,7 @@ function onDiscard() {
       Aufgeteilter Stamm: Angaben am jeweiligen Balken erfassen.
     </p>
 
-    <div :key="formKey" class="border-b border-line">
+    <div ref="form" :key="formKey" class="border-b border-line">
       <template v-for="attribute in attributes" :key="attribute.id">
         <PhotoSection
           v-if="attribute.type === 'photo'"
@@ -266,7 +239,7 @@ function onDiscard() {
           :readonly="!attribute.active || isSplit"
           :inherited="item && store.isInherited(item.id, attribute.id)"
           :user-name="store.userName"
-          v-bind="extraProps(attribute)"
+          v-bind="extraFieldProps(attribute)"
           @update:model-value="draft[attribute.id] = $event"
         />
       </template>

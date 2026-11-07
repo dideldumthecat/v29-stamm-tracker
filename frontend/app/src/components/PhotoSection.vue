@@ -2,6 +2,7 @@
 import { computed, onUnmounted, useTemplateRef, watch } from 'vue'
 import { CameraIcon, ImagesIcon, LoaderCircleIcon, XIcon } from '@lucide/vue'
 import type { Attribute, StoredPhoto } from '@/stores/timberItems'
+import { plural } from '@/utils/plural'
 
 type Preview = Pick<StoredPhoto, 'id' | 'blob'>
 
@@ -126,7 +127,7 @@ const captureButton =
         <div
           class="absolute bottom-0 left-0 flex h-[calc(100%-6px)] w-[calc(100%-6px)] items-center justify-center rounded-lg bg-soft text-xl font-bold tabular-nums"
           role="img"
-          :aria-label="`${uploadedCount} ${uploadedCount === 1 ? 'Foto' : 'Fotos'} hochgeladen`"
+          :aria-label="`${plural(uploadedCount, 'Foto', 'Fotos')} hochgeladen`"
         >
           {{ uploadedCount }}
         </div>

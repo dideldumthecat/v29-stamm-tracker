@@ -306,8 +306,11 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     emit('attribute_recorded', itemId, { attribute_id: attributeId, value: photo.id }, photo)
   }
 
-  const pendingPhotosOf = (itemId: string) =>
-    photos.value.filter((photo) => photo.timber_item_id === itemId)
+  // The photo files carry no attribute; their ids are values of the attribute, queued or already synced.
+  function pendingPhotosOf(itemId: string, attributeId: string) {
+    const ids = new Set(findById(itemId)?.values[attributeId]?.map((record) => record.value))
+    return photos.value.filter((photo) => photo.timber_item_id === itemId && ids.has(photo.id))
+  }
 
   // The snapshot lists the id and the file is no longer here.
   function uploadedPhotoCount(itemId: string, attributeId: string): number {
