@@ -7,14 +7,7 @@
  */
 import { computed, ref, toRaw, watch } from 'vue'
 import { defineStore } from 'pinia'
-import type {
-  AttributeValueRecord,
-  AttributeValue,
-  Event,
-  TimberItem,
-  Timestamp,
-  Uuid,
-} from '@v29/shared/contract'
+import type { AttributeValue, Event, TimberItem, Timestamp, Uuid } from '@v29/shared/contract'
 import { api, ApiError, describeFailure, type User } from '@/api/client'
 import {
   load as loadStored,
@@ -27,7 +20,14 @@ import { useToast } from '@/composables/useToast'
 import { record } from '@/diagnostics/record'
 import { sendDiagnostics, setDiagnosticsSignedIn } from '@/diagnostics/send'
 import { SYNC_TIMEOUT_MS } from '@/config/constants'
-import { nextBeamTag } from '@/utils/tag'
+import {
+  childrenOf as projectChildrenOf,
+  isInherited as projectIsInherited,
+  nextBeamTagOf as projectNextBeamTagOf,
+  projectItems,
+  removedBeams as projectRemovedBeams,
+  withInherited as projectWithInherited,
+} from './projection'
 
 // The app uses the contract types directly (snake_case, as on the wire) – no second model, no mapper.
 export type {
@@ -192,98 +192,10 @@ export const useTimberItemStore = defineStore('timberItems', () => {
   const hasPendingCreated = (itemId: string) =>
     events.value.some((event) => event.type === 'created' && event.timber_item_id === itemId)
 
-  const lastEventId = (records: AttributeValueRecord[] | undefined) =>
-    records?.slice(-1)[0]?.event_id
-
-  // Rebuilt whenever the snapshot or the queue changes; copies, so the snapshot itself stays untouched.
-  const items = computed<TimberItem[]>(() => {
-    const byId = new Map(
-      snapshot.value.timber_items.map((item) => [item.id, { ...item, values: { ...item.values } }]),
-    )
-    // The snapshot delivers beams with their inherited values (as timber_item_state does).
-    // Strip those, so a parent changed offline is followed by its beams.
-    for (const item of byId.values()) {
-      const parent = item.parent_id ? byId.get(item.parent_id) : undefined
-      for (const attributeId of Object.keys(item.values)) {
-        const own = lastEventId(item.values[attributeId])
-        if (parent && own !== undefined && own === lastEventId(parent.values[attributeId])) {
-          delete item.values[attributeId]
-        }
-      }
-    }
-
-    const stemsWithRemovedBeam = new Set<Uuid>()
-    for (const event of events.value) {
-      if (event.type === 'voided') {
-        // Gone at once, like on the server after the sync; its letter is free again.
-        const beam = byId.get(event.timber_item_id)
-        byId.delete(event.timber_item_id)
-        if (beam?.parent_id) {
-          stemsWithRemovedBeam.add(beam.parent_id)
-        }
-        continue
-      }
-      if (event.type === 'created') {
-        const parentId = event.data.parent_id
-        byId.set(event.timber_item_id, {
-          id: event.timber_item_id,
-          parent_id: parentId,
-          tag_number: null,
-          has_children: false,
-          created_at: event.recorded_at,
-          created_by: currentUser.value?.id ?? '',
-          values: {},
-        })
-        const parent = parentId ? byId.get(parentId) : undefined
-        if (parent) {
-          parent.has_children = true
-        }
-        continue
-      }
-      // Unknown item: voided on the server meanwhile – nothing to show it on.
-      const item = byId.get(event.timber_item_id)
-      if (!item) {
-        continue
-      }
-      if (event.type === 'tag_assigned') {
-        item.tag_number = event.data.tag_number
-        continue
-      }
-      const { attribute_id: attributeId, value } = event.data
-      const record = {
-        value,
-        recorded_at: event.recorded_at,
-        user_id: currentUser.value?.id ?? '',
-        event_id: event.id,
-      }
-      // Series keep every recording; all other attributes hold exactly one (the current value).
-      const isSeries = attributes.value.find((attribute) => attribute.id === attributeId)?.is_series
-      item.values[attributeId] = isSeries ? [...(item.values[attributeId] ?? []), record] : [record]
-    }
-    // A stem whose last beam is removed is editable again, also offline (the server does the same).
-    for (const stemId of stemsWithRemovedBeam) {
-      const stem = byId.get(stemId)
-      if (stem) {
-        stem.has_children = [...byId.values()].some((item) => item.parent_id === stemId)
-      }
-    }
-    return [...byId.values()]
-  })
-
-  // Synced beams the user removed and the sync has not sent yet: gone from `items`, but the sync screen still names them.
-  const removedBeams = computed(
-    () =>
-      new Map(
-        events.value
-          .filter((event) => event.type === 'voided')
-          .flatMap((event) => {
-            const beam = snapshot.value.timber_items.find(
-              (item) => item.id === event.timber_item_id,
-            )
-            return beam ? [[beam.id, beam] as const] : []
-          }),
-      ),
+  const items = computed(() =>
+    projectItems(snapshot.value, events.value, attributes.value, currentUser.value?.id ?? ''),
   )
+  const removedBeams = computed(() => projectRemovedBeams(snapshot.value, events.value))
 
   const findById = (id: string | null) => items.value.find((item) => item.id === id)
 
@@ -543,18 +455,8 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     )
   }
 
-  // Same rules as the server projection: inheritable attributes come from the parent unless the
-  // beam has its own value; a series is taken as a whole list, never merged.
-  function withInherited(item: TimberItem): TimberItem {
-    const parent = findById(item.parent_id)
-    if (!parent) {
-      return item
-    }
-    const inherited = attributes.value
-      .filter((attribute) => attribute.is_inheritable && parent.values[attribute.id])
-      .map((attribute) => [attribute.id, parent.values[attribute.id]!])
-    return { ...item, values: { ...Object.fromEntries(inherited), ...item.values } }
-  }
+  const withInherited = (item: TimberItem) =>
+    projectWithInherited(item, items.value, attributes.value)
 
   // tag_number is a string in the contract ("123", beams "123-A"); the start screen only knows numbers.
   function findByTagNumber(tagNumber: number): TimberItem | undefined {
@@ -566,40 +468,13 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     return item && withInherited(item)
   }
 
-  // Sorted by tag like the Excel export: the snapshot order is device time, which skews between phones.
-  // Beams without a tag come last.
-  function childrenOf(itemId: string): TimberItem[] {
-    return items.value
-      .filter((item) => item.parent_id === itemId)
-      .map(withInherited)
-      .sort(
-        (a, b) =>
-          Number(a.tag_number === null) - Number(b.tag_number === null) ||
-          (a.tag_number ?? '').localeCompare(b.tag_number ?? ''),
-      )
-  }
+  const childrenOf = (itemId: string) => projectChildrenOf(itemId, items.value, attributes.value)
 
-  // undefined parent = stem not created yet, so no beams either. A removed beam frees its letter.
-  // draftTags: beams of a draft that is not saved yet; they count, so a letter once shown is never handed out twice.
-  function nextBeamTagOf(
-    parent: TimberItem | undefined,
-    parentTag: string,
-    draftTags: string[] = [],
-  ): string | null {
-    const beamTags = parent ? childrenOf(parent.id).map((beam) => beam.tag_number) : []
-    return nextBeamTag(parentTag, [...beamTags, ...draftTags])
-  }
+  const nextBeamTagOf = (parent: TimberItem | undefined, parentTag: string, draftTags?: string[]) =>
+    projectNextBeamTagOf(parent, parentTag, items.value, draftTags)
 
-  // Inherited = the beam shows the very recording its parent holds.
-  function isInherited(itemId: string, attributeId: string): boolean {
-    const item = findById(itemId)
-    const parent = item && findById(item.parent_id)
-    if (!item || !parent) {
-      return false
-    }
-    const own = lastEventId(withInherited(item).values[attributeId])
-    return own !== undefined && own === lastEventId(parent.values[attributeId])
-  }
+  const isInherited = (itemId: string, attributeId: string) =>
+    projectIsInherited(itemId, attributeId, items.value, attributes.value)
 
   // Own name before the first sync: the snapshot does not know this user yet.
   function userName(userId: string): string {
