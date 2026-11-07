@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import { CheckIcon, PencilIcon } from '@lucide/vue'
 import type { Attribute, AttributeValueRecord } from '@/stores/timberItems'
 import InactiveHint from '@/components/InactiveHint.vue'
-import { formatShortDate } from '@/utils/date'
+import { formatDateTime } from '@/utils/date'
 import { useTimberItemStore } from '@/stores/timberItems'
 
 const props = defineProps<{
@@ -72,7 +72,7 @@ function toggle() {
       {{ attribute.description }}
     </p>
     <span v-if="current" class="text-[13px] text-mute"
-      >{{ formatShortDate(current.recorded_at) }} · {{ store.userName(current.user_id)
+      >{{ formatDateTime(current.recorded_at) }} · {{ store.userName(current.user_id)
       }}{{ inherited ? ' · vom Stamm' : '' }}</span
     >
   </section>

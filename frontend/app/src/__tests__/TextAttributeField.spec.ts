@@ -29,7 +29,7 @@ describe('TextAttributeField', () => {
     it('lists earlier entries and starts with an empty textarea', () => {
       const { wrapper } = setup()
       expect(wrapper.text()).toContain('Leichter Drehwuchs')
-      expect(wrapper.text()).toContain('02.10. · Kerstin')
+      expect(wrapper.text()).toMatch(/02\.10\.2026, \d{2}:\d{2} · Kerstin/)
       expect((wrapper.find('textarea').element as HTMLTextAreaElement).value).toBe('')
     })
 
