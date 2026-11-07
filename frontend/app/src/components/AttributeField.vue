@@ -44,7 +44,7 @@ const isLocked = computed(() => props.record !== undefined && (props.readonly ||
     v-if="isLocked && record"
     class="flex flex-col gap-2.5 border-t border-line bg-locked py-section px-gutter text-mute *:max-w-full *:min-w-0"
   >
-    <span class="flex items-baseline gap-2 text-heading font-bold">
+    <span class="flex items-baseline gap-2 text-label font-bold">
       <span :class="{ 'line-through': inactive }">{{ name }}</span
       ><InactiveHint v-if="inactive"
     /></span>
@@ -79,7 +79,7 @@ const isLocked = computed(() => props.record !== undefined && (props.readonly ||
     v-else
     class="flex flex-col gap-2.5 border-t border-line py-section px-gutter *:max-w-full *:min-w-0"
   >
-    <div class="flex items-center justify-between gap-2 text-heading font-bold">
+    <div class="flex items-center justify-between gap-2 text-label font-bold">
       <span v-if="readonly" class="flex items-baseline gap-2"
         ><span :class="{ 'line-through': inactive }">{{ name }}</span
         ><InactiveHint v-if="inactive"
