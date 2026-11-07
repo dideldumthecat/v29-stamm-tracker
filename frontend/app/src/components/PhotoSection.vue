@@ -76,7 +76,7 @@ const captureButton =
 
 <template>
   <section
-    class="flex flex-col gap-2.5 border-t border-line py-3.5 px-gutter *:max-w-full *:min-w-0"
+    class="flex flex-col gap-2.5 border-t border-line py-section px-gutter *:max-w-full *:min-w-0"
   >
     <h2 class="text-[17px] font-bold">
       {{ attribute.name }}<template v-if="photoCount > 0"> ({{ photoCount }})</template>

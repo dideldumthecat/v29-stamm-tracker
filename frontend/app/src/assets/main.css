@@ -34,6 +34,11 @@
   padding-left: max(16px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-right, 0px));
 }
+/* Vertical padding of an attribute section (single place for the spacing) */
+@utility py-section {
+  padding-top: 20px;
+  padding-bottom: 20px;
+}
 @utility mx-gutter {
   margin-left: max(16px, env(safe-area-inset-left, 0px));
   margin-right: max(16px, env(safe-area-inset-right, 0px));

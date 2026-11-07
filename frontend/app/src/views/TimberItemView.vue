@@ -406,7 +406,7 @@ function onDiscard() {
     <!-- Beams are cut from a stem only, never from another beam. -->
     <section
       v-if="!parent"
-      class="flex flex-col gap-2.5 border-t border-line py-3.5 px-gutter *:max-w-full *:min-w-0"
+      class="flex flex-col gap-2.5 border-t border-line py-section px-gutter *:max-w-full *:min-w-0"
     >
       <h2 class="flex items-center gap-2 text-[17px] font-bold">
         Balken<template v-if="beamRows.length > 0"> ({{ beamRows.length }})</template>
@@ -555,7 +555,7 @@ function onDiscard() {
       </template>
     </div>
 
-    <section v-if="item && !isSplit && parent" class="py-3.5 px-gutter">
+    <section v-if="item && !isSplit && parent" class="py-section px-gutter">
       <button
         type="button"
         class="flex h-14 w-full items-center justify-center gap-2 rounded-lg border-2 border-ink bg-paper text-[17px] font-bold"
