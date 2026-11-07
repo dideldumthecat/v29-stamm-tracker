@@ -3,7 +3,7 @@ import { mount } from '@vue/test-utils'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import { createPinia, setActivePinia } from 'pinia'
 import SyncButton from '@/components/SyncButton.vue'
-import { useTimberItemStore } from '@/stores/timberItems'
+import { holdSync } from './storeSetup'
 
 function mountButton(props: { pendingCount: number; inverted?: boolean }) {
   const router = createRouter({
@@ -24,13 +24,13 @@ describe('SyncButton', () => {
       expect(icon().classes()).not.toContain('animate-spin')
       expect(wrapper.attributes('aria-label')).toBe('Synchronisieren, 2 offene Einträge')
 
-      useTimberItemStore().isSyncing = true
+      const finishSync = holdSync()
       await wrapper.vm.$nextTick()
       expect(icon().classes()).toContain('animate-spin')
       expect(icon().classes()).toContain('motion-reduce:animate-none')
       expect(wrapper.attributes('aria-label')).toBe('Synchronisierung läuft, 2 offene Einträge')
 
-      useTimberItemStore().isSyncing = false
+      await finishSync()
       await wrapper.vm.$nextTick()
       expect(icon().classes()).not.toContain('animate-spin')
     },

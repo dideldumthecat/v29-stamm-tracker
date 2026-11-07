@@ -1,10 +1,12 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mount, type DOMWrapper } from '@vue/test-utils'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import { createPinia, setActivePinia } from 'pinia'
 import { Blob as NodeBlob } from 'node:buffer'
 import SyncView from '@/views/SyncView.vue'
 import { useTimberItemStore } from '@/stores/timberItems'
+import { api, ApiError } from '@/api/client'
+import { restartWith } from './storeSetup'
 
 const mounted: { unmount: () => void }[] = []
 
@@ -37,9 +39,27 @@ const rowTexts = (section: DOMWrapper<Element>) =>
 const attributeId = (name: string) =>
   useTimberItemStore().attributes.find((attribute) => attribute.name === name)!.id
 
+// Fixed times, not the clock: what is recorded next gets this time.
+const at = (time: string) => vi.setSystemTime(`2026-11-02T${time}:00.000Z`)
+
+// The events reach the server, the photo files stay on the device.
+async function syncWithoutPhotos(acceptedEventIds: string[]) {
+  vi.spyOn(api, 'sync').mockResolvedValue({ accepted_event_ids: acceptedEventIds, rejected: [] })
+  vi.spyOn(api, 'loadSnapshot').mockResolvedValue(api.initialSnapshot())
+  vi.spyOn(api, 'uploadPhoto').mockRejectedValue(new ApiError(0, 'offline'))
+  await useTimberItemStore().sync()
+}
+
 describe('SyncView: sections by item', () => {
-  beforeEach(() => setActivePinia(createPinia()))
-  afterEach(() => mounted.splice(0).forEach((wrapper) => wrapper.unmount()))
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.useFakeTimers({ toFake: ['Date'] })
+  })
+  afterEach(() => {
+    mounted.splice(0).forEach((wrapper) => wrapper.unmount())
+    vi.useRealTimers()
+    vi.restoreAllMocks()
+  })
 
   it('gives a new stem its values and the creation of its new beams in one section', async () => {
     const store = useTimberItemStore()
@@ -76,11 +96,11 @@ describe('SyncView: sections by item', () => {
 
   it('gives a new beam with values of its own a section of its own', async () => {
     const store = useTimberItemStore()
+    at('08:00')
     const beam = store.addBeam(store.findByTag('789')!.id)
+    // The value is newer than the creation of the beam.
+    at('08:05')
     store.recordAttribute(beam.id, attributeId('Sortierklasse'), 'x')
-    // Fixed times, not the clock: the value is newer than the creation of the beam.
-    store.events[0]!.recorded_at = '2026-11-02T08:00:00.000Z'
-    store.events[1]!.recorded_at = '2026-11-02T08:05:00.000Z'
     const wrapper = await mountView()
 
     const sections = wrapper.findAll('section')
@@ -106,14 +126,14 @@ describe('SyncView: sections by item', () => {
   it('heads the open values of a removed beam without a link', async () => {
     const store = useTimberItemStore()
     const beam = store.findByTag('789-B')!
+    // The late value must really be newer than the removal.
+    at('08:05')
     store.recordAttribute(beam.id, attributeId('Sortierklasse'), 'x')
-    const late = store.events.splice(0)
+    const late = [...store.events]
+    at('08:00')
     store.removeTimberItem(beam.id)
     // Removing drops what is pending; a value that reached the queue after the removal is faked this way.
-    store.events.push(...late)
-    // Fixed times, not the clock: the late value must really be newer than the removal.
-    store.events[0]!.recorded_at = '2026-11-02T08:00:00.000Z'
-    store.events[1]!.recorded_at = '2026-11-02T08:05:00.000Z'
+    await restartWith([...store.events, ...late])
     const wrapper = await mountView()
 
     const sections = wrapper.findAll('section')
@@ -128,16 +148,12 @@ describe('SyncView: sections by item', () => {
 
   it('puts the most recently changed section on top, rows within it stay in recording order', async () => {
     const store = useTimberItemStore()
+    at('08:00')
     const stem = store.createTimberItem(42)
+    at('08:05')
     store.recordAttribute(stem.id, attributeId('Sortierklasse'), 'x')
+    at('08:03')
     store.recordAttribute(store.findByTag('123')!.id, attributeId('Sortierklasse'), 'y')
-    const time = (event: { type: string; timber_item_id: string }) =>
-      event.timber_item_id !== stem.id
-        ? '2026-11-02T08:03:00.000Z'
-        : event.type === 'attribute_recorded'
-          ? '2026-11-02T08:05:00.000Z'
-          : '2026-11-02T08:00:00.000Z'
-    store.events.forEach((event) => (event.recorded_at = time(event)))
     const wrapper = await mountView()
 
     const sections = wrapper.findAll('section')
@@ -150,10 +166,10 @@ describe('SyncView: sections by item', () => {
 
   it('orders sections with the same latest time by the reverse queue order', async () => {
     const store = useTimberItemStore()
+    at('08:00')
     store.createTimberItem(42)
     store.createTimberItem(43)
     store.createTimberItem(44)
-    store.events.forEach((event) => (event.recorded_at = '2026-11-02T08:00:00.000Z'))
     const wrapper = await mountView()
 
     expect(wrapper.findAll('section').map(heading)).toEqual([
@@ -165,24 +181,23 @@ describe('SyncView: sections by item', () => {
 
   it('counts a photo file without an event with its time of capture', async () => {
     const store = useTimberItemStore()
+    at('08:00')
     store.recordAttribute(store.findByTag('123')!.id, attributeId('Sortierklasse'), 'y')
-    store.events[0]!.recorded_at = '2026-11-02T08:00:00.000Z'
     const beam = store.findByTag('789-A')!
     const photoAttribute = store.attributes.find((attribute) => attribute.type === 'photo')!.id
+    at('09:00')
     store.addPhoto(
       beam.id,
       photoAttribute,
       new NodeBlob(['x'], { type: 'image/jpeg' }) as unknown as Blob,
     )
-    const photo = store.photos[0]!
-    photo.taken_at = '2026-11-02T09:00:00.000Z'
     // The event is on the server already, only the file is left.
-    const queued = store.events.splice(1)
+    await syncWithoutPhotos([store.events[1]!.id])
+    expect(store.events).toHaveLength(1)
+    expect(store.photos).toHaveLength(1)
     const wrapper = await mountView()
 
     expect(wrapper.findAll('section').map(heading)).toEqual(['Balken 00789-A', 'Stamm 00123'])
-    store.events.push(...queued)
-    store.removePhoto(photo.id)
   })
 
   it('lists the photo files left of a beam under that beam', async () => {
@@ -194,16 +209,15 @@ describe('SyncView: sections by item', () => {
       photoAttribute,
       new NodeBlob(['x'], { type: 'image/jpeg' }) as unknown as Blob,
     )
-    const photoId = store.photos[0]!.id
     // The event is on the server already, only the file is left.
-    const queued = store.events.splice(0)
+    await syncWithoutPhotos(store.events.map((event) => event.id))
+    expect(store.events).toEqual([])
+    expect(store.photos).toHaveLength(1)
     const wrapper = await mountView()
 
     const section = wrapper.find('section')
     expect(heading(section)).toBe('Balken 00789-A')
     expect(section.text()).toContain('Foto (')
-    store.events.push(...queued)
-    store.removePhoto(photoId)
   })
 })
 

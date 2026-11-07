@@ -7,6 +7,7 @@ import { Blob as NodeBlob } from 'node:buffer'
 import App from '../App.vue'
 import { routes } from '../router'
 import { useTimberItemStore } from '@/stores/timberItems'
+import { signedOut } from './storeSetup'
 import { useToast } from '@/composables/useToast'
 import { api, ApiError } from '@/api/client'
 import {
@@ -1147,7 +1148,7 @@ describe('App', () => {
 
   describe('sign-in field', () => {
     it('replaces the number pad while no user is stored and shows the name right after', async () => {
-      useTimberItemStore().currentUser = null
+      signedOut()
       const { wrapper } = await mountAt('/')
       expect(wrapper.text()).toContain('Einladungscode')
       expect(wrapper.text()).not.toContain('Alexander')
@@ -1163,7 +1164,7 @@ describe('App', () => {
     })
 
     it('clears the code and the error with the clear button, shown only while there is a code', async () => {
-      useTimberItemStore().currentUser = null
+      signedOut()
       const { wrapper } = await mountAt('/')
       const clearButton = () => wrapper.find('button[aria-label="Code löschen"]')
       expect(clearButton().exists()).toBe(false)
@@ -1180,7 +1181,7 @@ describe('App', () => {
     })
 
     it('sends nothing when no code is recognised', async () => {
-      useTimberItemStore().currentUser = null
+      signedOut()
       const redeem = vi.spyOn(api, 'redeemInvite')
       const { wrapper } = await mountAt('/')
       await wrapper.find('input#invite-code').setValue('Hallo Jana!')
@@ -1192,14 +1193,14 @@ describe('App', () => {
     })
 
     it('asks a browser to install the app first, with the form only for the fake API', async () => {
-      useTimberItemStore().currentUser = null
+      signedOut()
       const { wrapper } = await mountAt('/')
       expect(wrapper.find('[role="note"]').text()).toContain('Bitte zuerst die App installieren')
       expect(wrapper.find('input#invite-code').exists()).toBe(true)
     })
 
     it('shows no sign-in form in a production browser', async () => {
-      useTimberItemStore().currentUser = null
+      signedOut()
       vi.stubEnv('DEV', false)
       vi.stubEnv('VITE_API', '')
       const { wrapper } = await mountAt('/')
@@ -1209,7 +1210,7 @@ describe('App', () => {
     })
 
     it('shows the iPhone install steps in an iPhone browser', async () => {
-      useTimberItemStore().currentUser = null
+      signedOut()
       vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue('Mozilla/5.0 (iPhone)')
       const { wrapper } = await mountAt('/')
       expect(wrapper.find('[role="note"]').text()).toContain('„Zum Home-Bildschirm“')
@@ -1217,7 +1218,7 @@ describe('App', () => {
     })
 
     it('shows no install hint in the installed app', async () => {
-      useTimberItemStore().currentUser = null
+      signedOut()
       vi.stubGlobal('matchMedia', () => ({ matches: true }))
       const { wrapper } = await mountAt('/')
       expect(wrapper.find('[role="note"]').exists()).toBe(false)
@@ -1226,7 +1227,7 @@ describe('App', () => {
     })
 
     it('reports an invalid or revoked invite', async () => {
-      useTimberItemStore().currentUser = null
+      signedOut()
       vi.spyOn(api, 'redeemInvite').mockRejectedValue(new ApiError(401, 'revoked'))
       const { wrapper } = await mountAt('/')
       await wrapper.find('input#invite-code').setValue('K7QM-4XHT-9RDP')
@@ -1397,8 +1398,8 @@ describe('App', () => {
     })
 
     it('opens the result after a sign-in whose sync rejected something', async () => {
+      signedOut()
       const store = useTimberItemStore()
-      store.currentUser = null
       store.createTimberItem(1555)
       const sync = rejectAll()
       const { wrapper, router } = await mountAt('/')

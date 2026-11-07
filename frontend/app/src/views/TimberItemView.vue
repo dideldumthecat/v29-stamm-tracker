@@ -190,10 +190,10 @@ const isPicking = ref(false)
 
 // Tells the store, so the automatic app update and snapshot download wait for the draft.
 watchEffect(() => {
-  store.isDraftOpen = isDirty.value || isCompressing.value || isPicking.value
+  store.setDraftOpen(isDirty.value || isCompressing.value || isPicking.value)
 })
 onUnmounted(() => {
-  store.isDraftOpen = false
+  store.setDraftOpen(false)
 })
 
 async function onAddPhotos(attributeId: string, files: File[]) {
