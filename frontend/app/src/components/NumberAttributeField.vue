@@ -5,7 +5,7 @@ import type { Attribute, AttributeValueRecord } from '@/stores/timberItems'
 import type { AttributeValue } from '@v29/shared/contract'
 import AttributeField from '@/components/AttributeField.vue'
 import { NUMBER_ERROR, formatNumber, parseNumber } from '@/utils/attributeDraft'
-import { formatShortDate } from '@/utils/date'
+import { formatDateTime } from '@/utils/date'
 import { useTimberItemStore } from '@/stores/timberItems'
 
 /**
@@ -118,7 +118,7 @@ function remove(index: number) {
       >
         <strong>{{ withUnit(record.value) }}</strong>
         <span class="text-right text-[13px] text-mute"
-          >{{ formatShortDate(record.recorded_at) }} · {{ store.userName(record.user_id)
+          >{{ formatDateTime(record.recorded_at) }} · {{ store.userName(record.user_id)
           }}{{ inherited ? ' · vom Stamm' : '' }}</span
         >
       </div>

@@ -2,7 +2,7 @@
 import { computed, useId } from 'vue'
 import type { Attribute, AttributeValueRecord } from '@/stores/timberItems'
 import AttributeField from '@/components/AttributeField.vue'
-import { formatShortDate } from '@/utils/date'
+import { formatDateTime } from '@/utils/date'
 import { useTimberItemStore } from '@/stores/timberItems'
 
 /**
@@ -59,7 +59,7 @@ function onInput(event: Event) {
           {{ record.value }}
         </p>
         <span class="text-[13px] text-mute"
-          >{{ formatShortDate(record.recorded_at) }} · {{ store.userName(record.user_id)
+          >{{ formatDateTime(record.recorded_at) }} · {{ store.userName(record.user_id)
           }}{{ inherited ? ' · vom Stamm' : '' }}</span
         >
       </div>

@@ -24,3 +24,15 @@ export function formatShortDateTime(timestamp: string): string {
   })
   return `${formatShortDate(timestamp)}, ${time}`
 }
+
+/** Local date with year and time, 24 hours: "02.10.2026, 18:42" */
+export function formatDateTime(timestamp: string): string {
+  return new Date(timestamp).toLocaleString('de-DE', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  })
+}

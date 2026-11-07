@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import { PencilIcon } from '@lucide/vue'
 import type { AttributeValueRecord } from '@/stores/timberItems'
 import InactiveHint from '@/components/InactiveHint.vue'
-import { formatShortDate } from '@/utils/date'
+import { formatDateTime } from '@/utils/date'
 import { useTimberItemStore } from '@/stores/timberItems'
 
 /**
@@ -71,7 +71,7 @@ const isLocked = computed(() => props.record !== undefined && (props.readonly ||
       {{ description }}
     </p>
     <span class="text-[13px] text-mute"
-      >{{ formatShortDate(record.recorded_at) }} · {{ store.userName(record.user_id)
+      >{{ formatDateTime(record.recorded_at) }} · {{ store.userName(record.user_id)
       }}{{ inherited ? ' · vom Stamm' : '' }}</span
     >
   </section>

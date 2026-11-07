@@ -42,7 +42,7 @@ describe('BooleanAttributeField', () => {
   it('locks a recorded value and unlocks it with the pencil', async () => {
     const { wrapper, attribute } = setup(789)
     expect(wrapper.find('button[aria-pressed]').exists()).toBe(false)
-    expect(wrapper.text()).toContain('14.10. · Alexander')
+    expect(wrapper.text()).toMatch(/14\.10\.2026, \d{2}:\d{2} · Alexander/)
 
     await wrapper.find(`button[aria-label="${attribute.name} ändern"]`).trigger('click')
     const button = wrapper.find('button[aria-pressed]')

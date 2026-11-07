@@ -36,7 +36,7 @@ describe('NumberAttributeField', () => {
       const { wrapper } = setup()
       const text = wrapper.text()
       expect(text).toContain('48,5 %')
-      expect(text).toContain('16.10. · Jonas')
+      expect(text).toMatch(/16\.10\.2026, \d{2}:\d{2} · Jonas/)
       expect(text.indexOf('41 %')).toBeLessThan(text.indexOf('48,5 %'))
       // Append-only: never locked.
       expect(wrapper.find('input').exists()).toBe(true)
@@ -96,7 +96,7 @@ describe('NumberAttributeField', () => {
       const { wrapper, attribute } = setup({ series: false })
       expect(wrapper.find('input').exists()).toBe(false)
       expect(wrapper.text()).toContain('41 %')
-      expect(wrapper.text()).toContain('16.10. · Jonas')
+      expect(wrapper.text()).toMatch(/16\.10\.2026, \d{2}:\d{2} · Jonas/)
       expect(addButton(wrapper)).toBeUndefined()
 
       await wrapper.find(`button[aria-label="${attribute.name} ändern"]`).trigger('click')
