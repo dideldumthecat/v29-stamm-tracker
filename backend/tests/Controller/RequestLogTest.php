@@ -76,11 +76,17 @@ class RequestLogTest extends WebTestCase
         $this->client->getCookieJar()->set(new Cookie(SessionController::COOKIE, self::TOKEN));
     }
 
+    /** @return list<LogRecord> */
     private function requestLines(): array
     {
         return array_values(array_filter($this->log->getRecords(), static fn (LogRecord $record) => isset($record->context['duration_ms'])));
     }
 
+    /**
+     * @param array<string, mixed> $data
+     *
+     * @return array<string, mixed>
+     */
     private static function event(string $type, string $itemId, array $data): array
     {
         return ['id' => Uuid::v4()->toRfc4122(), 'schema_version' => 1, 'type' => $type, 'timber_item_id' => $itemId, 'data' => $data, 'recorded_at' => '2026-10-02T07:12:00.000Z'];

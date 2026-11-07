@@ -26,7 +26,6 @@ class ItemVoidCommand
     public function __construct(
         private readonly EntityManagerInterface $em,
         private readonly TimberItemProjector $projector,
-        private readonly StemSelection $selection,
         private readonly Superadmin $superadmin,
     ) {
     }

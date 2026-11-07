@@ -26,6 +26,7 @@ class UserCommandsTest extends KernelTestCase
         $this->application = new Application($kernel);
     }
 
+    /** @param array<string, mixed> $input */
     private function execute(string $command, array $input): CommandTester
     {
         $tester = new CommandTester($this->application->find($command));
@@ -41,6 +42,7 @@ class UserCommandsTest extends KernelTestCase
         return $match[1];
     }
 
+    /** @return list<User> */
     private function users(): array
     {
         $this->em->clear();

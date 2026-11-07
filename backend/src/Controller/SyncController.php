@@ -193,6 +193,8 @@ final class SyncController extends AbstractController
     }
 
     /**
+     * @param list<mixed> $events as sent by the app, not validated yet
+     *
      * @return array<string, true> ids (RFC 4122) of the request's events that are already stored
      */
     private function knownEventIds(array $events): array
@@ -255,7 +257,10 @@ final class SyncController extends AbstractController
     }
 
     /**
+     * @param array<string, mixed>                      $data as sent by the app
      * @param \Closure(string): BadRequestHttpException $fail
+     *
+     * @return array<string, mixed>
      */
     private function attributeData(array $data, \Closure $fail): array
     {

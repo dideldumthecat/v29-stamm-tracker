@@ -86,6 +86,7 @@ class ApiTest extends WebTestCase
         return "\xFF\xD8\xFF\xE0".random_bytes($bytes - 4);
     }
 
+    /** @return array<string, mixed> */
     private function upload(string $content, ?string $id = null, ?string $itemId = null, ?string $as = 'Alexander'): array
     {
         $file = tempnam(sys_get_temp_dir(), 'photo');
@@ -119,11 +120,17 @@ class ApiTest extends WebTestCase
         return $this->client->getInternalResponse()->getContent();
     }
 
+    /** @return array<string, mixed> */
     private static function fixture(string $name): array
     {
         return json_decode(file_get_contents(self::FIXTURES.$name.'.json'), true, flags: \JSON_THROW_ON_ERROR);
     }
 
+    /**
+     * @param array<string, mixed> $body
+     *
+     * @return array<string, mixed>
+     */
     private function request(string $method, string $uri, ?array $body = null, ?string $as = 'Alexander'): array
     {
         $this->client->getCookieJar()->clear();
@@ -135,6 +142,11 @@ class ApiTest extends WebTestCase
         return json_decode($this->client->getResponse()->getContent(), true) ?? [];
     }
 
+    /**
+     * @param array<string, mixed> $data
+     *
+     * @return array<string, mixed>
+     */
     private static function event(string $type, string $itemId, array $data, string $recordedAt = '2026-10-02T07:12:00.000Z'): array
     {
         return ['id' => Uuid::v4()->toRfc4122(), 'schema_version' => 1, 'type' => $type, 'timber_item_id' => $itemId, 'data' => $data, 'recorded_at' => $recordedAt];
@@ -156,6 +168,7 @@ class ApiTest extends WebTestCase
         return $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM timber_item_events');
     }
 
+    /** @return array<string, list<mixed>> */
     private function values(string $itemId): array
     {
         $items = array_column($this->request('GET', '/api/snapshot')['timber_items'], null, 'id');
@@ -337,6 +350,7 @@ class ApiTest extends WebTestCase
         self::assertSame([], $this->request('GET', '/api/snapshot')['timber_items']);
     }
 
+    /** @return list<array{user_id: string, reason: string, events: mixed}> */
     private function rejectedSyncs(): array
     {
         return array_map(static fn (array $row) => ['user_id' => Uuid::fromBinary($row['user_id'])->toRfc4122(), 'reason' => $row['reason'], 'events' => json_decode($row['events'], true)],
@@ -648,7 +662,11 @@ class ApiTest extends WebTestCase
         self::assertSame($live, $rebuilt);
     }
 
-    /** Beams 123-A and 123-B of item 123, both synced. */
+    /**
+     * Beams 123-A and 123-B of item 123, both synced.
+     *
+     * @return array{string, string}
+     */
     private function syncBeams(): array
     {
         $this->syncItem123();
@@ -665,6 +683,7 @@ class ApiTest extends WebTestCase
         return [$a, $b];
     }
 
+    /** @param array<string, mixed> $options */
     private function void(string $tag, array $options = [], bool $withSuperadmin = true): CommandTester
     {
         if ($withSuperadmin) {
@@ -684,11 +703,13 @@ class ApiTest extends WebTestCase
         }
     }
 
+    /** @return array<string, array<string, mixed>> */
     private function snapshotItems(): array
     {
         return array_column($this->request('GET', '/api/snapshot')['timber_items'], null, 'id');
     }
 
+    /** @param array<string, mixed> $options */
     private function restore(string $tag, array $options = []): CommandTester
     {
         $this->ensureSuperadmin();

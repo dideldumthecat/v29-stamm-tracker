@@ -143,8 +143,9 @@ class AttributesImportCommand
     /**
      * Finds the existing attribute for each entry: by key, else by name. Entries with no match are created.
      *
-     * @param array<string, array> $attributes by name
-     * @param list<Attribute>      $existing
+     * @param array<string, array<string, mixed>> $attributes by name
+     * @param list<Attribute>                     $existing
+     * @param list<string>                        $errors
      *
      * @return array<string, Attribute> by name in the file
      */
@@ -170,6 +171,8 @@ class AttributesImportCommand
     }
 
     /**
+     * @param array<string, mixed> $values by property name
+     *
      * @return list<string> names of the properties that differ; set on the entity unless $dryRun
      */
     private function apply(object $entity, array $values, bool $dryRun): array
@@ -205,7 +208,10 @@ class AttributesImportCommand
     /**
      * Applies defaults and checks every entry, collecting all errors instead of stopping at the first.
      *
-     * @return array<string, array> attributes by name, options by label
+     * @param array<mixed> $entries as read from the YAML file
+     * @param list<string> $errors
+     *
+     * @return array<string, array<string, mixed>> attributes by name, options by label
      */
     private function normalize(array $entries, array &$errors): array
     {

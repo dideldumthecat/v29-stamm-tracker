@@ -62,6 +62,7 @@ class TimberReportTest extends KernelTestCase
         }
     }
 
+    /** @param array<string, mixed> $data */
     private function event(Uuid $item, EventType $type, array $data): void
     {
         $this->em->persist(new TimberItemEvent(Uuid::v7(), $item, $type, $data, new \DateTimeImmutable('2026-10-20 08:00:00 UTC'), $this->user, null, new \DateTimeImmutable('2026-10-20 08:00:00 UTC')));
@@ -232,7 +233,7 @@ class TimberReportTest extends KernelTestCase
         $this->record($stem, 'notes', 'zweite');
         $this->record($stem, 'photos', 'p1');
         $this->record($stem, 'photos', 'p2');
-        $beam = $this->item('9-A', $stem);
+        $this->item('9-A', $stem);
 
         $report = $this->build();
 
@@ -244,7 +245,6 @@ class TimberReportTest extends KernelTestCase
         self::assertSame('Stand: 02.11.2026 13:00', 'Stand: '.$report->exportedAt->format('d.m.Y H:i'));
         self::assertNull($this->table($report->beams)['00009-A']['Notiz'], 'only the own notes');
         self::assertSame(0, $this->table($report->beams)['00009-A']['Anzahl Fotos']);
-        self::assertNotNull($beam);
     }
 
     public function testLastChangedByIsTheAuthorOfTheLastOwnEvent(): void
@@ -252,9 +252,9 @@ class TimberReportTest extends KernelTestCase
         $this->attributes();
         $this->em->persist($anna = new User('Anna', UserRole::User, User::hashToken('a')));
         $stem = $this->item('30');
-        $beam = $this->item('30-A', $stem);
+        $this->item('30-A', $stem);
         $tie = $this->item('31');
-        $none = $this->item('32');
+        $this->item('32');
         $late = new \DateTimeImmutable('2026-10-21 08:00:00 UTC');
         $attribute = $this->attribute['notes']->id->toRfc4122();
         $this->em->persist(new TimberItemEvent(Uuid::v7(), $stem, EventType::AttributeRecorded, ['attribute_id' => $attribute, 'value' => 'x'], $late, $anna, null, $late));
@@ -268,8 +268,6 @@ class TimberReportTest extends KernelTestCase
         self::assertSame(['Anna', '2026-10-21 10:00'], [$stems['00030']['Zuletzt geändert von'], $stems['00030']['Zuletzt geändert am']->format('Y-m-d H:i')]);
         self::assertSame('Anna', $stems['00031']['Zuletzt geändert von']);
         self::assertSame('Kerstin', $this->table($report->beams)['00030-A']['Zuletzt geändert von'], 'own events only');
-        self::assertNotNull($beam);
-        self::assertNotNull($none);
     }
 
     public function testClosingColumnsHaveTheSameOrderOnBothSheets(): void

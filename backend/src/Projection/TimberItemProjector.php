@@ -122,7 +122,7 @@ final class TimberItemProjector
     }
 
     /**
-     * @return array{item: ?array, tag_number: ?string, values: array<string, list<array>>, voided_at: ?\DateTimeImmutable} item is null without a created event
+     * @return array{item: ?array<string, mixed>, tag_number: ?string, values: array<string, list<array<string, mixed>>>, voided_at: ?\DateTimeImmutable} item is null without a created event
      */
     private function fromOwnEvents(Uuid $timberItemId): array
     {

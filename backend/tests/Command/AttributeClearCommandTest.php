@@ -38,6 +38,7 @@ class AttributeClearCommandTest extends KernelTestCase
         $this->em->flush();
     }
 
+    /** @param array<string, mixed> $data */
     private function event(Uuid $item, EventType $type, array $data): void
     {
         $this->em->persist(new TimberItemEvent(Uuid::v7(), $item, $type, $data, new \DateTimeImmutable(), $this->admin));
@@ -61,6 +62,7 @@ class AttributeClearCommandTest extends KernelTestCase
         $this->projector->project($item);
     }
 
+    /** @param array<string, mixed> $input */
     private function clear(array $input): int
     {
         return $this->tester->execute($input + ['attribute' => 'Größter Stammdurchmesser', '--range' => 'all']);

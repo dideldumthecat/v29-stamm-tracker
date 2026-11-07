@@ -35,16 +35,23 @@ class DiagnosticsTest extends WebTestCase
         $this->client->getCookieJar()->set(new Cookie(SessionController::COOKIE, self::TOKEN));
     }
 
+    /** @return array<string, mixed> */
     private static function fixture(): array
     {
         return json_decode(file_get_contents(__DIR__.'/../../../frontend/shared/fixtures/diagnostics-request.json'), true, flags: \JSON_THROW_ON_ERROR);
     }
 
+    /** @param array<string, mixed> $body */
     private function report(array $body, string $build = 'abc1234 2026-10-31T10:00'): void
     {
         $this->client->jsonRequest('POST', '/api/diagnostics', $body, ['HTTP_X_APP_BUILD' => $build]);
     }
 
+    /**
+     * @param array<string, mixed> $override
+     *
+     * @return array<string, mixed>
+     */
     private function entry(array $override = []): array
     {
         return $override + self::fixture()['entries'][1];
@@ -132,7 +139,7 @@ class DiagnosticsTest extends WebTestCase
     }
 
     /**
-     * @return iterable<string, array{array}>
+     * @return iterable<string, array{array<string, mixed>}>
      */
     public static function malformedEntries(): iterable
     {
@@ -146,6 +153,7 @@ class DiagnosticsTest extends WebTestCase
         yield 'message is a number' => [['message' => 5]];
     }
 
+    /** @param array<string, mixed> $override */
     #[\PHPUnit\Framework\Attributes\DataProvider('malformedEntries')]
     public function testMalformedEntriesAreBadRequestsAndLogNothing(array $override): void
     {
