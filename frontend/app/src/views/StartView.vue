@@ -56,21 +56,21 @@ function onOpen() {
       :class="isInBrowser ? 'justify-start' : 'justify-center-safe'"
     >
       <KeyRoundIcon v-if="!isInBrowser" :size="64" :stroke-width="1.5" aria-hidden="true" />
-      <h2 class="text-[26px] font-bold text-balance">Willkommen</h2>
+      <h2 class="text-display font-bold text-balance">Willkommen</h2>
       <section
         v-if="isInBrowser"
         class="flex w-full flex-col gap-3 rounded-lg border-2 border-ink p-4 text-left"
         role="note"
       >
         <h2 class="text-xl font-bold text-balance">Bitte zuerst die App installieren</h2>
-        <ol class="flex list-decimal flex-col gap-3 pl-6 text-lg leading-[1.4]">
+        <ol class="flex list-decimal flex-col gap-3 pl-6 text-lg leading-copy">
           <IosInstallSteps v-if="isIos()" />
           <AndroidInstallSteps v-else />
           <li>Dort mit dem Einladungscode anmelden, den du von V29 bekommen hast.</li>
         </ol>
       </section>
       <template v-if="showsSignIn">
-        <p class="max-w-[32ch] leading-[1.45] text-mute">
+        <p class="max-w-[32ch] leading-message text-mute">
           Melde dich mit dem Einladungscode an, den du von V29 bekommen hast.
         </p>
         <SignInForm @signed-in="onSignedIn" />

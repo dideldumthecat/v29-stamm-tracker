@@ -9,7 +9,7 @@ const emit = defineEmits<{ save: [] }>()
   <div class="sticky bottom-0 z-5 border-t border-line bg-well pt-3 px-gutter pb-4">
     <button
       type="button"
-      class="flex h-[88px] w-full items-center justify-center gap-2.5 rounded-lg bg-ink text-lg font-bold text-paper disabled:cursor-default disabled:bg-disabled disabled:text-mute short:h-16"
+      class="flex h-action w-full items-center justify-center gap-2.5 rounded-lg bg-ink text-lg font-bold text-paper disabled:cursor-default disabled:bg-disabled disabled:text-mute short:h-16"
       :disabled="disabled"
       @click="emit('save')"
     >

@@ -55,10 +55,10 @@ function onInput(event: Event) {
         :key="record.event_id"
         class="flex flex-col gap-1 border-b border-soft py-2"
       >
-        <p class="text-[15px] leading-[1.4] wrap-anywhere whitespace-pre-line">
+        <p class="text-detail leading-copy wrap-anywhere whitespace-pre-line">
           {{ record.value }}
         </p>
-        <span class="text-[13px] text-mute"
+        <span class="text-caption text-mute"
           >{{ formatDateTime(record.recorded_at) }} · {{ userName(record.user_id)
           }}{{ inherited ? ' · vom Stamm' : '' }}</span
         >
@@ -68,7 +68,7 @@ function onInput(event: Event) {
     <textarea
       v-if="!readonly"
       :id="textareaId"
-      class="min-h-[84px] w-full resize-y rounded-lg border-2 border-ink bg-paper px-3 py-2.5 leading-[1.4]"
+      class="min-h-[84px] w-full resize-y rounded-lg border-2 border-ink bg-paper px-3 py-2.5 leading-copy"
       rows="3"
       placeholder="Beobachtung, Auffälligkeit …"
       :value="draft ?? (attribute.is_series ? '' : currentText)"

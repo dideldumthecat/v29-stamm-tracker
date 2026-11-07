@@ -44,11 +44,11 @@ const isLocked = computed(() => props.record !== undefined && (props.readonly ||
     v-if="isLocked && record"
     class="flex flex-col gap-2.5 border-t border-line bg-locked py-section px-gutter text-mute *:max-w-full *:min-w-0"
   >
-    <span class="flex items-baseline gap-2 text-[17px] font-bold">
+    <span class="flex items-baseline gap-2 text-heading font-bold">
       <span :class="{ 'line-through': inactive }">{{ name }}</span
       ><InactiveHint v-if="inactive"
     /></span>
-    <p v-if="description && descriptionAbove" class="text-sm leading-[1.4] text-body">
+    <p v-if="description && descriptionAbove" class="text-sm leading-copy text-body">
       {{ description }}
     </p>
     <div class="flex min-h-[52px] items-center gap-3 rounded-lg border-2 border-lockline pl-3">
@@ -66,10 +66,10 @@ const isLocked = computed(() => props.record !== undefined && (props.readonly ||
         <PencilIcon :size="22" aria-hidden="true" />
       </button>
     </div>
-    <p v-if="description && !descriptionAbove" class="text-sm leading-[1.4] text-body">
+    <p v-if="description && !descriptionAbove" class="text-sm leading-copy text-body">
       {{ description }}
     </p>
-    <span class="text-[13px] text-mute"
+    <span class="text-caption text-mute"
       >{{ formatDateTime(record.recorded_at) }} · {{ recordedBy
       }}{{ inherited ? ' · vom Stamm' : '' }}</span
     >
@@ -79,18 +79,18 @@ const isLocked = computed(() => props.record !== undefined && (props.readonly ||
     v-else
     class="flex flex-col gap-2.5 border-t border-line py-section px-gutter *:max-w-full *:min-w-0"
   >
-    <div class="flex items-center justify-between gap-2 text-[17px] font-bold">
+    <div class="flex items-center justify-between gap-2 text-heading font-bold">
       <span v-if="readonly" class="flex items-baseline gap-2"
         ><span :class="{ 'line-through': inactive }">{{ name }}</span
         ><InactiveHint v-if="inactive"
       /></span>
       <label v-else :for="labelFor">{{ name }}</label>
     </div>
-    <p v-if="description && descriptionAbove" class="text-sm leading-[1.4] text-body">
+    <p v-if="description && descriptionAbove" class="text-sm leading-copy text-body">
       {{ description }}
     </p>
     <slot />
-    <p v-if="description && !descriptionAbove" class="text-sm leading-[1.4] text-body">
+    <p v-if="description && !descriptionAbove" class="text-sm leading-copy text-body">
       {{ description }}
     </p>
   </section>

@@ -47,7 +47,7 @@ installWhenSafe(needRefresh, updateServiceWorker)
       class="animate-spin text-mute motion-reduce:animate-none"
       aria-hidden="true"
     />
-    <p class="text-[22px] leading-[1.3]">App wird aktualisiert …</p>
+    <p class="text-[22px] leading-notice">App wird aktualisiert …</p>
     <!-- Only after LOCK_ESCAPE_MS: the reload did not come. The one operable element; the frame stays inert. -->
     <template v-if="isLockStuck">
       <button
@@ -57,7 +57,7 @@ installWhenSafe(needRefresh, updateServiceWorker)
       >
         Neu laden
       </button>
-      <p class="text-base leading-[1.3] text-body">
+      <p class="text-base leading-notice text-body">
         Falls nichts passiert: App schließen und neu öffnen
       </p>
     </template>
@@ -72,6 +72,6 @@ installWhenSafe(needRefresh, updateServiceWorker)
     "
   >
     <RotateCwIcon :size="48" aria-hidden="true" />
-    <p class="text-[22px] leading-[1.3]">Bitte das Handy hochkant halten.</p>
+    <p class="text-[22px] leading-notice">Bitte das Handy hochkant halten.</p>
   </div>
 </template>
