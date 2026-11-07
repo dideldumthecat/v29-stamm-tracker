@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
 import { createMemoryHistory } from 'vue-router'
 
+import { formatTime } from '@/activity'
 import { user } from '@/auth'
 import { createAdminRouter } from '@/router'
 import App from '../App.vue'
@@ -99,7 +100,9 @@ describe('activity page', () => {
     const { wrapper } = await open()
     const details = wrapper.findAll('section')[0].get('details')
 
-    const cells = details.findAll('tbody tr').map((tr) => tr.findAll('td').map((td) => td.text()))
+    const cells = details
+      .findAll('tbody tr')
+      .map((tr) => tr.findAll('td:not([rowspan])').map((td) => td.text()))
     expect(cells).toEqual([
       ['Länge', '4,10 m'],
       ['Stammmittendurchmesser groß', '32,5 cm'],
@@ -121,6 +124,7 @@ describe('activity page', () => {
       'Kennung',
       'Merkmal',
       'Wert',
+      'Uhrzeit',
     ])
     // one <tbody> per stem or beam; the tag is a row header only in its first row
     const items = [...details.querySelectorAll('tbody')]
@@ -141,13 +145,25 @@ describe('activity page', () => {
     // name and value apart; the tag of a new beam is part of its creation and not a row of its own
     expect(
       [...last.querySelectorAll('tr')].map((tr) =>
-        [...tr.querySelectorAll('td')].map((td) => td.textContent),
+        [...tr.querySelectorAll('td:not([rowspan])')].map((td) => td.textContent),
       ),
     ).toEqual([
       ['Balken', 'angelegt'],
       ['Notiz', '105x145'],
       ['Fotos', '1 hinzugefügt'],
     ])
+    // exactly one time per stem or beam: the device time of its first change, in German time
+    const firstChanges = entryAt(wrapper, '11:48').querySelectorAll('tbody')
+    expect([...firstChanges].map((tbody) => tbody.querySelectorAll('time').length)).toEqual([
+      1, 1, 1, 1,
+    ])
+    const entry = activityFixture.entries.find((e) => e.items.length === 4)!
+    expect(
+      [...firstChanges].map((tbody) => tbody.querySelector('time')!.getAttribute('datetime')),
+    ).toEqual(entry.items.map((i) => i.changes[0].recorded_at))
+    expect([...firstChanges].map((tbody) => tbody.querySelector('time')!.textContent)).toEqual(
+      entry.items.map((i) => formatTime(i.changes[0].recorded_at)),
+    )
     // the table is 14 px throughout, the details link 16 px
     expect(details.querySelector('table')!.className).toContain('text-sm')
     // the header row is for screen readers only
@@ -225,12 +241,12 @@ describe('activity page', () => {
   it('appends the next page with "Ältere laden" until there is none', async () => {
     const { wrapper } = await open('/aktivitaet', { pageSize: 4 })
     const button = () => wrapper.findAll('button').find((b) => b.text() === 'Ältere laden')
-    expect(wrapper.findAll('section time')).toHaveLength(4)
+    expect(wrapper.findAll('section article > div > time')).toHaveLength(4)
 
     await button()!.trigger('click')
     await flushPromises()
 
-    expect(wrapper.findAll('section time')).toHaveLength(6)
+    expect(wrapper.findAll('section article > div > time')).toHaveLength(6)
     expect(wrapper.findAll('section')).toHaveLength(2)
     expect(button()).toBeUndefined()
   })
