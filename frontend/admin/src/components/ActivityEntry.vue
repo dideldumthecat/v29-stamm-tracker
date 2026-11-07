@@ -9,7 +9,12 @@ import { detailRows, eventsText, formatTime, recordedRange, summarize } from '@/
 const props = defineProps<{ entry: ActivityEntry }>()
 
 const lines = computed(() => summarize(props.entry))
-const items = computed(() => props.entry.items.map((item) => ({ ...item, rows: detailRows(item) })))
+// Newest first by the first change of each item; equal times keep the order of the contract (sort is stable).
+const items = computed(() =>
+  props.entry.items
+    .map((item) => ({ ...item, rows: detailRows(item) }))
+    .sort((a, b) => Date.parse(b.changes[0].recorded_at) - Date.parse(a.changes[0].recorded_at)),
+)
 // "ohne Kennung" has no number to pad
 const hasNumber = (label: string) => /^\d/.test(label)
 </script>
