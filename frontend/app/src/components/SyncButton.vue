@@ -35,7 +35,7 @@ const colorClass = computed(() =>
 <template>
   <RouterLink
     :to="{ name: 'sync' }"
-    class="flex shrink-0 items-center rounded-full border-2 text-[15px] font-semibold"
+    class="flex shrink-0 items-center rounded-full border-2 text-detail font-semibold"
     :class="[layoutClass, colorClass]"
     :aria-label="`${store.isSyncing ? 'Synchronisierung läuft' : 'Synchronisieren'}, ${pendingCount} offene Einträge`"
   >

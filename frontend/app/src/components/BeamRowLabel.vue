@@ -10,7 +10,7 @@ defineProps<{ tagNumber: string; summary: string; note?: string }>()
   <strong class="text-xl whitespace-nowrap tabular-nums"
     ><FormattedTag :tag-number="tagNumber"
   /></strong>
-  <span class="flex min-w-0 flex-1 flex-col gap-0.5 text-[13px] text-mute">
+  <span class="flex min-w-0 flex-1 flex-col gap-0.5 text-caption text-mute">
     <span>{{ summary }}</span>
     <span v-if="note">{{ note }}</span>
   </span>

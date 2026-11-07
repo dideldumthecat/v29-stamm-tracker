@@ -253,7 +253,7 @@ function onMainButton() {
       </h1>
       <span class="w-11 shrink-0"></span>
     </header>
-    <p class="border-b border-line py-2 px-gutter text-center text-[13px] text-mute">
+    <p class="border-b border-line py-2 px-gutter text-center text-caption text-mute">
       Stand der Daten:
       {{ store.lastSyncedAt ? formatShortDateTime(store.lastSyncedAt) : 'noch nie' }}
     </p>
@@ -264,10 +264,10 @@ function onMainButton() {
       role="status"
     >
       <CircleCheckIcon :size="64" :stroke-width="1.5" aria-hidden="true" />
-      <h2 class="text-[26px] font-bold text-balance">
+      <h2 class="text-display font-bold text-balance">
         {{ transferred !== null ? 'Synchronisiert' : 'Keine Änderungen auf diesem Gerät' }}
       </h2>
-      <p class="max-w-[32ch] leading-[1.45] text-mute">
+      <p class="max-w-[32ch] leading-message text-mute">
         <template v-if="transferredText">{{ transferredText }}, aktueller Stand geladen.</template>
         <template v-else-if="transferred === 0">Aktueller Stand geladen.</template>
         <template v-else>Daten aktualisieren lädt den neuesten Stand vom Server.</template>
@@ -324,7 +324,7 @@ function onMainButton() {
               >Balken angelegt: <FormattedTag :tag-number="group.tagNumber!"
             /></b>
             <b v-else class="font-semibold wrap-anywhere">{{ describe(event, group.kind) }}</b>
-            <span class="text-[13px] text-mute">{{ formatShortDateTime(event.recorded_at) }}</span>
+            <span class="text-caption text-mute">{{ formatShortDateTime(event.recorded_at) }}</span>
           </div>
           <button
             type="button"
@@ -342,7 +342,7 @@ function onMainButton() {
           class="flex min-h-14 flex-col justify-center border-b border-line py-1.5"
         >
           <b class="font-semibold">{{ photoLabel(photo) }}</b>
-          <span class="text-[13px] text-mute">{{ formatShortDateTime(photo.taken_at) }}</span>
+          <span class="text-caption text-mute">{{ formatShortDateTime(photo.taken_at) }}</span>
         </div>
       </section>
     </div>
@@ -354,7 +354,7 @@ function onMainButton() {
     >
       <div
         v-if="failureText"
-        class="flex flex-col gap-1 rounded-lg border-2 border-ink bg-paper px-3.5 py-3 text-sm leading-[1.4]"
+        class="flex flex-col gap-1 rounded-lg border-2 border-ink bg-paper px-3.5 py-3 text-sm leading-copy"
         role="alert"
       >
         <strong class="text-base">Synchronisieren fehlgeschlagen</strong>
@@ -364,7 +364,7 @@ function onMainButton() {
       <button
         v-else-if="transferred !== null && isDone"
         type="button"
-        class="flex h-[88px] w-full items-center justify-center gap-2.5 rounded-lg bg-ink text-lg font-bold text-paper short:h-16"
+        class="flex h-action w-full items-center justify-center gap-2.5 rounded-lg bg-ink text-lg font-bold text-paper short:h-16"
         @click="router.push({ name: 'start' })"
       >
         Zurück zum Start
@@ -393,7 +393,7 @@ function onMainButton() {
               class="absolute inset-y-0 w-2/5 animate-indeterminate bg-ink motion-reduce:inset-x-0 motion-reduce:w-full motion-reduce:animate-none motion-reduce:opacity-40"
             ></div>
           </div>
-          <span class="flex items-center justify-center gap-1.5 text-[13px] text-mute"
+          <span class="flex items-center justify-center gap-1.5 text-caption text-mute"
             ><RefreshCwIcon
               :size="14"
               class="animate-spin motion-reduce:animate-none"
@@ -403,7 +403,7 @@ function onMainButton() {
         </div>
         <button
           type="button"
-          class="flex h-[88px] w-full items-center justify-center gap-2.5 rounded-lg text-lg font-bold disabled:cursor-default disabled:bg-disabled disabled:text-mute short:h-16"
+          class="flex h-action w-full items-center justify-center gap-2.5 rounded-lg text-lg font-bold disabled:cursor-default disabled:bg-disabled disabled:text-mute short:h-16"
           :class="
             store.isSyncing
               ? 'border-2 border-ink bg-paper text-ink disabled:border-lockline'
@@ -429,7 +429,7 @@ function onMainButton() {
                     : 'Daten aktualisieren'
           }}
         </button>
-        <span v-if="!store.isSyncing" class="text-center text-[13px] text-mute"
+        <span v-if="!store.isSyncing" class="text-center text-caption text-mute"
           >Braucht Empfang · lädt danach den aktuellen Stand</span
         >
       </template>

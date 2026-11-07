@@ -24,7 +24,7 @@ const { current } = useToast()
       >
         <div
           v-if="current"
-          class="flex items-center justify-center gap-3 border-b border-line py-3.5 px-gutter text-center text-[17px] leading-[1.3] font-normal text-ink shadow-sm select-none"
+          class="flex items-center justify-center gap-3 border-b border-line py-3.5 px-gutter text-center text-heading leading-notice font-normal text-ink shadow-sm select-none"
           :class="current.kind === 'warning' ? 'bg-well' : 'bg-paper'"
           role="status"
         >

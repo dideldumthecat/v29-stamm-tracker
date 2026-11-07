@@ -240,7 +240,7 @@ function onDiscard() {
       @remove="beamToRemove = $event"
     />
 
-    <p v-if="isSplit" class="my-2 mx-gutter rounded-lg bg-well p-3 text-sm leading-[1.4]">
+    <p v-if="isSplit" class="my-2 mx-gutter rounded-lg bg-well p-3 text-sm leading-copy">
       Aufgeteilter Stamm: Angaben am jeweiligen Balken erfassen.
     </p>
 
@@ -275,7 +275,7 @@ function onDiscard() {
     <section v-if="item && !isSplit && parent" class="py-section px-gutter">
       <button
         type="button"
-        class="flex h-14 w-full items-center justify-center gap-2 rounded-lg border-2 border-ink bg-paper text-[17px] font-bold"
+        class="flex h-14 w-full items-center justify-center gap-2 rounded-lg border-2 border-ink bg-paper text-heading font-bold"
         @click="beamToRemove = item"
       >
         <Trash2Icon :size="22" :stroke-width="2.5" aria-hidden="true" />
