@@ -129,17 +129,17 @@ describe('activity page', () => {
     // one <tbody> per stem or beam; the tag is a row header only in its first row
     const items = [...details.querySelectorAll('tbody')]
     expect(items.map((tbody) => tbody.querySelector('th')!.textContent)).toEqual([
-      '00104',
-      '00104-A',
-      '00104-B',
       '00104-C',
+      '00104-B',
+      '00104-A',
+      '00104',
     ])
-    const tag = items[0].querySelector('th span span')!
+    const tag = items[3].querySelector('th span span')!
     expect(tag.textContent).toBe('00')
     expect(tag.className).toContain('opacity-40')
-    expect(items[0].querySelector('th')!.className).toContain('font-semibold')
+    expect(items[3].querySelector('th')!.className).toContain('font-semibold')
 
-    const last = items[3]
+    const last = items[0]
     expect(last.querySelectorAll('th')).toHaveLength(1)
     expect(last.querySelector('th')!.getAttribute('rowspan')).toBe('3')
     // name and value apart; the tag of a new beam is part of its creation and not a row of its own
@@ -157,12 +157,14 @@ describe('activity page', () => {
     expect([...firstChanges].map((tbody) => tbody.querySelectorAll('time').length)).toEqual([
       1, 1, 1, 1,
     ])
+    // newest first
     const entry = activityFixture.entries.find((e) => e.items.length === 4)!
+    const newestFirst = [...entry.items].reverse()
     expect(
       [...firstChanges].map((tbody) => tbody.querySelector('time')!.getAttribute('datetime')),
-    ).toEqual(entry.items.map((i) => i.changes[0].recorded_at))
+    ).toEqual(newestFirst.map((i) => i.changes[0].recorded_at))
     expect([...firstChanges].map((tbody) => tbody.querySelector('time')!.textContent)).toEqual(
-      entry.items.map((i) => formatTime(i.changes[0].recorded_at)),
+      newestFirst.map((i) => formatTime(i.changes[0].recorded_at)),
     )
     // the table is 14 px throughout, the details link 16 px
     expect(details.querySelector('table')!.className).toContain('text-sm')
