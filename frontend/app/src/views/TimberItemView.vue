@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref } from 'vue'
+import { computed, nextTick, ref, type Component } from 'vue'
 import {
   onBeforeRouteLeave,
   onBeforeRouteUpdate,
@@ -7,7 +7,8 @@ import {
   type RouteLocationRaw,
 } from 'vue-router'
 import { Trash2Icon } from '@lucide/vue'
-import { useTimberItemStore, type TimberItem } from '@/stores/timberItems'
+import { useTimberItemStore, type Attribute, type TimberItem } from '@/stores/timberItems'
+import type { AttributeValue } from '@v29/shared/contract'
 import { formatPhotoCount, formatValueLine } from '@/utils/attributeDraft'
 import { bySortOrder } from '@/utils/sort'
 import { useToast } from '@/composables/useToast'
@@ -53,13 +54,20 @@ const attributes = computed(() =>
     .sort(bySortOrder),
 )
 
+const fieldComponents: Partial<Record<Attribute['type'], Component>> = {
+  choice: ChoiceAttributeField,
+  boolean: BooleanAttributeField,
+  date: DateAttributeField,
+  month: MonthAttributeField,
+  number: NumberAttributeField,
+  text: TextAttributeField,
+}
+
 const {
   draft,
   added,
   draftBeams,
   formKey,
-  draftText,
-  draftFlag,
   isDirty,
   shownErrors,
   isCompressing,
@@ -70,6 +78,22 @@ const {
   unsaved,
   save,
 } = useTimberItemDraft(item, () => props.tagNumber, attributes)
+
+// Only where the component has them: an unknown prop would end up as an HTML attribute.
+function extraProps(attribute: Attribute) {
+  const error = shownErrors.value[attribute.id]
+  if (attribute.type === 'month') {
+    return { error }
+  }
+  if (attribute.type === 'number') {
+    return {
+      error,
+      added: added.value[attribute.id],
+      'onUpdate:added': (values: AttributeValue[]) => (added.value[attribute.id] = values),
+    }
+  }
+  return {}
+}
 
 // A split stem is read-only; the bar only leads back to the start screen, unless new beams wait to be saved.
 const isClosing = computed(() => isSplit.value && draftBeams.value.length === 0)
@@ -222,66 +246,8 @@ function onDiscard() {
 
     <div :key="formKey" class="border-b border-line">
       <template v-for="attribute in attributes" :key="attribute.id">
-        <ChoiceAttributeField
-          v-if="attribute.type === 'choice'"
-          :model-value="draftText(attribute.id)"
-          :attribute="attribute"
-          :recorded="item?.values[attribute.id]"
-          :readonly="!attribute.active || isSplit"
-          :inherited="item && store.isInherited(item.id, attribute.id)"
-          @update:model-value="draft[attribute.id] = $event"
-        />
-        <BooleanAttributeField
-          v-else-if="attribute.type === 'boolean'"
-          :model-value="draftFlag(attribute.id)"
-          :attribute="attribute"
-          :recorded="item?.values[attribute.id]"
-          :readonly="!attribute.active || isSplit"
-          :inherited="item && store.isInherited(item.id, attribute.id)"
-          @update:model-value="draft[attribute.id] = $event"
-        />
-        <DateAttributeField
-          v-else-if="attribute.type === 'date'"
-          :model-value="draftText(attribute.id)"
-          :attribute="attribute"
-          :recorded="item?.values[attribute.id]"
-          :readonly="!attribute.active || isSplit"
-          :inherited="item && store.isInherited(item.id, attribute.id)"
-          @update:model-value="draft[attribute.id] = $event"
-        />
-        <MonthAttributeField
-          v-else-if="attribute.type === 'month'"
-          :model-value="draftText(attribute.id)"
-          :attribute="attribute"
-          :recorded="item?.values[attribute.id]"
-          :readonly="!attribute.active || isSplit"
-          :inherited="item && store.isInherited(item.id, attribute.id)"
-          :error="shownErrors[attribute.id]"
-          @update:model-value="draft[attribute.id] = $event"
-        />
-        <NumberAttributeField
-          v-else-if="attribute.type === 'number'"
-          :model-value="draftText(attribute.id)"
-          :added="added[attribute.id]"
-          :attribute="attribute"
-          :recorded="item?.values[attribute.id]"
-          :readonly="!attribute.active || isSplit"
-          :inherited="item && store.isInherited(item.id, attribute.id)"
-          :error="shownErrors[attribute.id]"
-          @update:model-value="draft[attribute.id] = $event"
-          @update:added="added[attribute.id] = $event"
-        />
-        <TextAttributeField
-          v-else-if="attribute.type === 'text'"
-          :model-value="draftText(attribute.id)"
-          :attribute="attribute"
-          :recorded="item?.values[attribute.id]"
-          :readonly="!attribute.active || isSplit"
-          :inherited="item && store.isInherited(item.id, attribute.id)"
-          @update:model-value="draft[attribute.id] = $event"
-        />
         <PhotoSection
-          v-else-if="attribute.type === 'photo'"
+          v-if="attribute.type === 'photo'"
           :attribute="attribute"
           :pending="photosOf(attribute.id)"
           :uploaded-count="item ? store.uploadedPhotoCount(item.id, attribute.id) : 0"
@@ -290,6 +256,17 @@ function onDiscard() {
           @add="addPhotos(attribute.id, $event)"
           @picker="isPicking = $event"
           @remove="photoToRemove = $event"
+        />
+        <component
+          :is="fieldComponents[attribute.type]"
+          v-else-if="attribute.type in fieldComponents"
+          :model-value="draft[attribute.id]"
+          :attribute="attribute"
+          :recorded="item?.values[attribute.id]"
+          :readonly="!attribute.active || isSplit"
+          :inherited="item && store.isInherited(item.id, attribute.id)"
+          v-bind="extraProps(attribute)"
+          @update:model-value="draft[attribute.id] = $event"
         />
       </template>
     </div>

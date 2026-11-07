@@ -36,11 +36,6 @@ export function useTimberItemDraft(
   // Incremented after saving to remount the fields: resets their local "unlocked" state.
   const formKey = ref(0)
 
-  // The draft holds string | boolean; fields read it through the accessor of their type.
-  // (A cast in the template would trip the Vue lint rule, which reads `|` as a filter.)
-  const draftText = (attributeId: string) => draft.value[attributeId] as string | undefined
-  const draftFlag = (attributeId: string) => draft.value[attributeId] as boolean | undefined
-
   // Draft values that differ from what is recorded, plus input that cannot be recorded yet.
   const collected = computed(() =>
     collectDraft(store.attributes, draft.value, added.value, item.value?.values),
@@ -183,8 +178,6 @@ export function useTimberItemDraft(
     added,
     draftBeams,
     formKey,
-    draftText,
-    draftFlag,
     isDirty,
     shownErrors,
     isCompressing,
