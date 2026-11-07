@@ -12,6 +12,7 @@ function setup({ series = true, tagNumber = 123 } = {}) {
   const attribute = { ...found, is_series: series }
   const wrapper = mount(TextAttributeField, {
     props: {
+      userName: useTimberItemStore().userName,
       attribute,
       recorded: store.findByTagNumber(tagNumber)?.values[attribute.id],
       modelValue: undefined as string | undefined,

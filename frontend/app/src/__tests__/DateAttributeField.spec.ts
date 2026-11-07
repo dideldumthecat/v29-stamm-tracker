@@ -10,6 +10,7 @@ function setup(tagNumber: number) {
   const attribute = store.attributes.find((candidate) => candidate.type === 'date')!
   const wrapper = mount(DateAttributeField, {
     props: {
+      userName: useTimberItemStore().userName,
       attribute,
       recorded: store.findByTagNumber(tagNumber)?.values[attribute.id],
       modelValue: undefined as string | undefined,
@@ -51,7 +52,9 @@ describe('DateAttributeField', () => {
     expect(wrapper.text()).toContain(attribute.description)
 
     const recorded = useTimberItemStore().findByTagNumber(123)?.values[attribute.id]
-    const readonly = mount(DateAttributeField, { props: { attribute, recorded, readonly: true } })
+    const readonly = mount(DateAttributeField, {
+      props: { userName: useTimberItemStore().userName, attribute, recorded, readonly: true },
+    })
     expect(readonly.text()).toContain(attribute.description)
   })
 
@@ -59,14 +62,24 @@ describe('DateAttributeField', () => {
     const store = useTimberItemStore()
     const attribute = store.attributes.find((candidate) => candidate.type === 'date')!
     const props = { attribute, recorded: store.findByTagNumber(123)?.values[attribute.id] }
-    expect(mount(DateAttributeField, { props }).text()).not.toContain('deaktiviert')
+    expect(
+      mount(DateAttributeField, {
+        props: { ...props, userName: useTimberItemStore().userName },
+      }).text(),
+    ).not.toContain('deaktiviert')
 
     // Read-only on a split stem: no pencil, but not marked inactive.
-    const split = mount(DateAttributeField, { props: { ...props, readonly: true } })
+    const split = mount(DateAttributeField, {
+      props: { userName: useTimberItemStore().userName, ...props, readonly: true },
+    })
     expect(split.text()).not.toContain('deaktiviert')
     expect(split.find('button').exists()).toBe(false)
 
     const inactive = { ...props, attribute: { ...attribute, active: false }, readonly: true }
-    expect(mount(DateAttributeField, { props: inactive }).text()).toContain('deaktiviert')
+    expect(
+      mount(DateAttributeField, {
+        props: { ...inactive, userName: useTimberItemStore().userName },
+      }).text(),
+    ).toContain('deaktiviert')
   })
 })

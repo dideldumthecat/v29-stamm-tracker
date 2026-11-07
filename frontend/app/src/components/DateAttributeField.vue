@@ -16,6 +16,8 @@ const props = defineProps<{
   error?: string
   // Default 'date'. MonthAttributeField passes 'month'.
   type?: 'date' | 'month'
+  // Resolved by the caller, so the field needs no store.
+  userName: (userId: string) => string
 }>()
 
 const type = computed(() => props.type ?? 'date')
@@ -55,6 +57,7 @@ function onInput(event: Event) {
     description-above
     :label-for="inputId"
     :record="current"
+    :recorded-by="current && userName(current.user_id)"
     :locked-text="recordedText"
     :readonly="readonly"
     :inactive="!attribute.active"

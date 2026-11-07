@@ -12,6 +12,8 @@ const props = defineProps<{
   readonly?: boolean
   // Beam only: the value comes from the parent (shown as a hint, still overwritable).
   inherited?: boolean
+  // Resolved by the caller, so the field needs no store.
+  userName: (userId: string) => string
 }>()
 
 // A choice attribute is never a series, so the last entry is the current value.
@@ -56,6 +58,7 @@ function onChange(event: Event) {
     description-above
     :label-for="selectId"
     :record="current"
+    :recorded-by="current && userName(current.user_id)"
     :locked-text="recordedOption?.label ?? ''"
     :locked-inactive="recordedOption !== undefined && !recordedOption.active"
     :readonly="readonly"
