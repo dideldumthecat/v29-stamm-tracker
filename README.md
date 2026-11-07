@@ -51,7 +51,7 @@ flowchart LR
 | API | PHP 8.4, Symfony 8, Doctrine ORM and Migrations |
 | Database | MariaDB 11.8 |
 | Tests | Vitest, Vue Test Utils, Playwright, PHPUnit |
-| Tooling | DDEV, ESLint, Prettier, PHP CS Fixer, GitHub Actions |
+| Tooling | DDEV, ESLint, Prettier, PHP CS Fixer, PHPStan, GitHub Actions |
 
 ## Repository layout
 
@@ -89,6 +89,7 @@ ddev frontend run dev          # capture app; the administration: ddev frontend 
 | Frontend tests / end-to-end tests (app and administration) | `ddev frontend run tests` / `ddev frontend run test:e2e` |
 | Build incl. type check (app and administration) | `ddev frontend run build` |
 | Backend tests | `ddev phpunit` |
+| Static analysis (backend) | `ddev phpstan` |
 | Lint / format | `ddev frontend run lint`, `ddev frontend run format`, `ddev php-cs-fixer fix` |
 | Symfony console | `ddev console …` |
 
