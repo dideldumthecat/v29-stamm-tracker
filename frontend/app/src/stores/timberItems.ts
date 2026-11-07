@@ -1,22 +1,12 @@
 /**
- * Displayed state = stored snapshot (as the server sent it) + own pending events laid over it.
- * Every change is an event in the queue, saved on the device right away; the snapshot is only
- * replaced by a sync, an automatic refresh or right after sign-in. The views rely on the public surface, so keep it stable or adjust them with it.
- *
- * `items` holds own values only; inherited values are added at read time (withInherited).
+ * The single owner of the app state, read-only to the outside: every change goes through an action, so it is
+ * saved on the device right away as an event in the queue. The snapshot is replaced only by a download.
  */
 import { computed, readonly, ref, toRaw, watch } from 'vue'
 import { defineStore } from 'pinia'
 import type { AttributeValue, Event, TimberItem, Timestamp, Uuid } from '@v29/shared/contract'
 import { api, type User } from '@/api/client'
-import {
-  load as loadStored,
-  save,
-  type PhotoChanges,
-  type StoredPhoto,
-  type StoredState,
-} from '@/persistence/database'
-import { useToast } from '@/composables/useToast'
+import { load as loadStored, type StoredPhoto } from '@/persistence/database'
 import { sendDiagnostics, setDiagnosticsSignedIn } from '@/diagnostics/send'
 import {
   childrenOf as projectChildrenOf,
@@ -26,6 +16,7 @@ import {
   removedBeams as projectRemovedBeams,
   withInherited as projectWithInherited,
 } from './projection'
+import { createPersistence } from './persistence'
 import { createSync, type SyncProgress } from './sync'
 
 // The app uses the contract types directly (snake_case, as on the wire) – no second model, no mapper.
@@ -41,18 +32,16 @@ export type { SyncProgress, SyncResult } from './sync'
 
 export const useTimberItemStore = defineStore('timberItems', () => {
   const snapshot = ref(api.initialSnapshot())
-  // Set by signing in with the invite code; null until then.
   const currentUser = ref<User | null>(api.initialUser())
   // Sync, so that the send right after a sign-in already sees it.
   watch(currentUser, (user) => setDiagnosticsSignedIn(!!user), { immediate: true, flush: 'sync' })
   const users = computed(() => snapshot.value.users)
   const attributes = computed(() => snapshot.value.attributes)
-  // Own events waiting for the sync, in the order they were recorded.
   const events = ref<Event[]>([])
   const lastSyncedAt = ref<Timestamp | null>(null)
   // What the user did, not the wire format: the tag always belongs to the "created" of its item.
   const isEntry = (event: Event) => event.type !== 'tag_assigned'
-  // Photos not uploaded yet; the blobs live in their own object store, the event with the photo id in the queue.
+  // Not uploaded yet; the event with the photo id waits in the queue.
   const photos = ref<StoredPhoto[]>([])
   const pendingPhotoIds = computed(() => new Set(photos.value.map((photo) => photo.id)))
   const isPhotoEvent = (event: Event) =>
@@ -66,59 +55,18 @@ export const useTimberItemStore = defineStore('timberItems', () => {
   const progress = ref<SyncProgress | null>(null)
   // The running sync lives here, not in a screen: a screen opened later sees it and can stop it.
   const isSyncing = ref(false)
-  // Between `stopSync()` and the actual end of the sync.
   const isStopping = ref(false)
-  // Set by the timber item screen while it holds input that exists only in memory (fields, photos, beams, a camera
-  // that has not delivered yet). A reload would drop it, and a download would change attributes under it.
+  // Input that exists only in memory (fields, photos, beams, a camera that has not delivered yet):
+  // a reload would drop it, and a download would change attributes under it.
   const isDraftOpen = ref(false)
-  // Writes to the device that have started and not yet ended (successfully or not). The screen changes before the
-  // write is through, and a reload in between aborts it.
+  // The screen changes before the write is through, and a reload in between aborts it.
   const pendingWrites = ref(0)
   // The single definition of "a reload loses or interrupts nothing"; the automatic app update waits for it.
-  // A photo upload is part of the sync.
   const isSafeToReload = computed(
     () => !isDraftOpen.value && !isSyncing.value && pendingWrites.value === 0,
   )
 
-  // Writes collected by `inOneTransaction`; null = write each change on its own.
-  let collected: { parts: Partial<StoredState>; add: StoredPhoto[] } | null = null
-
-  // A failed write only warns; the change stays in memory until the app is closed.
-  function persist(parts: Partial<StoredState>, photoChanges?: PhotoChanges) {
-    if (collected) {
-      // Only additions are batched: removals never happen inside a batch.
-      Object.assign(collected.parts, parts)
-      collected.add.push(...(photoChanges?.add ?? []))
-      return
-    }
-    // Without photo changes the call stays as it was: only the parts.
-    const hasPhotoChanges =
-      photoChanges && (photoChanges.add?.length || photoChanges.remove?.length)
-    pendingWrites.value++
-    ;(hasPhotoChanges ? save(parts, photoChanges) : save(parts))
-      .catch(() =>
-        useToast().show({ before: 'Speichern auf dem Gerät fehlgeschlagen', kind: 'warning' }),
-      )
-      // A failed write counts as ended too, or the update would wait forever.
-      .finally(() => pendingWrites.value--)
-  }
-
-  /**
-   * Runs `changes` and writes everything it recorded in one transaction: a crash leaves all of it or none.
-   * The in-memory state changes at once; only the write waits.
-   */
-  function inOneTransaction<T>(changes: () => T): T {
-    const outer = collected
-    const batch = (collected ??= { parts: {}, add: [] })
-    try {
-      return changes()
-    } finally {
-      collected = outer
-      if (!outer) {
-        persist(batch.parts, { add: batch.add })
-      }
-    }
-  }
+  const { persist, inOneTransaction } = createPersistence(pendingWrites)
 
   function emit<T extends Event['type']>(
     type: T,
@@ -214,9 +162,7 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     projectWithInherited(item, items.value, attributes.value)
 
   // tag_number is a string in the contract ("123", beams "123-A"); the start screen only knows numbers.
-  function findByTagNumber(tagNumber: number): TimberItem | undefined {
-    return findByTag(String(tagNumber))
-  }
+  const findByTagNumber = (tagNumber: number) => findByTag(String(tagNumber))
 
   function findByTag(tag: string): TimberItem | undefined {
     const item = items.value.find((candidate) => candidate.tag_number === tag)
@@ -303,10 +249,8 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     return tag && items.value.some((item) => item.tag_number === tag) ? tag : null
   }
 
-  /**
-   * Drops one pending entry from the queue. Dropping "created" takes the whole item with it, and a new
-   * stem also its new beams (an item that is not synced yet cannot have synced beams).
-   */
+  // Dropping "created" takes the whole item with it, and a new stem also its new beams
+  // (an item that is not synced yet cannot have synced beams).
   function discardEntry(eventId: Uuid) {
     const event = events.value.find((candidate) => candidate.id === eventId)
     if (!event || !isEntry(event)) {
@@ -348,7 +292,6 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     emit('attribute_recorded', itemId, { attribute_id: attributeId, value })
   }
 
-  /** Keeps a compressed photo on the device and queues the event that records its id for the photo attribute. */
   function addPhoto(itemId: string, attributeId: string, blob: Blob) {
     assertRecordable(itemId)
     const photo: StoredPhoto = {
@@ -366,7 +309,7 @@ export const useTimberItemStore = defineStore('timberItems', () => {
   const pendingPhotosOf = (itemId: string) =>
     photos.value.filter((photo) => photo.timber_item_id === itemId)
 
-  /** The server already knows these (its snapshot lists the id) and the file is no longer here. */
+  // The snapshot lists the id and the file is no longer here.
   function uploadedPhotoCount(itemId: string, attributeId: string): number {
     const records = findById(itemId)?.values[attributeId] ?? []
     return records.filter((record) => !pendingPhotoIds.value.has(String(record.value))).length

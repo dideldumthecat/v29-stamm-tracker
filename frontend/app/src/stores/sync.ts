@@ -1,7 +1,4 @@
-/**
- * The manual sync (own events up, snapshot down, then the photos) and the automatic download.
- * Holds no state of its own: it works on the store's refs, so the store stays the single owner.
- */
+// Works on the store's refs instead of holding state, so the store stays the single owner.
 import { toRaw, type ComputedRef, type Ref } from 'vue'
 import type { Event, Snapshot, TimberItem, Timestamp, Uuid } from '@v29/shared/contract'
 import { api, ApiError, describeFailure, type User } from '@/api/client'
@@ -124,7 +121,6 @@ export function createSync({
     }
   }
 
-  // Data first, then the photos one by one; `signal` cancels either phase.
   async function syncDataAndPhotos(signal?: AbortSignal): Promise<SyncResult> {
     progress.value = { phase: 'data' }
     // One timeout for upload and download together; the queue is untouched until both are through.
@@ -145,10 +141,7 @@ export function createSync({
     return { ...result, ...(await uploadPhotos(signal)) }
   }
 
-  /**
-   * Uploads what the device still holds, one photo per request. A blob goes only after the server confirmed it;
-   * a failure keeps that photo and the next one is still tried.
-   */
+  // A blob goes only after the server confirmed it; a failure keeps that photo and the next one is still tried.
   async function uploadPhotos(
     signal?: AbortSignal,
   ): Promise<Pick<SyncResult, 'photos' | 'cancelled'>> {
