@@ -85,7 +85,7 @@ function onRemove(row: { tag: string; beam: TimberItem | undefined }) {
   <section
     class="flex flex-col gap-2.5 border-t border-line py-section px-gutter *:max-w-full *:min-w-0"
   >
-    <h2 class="flex items-center gap-2 text-heading font-bold">
+    <h2 class="flex items-center gap-2 text-label font-bold">
       Balken<template v-if="rows.length > 0"> ({{ rows.length }})</template>
     </h2>
     <div v-if="rows.length > 0">
@@ -132,7 +132,7 @@ function onRemove(row: { tag: string; beam: TimberItem | undefined }) {
     </div>
     <button
       type="button"
-      class="flex h-14 w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-ink bg-paper text-heading font-bold disabled:border-lockline disabled:text-mute"
+      class="flex h-14 w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-ink bg-paper text-label font-bold disabled:border-lockline disabled:text-mute"
       :disabled="!nextBeam"
       @click="onAdd"
     >

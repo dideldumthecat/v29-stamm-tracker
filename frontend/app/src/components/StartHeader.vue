@@ -18,7 +18,7 @@ const store = useTimberItemStore()
         <!-- 42 = heading line (24) + gap (2) + name line (16); fixed, so it does not change without a name -->
         <V29Logo :height="42" />
         <div class="flex min-w-0 flex-col gap-0.5">
-          <h1 class="text-heading leading-6 font-bold">
+          <h1 class="text-label leading-6 font-bold">
             <span class="sr-only">V29 </span>Stamm-Tracker
           </h1>
           <span v-if="store.currentUser" class="text-xs wrap-anywhere text-mute">{{

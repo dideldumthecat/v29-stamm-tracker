@@ -248,7 +248,7 @@ function onDiscard() {
     <section v-if="item && !isSplit && parent" class="py-section px-gutter">
       <button
         type="button"
-        class="flex h-14 w-full items-center justify-center gap-2 rounded-lg border-2 border-ink bg-paper text-heading font-bold"
+        class="flex h-14 w-full items-center justify-center gap-2 rounded-lg border-2 border-ink bg-paper text-label font-bold"
         @click="beamToRemove = item"
       >
         <Trash2Icon :size="22" :stroke-width="2.5" aria-hidden="true" />

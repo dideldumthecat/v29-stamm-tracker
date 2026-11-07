@@ -24,7 +24,7 @@
   /* Font sizes without a line height of their own: the line height stays inherited, as before */
   --text-caption: 13px; /* capture lines, hints, footers */
   --text-detail: 15px; /* list rows, dialog text, small buttons */
-  --text-heading: 17px; /* field names, section headings, outlined buttons */
+  --text-label: 17px; /* field names, section headings, outlined buttons */
   --text-display: 26px; /* screen headings */
 
   --leading-copy: 1.4; /* descriptions */
