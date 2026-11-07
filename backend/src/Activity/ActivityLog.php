@@ -41,6 +41,8 @@ final class ActivityLog
      * @param string|null $tags   a range as for the console commands, e.g. 104 or 100-120; stems also match their beams
      * @param string|null $before cursor of the last entry of the previous page
      *
+     * @return array<string, mixed> see ActivityPage in frontend/shared/contract.ts
+     *
      * @throws \InvalidArgumentException with a message for the client if a filter is malformed
      */
     public function page(?string $from, ?string $to, ?string $user, ?string $tags, ?string $before): array
@@ -151,8 +153,10 @@ final class ActivityLog
     }
 
     /**
-     * @param list<array> $page   groups of the requested page, newest first
-     * @param int[]       $totals entries, events, photos, people
+     * @param list<array<string, mixed>> $page   groups of the requested page, newest first
+     * @param int[]                      $totals entries, events, photos, people
+     *
+     * @return array<string, mixed>
      */
     private function response(array $page, ?string $next, array $totals): array
     {
@@ -171,8 +175,10 @@ final class ActivityLog
     }
 
     /**
-     * @param list<array>          $page
-     * @param array<string,string> $names user name by binary id
+     * @param list<array<string, mixed>> $page
+     * @param array<string,string>       $names user name by binary id
+     *
+     * @return list<array<string, mixed>>
      */
     private function entries(array $page, array $names): array
     {
@@ -241,6 +247,11 @@ final class ActivityLog
     }
 
     /**
+     * @param array<string, mixed>                $event
+     * @param array<string, array<string, mixed>> $events     by binary id
+     * @param array<string, Attribute>            $attributes by id (RFC 4122)
+     * @param array<string, string>               $labels     option label by id
+     *
      * @return array{kind: string, name: string, value: string} see ActivityChange in frontend/shared/contract.ts
      */
     private function change(array $event, array $events, array $attributes, array $labels): array
@@ -274,7 +285,14 @@ final class ActivityLog
         ];
     }
 
-    /** The event a voided or restored event refers to; null if it cannot be found. */
+    /**
+     * The event a voided or restored event refers to; null if it cannot be found.
+     *
+     * @param array<string, mixed>                $event
+     * @param array<string, array<string, mixed>> $events by binary id
+     *
+     * @return array<string, mixed>|null
+     */
     private function affected(array $event, array $events): ?array
     {
         $target = $events[$event['reference_id']] ?? null;
@@ -289,7 +307,7 @@ final class ActivityLog
     /**
      * @param list<string> $ids binary
      *
-     * @return array<string, array> by binary id
+     * @return array<string, array<string, mixed>> by binary id
      */
     private function loadEvents(array $ids): array
     {

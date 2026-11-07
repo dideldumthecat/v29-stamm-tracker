@@ -249,6 +249,7 @@ final class TimberReport
         };
     }
 
+    /** @param list<array{value: bool|int|float|string, recorded_at: string, user_id: string, event_id: string}> $records */
     private function cell(Attribute $attribute, array $records): mixed
     {
         return match (true) {

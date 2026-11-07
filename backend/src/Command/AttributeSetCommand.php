@@ -143,7 +143,7 @@ class AttributeSetCommand
         return match ($attribute->type) {
             AttributeType::Choice => $this->optionId($attribute, $text) ?? $fail(\sprintf('"%s" is not an option of "%s". Valid options: %s.', $text, $attribute->name,
                 implode(', ', array_map(static fn (AttributeOption $o) => $o->label, $this->options($attribute))))),
-            AttributeType::Number => preg_match('/^-?\d+([.,]\d+)?$/', $text) ? 0 + str_replace(',', '.', $text) : $fail('The value must be a number such as 34,5.'),
+            AttributeType::Number => preg_match('/^-?\d+([.,]\d+)?$/', $text) ? self::number(str_replace(',', '.', $text)) : $fail('The value must be a number such as 34,5.'),
             AttributeType::Boolean => match (strtolower($text)) {
                 'ja', 'true' => true,
                 'nein', 'false' => false,
@@ -167,5 +167,11 @@ class AttributeSetCommand
     private function options(Attribute $attribute): array
     {
         return $this->em->getRepository(AttributeOption::class)->findBy(['attribute' => $attribute, 'active' => true], ['sortOrder' => 'ASC']);
+    }
+
+    /** Whole numbers stay integers, as in the app's JSON. */
+    private static function number(string $text): int|float
+    {
+        return str_contains($text, '.') ? (float) $text : (int) $text;
     }
 }
