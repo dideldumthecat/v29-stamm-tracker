@@ -15,7 +15,7 @@ const emit = defineEmits<{ safe: []; action: [] }>()
 
 const filled =
   'flex h-14 w-full items-center justify-center gap-2.5 rounded-lg bg-ink text-lg font-bold text-paper'
-const outlined = 'h-14 w-full rounded-lg border-2 border-ink bg-paper text-heading font-bold'
+const outlined = 'h-14 w-full rounded-lg border-2 border-ink bg-paper text-label font-bold'
 
 // The filled button stands on top, the outlined one below it. Order in the DOM too, so Tab follows what is seen.
 const buttons = computed(() => {
