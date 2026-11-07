@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+
+## Description: Run PHPStan in backend/ from anywhere
+## Usage: phpstan [args]
+## Example: "ddev phpstan" or "ddev phpstan analyse src/Controller"
+
+# The Symfony extension reads the compiled dev container, so make sure it exists and is current.
+cd /var/www/html/backend && php bin/console cache:warmup -q && vendor/bin/phpstan "$@"
