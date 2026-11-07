@@ -4,7 +4,6 @@ import { PencilIcon } from '@lucide/vue'
 import type { AttributeValueRecord } from '@/stores/timberItems'
 import InactiveHint from '@/components/InactiveHint.vue'
 import { formatDateTime } from '@/utils/date'
-import { useTimberItemStore } from '@/stores/timberItems'
 
 /**
  * Frame shared by the single-value fields (choice, date, …): label, locked state with pencil,
@@ -31,9 +30,9 @@ const props = defineProps<{
   inactive?: boolean
   // Beam only: the value comes from the parent (shown as a hint, still overwritable).
   inherited?: boolean
+  // Name of whoever recorded `record`.
+  recordedBy?: string
 }>()
-
-const store = useTimberItemStore()
 
 // A recorded value is locked against accidental changes; the pencil unlocks it.
 const isUnlocked = ref(false)
@@ -71,7 +70,7 @@ const isLocked = computed(() => props.record !== undefined && (props.readonly ||
       {{ description }}
     </p>
     <span class="text-[13px] text-mute"
-      >{{ formatDateTime(record.recorded_at) }} · {{ store.userName(record.user_id)
+      >{{ formatDateTime(record.recorded_at) }} · {{ recordedBy
       }}{{ inherited ? ' · vom Stamm' : '' }}</span
     >
   </section>

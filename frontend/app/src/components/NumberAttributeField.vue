@@ -6,7 +6,6 @@ import type { AttributeValue } from '@v29/shared/contract'
 import AttributeField from '@/components/AttributeField.vue'
 import { NUMBER_ERROR, formatNumber, parseNumber } from '@/utils/attributeDraft'
 import { formatDateTime } from '@/utils/date'
-import { useTimberItemStore } from '@/stores/timberItems'
 
 /**
  * Number attribute. Without `is_series`: one value, locked once recorded (like choice).
@@ -22,9 +21,9 @@ const props = defineProps<{
   readonly?: boolean
   // Beam only: the value comes from the parent (shown as a hint, still overwritable).
   inherited?: boolean
+  // Resolved by the caller, so the field needs no store.
+  userName: (userId: string) => string
 }>()
-
-const store = useTimberItemStore()
 
 // Text as typed ("34,5"); parsed by the parent. undefined = untouched.
 // Series: the text not yet added with "Hinzufügen".
@@ -84,6 +83,7 @@ function remove(index: number) {
     :description="attribute.description"
     :label-for="inputId"
     :record="attribute.is_series ? undefined : current"
+    :recorded-by="current && userName(current.user_id)"
     :locked-text="withUnit(current?.value ?? '')"
     :readonly="readonly"
     :inactive="!attribute.active"
@@ -118,7 +118,7 @@ function remove(index: number) {
       >
         <strong>{{ withUnit(record.value) }}</strong>
         <span class="text-right text-[13px] text-mute"
-          >{{ formatDateTime(record.recorded_at) }} · {{ store.userName(record.user_id)
+          >{{ formatDateTime(record.recorded_at) }} · {{ userName(record.user_id)
           }}{{ inherited ? ' · vom Stamm' : '' }}</span
         >
       </div>

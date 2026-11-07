@@ -3,7 +3,6 @@ import { computed, useId } from 'vue'
 import type { Attribute, AttributeValueRecord } from '@/stores/timberItems'
 import AttributeField from '@/components/AttributeField.vue'
 import { formatDateTime } from '@/utils/date'
-import { useTimberItemStore } from '@/stores/timberItems'
 
 /**
  * Text attribute. Without `is_series`: one value, locked once recorded (like choice).
@@ -18,9 +17,9 @@ const props = defineProps<{
   readonly?: boolean
   // Beam only: the value comes from the parent (shown as a hint, still overwritable).
   inherited?: boolean
+  // Resolved by the caller, so the field needs no store.
+  userName: (userId: string) => string
 }>()
-
-const store = useTimberItemStore()
 
 // Text as typed. Empty or whitespace-only counts as no change (decided by the parent).
 // undefined = untouched.
@@ -44,6 +43,7 @@ function onInput(event: Event) {
     :description="attribute.description"
     :label-for="textareaId"
     :record="attribute.is_series ? undefined : current"
+    :recorded-by="current && userName(current.user_id)"
     :locked-text="currentText"
     :readonly="readonly"
     :inactive="!attribute.active"
@@ -59,7 +59,7 @@ function onInput(event: Event) {
           {{ record.value }}
         </p>
         <span class="text-[13px] text-mute"
-          >{{ formatDateTime(record.recorded_at) }} · {{ store.userName(record.user_id)
+          >{{ formatDateTime(record.recorded_at) }} · {{ userName(record.user_id)
           }}{{ inherited ? ' · vom Stamm' : '' }}</span
         >
       </div>
