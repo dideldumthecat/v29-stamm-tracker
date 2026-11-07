@@ -73,10 +73,10 @@ async function onSubmit() {
         <XIcon :size="22" aria-hidden="true" />
       </button>
     </div>
-    <p v-if="error" class="text-sm leading-[1.4] font-semibold" role="alert">{{ error }}</p>
+    <p v-if="error" class="text-sm leading-copy font-semibold" role="alert">{{ error }}</p>
     <button
       type="submit"
-      class="flex h-[88px] w-full items-center justify-center rounded-lg bg-ink text-lg font-bold text-paper disabled:bg-disabled disabled:text-mute short:h-16"
+      class="flex h-action w-full items-center justify-center rounded-lg bg-ink text-lg font-bold text-paper disabled:bg-disabled disabled:text-mute short:h-16"
       :disabled="isBusy"
     >
       {{ isBusy ? 'Anmelden …' : 'Anmelden' }}

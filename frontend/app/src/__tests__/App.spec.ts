@@ -1286,7 +1286,7 @@ describe('App', () => {
           }),
       )
       const { wrapper } = await mountAt('/sync')
-      const main = () => wrapper.find('button.h-\\[88px\\]')
+      const main = () => wrapper.find('button.h-action')
       expect(main().classes()).toContain('bg-ink')
       await main().trigger('click')
       expect(main().attributes('aria-label')).toBe('Synchronisierung anhalten')
@@ -1338,7 +1338,7 @@ describe('App', () => {
         })
         .mockResolvedValue()
       const { wrapper } = await mountAt('/sync')
-      const main = () => wrapper.find('button.h-\\[88px\\]')
+      const main = () => wrapper.find('button.h-action')
 
       await main().trigger('click')
       await flushPromises()
@@ -1378,7 +1378,7 @@ describe('App', () => {
           }),
       )
       const { wrapper, router } = await mountAt('/sync')
-      const main = () => wrapper.find('button.h-\\[88px\\]')
+      const main = () => wrapper.find('button.h-action')
       await main().trigger('click')
       await flushPromises()
       expect(wrapper.text()).toContain('Foto 1 von 2')

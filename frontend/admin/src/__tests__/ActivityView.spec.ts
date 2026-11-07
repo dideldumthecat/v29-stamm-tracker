@@ -391,7 +391,7 @@ describe('activity page', () => {
     expect(card.get('h2').text()).toBe('Moment')
     expect(card.get('p').text()).toBe('Ergebnis wird zurechtgesägt')
     expect(card.classes()).toEqual(expect.arrayContaining(['card', 'min-h-72']))
-    expect(card.get('h2').classes()).toEqual(expect.arrayContaining(['text-[26px]', 'font-bold']))
+    expect(card.get('h2').classes()).toEqual(expect.arrayContaining(['text-display', 'font-bold']))
     expect(card.get('p').classes()).toEqual(expect.arrayContaining(['text-mute', 'max-w-[32ch]']))
     expect(card.get('svg').attributes('aria-hidden')).toBe('true')
     expect(card.get('g').classes()).toContain('spinning')

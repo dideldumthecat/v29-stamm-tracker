@@ -15,7 +15,7 @@ const emit = defineEmits<{ safe: []; action: [] }>()
 
 const filled =
   'flex h-14 w-full items-center justify-center gap-2.5 rounded-lg bg-ink text-lg font-bold text-paper'
-const outlined = 'h-14 w-full rounded-lg border-2 border-ink bg-paper text-[17px] font-bold'
+const outlined = 'h-14 w-full rounded-lg border-2 border-ink bg-paper text-heading font-bold'
 
 // The filled button stands on top, the outlined one below it. Order in the DOM too, so Tab follows what is seen.
 const buttons = computed(() => {
@@ -61,7 +61,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
           <slot name="title">{{ title }}</slot>
         </h2>
         <!-- Long content scrolls on its own; title and buttons stay in view. -->
-        <div class="min-h-0 overflow-y-auto text-[15px] leading-[1.45]"><slot /></div>
+        <div class="min-h-0 overflow-y-auto text-detail leading-message"><slot /></div>
         <div ref="buttonRow" class="mt-1 flex shrink-0 flex-col gap-2">
           <button
             v-for="button in buttons"

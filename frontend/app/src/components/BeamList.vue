@@ -85,7 +85,7 @@ function onRemove(row: { tag: string; beam: TimberItem | undefined }) {
   <section
     class="flex flex-col gap-2.5 border-t border-line py-section px-gutter *:max-w-full *:min-w-0"
   >
-    <h2 class="flex items-center gap-2 text-[17px] font-bold">
+    <h2 class="flex items-center gap-2 text-heading font-bold">
       Balken<template v-if="rows.length > 0"> ({{ rows.length }})</template>
     </h2>
     <div v-if="rows.length > 0">
@@ -98,7 +98,7 @@ function onRemove(row: { tag: string; beam: TimberItem | undefined }) {
         >
           <a
             :href="href"
-            class="flex min-h-[60px] min-w-0 flex-1 items-center gap-3 py-1.5 text-left"
+            class="flex min-h-row min-w-0 flex-1 items-center gap-3 py-1.5 text-left"
             @click="onLink($event, row.tag, navigate)"
           >
             <BeamRowLabel
@@ -111,7 +111,7 @@ function onRemove(row: { tag: string; beam: TimberItem | undefined }) {
         <button
           v-else
           type="button"
-          class="flex min-h-[60px] min-w-0 flex-1 items-center gap-3 py-1.5 text-left"
+          class="flex min-h-row min-w-0 flex-1 items-center gap-3 py-1.5 text-left"
           @click="emit('saveFirst', row.tag)"
         >
           <BeamRowLabel
@@ -132,7 +132,7 @@ function onRemove(row: { tag: string; beam: TimberItem | undefined }) {
     </div>
     <button
       type="button"
-      class="flex h-14 w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-ink bg-paper text-[17px] font-bold disabled:border-lockline disabled:text-mute"
+      class="flex h-14 w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-ink bg-paper text-heading font-bold disabled:border-lockline disabled:text-mute"
       :disabled="!nextBeam"
       @click="onAdd"
     >
@@ -140,10 +140,10 @@ function onRemove(row: { tag: string; beam: TimberItem | undefined }) {
       <span v-if="nextBeam">Balken <FormattedTag :tag-number="nextBeam" /> hinzufügen</span>
       <span v-else>Balken hinzufügen</span>
     </button>
-    <span v-if="!nextBeam" class="text-[13px] text-mute"
+    <span v-if="!nextBeam" class="text-caption text-mute"
       >Höchstens {{ MAX_BEAMS }} Balken je Stamm</span
     >
-    <p v-if="rows.length === 0" class="text-sm leading-[1.4] text-body">
+    <p v-if="rows.length === 0" class="text-sm leading-copy text-body">
       Nur wenn der Stamm in mehrere Balken gesägt wird: je Balken einmal tippen und die Kennung auf
       den Balken schreiben. Angaben, die für alle Balken gelten, am Stamm erfassen – mit dem
       Speichern ist der Stamm gesperrt.

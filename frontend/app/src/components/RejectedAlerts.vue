@@ -9,7 +9,7 @@ defineProps<{ rejected: SyncResult['rejected'] }>()
   <div
     v-for="({ tagNumber, isBeam }, index) in rejected"
     :key="index"
-    class="max-w-[40ch] rounded-lg border-2 border-ink px-3.5 py-3 text-left text-sm leading-[1.4]"
+    class="max-w-[40ch] rounded-lg border-2 border-ink px-3.5 py-3 text-left text-sm leading-copy"
     role="alert"
   >
     {{ isBeam ? 'Balken' : 'Stamm' }}

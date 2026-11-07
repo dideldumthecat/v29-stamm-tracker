@@ -38,7 +38,7 @@ async function onSignOut() {
           <!-- 42 = heading line (24) + gap (2) + name line (16), as in the app header -->
           <V29Logo :height="42" />
           <div class="flex flex-col gap-0.5">
-            <div class="text-[17px] leading-6 font-bold">
+            <div class="text-heading leading-6 font-bold">
               <span class="sr-only">V29 </span>Stamm-Tracker
             </div>
             <!-- paper at 85 % on ink is about #dadada, contrast ≈ 14:1 -->
@@ -73,7 +73,7 @@ async function onSignOut() {
     <div class="flex-1">
       <RouterView />
     </div>
-    <footer class="page-column py-8 text-center text-[13px] text-mute">
+    <footer class="page-column py-8 text-center text-caption text-mute">
       <AuthorCredit />
     </footer>
   </div>

@@ -93,10 +93,10 @@ function remove(index: number) {
       <div
         v-for="entry in newValues"
         :key="entry.index"
-        class="flex min-h-10 items-center justify-between gap-2.5 border-b border-soft py-1 text-[15px]"
+        class="flex min-h-10 items-center justify-between gap-2.5 border-b border-soft py-1 text-detail"
       >
         <strong>{{ withUnit(entry.value) }}</strong>
-        <span class="flex items-center gap-2 text-right text-[13px] text-mute">
+        <span class="flex items-center gap-2 text-right text-caption text-mute">
           <span
             class="rounded-xl border-[1.5px] border-current px-2 py-[3px] text-xs font-semibold whitespace-nowrap text-ink"
             >neu</span
@@ -114,10 +114,10 @@ function remove(index: number) {
       <div
         v-for="record in oldValues"
         :key="record.event_id"
-        class="flex min-h-10 items-center justify-between gap-2.5 border-b border-soft py-1 text-[15px]"
+        class="flex min-h-10 items-center justify-between gap-2.5 border-b border-soft py-1 text-detail"
       >
         <strong>{{ withUnit(record.value) }}</strong>
-        <span class="text-right text-[13px] text-mute"
+        <span class="text-right text-caption text-mute"
           >{{ formatDateTime(record.recorded_at) }} · {{ userName(record.user_id)
           }}{{ inherited ? ' · vom Stamm' : '' }}</span
         >
@@ -148,7 +148,7 @@ function remove(index: number) {
       <button
         v-if="attribute.is_series"
         type="button"
-        class="min-h-11 shrink-0 rounded-lg border-2 border-ink bg-paper px-3.5 text-[15px] font-semibold"
+        class="min-h-11 shrink-0 rounded-lg border-2 border-ink bg-paper px-3.5 text-detail font-semibold"
         @click="add"
       >
         Hinzufügen

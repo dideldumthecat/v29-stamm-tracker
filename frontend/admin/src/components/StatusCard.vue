@@ -9,8 +9,8 @@ defineProps<{ title: string; textClass?: string }>()
     class="mt-6 flex min-h-72 flex-col items-center justify-center gap-4 card px-4 py-16 text-center sm:py-24"
   >
     <slot name="icon" />
-    <h2 class="text-[26px] font-bold text-balance">{{ title }}</h2>
-    <p class="leading-[1.45] text-mute" :class="textClass"><slot name="text" /></p>
+    <h2 class="text-display font-bold text-balance">{{ title }}</h2>
+    <p class="leading-message text-mute" :class="textClass"><slot name="text" /></p>
     <slot />
   </div>
 </template>

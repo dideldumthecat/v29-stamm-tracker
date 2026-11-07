@@ -43,7 +43,7 @@ function toggle() {
     class="flex flex-col gap-2.5 border-t border-line bg-locked py-section px-gutter text-mute *:max-w-full *:min-w-0"
   >
     <div
-      class="flex min-h-[60px] items-center gap-3 rounded-lg border-2 border-lockline pl-3.5 text-[17px] font-bold"
+      class="flex min-h-row items-center gap-3 rounded-lg border-2 border-lockline pl-3.5 text-heading font-bold"
     >
       <!-- Ticked: filled box. Unticked: empty box and "Nein", so "No" is not mistaken for "not recorded". -->
       <span
@@ -67,10 +67,10 @@ function toggle() {
         <PencilIcon :size="22" aria-hidden="true" />
       </button>
     </div>
-    <p v-if="attribute.description" class="text-sm leading-[1.4] text-body">
+    <p v-if="attribute.description" class="text-sm leading-copy text-body">
       {{ attribute.description }}
     </p>
-    <span v-if="current" class="text-[13px] text-mute"
+    <span v-if="current" class="text-caption text-mute"
       >{{ formatDateTime(current.recorded_at) }} · {{ userName(current.user_id)
       }}{{ inherited ? ' · vom Stamm' : '' }}</span
     >
@@ -82,7 +82,7 @@ function toggle() {
   >
     <button
       type="button"
-      class="group flex min-h-[60px] w-full items-center gap-3.5 rounded-lg border-2 border-ink bg-paper px-3.5 text-left text-[17px] font-bold active:bg-ink active:text-paper active:opacity-100"
+      class="group flex min-h-row w-full items-center gap-3.5 rounded-lg border-2 border-ink bg-paper px-3.5 text-left text-heading font-bold active:bg-ink active:text-paper active:opacity-100"
       :aria-pressed="isChecked"
       @click="toggle"
     >
@@ -93,7 +93,7 @@ function toggle() {
       </span>
       <span class="flex-1">{{ attribute.name }}</span>
     </button>
-    <p v-if="attribute.description" class="text-sm leading-[1.4] text-body">
+    <p v-if="attribute.description" class="text-sm leading-copy text-body">
       {{ attribute.description }}
     </p>
   </section>

@@ -26,9 +26,9 @@ const { isPersisted } = useStoragePersistence()
       <span class="w-11 shrink-0"></span>
     </header>
 
-    <div class="flex flex-col gap-8 py-6 px-gutter text-lg leading-[1.4]">
+    <div class="flex flex-col gap-8 py-6 px-gutter text-lg leading-copy">
       <section class="flex flex-col gap-3">
-        <h2 class="text-[26px] font-bold text-balance">Synchronisieren</h2>
+        <h2 class="text-display font-bold text-balance">Synchronisieren</h2>
         <p>Erfassen geht auch ohne Netz. Alles bleibt auf dem Handy, bis du es hochlädst.</p>
         <p>
           Die App holt den aktuellen Stand automatisch, sobald du Netz hast. Wann zuletzt, steht auf
@@ -47,7 +47,7 @@ const { isPersisted } = useStoragePersistence()
       </section>
 
       <section class="flex flex-col gap-3">
-        <h2 class="text-[26px] font-bold text-balance">App auf einem neuen Handy installieren</h2>
+        <h2 class="text-display font-bold text-balance">App auf einem neuen Handy installieren</h2>
         <details class="rounded-lg border-2 border-ink">
           <summary class="min-h-14 cursor-pointer px-3 py-4 font-bold">iPhone (Safari)</summary>
           <ol class="flex list-decimal flex-col gap-3 pr-3 pb-4 pl-9">
@@ -68,7 +68,7 @@ const { isPersisted } = useStoragePersistence()
       </section>
     </div>
 
-    <div class="mt-auto flex flex-col gap-1 py-4 px-gutter text-center text-[13px] text-mute">
+    <div class="mt-auto flex flex-col gap-1 py-4 px-gutter text-center text-caption text-mute">
       <p>
         Speicher geschützt:
         {{ isPersisted === null ? 'unbekannt' : isPersisted ? 'ja' : 'nein' }}
