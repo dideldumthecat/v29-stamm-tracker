@@ -37,7 +37,7 @@ describe('timber item store: photos', () => {
     const stem = store.createTimberItem(5)
     store.addPhoto(stem.id, photoAttribute(), jpeg(10))
 
-    const [photo] = store.pendingPhotosOf(stem.id)
+    const [photo] = store.pendingPhotosOf(stem.id, photoAttribute())
     expect(photo).toMatchObject({ timber_item_id: stem.id, size: 10 })
     expect(store.events.slice(-1)[0]).toMatchObject({
       type: 'attribute_recorded',
@@ -64,11 +64,52 @@ describe('timber item store: photos', () => {
     expect(() => store.addPhoto(stem.id, photoAttribute(), jpeg())).toThrow()
   })
 
+  it('lists pending photos under their own photo attribute only, queued or already synced', async () => {
+    const snapshot = api.initialSnapshot()
+    const first = snapshot.attributes.find((attribute) => attribute.type === 'photo')!
+    const second = { ...first, id: crypto.randomUUID(), name: 'Fotos Schnittfläche' }
+    snapshot.attributes.push(second)
+    vi.spyOn(api, 'initialSnapshot').mockReturnValueOnce(snapshot)
+    const store = useTimberItemStore()
+    const stem = store.findByTag('456')!
+    store.addPhoto(stem.id, first.id, jpeg())
+    store.addPhoto(stem.id, second.id, jpeg())
+    const [firstPhoto, secondPhoto] = store.photos
+    const ids = (attributeId: string) =>
+      store.pendingPhotosOf(stem.id, attributeId).map((photo) => photo.id)
+    expect(ids(first.id)).toEqual([firstPhoto!.id])
+    expect(ids(second.id)).toEqual([secondPhoto!.id])
+
+    // Events on the server, files still here: the downloaded snapshot names the attribute.
+    const synced = structuredClone(snapshot)
+    const syncedStem = synced.timber_items.find((item) => item.id === stem.id)!
+    for (const [attribute, photo] of [
+      [first, firstPhoto!],
+      [second, secondPhoto!],
+    ] as const) {
+      syncedStem.values[attribute.id] = [
+        {
+          value: photo.id,
+          recorded_at: photo.taken_at,
+          user_id: 'me',
+          event_id: crypto.randomUUID(),
+        },
+      ]
+    }
+    acceptAll()
+    vi.spyOn(api, 'loadSnapshot').mockResolvedValue(synced)
+    vi.spyOn(api, 'uploadPhoto').mockRejectedValue(new ApiError(0, 'offline'))
+    await store.sync()
+    expect(store.events).toEqual([])
+    expect(ids(first.id)).toEqual([firstPhoto!.id])
+    expect(ids(second.id)).toEqual([secondPhoto!.id])
+  })
+
   it('removes a pending photo with its blob and event', () => {
     const store = useTimberItemStore()
     const stem = store.createTimberItem(5)
     store.addPhoto(stem.id, photoAttribute(), jpeg())
-    store.removePhoto(store.pendingPhotosOf(stem.id)[0]!.id)
+    store.removePhoto(store.pendingPhotosOf(stem.id, photoAttribute())[0]!.id)
     expect(store.photos).toEqual([])
     expect(store.events.map((event) => event.type)).toEqual(['created', 'tag_assigned'])
   })
@@ -323,7 +364,7 @@ describe('timber item store: photos', () => {
     const stem = store.findByTag('123')!
     store.addPhoto(stem.id, photoAttribute(), jpeg())
     const recorded = store.findByTag('123')!.values[photoAttribute()] ?? []
-    const [pending] = store.pendingPhotosOf(stem.id)
+    const [pending] = store.pendingPhotosOf(stem.id, photoAttribute())
     expect(recorded.map((record) => record.value)).toContain(pending!.id)
     expect(store.uploadedPhotoCount(stem.id, photoAttribute())).toBe(recorded.length - 1)
   })

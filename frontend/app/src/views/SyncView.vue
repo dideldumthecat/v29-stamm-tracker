@@ -16,6 +16,7 @@ import { checkForUpdateNow } from '@/composables/useUpdateCheck'
 import { formatValueLine } from '@/utils/attributeDraft'
 import { formatShortDateTime } from '@/utils/date'
 import { formatBytes } from '@/utils/photo'
+import { plural } from '@/utils/plural'
 import { useToast } from '@/composables/useToast'
 import ConfirmSheet from '@/components/ConfirmSheet.vue'
 import FormattedTag from '@v29/shared/FormattedTag.vue'
@@ -33,12 +34,8 @@ const uploadedPhotos = computed(() => result.value?.photos?.uploaded ?? 0)
 // "3 Einträge übertragen, 2 Fotos hochgeladen" – whichever parts there are.
 const transferredText = computed(() =>
   [
-    transferred.value
-      ? `${transferred.value} ${transferred.value === 1 ? 'Eintrag' : 'Einträge'} übertragen`
-      : null,
-    uploadedPhotos.value
-      ? `${uploadedPhotos.value} ${uploadedPhotos.value === 1 ? 'Foto' : 'Fotos'} hochgeladen`
-      : null,
+    transferred.value ? `${plural(transferred.value, 'Eintrag', 'Einträge')} übertragen` : null,
+    uploadedPhotos.value ? `${plural(uploadedPhotos.value, 'Foto', 'Fotos')} hochgeladen` : null,
   ]
     .filter((part) => part !== null)
     .join(', '),
@@ -166,7 +163,7 @@ const failureText = computed(() => {
     return null
   }
   const count = store.pendingCount
-  const kept = `Deine ${count} ${count === 1 ? 'Eintrag bleibt' : 'Einträge bleiben'} auf diesem Gerät.`
+  const kept = `Deine ${plural(count, 'Eintrag bleibt', 'Einträge bleiben')} auf diesem Gerät.`
   switch (error.status) {
     case 0:
       return `Keine Verbindung zum Server. ${kept} Versuch es erneut, sobald du Empfang hast.`
@@ -180,23 +177,22 @@ const failureText = computed(() => {
   }
 })
 
+const PHOTO_ERRORS: Record<number, string> = {
+  0: 'Keine Verbindung zum Server',
+  413: 'Datei zu groß',
+  415: 'Datei ist kein JPEG',
+}
+
 function photoNotice({ photos, cancelled }: SyncResult): string | null {
   const open = store.photos.length
-  const left = `${open} ${open === 1 ? 'Foto bleibt' : 'Fotos bleiben'} auf diesem Gerät.`
+  const left = `${plural(open, 'Foto bleibt', 'Fotos bleiben')} auf diesem Gerät.`
   if (cancelled === 'photos') {
     return `Angehalten. ${left}`
   }
   if (!photos?.failed) {
     return null
   }
-  const reason =
-    photos.errorStatus === 0
-      ? 'Keine Verbindung zum Server'
-      : photos.errorStatus === 413
-        ? 'Datei zu groß'
-        : photos.errorStatus === 415
-          ? 'Datei ist kein JPEG'
-          : `Fehler ${photos.errorStatus}`
+  const reason = PHOTO_ERRORS[photos.errorStatus ?? -1] ?? `Fehler ${photos.errorStatus}`
   return `${photos.failed} von ${photos.uploaded + photos.failed} Fotos konnten nicht hochgeladen werden (${reason}). ${left}`
 }
 
@@ -209,7 +205,7 @@ async function onSync() {
     if (synced.cancelled === 'data') {
       const count = store.pendingCount
       useToast().show({
-        before: `Angehalten. Deine ${count} ${count === 1 ? 'Eintrag bleibt' : 'Einträge bleiben'} auf diesem Gerät.`,
+        before: `Angehalten. Deine ${plural(count, 'Eintrag bleibt', 'Einträge bleiben')} auf diesem Gerät.`,
         kind: 'warning',
       })
       return
@@ -373,8 +369,7 @@ function onMainButton() {
         <span
           v-if="store.photos.length > 0 && !store.isSyncing"
           class="text-center text-sm font-semibold"
-          >{{ store.photos.length }} {{ store.photos.length === 1 ? 'Foto' : 'Fotos' }} ·
-          {{ formatBytes(photoBytes) }}</span
+          >{{ plural(store.photos.length, 'Foto', 'Fotos') }} · {{ formatBytes(photoBytes) }}</span
         >
         <div v-if="store.isSyncing" class="flex flex-col gap-1.5">
           <div

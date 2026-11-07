@@ -8,6 +8,7 @@ import {
   type DraftInput,
 } from '@/utils/attributeDraft'
 import { attachPhotos } from '@/utils/photo'
+import { plural } from '@/utils/plural'
 import { useToast } from '@/composables/useToast'
 
 /**
@@ -81,7 +82,7 @@ export function useTimberItemDraft(
       })
       if (skipped > 0) {
         toast.show({
-          before: `${skipped} ${skipped === 1 ? 'Foto konnte' : 'Fotos konnten'} nicht gelesen werden`,
+          before: `${plural(skipped, 'Foto konnte', 'Fotos konnten')} nicht gelesen werden`,
           kind: 'warning',
         })
       }
@@ -94,7 +95,7 @@ export function useTimberItemDraft(
   // Saved photos are removable only while their event is still queued.
   function photosOf(attributeId: string) {
     return [
-      ...(item.value ? store.pendingPhotosOf(item.value.id) : []).map((photo) => ({
+      ...(item.value ? store.pendingPhotosOf(item.value.id, attributeId) : []).map((photo) => ({
         photo,
         removable: store.isPhotoQueued(photo.id),
       })),
@@ -110,6 +111,22 @@ export function useTimberItemDraft(
     } else {
       store.removePhoto(id)
     }
+  }
+
+  // Error and series values go only to the fields that have them: an unknown prop would end up as an HTML attribute.
+  function extraFieldProps(attribute: Attribute) {
+    const error = shownErrors.value[attribute.id]
+    if (attribute.type === 'month') {
+      return { error }
+    }
+    if (attribute.type === 'number') {
+      return {
+        error,
+        added: added.value[attribute.id],
+        'onUpdate:added': (values: AttributeValue[]) => (added.value[attribute.id] = values),
+      }
+    }
+    return {}
   }
 
   // What the leave dialog lists: only the parts that exist. Values and invalid input follow the form's order.
@@ -175,11 +192,9 @@ export function useTimberItemDraft(
 
   return {
     draft,
-    added,
     draftBeams,
     formKey,
     isDirty,
-    shownErrors,
     isCompressing,
     isPicking,
     addPhotos,
@@ -187,5 +202,6 @@ export function useTimberItemDraft(
     removePhoto,
     unsaved,
     save,
+    extraFieldProps,
   }
 }
