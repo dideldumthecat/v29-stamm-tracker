@@ -153,7 +153,7 @@ const days = computed(() => groupByDay(entries.value))
 <template>
   <main class="page-column py-8">
     <h1 class="text-3xl font-bold">Aktivität</h1>
-    <p class="text-mute">Wer hat wann was erfasst</p>
+    <p class="text-mute">Wer hat wann was erfasst?</p>
 
     <form class="mt-6 flex flex-wrap items-end gap-x-4 gap-y-3" @submit.prevent>
       <label class="flex flex-col text-sm text-mute">

@@ -22,7 +22,7 @@ const hasNumber = (label: string) => /^\d/.test(label)
         formatTime(entry.received_at)
       }}</time>
       <div class="text-measure min-w-0">
-        <p>
+        <p class="flex flex-wrap items-baseline gap-x-4">
           <span class="font-semibold">{{ entry.user.name }}</span>
           {{ ' ' }}
           <span class="text-sm text-mute tabular-nums"
