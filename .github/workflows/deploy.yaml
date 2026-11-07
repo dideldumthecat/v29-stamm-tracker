@@ -71,3 +71,9 @@ jobs:
       - name: Clean up
         if: always()
         run: rm -f key.pem known_hosts
+
+      - name: Tag deployed commit
+        run: |
+          TAG="prod-$(TZ=Europe/Berlin date +%Y-%m-%d-%H%M)"
+          git tag "$TAG" "$GITHUB_SHA"
+          git push origin "$TAG"
