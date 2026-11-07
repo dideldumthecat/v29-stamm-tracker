@@ -8,6 +8,8 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     environment: IONOS
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout code
