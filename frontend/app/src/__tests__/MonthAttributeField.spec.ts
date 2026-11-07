@@ -48,7 +48,7 @@ describe('MonthAttributeField', () => {
     const { wrapper, attribute } = setup({ recorded })
     expect(wrapper.find('input').exists()).toBe(false)
     expect(wrapper.text()).toContain('09/2026')
-    expect(wrapper.text()).toContain('02.10. · Kerstin')
+    expect(wrapper.text()).toMatch(/02\.10\.2026, \d{2}:\d{2} · Kerstin/)
 
     await wrapper.find(`button[aria-label="${attribute.name} ändern"]`).trigger('click')
     expect((wrapper.find('input').element as HTMLInputElement).value).toBe('2026-09')
