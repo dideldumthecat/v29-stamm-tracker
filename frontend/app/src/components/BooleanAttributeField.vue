@@ -41,7 +41,7 @@ function toggle() {
 <template>
   <section
     v-if="isLocked"
-    class="flex flex-col gap-2.5 border-t border-line bg-locked py-3.5 px-gutter text-mute *:max-w-full *:min-w-0"
+    class="flex flex-col gap-2.5 border-t border-line bg-locked py-section px-gutter text-mute *:max-w-full *:min-w-0"
   >
     <div
       class="flex min-h-[60px] items-center gap-3 rounded-lg border-2 border-lockline pl-3.5 text-[17px] font-bold"
@@ -79,7 +79,7 @@ function toggle() {
 
   <section
     v-else
-    class="flex flex-col gap-2.5 border-t border-line py-3.5 px-gutter *:max-w-full *:min-w-0"
+    class="flex flex-col gap-2.5 border-t border-line py-section px-gutter *:max-w-full *:min-w-0"
   >
     <button
       type="button"
