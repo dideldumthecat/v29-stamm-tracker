@@ -49,14 +49,15 @@ const hasNumber = (label: string) => /^\d/.test(label)
             aria-hidden="true"
           />
         </summary>
-        <div class="mt-3 overflow-x-auto rounded-lg border border-line">
-          <table class="w-full min-w-96 text-left text-sm">
+        <div class="mt-3 overflow-x-auto border border-line">
+          <table class="w-full min-w-md text-left text-sm">
             <!-- Only for screen readers: the columns explain themselves. -->
             <thead class="sr-only">
               <tr>
                 <th scope="col">Kennung</th>
                 <th scope="col">Merkmal</th>
                 <th scope="col">Wert</th>
+                <th scope="col">Uhrzeit</th>
               </tr>
             </thead>
             <!-- One <tbody> per stem or beam: its tag spans its rows, the line below it is the stronger one. -->
@@ -82,6 +83,16 @@ const hasNumber = (label: string) => /^\d/.test(label)
                 </th>
                 <td class="px-3 py-2 text-mute">{{ row.name }}</td>
                 <td class="px-3 py-2 break-words text-ink">{{ row.value }}</td>
+                <!-- Device time of the item's first change: why the items are not sorted by tag. -->
+                <td
+                  v-if="index === 0"
+                  :rowspan="item.rows.length"
+                  class="px-3 py-2 text-right text-mute tabular-nums"
+                >
+                  <time :datetime="item.changes[0].recorded_at">{{
+                    formatTime(item.changes[0].recorded_at)
+                  }}</time>
+                </td>
               </tr>
             </tbody>
           </table>
