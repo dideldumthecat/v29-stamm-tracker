@@ -4,6 +4,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { useTimberItemStore } from '@/stores/timberItems'
 import { MIN_REFRESH_INTERVAL_MS, startAutoRefresh } from '@/composables/useAutoRefresh'
 import { ApiError } from '@/api/client'
+import { signedOut } from './storeSetup'
 
 let visibility: DocumentVisibilityState
 let online: boolean
@@ -78,7 +79,9 @@ describe('automatic refresh', () => {
   })
 
   it('does nothing without a signed-in user', () => {
-    useTimberItemStore().currentUser = null
+    signedOut()
+    setActivePinia(createPinia())
+    useTimberItemStore().refresh = refresh as never
     stop = startAutoRefresh()
     vi.advanceTimersByTime(MIN_REFRESH_INTERVAL_MS)
     setVisibility('visible')
@@ -97,7 +100,7 @@ describe('automatic refresh', () => {
 
   describe('with a draft open', () => {
     it('does not download, not on start and not on return', () => {
-      useTimberItemStore().isDraftOpen = true
+      useTimberItemStore().setDraftOpen(true)
       stop = startAutoRefresh()
       vi.advanceTimersByTime(MIN_REFRESH_INTERVAL_MS)
       setVisibility('visible')
@@ -108,16 +111,16 @@ describe('automatic refresh', () => {
       const store = useTimberItemStore()
       stop = startAutoRefresh()
       vi.advanceTimersByTime(MIN_REFRESH_INTERVAL_MS)
-      store.isDraftOpen = true
+      store.setDraftOpen(true)
       setVisibility('visible')
       setVisibility('visible')
       await nextTick()
       expect(refresh).toHaveBeenCalledTimes(1)
-      store.isDraftOpen = false
+      store.setDraftOpen(false)
       await nextTick()
       expect(refresh).toHaveBeenCalledTimes(2)
-      store.isDraftOpen = true
-      store.isDraftOpen = false
+      store.setDraftOpen(true)
+      store.setDraftOpen(false)
       await nextTick()
       expect(refresh).toHaveBeenCalledTimes(2)
     })
@@ -125,9 +128,9 @@ describe('automatic refresh', () => {
     it('catches up nothing if no download was held back', async () => {
       const store = useTimberItemStore()
       stop = startAutoRefresh()
-      store.isDraftOpen = true
+      store.setDraftOpen(true)
       await nextTick()
-      store.isDraftOpen = false
+      store.setDraftOpen(false)
       await nextTick()
       expect(refresh).toHaveBeenCalledTimes(1)
     })
@@ -135,9 +138,9 @@ describe('automatic refresh', () => {
     it('does not catch up a return that the minimum interval would have skipped anyway', async () => {
       const store = useTimberItemStore()
       stop = startAutoRefresh()
-      store.isDraftOpen = true
+      store.setDraftOpen(true)
       setVisibility('visible')
-      store.isDraftOpen = false
+      store.setDraftOpen(false)
       await nextTick()
       expect(refresh).toHaveBeenCalledTimes(1)
     })

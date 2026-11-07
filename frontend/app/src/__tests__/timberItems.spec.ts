@@ -12,6 +12,7 @@ import {
 } from '@/persistence/database'
 import { createEntry, record } from '@/diagnostics/record'
 import { sendDiagnostics, startDiagnosticsSending } from '@/diagnostics/send'
+import { restartWith, signedOut } from './storeSetup'
 
 // Pass-through spy: tests can check what reaches IndexedDB.
 vi.mock('@/persistence/database', async (importOriginal) => {
@@ -91,9 +92,11 @@ describe('timber item store: beams and inheritance', () => {
   })
 
   it('lists the beams of a stem by tag, whatever order they arrived in', () => {
+    const reversed = api.initialSnapshot()
+    reversed.timber_items.reverse()
+    vi.spyOn(api, 'initialSnapshot').mockReturnValueOnce(reversed)
     const store = useTimberItemStore()
     const stem = store.findByTag('789')!
-    store.snapshot = { ...store.snapshot, timber_items: [...store.snapshot.timber_items].reverse() }
     expect(
       store.snapshot.timber_items.findIndex((item) => item.tag_number === '789-B'),
     ).toBeLessThan(store.snapshot.timber_items.findIndex((item) => item.tag_number === '789-A'))
@@ -491,7 +494,7 @@ describe('timber item store: sync', () => {
       recorded_at: new Date().toISOString(),
       data: { tag_number: '345' },
     }
-    store.events.push(tagEvent)
+    await restartWith([tagEvent])
     store.recordAttribute(beam.id, attributeId('Holzart'), 'oak')
     const [, recorded] = store.events
     vi.spyOn(api, 'sync').mockResolvedValue({
@@ -549,9 +552,9 @@ describe('timber item store: sign-in', () => {
   afterEach(() => vi.restoreAllMocks())
 
   it('loads the snapshot right after sign-in, keeping pending events', async () => {
-    const store = useTimberItemStore()
     const fixture = api.initialSnapshot()
-    store.snapshot = { ...fixture, attributes: [] }
+    vi.spyOn(api, 'initialSnapshot').mockReturnValueOnce({ ...fixture, attributes: [] })
+    const store = useTimberItemStore()
     store.createTimberItem(9)
     vi.spyOn(api, 'loadSnapshot').mockResolvedValue(fixture)
 
@@ -563,23 +566,23 @@ describe('timber item store: sign-in', () => {
   })
 
   it('takes the own name from the user list of a downloaded snapshot and stores it', async () => {
-    const store = useTimberItemStore()
     const fresh = api.initialSnapshot()
-    store.currentUser = { ...fresh.users[0]!, name: 'Old name' }
+    vi.spyOn(api, 'initialUser').mockReturnValueOnce({ ...fresh.users[0]!, name: 'Old name' })
+    const store = useTimberItemStore()
     fresh.users[0]!.name = 'New name'
     vi.spyOn(api, 'loadSnapshot').mockResolvedValue(fresh)
 
     await store.refresh()
-    expect(store.currentUser.name).toBe('New name')
+    expect(store.currentUser?.name).toBe('New name')
     expect(vi.mocked(save)).toHaveBeenLastCalledWith(
       expect.objectContaining({ user: expect.objectContaining({ name: 'New name' }) }),
     )
   })
 
   it('keeps the signed-in user when the snapshot does not list them', async () => {
-    const store = useTimberItemStore()
     const own = { id: 'not-in-snapshot', name: 'Stranger' }
-    store.currentUser = own
+    vi.spyOn(api, 'initialUser').mockReturnValueOnce(own)
+    const store = useTimberItemStore()
     vi.spyOn(api, 'loadSnapshot').mockResolvedValue(api.initialSnapshot())
 
     await store.refresh()
@@ -590,8 +593,8 @@ describe('timber item store: sign-in', () => {
   // The start after an app update: the entries of the old version wait in the buffer.
   it('sends the buffered diagnostics only once a sign-in is there', async () => {
     vi.spyOn(api, 'loadSnapshot').mockResolvedValue(api.initialSnapshot())
+    signedOut()
     const store = useTimberItemStore()
-    store.currentUser = null
     // A send of an earlier test may still be running; it must neither take this test's entry nor be counted.
     await sendDiagnostics()
     await removeDiagnostics(await loadDiagnostics())
@@ -610,9 +613,9 @@ describe('timber item store: sign-in', () => {
   })
 
   it('sends the buffered diagnostics at the start when the stored sign-in is loaded', async () => {
+    const user = api.initialUser()!
+    signedOut()
     const store = useTimberItemStore()
-    const user = { ...store.currentUser! }
-    store.currentUser = null
     await sendDiagnostics()
     await removeDiagnostics(await loadDiagnostics())
     const send = vi.spyOn(api, 'sendDiagnostics').mockResolvedValue(undefined)
@@ -626,8 +629,8 @@ describe('timber item store: sign-in', () => {
   })
 
   it('keeps the sign-in when the snapshot cannot be loaded', async () => {
+    signedOut()
     const store = useTimberItemStore()
-    store.currentUser = null
     vi.spyOn(api, 'loadSnapshot').mockRejectedValue(new ApiError(0, 'offline'))
 
     await expect(store.redeemInvite('token')).resolves.toBeUndefined()
