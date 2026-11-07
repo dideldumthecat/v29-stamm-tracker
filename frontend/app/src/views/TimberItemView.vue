@@ -265,6 +265,7 @@ function onDiscard() {
           :recorded="item?.values[attribute.id]"
           :readonly="!attribute.active || isSplit"
           :inherited="item && store.isInherited(item.id, attribute.id)"
+          :user-name="store.userName"
           v-bind="extraProps(attribute)"
           @update:model-value="draft[attribute.id] = $event"
         />

@@ -20,6 +20,7 @@ function setup(props: { recorded?: AttributeValueRecord[]; error?: string } = {}
   const attribute = useTimberItemStore().attributes.find((candidate) => candidate.type === 'month')!
   const wrapper = mount(MonthAttributeField, {
     props: {
+      userName: useTimberItemStore().userName,
       attribute,
       recorded: props.recorded,
       error: props.error,

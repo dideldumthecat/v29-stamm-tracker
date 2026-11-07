@@ -10,6 +10,8 @@ const props = defineProps<{
   inherited?: boolean
   // Set by the parent after a failed save: browsers without a month picker show a plain text field.
   error?: string
+  // Resolved by the caller, so the field needs no store.
+  userName: (userId: string) => string
 }>()
 
 // Draft = "YYYY-MM" ("" while cleared or incomplete). undefined = untouched.

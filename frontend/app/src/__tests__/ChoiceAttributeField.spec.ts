@@ -20,7 +20,9 @@ function setup(recordedOptionId?: string) {
         },
       ]
     : undefined
-  const wrapper = mount(ChoiceAttributeField, { props: { attribute, recorded } })
+  const wrapper = mount(ChoiceAttributeField, {
+    props: { userName: useTimberItemStore().userName, attribute, recorded },
+  })
   return { wrapper, attribute, inactive }
 }
 
@@ -70,6 +72,7 @@ describe('ChoiceAttributeField with inactive options', () => {
     const attribute = store.attributes.find((candidate) => candidate.type === 'choice')!
     const wrapper = mount(ChoiceAttributeField, {
       props: {
+        userName: useTimberItemStore().userName,
         attribute,
         readonly: true,
         recorded: store.findByTagNumber(123)?.values[attribute.id],

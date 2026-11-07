@@ -4,7 +4,6 @@ import { CheckIcon, PencilIcon } from '@lucide/vue'
 import type { Attribute, AttributeValueRecord } from '@/stores/timberItems'
 import InactiveHint from '@/components/InactiveHint.vue'
 import { formatDateTime } from '@/utils/date'
-import { useTimberItemStore } from '@/stores/timberItems'
 
 const props = defineProps<{
   attribute: Attribute
@@ -14,9 +13,9 @@ const props = defineProps<{
   readonly?: boolean
   // Beam only: the value comes from the parent (shown as a hint, still overwritable).
   inherited?: boolean
+  // Resolved by the caller, so the field needs no store.
+  userName: (userId: string) => string
 }>()
-
-const store = useTimberItemStore()
 
 // A boolean attribute is never a series, so the last entry is the current value.
 const current = computed(() => props.recorded?.slice(-1)[0])
@@ -72,7 +71,7 @@ function toggle() {
       {{ attribute.description }}
     </p>
     <span v-if="current" class="text-[13px] text-mute"
-      >{{ formatDateTime(current.recorded_at) }} · {{ store.userName(current.user_id)
+      >{{ formatDateTime(current.recorded_at) }} · {{ userName(current.user_id)
       }}{{ inherited ? ' · vom Stamm' : '' }}</span
     >
   </section>

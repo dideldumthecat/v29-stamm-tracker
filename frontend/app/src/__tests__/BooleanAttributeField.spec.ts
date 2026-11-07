@@ -11,6 +11,7 @@ function setup(tagNumber: number | null) {
   const recorded = tagNumber ? store.findByTagNumber(tagNumber)?.values[attribute.id] : undefined
   const wrapper = mount(BooleanAttributeField, {
     props: {
+      userName: useTimberItemStore().userName,
       attribute,
       recorded,
       modelValue: undefined as boolean | undefined,
@@ -70,6 +71,7 @@ describe('BooleanAttributeField', () => {
     const attribute = store.attributes.find((candidate) => candidate.type === 'boolean')!
     const wrapper = mount(BooleanAttributeField, {
       props: {
+        userName: useTimberItemStore().userName,
         attribute: { ...attribute, active: false },
         readonly: true,
         recorded: store.findByTagNumber(789)?.values[attribute.id],
