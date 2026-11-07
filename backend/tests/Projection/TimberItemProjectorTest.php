@@ -33,7 +33,11 @@ class TimberItemProjectorTest extends KernelTestCase
         $this->em->flush();
     }
 
-    /** Every event is received one second after the previous one: the receipt order is the call order. */
+    /**
+     * Every event is received one second after the previous one: the receipt order is the call order.
+     *
+     * @param array<string, mixed> $data
+     */
     private function event(Uuid $item, EventType $type, array $data, ?Uuid $reference = null): Uuid
     {
         $id = Uuid::v7();

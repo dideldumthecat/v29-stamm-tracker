@@ -61,6 +61,7 @@ class ActivityTest extends WebTestCase
         $this->em->flush();
     }
 
+    /** @return array<string, mixed> */
     private function activity(string $query = '', string $as = 'Chef'): array
     {
         $this->client->getCookieJar()->clear();
@@ -76,6 +77,7 @@ class ActivityTest extends WebTestCase
         return Uuid::fromString(\sprintf('00000000-0000-7000-8000-%012d', ++$this->sequence));
     }
 
+    /** @param array<string, mixed> $data */
     private function add(User $user, EventType $type, string $tag, array $data, string $received, ?string $recorded = null, ?Uuid $reference = null): Uuid
     {
         $item = $this->items[$tag] ??= $this->nextId();
@@ -128,7 +130,13 @@ class ActivityTest extends WebTestCase
         }
     }
 
-    /** "Name: value" of each change, per item label of the entry. */
+    /**
+     * "Name: value" of each change, per item label of the entry.
+     *
+     * @param array<string, mixed> $entry
+     *
+     * @return array<list<string>> by item label (numeric labels become integer keys)
+     */
     private static function lines(array $entry): array
     {
         return array_combine(array_column($entry['items'], 'label'), array_map(static fn (array $item) => array_map(static fn (array $change) => $change['name'].': '.$change['value'], $item['changes']), $entry['items']));
@@ -448,6 +456,7 @@ class ActivityTest extends WebTestCase
         return Uuid::fromBinary($this->em->getConnection()->fetchOne('SELECT id FROM timber_item_events WHERE timber_item_id = ? AND type = ?', [$this->items[$tag]->toBinary(), 'created']));
     }
 
+    /** @return array<string, mixed> */
     private static function fixture(): array
     {
         return json_decode(file_get_contents(__DIR__.'/../../../frontend/shared/fixtures/activity-response.json'), true, flags: \JSON_THROW_ON_ERROR);

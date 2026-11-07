@@ -48,7 +48,10 @@ class PhotoImportCommandTest extends KernelTestCase
         parent::tearDown();
     }
 
-    /** @param array<string, string> $files file name => content */
+    /**
+     * @param array<string, string> $files file name => content
+     * @param list<list<string>>    $rows
+     */
     private function import(array $rows, array $files, bool $dryRun = false, string $separator = ';', string $header = 'file;tag'): int
     {
         foreach ($files as $name => $content) {

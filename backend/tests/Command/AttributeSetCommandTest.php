@@ -55,6 +55,7 @@ class AttributeSetCommandTest extends KernelTestCase
         return $id;
     }
 
+    /** @param array<string, mixed> $data */
     private function event(Uuid $item, EventType $type, array $data, ?Uuid $reference = null): void
     {
         $this->em->persist(new TimberItemEvent(Uuid::v7(), $item, $type, $data, new \DateTimeImmutable(), $this->admin, $reference));
@@ -67,6 +68,7 @@ class AttributeSetCommandTest extends KernelTestCase
         $this->projector->project($item);
     }
 
+    /** @param array<string, mixed> $input */
     private function set(array $input): int
     {
         return $this->tester->execute($input + ['attribute' => 'Länge', 'value' => '4,10 m', '--range' => 'all']);
