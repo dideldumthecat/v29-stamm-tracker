@@ -1,5 +1,7 @@
 import type { Attribute, AttributeValue, AttributeValueRecord } from '@v29/shared/contract'
 import { formatDate, formatMonth } from '@/utils/date'
+import { plural } from '@/utils/plural'
+import { bySortOrder } from '@/utils/sort'
 
 /**
  * Raw input of one field, as the field holds it: choice → option id, boolean → true/false,
@@ -65,7 +67,7 @@ export function formatValueLine(attribute: Attribute, value: AttributeValue): st
 
 /** "1 Foto" / "3 Fotos", as listed in the leave and remove dialogs. */
 export function formatPhotoCount(count: number): string {
-  return `${count} ${count === 1 ? 'Foto' : 'Fotos'}`
+  return plural(count, 'Foto', 'Fotos')
 }
 
 type Parsed = { value: AttributeValue } | { error: string } | undefined
@@ -138,4 +140,27 @@ export function collectDraft(
     }
   }
   return { changes, errors }
+}
+
+/**
+ * Recorded values as dialog lines in the order of the form, then the photos as a count
+ * (photos are told apart by the attribute type). Only a series lists more than its latest value.
+ */
+export function formatRecordedLines(
+  attributes: Attribute[],
+  values: Record<string, AttributeValueRecord[] | undefined>,
+): string[] {
+  const lines: string[] = []
+  let photoCount = 0
+  for (const attribute of [...attributes].sort(bySortOrder)) {
+    const recorded = values[attribute.id] ?? []
+    if (attribute.type === 'photo') {
+      photoCount += recorded.length
+    } else {
+      for (const record of attribute.is_series ? recorded : recorded.slice(-1)) {
+        lines.push(formatValueLine(attribute, record.value))
+      }
+    }
+  }
+  return photoCount > 0 ? [...lines, formatPhotoCount(photoCount)] : lines
 }

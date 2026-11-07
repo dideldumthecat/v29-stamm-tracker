@@ -137,7 +137,12 @@ describe('App', () => {
         'attribute_recorded',
         'attribute_recorded',
       ])
-      expect(store.pendingPhotosOf(store.findByTagNumber(456)!.id)).toHaveLength(1)
+      expect(
+        store.pendingPhotosOf(
+          store.findByTagNumber(456)!.id,
+          store.attributes.find((attribute) => attribute.type === 'photo')!.id,
+        ),
+      ).toHaveLength(1)
       const reopened = await mountAt('/timber-item/456')
       expect(previews(reopened.wrapper)).toHaveLength(1)
     })
