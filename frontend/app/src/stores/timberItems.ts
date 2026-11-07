@@ -5,7 +5,7 @@
  *
  * `items` holds own values only; inherited values are added at read time (withInherited).
  */
-import { computed, ref, toRaw, watch } from 'vue'
+import { computed, readonly, ref, toRaw, watch } from 'vue'
 import { defineStore } from 'pinia'
 import type { AttributeValue, Event, TimberItem, Timestamp, Uuid } from '@v29/shared/contract'
 import { api, type User } from '@/api/client'
@@ -386,25 +386,30 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     discard((event) => event.type === 'attribute_recorded' && event.data.value === photoId)
   }
 
+  function setDraftOpen(open: boolean) {
+    isDraftOpen.value = open
+  }
+
   return {
-    snapshot,
-    currentUser,
+    snapshot: readonly(snapshot),
+    currentUser: readonly(currentUser),
     users,
     attributes,
     items,
     removedBeams,
-    events,
+    events: readonly(events),
     pendingCount,
-    photos,
-    progress,
-    isSyncing,
-    isStopping,
-    isDraftOpen,
+    photos: readonly(photos),
+    progress: readonly(progress),
+    isSyncing: readonly(isSyncing),
+    isStopping: readonly(isStopping),
+    isDraftOpen: readonly(isDraftOpen),
     isSafeToReload,
-    pendingWrites,
+    setDraftOpen,
+    pendingWrites: readonly(pendingWrites),
     stopSync,
     isEntry,
-    lastSyncedAt,
+    lastSyncedAt: readonly(lastSyncedAt),
     findByTagNumber,
     findByTag,
     childrenOf,

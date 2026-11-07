@@ -18,6 +18,7 @@ import {
   startUpdateCheck,
 } from '@/composables/useUpdateCheck'
 import { save } from '@/persistence/database'
+import { holdSync } from './storeSetup'
 
 // Pass-through spy: a test can hold back a write to the device.
 vi.mock('@/persistence/database', async (importOriginal) => {
@@ -287,33 +288,35 @@ describe('installing an update in a safe state', () => {
 
   it('does nothing without a waiting update', async () => {
     start(false)
-    useTimberItemStore().isDraftOpen = true
-    useTimberItemStore().isDraftOpen = false
+    useTimberItemStore().setDraftOpen(true)
+    useTimberItemStore().setDraftOpen(false)
     await nextTick()
     expect(updateServiceWorker).not.toHaveBeenCalled()
   })
 
   it('waits while a draft is open and installs when it is closed', async () => {
     const store = useTimberItemStore()
-    store.isDraftOpen = true
+    store.setDraftOpen(true)
     start(true)
     await nextTick()
     expect(updateServiceWorker).not.toHaveBeenCalled()
     expect(isInstalling.value).toBe(false)
-    store.isDraftOpen = false
+    store.setDraftOpen(false)
     await nextTick()
     expect(updateServiceWorker).toHaveBeenCalledTimes(1)
   })
 
   it('waits while a sync runs and installs when it has ended', async () => {
-    const store = useTimberItemStore()
-    store.isSyncing = true
+    // The real write would hang: an earlier test opened the database under fake timers. Writes have a test of their own.
+    vi.mocked(save).mockResolvedValue()
+    const finishSync = holdSync()
     start(true)
     await nextTick()
     expect(updateServiceWorker).not.toHaveBeenCalled()
-    store.isSyncing = false
-    await nextTick()
-    expect(updateServiceWorker).toHaveBeenCalledTimes(1)
+    // The sync ends with a write to the device, which the update waits for too.
+    await finishSync()
+    await vi.waitFor(() => expect(updateServiceWorker).toHaveBeenCalledTimes(1))
+    vi.mocked(save).mockRestore()
   })
 
   it('waits while a slow write to the device runs and installs only after it ended', async () => {
@@ -344,8 +347,8 @@ describe('installing an update in a safe state', () => {
   it('installs only once', async () => {
     const store = useTimberItemStore()
     start(true)
-    store.isDraftOpen = true
-    store.isDraftOpen = false
+    store.setDraftOpen(true)
+    store.setDraftOpen(false)
     await nextTick()
     expect(updateServiceWorker).toHaveBeenCalledTimes(1)
   })
