@@ -332,13 +332,13 @@ describe('activity page', () => {
   })
 
   describe('the link "Filter zurücksetzen" in the filter bar', () => {
-    it('is only visible with a filter in the URL, and always takes its place', async () => {
+    it('is always shown, but disabled without a filter in the URL', async () => {
       const { wrapper } = await open()
-      expect(resetLink(wrapper).classes()).toContain('invisible')
+      expect(resetLink(wrapper).attributes('disabled')).toBeDefined()
 
       for (const filter of ['from=2026-10-31', 'to=2026-11-03', 'user=abc', 'tags=128']) {
         const { wrapper: filtered } = await open(`/aktivitaet?${filter}`)
-        expect(resetLink(filtered).classes()).not.toContain('invisible')
+        expect(resetLink(filtered).attributes('disabled')).toBeUndefined()
         expect(resetLink(filtered).attributes('type')).toBe('button')
       }
     })

@@ -355,13 +355,14 @@ test.describe('activity', () => {
     await expect(page.getByRole('heading', { name: 'Waldesruh' })).toHaveCount(0)
   })
 
-  test('the link in the filter bar resets all filters and is out of reach without one', async ({
+  test('the link in the filter bar resets all filters and is disabled without one', async ({
     page,
   }) => {
     const link = page.getByRole('button', { name: 'Filter zurücksetzen' })
     const von = page.getByLabel('Von')
     const box = (await von.boundingBox())!
-    await expect(link).toBeHidden()
+    await expect(link).toBeVisible()
+    await expect(link).toBeDisabled()
 
     await page.getByLabel('Kennung', { exact: true }).fill('128')
     await page.getByLabel('Kennung', { exact: true }).press('Enter')
@@ -374,7 +375,7 @@ test.describe('activity', () => {
     await expect(page).not.toHaveURL(/tags=/)
     await expect(page.getByText('6 Einträge', { exact: true })).toBeVisible()
     await expect(von).toBeFocused()
-    await expect(link).toBeHidden()
+    await expect(link).toBeDisabled()
   })
 
   test('keeps the text column narrow', async ({ page }) => {

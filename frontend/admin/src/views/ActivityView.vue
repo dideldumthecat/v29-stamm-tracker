@@ -233,11 +233,11 @@ const days = computed(() => groupByDay(entries.value))
           </button>
         </span>
       </div>
-      <!-- invisible, not v-if: the place stays reserved, and a hidden element is neither tabbable nor read out -->
+      <!-- Always shown; without a filter it is natively disabled (greyed out, not tabbable, announced as unavailable) -->
       <button
         type="button"
-        class="flex h-11 items-center gap-2 rounded-lg px-2 text-base whitespace-nowrap text-ink underline active:bg-ink active:text-paper"
-        :class="{ invisible: !hasFilter }"
+        class="flex h-11 items-center gap-2 rounded-lg px-2 text-base whitespace-nowrap text-ink underline enabled:active:bg-ink enabled:active:text-paper disabled:text-dim disabled:no-underline"
+        :disabled="!hasFilter"
         @click="resetFromBar"
       >
         <XIcon :size="18" aria-hidden="true" />
