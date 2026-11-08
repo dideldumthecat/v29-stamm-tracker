@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test'
+import { test, expect, type Locator, type Page } from '@playwright/test'
 
 import { activityAnswer } from '../src/__tests__/fakeActivity'
 
@@ -74,15 +74,13 @@ test('the frame: active navigation item, credit, and one 1280px column from head
     'aria-current',
     'page',
   )
-  const left = (selector: string) =>
-    page
-      .locator(selector)
-      .first()
-      .evaluate((element) => element.getBoundingClientRect().left)
+  const left = (locator: Locator) =>
+    locator.first().evaluate((element) => element.getBoundingClientRect().left)
   // header brand, page heading and footer credit start on the same line: (1920 - 1280) / 2 + 32
+  // The brand starts with the logo: an <svg> without role (decorative), so it is found inside the header landmark.
   const edge = 352
-  expect(await left('header div.font-bold')).toBe(edge)
-  expect(await left('main h1')).toBe(edge)
+  expect(await left(page.getByRole('banner').locator('svg'))).toBe(edge)
+  expect(await left(page.getByRole('heading', { level: 1 }))).toBe(edge)
   await expect(page.getByRole('contentinfo')).toContainText('Built with')
   await expect(page.getByRole('link', { name: 'Alexander Summa' })).toHaveAttribute(
     'href',
