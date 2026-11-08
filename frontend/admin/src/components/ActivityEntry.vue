@@ -54,50 +54,46 @@ const hasNumber = (label: string) => /^\d/.test(label)
             aria-hidden="true"
           />
         </summary>
-        <div class="mt-3 overflow-x-auto border border-line">
-          <table class="w-full min-w-md text-left text-sm">
+        <!-- One table per stem or beam: the <caption> (tag left, time right) sits above the bordered card and names the table for screen readers. -->
+        <!-- TODO: a RouterLink to the detail page once it exists; the tag is the only place to change. -->
+        <!-- border-separate: with Tailwind's default collapsed borders a table ignores border-radius. -->
+        <!-- --pad: the inner padding of the card, shared by the cells and the caption (which sits outside the 1 px border). -->
+        <div class="mt-3 space-y-6 [--pad:--spacing(4)]">
+          <table
+            v-for="item in items"
+            :key="item.label"
+            class="w-full border-separate border-spacing-0 card text-left"
+          >
+            <caption class="px-[calc(var(--pad)+1px)] pb-1.5">
+              <div class="flex items-baseline justify-between gap-x-3">
+                <span class="font-semibold tracking-[.05em] tabular-nums">
+                  <FormattedTag v-if="hasNumber(item.label)" :tag-number="item.label" />
+                  <template v-else>{{ item.label }}</template>
+                </span>
+                <!-- Device time of the item's first change: why the items are not sorted by tag. -->
+                <time class="text-mute tabular-nums" :datetime="item.changes[0].recorded_at">{{
+                  formatTime(item.changes[0].recorded_at)
+                }}</time>
+              </div>
+            </caption>
             <!-- Only for screen readers: the columns explain themselves. -->
             <thead class="sr-only">
               <tr>
-                <th scope="col">Kennung</th>
                 <th scope="col">Merkmal</th>
                 <th scope="col">Wert</th>
-                <th scope="col">Uhrzeit</th>
               </tr>
             </thead>
-            <!-- One <tbody> per stem or beam: its tag spans its rows, the line below it is the stronger one. -->
-            <!-- TODO: a RouterLink to the detail page once it exists; the tag is the only place to change. -->
-            <tbody
-              v-for="item in items"
-              :key="item.label"
-              class="border-b border-line last:border-b-0"
-            >
-              <tr
-                v-for="(row, index) in item.rows"
-                :key="index"
-                class="border-b border-soft align-top last:border-b-0"
-              >
+            <!-- No lines between the rows: the gap between rows (16 px) is clearly larger than the one between wrapped lines (22 px line height). -->
+            <tbody>
+              <tr v-for="(row, index) in item.rows" :key="index" class="align-top leading-snug">
+                <!-- From md on as wide as the longest name and never wrapped; below, names may wrap instead of scrolling. -->
                 <th
-                  v-if="index === 0"
                   scope="row"
-                  :rowspan="item.rows.length"
-                  class="px-3 py-2 text-left text-base leading-5 font-semibold tracking-[.05em] tabular-nums"
+                  class="w-2/5 py-2 pr-3 pl-(--pad) text-left font-normal text-mute md:w-px md:whitespace-nowrap"
                 >
-                  <FormattedTag v-if="hasNumber(item.label)" :tag-number="item.label" />
-                  <template v-else>{{ item.label }}</template>
+                  {{ row.name }}
                 </th>
-                <td class="px-3 py-2 text-mute">{{ row.name }}</td>
-                <td class="px-3 py-2 break-words text-ink">{{ row.value }}</td>
-                <!-- Device time of the item's first change: why the items are not sorted by tag. -->
-                <td
-                  v-if="index === 0"
-                  :rowspan="item.rows.length"
-                  class="px-3 py-2 text-right text-mute tabular-nums"
-                >
-                  <time :datetime="item.changes[0].recorded_at">{{
-                    formatTime(item.changes[0].recorded_at)
-                  }}</time>
-                </td>
+                <td class="py-2 pr-(--pad) wrap-anywhere text-ink">{{ row.value }}</td>
               </tr>
             </tbody>
           </table>
