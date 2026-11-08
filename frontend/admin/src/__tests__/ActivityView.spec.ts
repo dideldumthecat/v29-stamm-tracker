@@ -102,7 +102,7 @@ describe('activity page', () => {
 
     const cells = details
       .findAll('tbody tr')
-      .map((tr) => tr.findAll('td:not([rowspan])').map((td) => td.text()))
+      .map((tr) => [tr.get('th').text(), tr.get('td').text()])
     expect(cells).toEqual([
       ['Länge', '4,10 m'],
       ['Stammmittendurchmesser groß', '32,5 cm'],
@@ -121,53 +121,60 @@ describe('activity page', () => {
 
     details.open = true
     expect([...details.querySelectorAll('thead th')].map((th) => th.textContent)).toEqual([
-      'Kennung',
       'Merkmal',
       'Wert',
-      'Uhrzeit',
+      'Merkmal',
+      'Wert',
+      'Merkmal',
+      'Wert',
+      'Merkmal',
+      'Wert',
     ])
-    // one <tbody> per stem or beam; the tag is a row header only in its first row
-    const items = [...details.querySelectorAll('tbody')]
-    expect(items.map((tbody) => tbody.querySelector('th')!.textContent)).toEqual([
+    // one table per stem or beam; tag (left) and time (right) form its caption
+    const items = [...details.querySelectorAll('table')]
+    const tagOf = (table: Element) => table.querySelector('caption > div > span')!
+    expect(items.map((table) => tagOf(table).textContent)).toEqual([
       '00104-C',
       '00104-B',
       '00104-A',
       '00104',
     ])
-    const tag = items[3].querySelector('th span span')!
+    const tag = tagOf(items[3]).querySelector('span span span')!
     expect(tag.textContent).toBe('00')
     expect(tag.className).toContain('opacity-40')
-    expect(items[3].querySelector('th')!.className).toContain('font-semibold')
+    expect(tagOf(items[3]).className).toContain('font-semibold')
 
     const last = items[0]
-    expect(last.querySelectorAll('th')).toHaveLength(1)
-    expect(last.querySelector('th')!.getAttribute('rowspan')).toBe('3')
     // name and value apart; the tag of a new beam is part of its creation and not a row of its own
     expect(
-      [...last.querySelectorAll('tr')].map((tr) =>
-        [...tr.querySelectorAll('td:not([rowspan])')].map((td) => td.textContent),
-      ),
+      [...last.querySelectorAll('tbody tr')].map((tr) => [
+        tr.querySelector('th')!.textContent!.trim(),
+        tr.querySelector('td')!.textContent,
+      ]),
     ).toEqual([
       ['Balken', 'angelegt'],
       ['Notiz', '105x145'],
       ['Fotos', '1 hinzugefügt'],
     ])
     // exactly one time per stem or beam: the device time of its first change, in German time
-    const firstChanges = entryAt(wrapper, '11:48').querySelectorAll('tbody')
-    expect([...firstChanges].map((tbody) => tbody.querySelectorAll('time').length)).toEqual([
+    const firstChanges = entryAt(wrapper, '11:48').querySelectorAll('table')
+    expect([...firstChanges].map((table) => table.querySelectorAll('time').length)).toEqual([
       1, 1, 1, 1,
     ])
     // newest first
     const entry = activityFixture.entries.find((e) => e.items.length === 4)!
     const newestFirst = [...entry.items].reverse()
     expect(
-      [...firstChanges].map((tbody) => tbody.querySelector('time')!.getAttribute('datetime')),
+      [...firstChanges].map((table) => table.querySelector('time')!.getAttribute('datetime')),
     ).toEqual(newestFirst.map((i) => i.changes[0].recorded_at))
-    expect([...firstChanges].map((tbody) => tbody.querySelector('time')!.textContent)).toEqual(
+    expect([...firstChanges].map((table) => table.querySelector('time')!.textContent)).toEqual(
       newestFirst.map((i) => formatTime(i.changes[0].recorded_at)),
     )
-    // the table is 14 px throughout, the details link 16 px
-    expect(details.querySelector('table')!.className).toContain('text-sm')
+    // the table has the size of the bullet points (16 px, no text-sm), the same as the details link
+    expect(details.querySelector('table')!.className).not.toContain('text-sm')
+    // the card has the radius of the other cards, and there are no lines between the rows
+    expect(details.querySelector('table')!.className).toContain('card')
+    expect(details.querySelector('tbody tr')!.className).not.toMatch(/border/)
     // the header row is for screen readers only
     expect(details.querySelector('thead')!.className).toBe('sr-only')
     expect(details.querySelector('summary')!.className).toContain('text-base')

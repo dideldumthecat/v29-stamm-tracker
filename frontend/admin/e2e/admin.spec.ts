@@ -183,11 +183,36 @@ test.describe('activity', () => {
     await expect(summary.getByText('Details ausblenden')).toBeVisible()
     await expect(chevron).toHaveCSS('rotate', '180deg')
     await expect(card.getByText('00104-C')).toBeVisible()
-    await expect(card.getByRole('cell', { name: 'Notiz', exact: true })).toBeVisible()
+    await expect(card.getByRole('rowheader', { name: 'Notiz', exact: true })).toBeVisible()
     await expect(card.getByText('105x145')).toBeVisible()
 
     await summary.click()
     await expect(details).not.toHaveAttribute('open', '')
+  })
+
+  test('keeps the attribute names on one line in the details, values may wrap', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1000, height: 800 })
+    const summaries = page.getByText('Details anzeigen')
+    for (let i = (await summaries.count()) - 1; i >= 0; i--) await summaries.nth(i).click()
+    const names = page.getByRole('rowheader')
+    const count = await names.count()
+    expect(count).toBeGreaterThan(0)
+    for (let i = 0; i < count; i++) {
+      const name = names.nth(i)
+      const value = name.locator('xpath=following-sibling::td')
+      // one line of text (the cell itself is as tall as the row); the table never exceeds its card
+      const lines = await name.evaluate((th) => {
+        const range = document.createRange()
+        range.selectNodeContents(th)
+        return new Set([...range.getClientRects()].map((rect) => Math.round(rect.top))).size
+      })
+      expect(lines).toBe(1)
+      const card = (await name.locator('xpath=ancestor::table').boundingBox())!
+      const cell = (await value.boundingBox())!
+      expect(cell.x + cell.width).toBeLessThanOrEqual(card.x + card.width + 1)
+    }
   })
 
   test('puts the details link in the middle of the right half, level with the name', async ({
