@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { LogOutIcon } from '@lucide/vue'
 import AuthorCredit from '@v29/shared/AuthorCredit.vue'
@@ -13,6 +13,30 @@ const navigation = [{ label: 'Aktivität', to: { name: 'activity' } }]
 const route = useRoute()
 const router = useRouter()
 const error = ref(false)
+
+// From `lg` on the header is sticky and may wrap (error message), so its real height feeds `scroll-padding-top` (main.css):
+// focused elements and anchors then never land under it. Below `lg` it scrolls away and the variable is ignored.
+const header = ref<HTMLElement | null>(null)
+const rootStyle = document.documentElement.style
+let observer: ResizeObserver | undefined
+watch(header, (element) => {
+  observer?.disconnect()
+  if (!element) {
+    rootStyle.removeProperty('--header-height')
+    return
+  }
+  // The guard is for jsdom, which has no ResizeObserver
+  observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(update)
+  observer?.observe(element)
+  update()
+})
+function update() {
+  if (header.value) rootStyle.setProperty('--header-height', `${header.value.offsetHeight}px`)
+}
+onBeforeUnmount(() => {
+  observer?.disconnect()
+  rootStyle.removeProperty('--header-height')
+})
 
 async function onSignOut() {
   error.value = false
@@ -31,7 +55,8 @@ async function onSignOut() {
     <!-- The global focus ring is ink: on the black header it would vanish -->
     <header
       v-if="user && route.name !== 'login'"
-      class="bg-ink text-paper **:focus-visible:outline-paper"
+      ref="header"
+      class="z-50 bg-ink lg:sticky lg:top-0 text-paper **:focus-visible:outline-paper"
     >
       <div class="page-column flex min-h-[72px] flex-wrap items-center gap-x-4 gap-y-2 py-3">
         <div class="mr-auto flex items-center gap-3">
