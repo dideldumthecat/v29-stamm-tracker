@@ -20,6 +20,13 @@
 }
 
 @layer base {
+  /* The 8px keep the focus ring clear of the edge; from lg on (header sticky) App.vue's measured header height is added. */
+  html {
+    scroll-padding-top: 8px;
+    @variant lg {
+      scroll-padding-top: calc(var(--header-height, 0px) + 8px);
+    }
+  }
   :focus-visible {
     outline: 3px solid var(--color-ink);
     outline-offset: 2px;
