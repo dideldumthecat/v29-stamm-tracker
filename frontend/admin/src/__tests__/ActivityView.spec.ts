@@ -130,9 +130,9 @@ describe('activity page', () => {
       'Merkmal',
       'Wert',
     ])
-    // one table per stem or beam; tag (left) and time (right) form its caption
+    // one table per stem or beam; tag (left) and time (right) form the header of its card, which names the table
     const items = [...details.querySelectorAll('table')]
-    const tagOf = (table: Element) => table.querySelector('caption > div > span')!
+    const tagOf = (table: Element) => table.previousElementSibling!.querySelector('span')!
     expect(items.map((table) => tagOf(table).textContent)).toEqual([
       '00104-C',
       '00104-B',
@@ -158,22 +158,27 @@ describe('activity page', () => {
     ])
     // exactly one time per stem or beam: the device time of its first change, in German time
     const firstChanges = entryAt(wrapper, '11:48').querySelectorAll('table')
-    expect([...firstChanges].map((table) => table.querySelectorAll('time').length)).toEqual([
-      1, 1, 1, 1,
-    ])
+    expect(
+      [...firstChanges].map((table) => table.parentElement!.querySelectorAll('time').length),
+    ).toEqual([1, 1, 1, 1])
     // newest first
     const entry = activityFixture.entries.find((e) => e.items.length === 4)!
     const newestFirst = [...entry.items].reverse()
     expect(
-      [...firstChanges].map((table) => table.querySelector('time')!.getAttribute('datetime')),
+      [...firstChanges].map((table) =>
+        table.parentElement!.querySelector('time')!.getAttribute('datetime'),
+      ),
     ).toEqual(newestFirst.map((i) => i.changes[0].recorded_at))
-    expect([...firstChanges].map((table) => table.querySelector('time')!.textContent)).toEqual(
-      newestFirst.map((i) => formatTime(i.changes[0].recorded_at)),
-    )
+    expect(
+      [...firstChanges].map((table) => table.parentElement!.querySelector('time')!.textContent),
+    ).toEqual(newestFirst.map((i) => formatTime(i.changes[0].recorded_at)))
     // the table has the size of the bullet points (16 px, no text-sm), the same as the details link
     expect(details.querySelector('table')!.className).not.toContain('text-sm')
     // the card has the radius of the other cards, and there are no lines between the rows
-    expect(details.querySelector('table')!.className).toContain('card')
+    expect(details.querySelector('table')!.parentElement!.className).toContain('card')
+    const header = details.querySelector('table')!.previousElementSibling!
+    expect(header.className).toContain('border-soft')
+    expect(details.querySelector('table')!.getAttribute('aria-labelledby')).toBe(header.id)
     expect(details.querySelector('tbody tr')!.className).not.toMatch(/border/)
     // the header row is for screen readers only
     expect(details.querySelector('thead')!.className).toBe('sr-only')

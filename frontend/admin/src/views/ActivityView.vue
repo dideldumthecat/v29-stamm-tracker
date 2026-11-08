@@ -304,13 +304,15 @@ const days = computed(() => groupByDay(entries.value))
     <template v-else>
       <p v-if="totals" class="mt-6 flex flex-wrap items-baseline gap-x-3">
         <span class="text-lg font-bold">{{ entriesText(totals.entries) }}</span>
-        <span class="text-sm text-mute">Uhrzeit = Eingang am Server · „erfasst“ = Uhrzeit am Handy</span>
+        <span class="text-sm text-mute"
+          >Uhrzeit = Eingang am Server · „erfasst“ = Uhrzeit am Handy</span
+        >
       </p>
 
       <section
         v-for="day in days"
         :key="day.key"
-        class="card mt-4 px-4 sm:px-6"
+        class="mt-4 card px-4 sm:px-6"
         :aria-labelledby="`day-${day.key}`"
       >
         <h2 :id="`day-${day.key}`" class="border-b-2 border-ink pt-4 pb-2 text-lg font-bold">
