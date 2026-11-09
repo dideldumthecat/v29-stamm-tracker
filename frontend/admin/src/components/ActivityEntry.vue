@@ -4,7 +4,8 @@ import { ChevronDownIcon } from '@lucide/vue'
 import type { ActivityEntry } from '@v29/shared/contract'
 import FormattedTag from '@v29/shared/FormattedTag.vue'
 
-import { detailRows, eventsText, formatRecordedTime, formatTime, summarize } from '@/activity'
+import KeyValueRows from '@/components/KeyValueRows.vue'
+import { eventsText, formatRecordedTime, formatTime, summarize } from '@/activity'
 
 const props = defineProps<{ entry: ActivityEntry }>()
 
@@ -12,9 +13,9 @@ const uid = useId()
 const lines = computed(() => summarize(props.entry))
 // Newest first by the first change of each item; equal times keep the order of the contract (sort is stable).
 const items = computed(() =>
-  props.entry.items
-    .map((item) => ({ ...item, rows: detailRows(item) }))
-    .sort((a, b) => Date.parse(b.changes[0].recorded_at) - Date.parse(a.changes[0].recorded_at)),
+  [...props.entry.items].sort(
+    (a, b) => Date.parse(b.changes[0].recorded_at) - Date.parse(a.changes[0].recorded_at),
+  ),
 )
 // "ohne Kennung" has no number to pad
 const hasNumber = (label: string) => /^\d/.test(label)
@@ -52,8 +53,7 @@ const hasNumber = (label: string) => /^\d/.test(label)
             aria-hidden="true"
           />
         </summary>
-        <!-- One card per stem or beam: a header (tag left, time right) above the table; the header names the table for screen readers. -->
-        <!-- TODO: a RouterLink to the detail page once it exists; the tag is the only place to change. -->
+        <!-- One card per stem or beam: a header (tag left, time right) above the rows; the header names them for screen readers. -->
         <!-- --pad: the inner padding of the card, shared by the header and the cells so that their texts line up. -->
         <div class="mt-3 space-y-6 [--pad:--spacing(4)]">
           <div v-for="(item, index) in items" :key="item.label" class="card">
@@ -62,7 +62,12 @@ const hasNumber = (label: string) => /^\d/.test(label)
               class="flex flex-wrap items-baseline justify-between gap-x-3 border-b border-soft px-(--pad) py-2"
             >
               <span class="font-semibold tracking-[.05em] tabular-nums">
-                <FormattedTag v-if="hasNumber(item.label)" :tag-number="item.label" />
+                <RouterLink
+                  v-if="hasNumber(item.label)"
+                  :to="{ name: 'timber-item', params: { tag: item.label } }"
+                  class="underline"
+                  ><FormattedTag :tag-number="item.label"
+                /></RouterLink>
                 <template v-else>{{ item.label }}</template>
               </span>
               <!-- Device time of the item's first change (with the date if not on the arrival day): why the items are not sorted by tag. May wrap below the tag on narrow screens, never cut off. -->
@@ -72,36 +77,7 @@ const hasNumber = (label: string) => /^\d/.test(label)
                 >{{ formatRecordedTime(item.changes[0].recorded_at, entry.received_at) }}</time
               >
             </div>
-            <table class="w-full text-left max-md:block" :aria-labelledby="`${uid}-${index}`">
-              <!-- Only for screen readers: the columns explain themselves. -->
-              <thead class="sr-only">
-                <tr>
-                  <th scope="col">Merkmal</th>
-                  <th scope="col">Wert</th>
-                </tr>
-              </thead>
-              <!-- No lines between the rows: the gap between rows (16 px) is clearly larger than the one between wrapped lines (22 px line height). -->
-              <tbody class="max-md:block">
-                <tr
-                  v-for="(row, rowIndex) in item.rows"
-                  :key="rowIndex"
-                  class="align-top leading-snug max-md:block max-md:py-2.5"
-                >
-                  <!-- From md on as wide as the longest name and never wrapped; below, name and value are stacked over the full card width (rows are 20 px apart, name and value 2 px). -->
-                  <th
-                    scope="row"
-                    class="py-2 pr-3 pl-(--pad) text-left font-normal text-mute max-md:block max-md:py-0 max-md:pr-(--pad) md:w-px md:whitespace-nowrap"
-                  >
-                    {{ row.name }}
-                  </th>
-                  <td
-                    class="py-2 pr-(--pad) wrap-anywhere text-ink max-md:mt-0.5 max-md:block max-md:py-0 max-md:pl-(--pad)"
-                  >
-                    {{ row.value }}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+            <KeyValueRows :item="item" :labelledby="`${uid}-${index}`" />
           </div>
         </div>
       </details>
