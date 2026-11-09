@@ -59,7 +59,7 @@ const hasNumber = (label: string) => /^\d/.test(label)
           <div v-for="(item, index) in items" :key="item.label" class="card">
             <div
               :id="`${uid}-${index}`"
-              class="flex flex-wrap items-baseline justify-between gap-x-3 border-b border-soft px-(--pad) py-2"
+              class="flex flex-wrap items-baseline justify-between gap-x-3 border-b border-soft px-(--pad) py-2 leading-5"
             >
               <span class="font-semibold tracking-[.05em] tabular-nums">
                 <RouterLink
@@ -72,7 +72,7 @@ const hasNumber = (label: string) => /^\d/.test(label)
               </span>
               <!-- Device time of the item's first change (with the date if not on the arrival day): why the items are not sorted by tag. May wrap below the tag on narrow screens, never cut off. -->
               <time
-                class="whitespace-nowrap text-mute tabular-nums"
+                class="text-caption whitespace-nowrap text-mute tabular-nums"
                 :datetime="item.changes[0].recorded_at"
                 >{{ formatRecordedTime(item.changes[0].recorded_at, entry.received_at) }}</time
               >
