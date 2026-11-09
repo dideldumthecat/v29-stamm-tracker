@@ -42,6 +42,17 @@ export function formatDayMonth(timestamp: string): string {
   return `${day}.${month}.`
 }
 
+/** The German calendar year of a timestamp. */
+export const yearOf = (timestamp: string) => Number(dayParts(timestamp).year)
+
+/** "31.10." in the current year (browser date), otherwise with the year in two digits: "31.10.25". */
+export function formatDayMonthUnlessThisYear(timestamp: string): string {
+  const { day, month, year } = dayParts(timestamp)
+  return Number(year) === new Date().getFullYear()
+    ? `${day}.${month}.`
+    : `${day}.${month}.${year.slice(2)}`
+}
+
 /** "31.10. 11:47" */
 export const formatDayMonthTime = (timestamp: string) =>
   `${formatDayMonth(timestamp)} ${formatTime(timestamp)}`
