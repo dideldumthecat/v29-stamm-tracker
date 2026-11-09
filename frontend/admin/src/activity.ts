@@ -20,11 +20,19 @@ const dayFormat = new Intl.DateTimeFormat('de-DE', {
 /** "11:46" */
 export const formatTime = (timestamp: string) => timeFormat.format(new Date(timestamp))
 
-/** "erfasst 11:46–11:48", or one time if the entry began and ended in the same minute. */
-export function recordedRange(entry: ActivityEntry): string {
-  const from = formatTime(entry.recorded_from)
-  const to = formatTime(entry.recorded_to)
-  return `erfasst ${from === to ? from : `${from}–${to}`}`
+/** The parts of the German calendar day of a timestamp; `key` ("2026-10-31") is what entries are grouped by. */
+function dayParts(timestamp: string): Record<string, string> {
+  const parts: Record<string, string> = Object.fromEntries(
+    dayFormat.formatToParts(new Date(timestamp)).map((part) => [part.type, part.value]),
+  )
+  return { ...parts, key: `${parts.year}-${parts.month}-${parts.day}` }
+}
+
+/** "18:00", or "05.11. 18:00" if the device time is not on the day the entry arrived (German time). */
+export function formatRecordedTime(timestamp: string, receivedAt: string): string {
+  const { key, day, month } = dayParts(timestamp)
+  const time = formatTime(timestamp)
+  return key === dayParts(receivedAt).key ? time : `${day}.${month}. ${time}`
 }
 
 export interface Day {
@@ -40,10 +48,8 @@ export function groupByDay(entries: ActivityEntry[]): Day[] {
   const days: Day[] = []
   let current: Day | undefined
   for (const entry of entries) {
-    const parts = Object.fromEntries(
-      dayFormat.formatToParts(new Date(entry.received_at)).map((part) => [part.type, part.value]),
-    )
-    const key = `${parts.year}-${parts.month}-${parts.day}`
+    const parts = dayParts(entry.received_at)
+    const { key } = parts
     const weekday = parts.weekday.replace('.', '')
     if (current?.key !== key) {
       current = {
