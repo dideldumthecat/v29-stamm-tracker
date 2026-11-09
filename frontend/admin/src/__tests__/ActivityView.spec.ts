@@ -99,8 +99,8 @@ describe('activity page', () => {
     const details = wrapper.findAll('section')[0].get('details')
 
     const cells = details
-      .findAll('tbody tr')
-      .map((tr) => [tr.get('th').text(), tr.get('td').text()])
+      .findAll('dl > div')
+      .map((row) => [row.get('dt').text(), row.get('dd').text()])
     expect(cells).toEqual([
       ['Länge', '4,10 m'],
       ['Stammmittendurchmesser groß', '32,5 cm'],
@@ -118,18 +118,8 @@ describe('activity page', () => {
     expect(details.querySelector('summary svg')!.getAttribute('aria-hidden')).toBe('true')
 
     details.open = true
-    expect([...details.querySelectorAll('thead th')].map((th) => th.textContent)).toEqual([
-      'Merkmal',
-      'Wert',
-      'Merkmal',
-      'Wert',
-      'Merkmal',
-      'Wert',
-      'Merkmal',
-      'Wert',
-    ])
-    // one table per stem or beam; tag (left) and time (right) form the header of its card, which names the table
-    const items = [...details.querySelectorAll('table')]
+    // one list of rows per stem or beam; tag (left) and time (right) form the header of its card, which names the list
+    const items = [...details.querySelectorAll('dl')]
     const tagOf = (table: Element) => table.previousElementSibling!.querySelector('span')!
     expect(items.map((table) => tagOf(table).textContent)).toEqual([
       '00104-C',
@@ -145,9 +135,9 @@ describe('activity page', () => {
     const last = items[0]
     // name and value apart; the tag of a new beam is part of its creation and not a row of its own
     expect(
-      [...last.querySelectorAll('tbody tr')].map((tr) => [
-        tr.querySelector('th')!.textContent!.trim(),
-        tr.querySelector('td')!.textContent,
+      [...last.querySelectorAll('dl > div')].map((row) => [
+        row.querySelector('dt')!.textContent!.trim(),
+        row.querySelector('dd')!.textContent,
       ]),
     ).toEqual([
       ['Balken', 'angelegt'],
@@ -155,7 +145,7 @@ describe('activity page', () => {
       ['Fotos', '1 hinzugefügt'],
     ])
     // exactly one time per stem or beam: the device time of its first change, in German time
-    const firstChanges = entryAt(wrapper, '11:48').querySelectorAll('table')
+    const firstChanges = entryAt(wrapper, '11:48').querySelectorAll('dl')
     expect(
       [...firstChanges].map((table) => table.parentElement!.querySelectorAll('time').length),
     ).toEqual([1, 1, 1, 1])
@@ -170,19 +160,16 @@ describe('activity page', () => {
     expect(
       [...firstChanges].map((table) => table.parentElement!.querySelector('time')!.textContent),
     ).toEqual(newestFirst.map((i) => formatTime(i.changes[0].recorded_at)))
-    // the table has the size of the bullet points (16 px, no text-sm), the same as the details link
-    expect(details.querySelector('table')!.className).not.toContain('text-sm')
-    // the card has the radius of the other cards, and there are no lines between the rows
-    expect(details.querySelector('table')!.parentElement!.className).toContain('card')
-    const header = details.querySelector('table')!.previousElementSibling!
+    // the card has the radius of the other cards
+    expect(details.querySelector('dl')!.parentElement!.className).toContain('card')
+    const header = details.querySelector('dl')!.previousElementSibling!
     expect(header.className).toContain('border-soft')
-    expect(details.querySelector('table')!.getAttribute('aria-labelledby')).toBe(header.id)
-    expect(details.querySelector('tbody tr')!.className).not.toMatch(/border/)
-    // the header row is for screen readers only
-    expect(details.querySelector('thead')!.className).toBe('sr-only')
+    expect(details.querySelector('dl')!.getAttribute('aria-labelledby')).toBe(header.id)
+    // the rows are separated by a line, but none after the last one
+    expect(details.querySelector('dl > div')!.className).toContain('not-last:border-b')
     expect(details.querySelector('summary')!.className).toContain('text-base')
     // values are not bold
-    expect(last.querySelectorAll('td.font-semibold, td.font-bold')).toHaveLength(0)
+    expect(last.querySelectorAll('dd.font-semibold, dd.font-bold')).toHaveLength(0)
   })
 
   it('puts the filters in the URL and asks the server with them', async () => {

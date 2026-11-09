@@ -1,6 +1,7 @@
 import { test, expect, type Locator, type Page } from '@playwright/test'
 
 import { activityAnswer } from '../src/__tests__/fakeActivity'
+import { snapshotFixture, stemPhotos } from '../src/__tests__/fakeSnapshot'
 
 /**
  * The API is imitated in the browser (no backend needed): POST/DELETE /api/session and GET /api/admin/me
@@ -32,6 +33,16 @@ async function fakeApi(page: Page) {
       if (!role) return route.fulfill({ status: 401 })
       const answer = activityAnswer(new URL(request.url()).searchParams, 4)
       return answer ? route.fulfill({ json: answer }) : route.fulfill({ status: 400 })
+    }
+    if (call === 'GET /api/snapshot') {
+      return role ? route.fulfill({ json: snapshotFixture }) : route.fulfill({ status: 401 })
+    }
+    if (call.startsWith('GET /api/photos/')) {
+      // the second photo of the stem is not uploaded yet
+      if (call.endsWith(stemPhotos[1])) return route.fulfill({ status: 404 })
+      const svg =
+        '<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1200"><rect width="1600" height="1200" fill="#888"/></svg>'
+      return route.fulfill({ body: svg, contentType: 'image/svg+xml' })
     }
     return route.fulfill({ status: 404 })
   })
@@ -183,36 +194,48 @@ test.describe('activity', () => {
     await expect(summary.getByText('Details ausblenden')).toBeVisible()
     await expect(chevron).toHaveCSS('rotate', '180deg')
     await expect(card.getByText('00104-C')).toBeVisible()
-    await expect(card.getByRole('rowheader', { name: 'Notiz', exact: true })).toBeVisible()
+    await expect(card.getByRole('term').filter({ hasText: /^Notiz$/ })).toBeVisible()
     await expect(card.getByText('105x145')).toBeVisible()
 
     await summary.click()
     await expect(details).not.toHaveAttribute('open', '')
   })
 
-  test('keeps the attribute names on one line in the details, values may wrap', async ({
+  test('puts the names and the values of all detail cards on the same edges, 2fr | 3fr', async ({
     page,
   }) => {
     await page.setViewportSize({ width: 1000, height: 800 })
     const summaries = page.getByText('Details anzeigen')
     for (let i = (await summaries.count()) - 1; i >= 0; i--) await summaries.nth(i).click()
-    const names = page.getByRole('rowheader')
-    const count = await names.count()
-    expect(count).toBeGreaterThan(0)
-    for (let i = 0; i < count; i++) {
-      const name = names.nth(i)
-      const value = name.locator('xpath=following-sibling::td')
-      // one line of text (the cell itself is as tall as the row); the table never exceeds its card
-      const lines = await name.evaluate((th) => {
-        const range = document.createRange()
-        range.selectNodeContents(th)
-        return new Set([...range.getClientRects()].map((rect) => Math.round(rect.top))).size
-      })
-      expect(lines).toBe(1)
-      const card = (await name.locator('xpath=ancestor::table').boundingBox())!
-      const cell = (await value.boundingBox())!
-      expect(cell.x + cell.width).toBeLessThanOrEqual(card.x + card.width + 1)
+    const lists = page.locator('dl')
+    expect(await lists.count()).toBeGreaterThan(1)
+    const columns = await lists.evaluateAll((all) =>
+      all.map((list) => {
+        const box = (element: Element) => element.getBoundingClientRect()
+        const list0 = box(list)
+        const padding = parseFloat(getComputedStyle(list).paddingLeft)
+        const dt = [...list.querySelectorAll('dt')].map((dt) => box(dt))
+        const dd = [...list.querySelectorAll('dd')].map((dd) => box(dd))
+        return {
+          inner: list0.width - 2 * padding,
+          dtLeft: new Set(dt.map((rect) => Math.round(rect.left))).size,
+          ddLeft: new Set(dd.map((rect) => Math.round(rect.left))).size,
+          ddOffset: dd[0].left - dt[0].left,
+          dtWidth: dt[0].width,
+          ddRight: Math.max(...dd.map((rect) => rect.right)) - list0.right,
+        }
+      }),
+    )
+    for (const column of columns) {
+      // one edge per column; the name column takes 2/5 of the width without the 16 px gap, the values end inside the card
+      expect(column.dtLeft).toBe(1)
+      expect(column.ddLeft).toBe(1)
+      expect(column.dtWidth).toBeCloseTo(((column.inner - 16) * 2) / 5, 0)
+      expect(column.ddOffset).toBeCloseTo(column.dtWidth + 16, 0)
+      expect(column.ddRight).toBeLessThanOrEqual(1)
     }
+    // all cards have the same width, so the edges of different cards agree too
+    expect(new Set(columns.map((column) => Math.round(column.dtWidth))).size).toBe(1)
   })
 
   test('puts the details link in the middle of the right half, level with the name', async ({
@@ -399,3 +422,165 @@ for (const width of [1000, 390]) {
     expect(overflow).toBe(0)
   })
 }
+
+test.describe('detail view', () => {
+  test('opens from the activity with its filter and "Zurück" leads back to it', async ({
+    page,
+  }) => {
+    await page.goto('/admin/aktivitaet?tags=104')
+    await signIn(page, 'K7QM4XHT9RDP')
+    await page.getByText('Details anzeigen').click()
+    await page.getByRole('article').getByRole('link', { name: '00104-C' }).click()
+
+    await expect(page).toHaveURL(/\/admin\/staemme\/104-C$/)
+    await expect(page.locator('h1')).toHaveText('00104-C')
+    await expect(page.getByRole('link', { name: 'Aus Stamm 00104' })).toBeVisible()
+    await expect(page.getByText('vom Stamm geerbt').first()).toBeVisible()
+
+    await page.getByRole('button', { name: '← Zurück' }).click()
+    await expect(page).toHaveURL(/\/admin\/aktivitaet\?tags=104$/)
+  })
+
+  test('a pasted link has a "Zurück" link to the activity', async ({ page }) => {
+    await page.goto('/admin/staemme/00104')
+    await signIn(page, 'K7QM4XHT9RDP')
+    await expect(page.locator('h1')).toHaveText('00104')
+    await page.getByRole('link', { name: '← Zurück' }).click()
+    await expect(page).toHaveURL(/\/admin\/aktivitaet$/)
+  })
+
+  test('opens the gallery, zooms, moves the photo by dragging and closes it', async ({ page }) => {
+    await page.setViewportSize({ width: 1200, height: 900 })
+    await page.goto('/admin/staemme/104')
+    await signIn(page, 'K7QM4XHT9RDP')
+    await page.getByRole('button', { name: 'Foto vergrößern' }).click()
+
+    const dialog = page.getByRole('dialog')
+    await expect(dialog).toBeVisible()
+    await expect(dialog).toContainText('Stamm 00104 · Foto 1 von 2')
+    await expect(dialog.getByRole('link', { name: 'Herunterladen' })).toHaveAttribute(
+      'download',
+      '00104-1.jpg',
+    )
+
+    const photo = dialog.locator('img').first()
+    const stage = dialog.locator('div.touch-none')
+    await stage.dblclick()
+    await expect(dialog.getByRole('button', { name: /^Zoom 200 %/ })).toBeVisible()
+    const before = (await photo.boundingBox())!
+    await stage.dragTo(stage, {
+      sourcePosition: { x: 600, y: 300 },
+      targetPosition: { x: 680, y: 340 },
+    })
+    const after = (await photo.boundingBox())!
+    expect(Math.abs(after.x - before.x) + Math.abs(after.y - before.y)).toBeGreaterThan(20)
+
+    await page.keyboard.press('ArrowRight')
+    await expect(dialog).toContainText('Foto 2 von 2')
+    await expect(dialog.getByText('Foto noch nicht hochgeladen')).toBeVisible()
+    await expect(dialog.getByRole('button', { name: /^Zoom 100 %/ })).toBeVisible()
+
+    await page.keyboard.press('Escape')
+    await expect(dialog).toBeHidden()
+  })
+
+  test('puts Fotos left (40 %), Balken, Werte, Notizen and Verlauf right (60 %), one column below 900px', async ({
+    page,
+  }) => {
+    const box = async (name: string) =>
+      (await page
+        .locator('section, details')
+        .filter({ hasText: new RegExp(`^\\s*${name}`) })
+        .boundingBox())!
+    await page.setViewportSize({ width: 1200, height: 900 })
+    await page.goto('/admin/staemme/104')
+    await signIn(page, 'K7QM4XHT9RDP')
+    await expect(page.locator('h1')).toHaveText('00104')
+    const [photos, beams, values, notes, history] = [
+      await box('Fotos'),
+      await box('Balken'),
+      await box('Werte'),
+      await box('Notizen'),
+      await box('Verlauf'),
+    ]
+    expect(beams.x).toBeGreaterThan(photos.x + 300)
+    for (const right of [values, notes, history]) expect(right.x).toBe(beams.x)
+    expect(beams.y).toBeLessThan(values.y)
+    expect(values.y).toBeLessThan(notes.y)
+    expect(notes.y).toBeLessThan(history.y)
+    // 2fr | 3fr with a 24 px gap: the photo card takes 40 % of the width without the gap
+    expect(photos.width / values.width).toBeCloseTo(2 / 3, 1)
+
+    await page.setViewportSize({ width: 600, height: 900 })
+    const ys = [
+      await box('Fotos'),
+      await box('Balken'),
+      await box('Werte'),
+      await box('Notizen'),
+      await box('Verlauf'),
+    ]
+    expect(ys.map((heading) => heading.x)).toEqual(Array(5).fill(ys[0].x))
+    expect([...ys].map((heading) => heading.y)).toEqual(
+      [...ys].map((heading) => heading.y).sort((a, b) => a - b),
+    )
+  })
+
+  test('keeps the photos in view while scrolling from 900px on, and does not stick below', async ({
+    page,
+  }) => {
+    const photos = page.locator('section', { hasText: /^\s*Fotos/ })
+    await page.setViewportSize({ width: 1200, height: 500 })
+    await page.goto('/admin/staemme/104')
+    await signIn(page, 'K7QM4XHT9RDP')
+    await expect(page.locator('h1')).toHaveText('00104')
+    await page.locator('summary', { hasText: 'Verlauf' }).click()
+    await page.evaluate(() => window.scrollTo(0, 400))
+    // 24 px under the sticky header (from 1024px on)
+    const header = (await page.locator('header').first().boundingBox())!
+    expect(
+      Math.abs((await photos.boundingBox())!.y - (header.y + header.height + 24)),
+    ).toBeLessThan(2)
+
+    await page.setViewportSize({ width: 600, height: 500 })
+    await page.evaluate(() => window.scrollTo(0, 700))
+    expect((await photos.boundingBox())!.y).toBeLessThan(0)
+  })
+
+  test('opens the history as a timeline by device time and turns the chevron', async ({ page }) => {
+    await page.goto('/admin/staemme/104')
+    await signIn(page, 'K7QM4XHT9RDP')
+    const details = page.locator('details', { hasText: 'Verlauf' })
+    const summary = details.locator('summary')
+    await expect(summary).toHaveText('Verlauf')
+    await expect(details).not.toHaveAttribute('open', '')
+    await expect(details.getByText('Alexander Barina')).toBeHidden()
+
+    await summary.focus()
+    await page.keyboard.press('Enter')
+    await expect(details).toHaveAttribute('open', '')
+    await expect(summary.locator('svg')).toHaveCSS('rotate', '180deg')
+    await expect(details.getByText('31.10.')).toBeVisible()
+    await expect(details.getByText('11:46')).toBeVisible()
+    await expect(details.getByText('Alexander Barina')).toBeVisible()
+    await expect(details.getByText('Balken 00104-C')).toBeVisible()
+    await expect(details.getByText('übertragen')).toHaveCount(0)
+
+    await summary.click()
+    await expect(details).not.toHaveAttribute('open', '')
+  })
+
+  for (const width of [1000, 390]) {
+    test(`does not scroll the page sideways at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 800 })
+      await page.goto('/admin/staemme/104')
+      await signIn(page, 'K7QM4XHT9RDP')
+      await expect(page.locator('h1')).toHaveText('00104')
+      await expect(page.locator('summary', { hasText: /^\s*Verlauf\s*$/ })).toBeVisible()
+      await page.locator('summary', { hasText: /^\s*Verlauf\s*$/ }).click()
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      )
+      expect(overflow).toBe(0)
+    })
+  }
+})

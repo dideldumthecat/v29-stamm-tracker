@@ -1,6 +1,7 @@
 import { vi } from 'vitest'
 
 import { activityAnswer } from './fakeActivity'
+import { snapshotFixture } from './fakeSnapshot'
 
 /**
  * A stand-in for fetch that behaves like the session endpoints and the activity list (see fakeActivity.ts).
@@ -10,6 +11,7 @@ export function fakeApi(codes: Record<string, string>, { offline = false, pageSi
   let role: string | null = null
   let signOutFails = false
   let activityFails = false
+  let snapshotFails = false
   const calls: string[] = []
   vi.stubGlobal(
     'fetch',
@@ -42,6 +44,10 @@ export function fakeApi(codes: Record<string, string>, { offline = false, pageSi
         const answer = activityAnswer(query, pageSize)
         return answer ? json(200, answer) : json(400)
       }
+      if (call === 'GET /api/snapshot') {
+        if (!role) return json(401)
+        return snapshotFails ? json(500) : json(200, snapshotFixture)
+      }
       return json(404)
     }),
   )
@@ -50,5 +56,6 @@ export function fakeApi(codes: Record<string, string>, { offline = false, pageSi
     expireSession: () => (role = null),
     failSignOut: () => (signOutFails = true),
     failActivity: (fails = true) => (activityFails = fails),
+    failSnapshot: (fails = true) => (snapshotFails = fails),
   }
 }

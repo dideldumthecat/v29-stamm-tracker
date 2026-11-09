@@ -28,11 +28,33 @@ function dayParts(timestamp: string): Record<string, string> {
   return { ...parts, key: `${parts.year}-${parts.month}-${parts.day}` }
 }
 
+/** Whether two timestamps lie on the same German calendar day. */
+export const sameDay = (a: string, b: string) => dayParts(a).key === dayParts(b).key
+
 /** "18:00", or "05.11. 18:00" if the device time is not on the day the entry arrived (German time). */
 export function formatRecordedTime(timestamp: string, receivedAt: string): string {
-  const { key, day, month } = dayParts(timestamp)
-  const time = formatTime(timestamp)
-  return key === dayParts(receivedAt).key ? time : `${day}.${month}. ${time}`
+  return sameDay(timestamp, receivedAt) ? formatTime(timestamp) : formatDayMonthTime(timestamp)
+}
+
+/** "31.10." */
+export function formatDayMonth(timestamp: string): string {
+  const { day, month } = dayParts(timestamp)
+  return `${day}.${month}.`
+}
+
+/** "31.10. 11:47" */
+export const formatDayMonthTime = (timestamp: string) =>
+  `${formatDayMonth(timestamp)} ${formatTime(timestamp)}`
+
+/** "31.10.2026" */
+export function formatDate(timestamp: string): string {
+  const { day, month, year } = dayParts(timestamp)
+  return `${day}.${month}.${year}`
+}
+
+/** "31.10.2026, 11:47" */
+export function formatDateTime(timestamp: string): string {
+  return `${formatDate(timestamp)}, ${formatTime(timestamp)}`
 }
 
 export interface Day {
@@ -64,7 +86,7 @@ export function groupByDay(entries: ActivityEntry[]): Day[] {
   return days
 }
 
-const plural = (n: number, one: string, many: string) =>
+export const plural = (n: number, one: string, many: string) =>
   `${number.format(n)} ${n === 1 ? one : many}`
 
 export const eventsText = (n: number) => plural(n, 'Ereignis', 'Ereignisse')
@@ -159,7 +181,7 @@ export function detailRows(item: ActivityItem) {
   }))
 }
 
-const MAX_TAG_NUMBER = 1999
+export const MAX_TAG_NUMBER = 1999
 
 /**
  * Whether the server would read this "Kennung" filter: the same rule as `StemSelection::parseRange` in the backend
