@@ -437,7 +437,7 @@ test.describe('detail view', () => {
     await expect(page.getByRole('link', { name: 'Aus Stamm 00104' })).toBeVisible()
     await expect(page.getByText('vom Stamm geerbt').first()).toBeVisible()
 
-    await page.getByRole('button', { name: '← Zurück' }).click()
+    await page.getByRole('button', { name: 'Zurück' }).click()
     await expect(page).toHaveURL(/\/admin\/aktivitaet\?tags=104$/)
   })
 
@@ -445,7 +445,7 @@ test.describe('detail view', () => {
     await page.goto('/admin/staemme/00104')
     await signIn(page, 'K7QM4XHT9RDP')
     await expect(page.locator('h1')).toHaveText('00104')
-    await page.getByRole('link', { name: '← Zurück' }).click()
+    await page.getByRole('link', { name: 'Zurück' }).click()
     await expect(page).toHaveURL(/\/admin\/aktivitaet$/)
   })
 
