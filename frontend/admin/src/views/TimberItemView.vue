@@ -8,12 +8,20 @@ import BeamRowLabel from '@v29/shared/BeamRowLabel.vue'
 import FormattedTag from '@v29/shared/FormattedTag.vue'
 import SawBladeIcon from '@v29/shared/SawBladeIcon.vue'
 
-import { formatDateTime, formatDayMonth, formatDayMonthTime, formatTime } from '@/activity'
+import { formatDateTime, formatDayMonth, formatDayMonthTime, formatTime, yearOf } from '@/activity'
 import { ApiError, request } from '@/api/client'
 import ItemPhotos from '@/components/ItemPhotos.vue'
 import KeyValueRows from '@/components/KeyValueRows.vue'
 import StatusCard from '@/components/StatusCard.vue'
-import { beamsOf, historyPoints, normalizeTag, plaqueTag, splitValues, stemNumber } from '@/detail'
+import {
+  beamsOf,
+  historyPoints,
+  normalizeTag,
+  plaqueTag,
+  splitValues,
+  stemNumber,
+  timelineRows,
+} from '@/detail'
 
 const route = useRoute()
 const router = useRouter()
@@ -94,6 +102,9 @@ const points = computed(() => {
   const own = new Set([item.value!.id, ...beams.value.map((beam) => beam.id)])
   return historyPoints(historyEntries.value ?? [], own, item.value!.id)
 })
+
+const timeline = computed(() => timelineRows(points.value, new Date().getFullYear()))
+const hasYearMarks = computed(() => timeline.value.some((row) => row.year !== undefined))
 
 const card = 'card p-4 sm:p-6'
 
@@ -294,65 +305,84 @@ watch(() => route.params.tag, load, { immediate: true })
                 aria-hidden="true"
               />
             </summary>
-            <!-- Timeline by device time: date and time | line with a dot | person and what they changed. -->
+            <!-- Timeline by device time: date and time | line with a dot | person and what they changed. Year marks (only if not all points are in the current year) are rows without a dot; the line runs through them. -->
             <ol class="px-4 pb-4 sm:px-6 sm:pb-6">
-              <li
-                v-for="(point, index) in points"
-                :key="point.key"
-                class="grid grid-cols-[56px_10px_minmax(0,1fr)]"
-              >
-                <time
-                  class="tabular-nums"
-                  :class="index < points.length - 1 && 'pb-6'"
-                  :datetime="point.recordedAt"
+              <template v-for="(row, index) in timeline" :key="row.key">
+                <!-- Hidden from screen readers: the year is read with each point's date instead, so the list stays a list of points. -->
+                <li
+                  v-if="row.year !== undefined"
+                  aria-hidden="true"
+                  class="grid grid-cols-[56px_10px_minmax(0,1fr)]"
                 >
-                  <span class="block leading-5 font-bold">{{
-                    formatDayMonth(point.recordedAt)
-                  }}</span>
-                  <span class="block text-caption text-mute">{{
-                    formatTime(point.recordedAt)
-                  }}</span>
-                </time>
-                <div class="relative" aria-hidden="true">
-                  <!-- The line runs from this dot to the next one (10 px = the dot's centre below the top of the row, which the next row's dot has too). The gap between the points is padding of the time and content cells, so this cell spans the whole row.. -->
-                  <span
-                    v-if="index < points.length - 1"
-                    class="absolute top-2.5 -bottom-2.5 left-1/2 w-0.5 -translate-x-1/2 bg-soft"
-                  ></span>
-                  <span class="absolute top-[5px] left-0 size-2.5 rounded-full bg-ink"></span>
-                </div>
-                <div class="min-w-0 pl-5" :class="index < points.length - 1 && 'pb-6'">
-                  <p :id="`history-${index}`" class="leading-5 font-semibold">
-                    {{ point.user }}
-                  </p>
-                  <p v-if="point.transferredAt" class="text-caption text-mute tabular-nums">
-                    übertragen {{ formatDayMonthTime(point.transferredAt) }}
-                  </p>
-                  <template v-for="pointItem in point.items" :key="pointItem.timber_item_id">
-                    <KeyValueRows
-                      v-if="pointItem.timber_item_id === item.id"
-                      class="mt-1"
-                      :item="pointItem"
-                      :labelledby="`history-${index}`"
-                    />
-                    <!-- A beam shows up in the history of its stem only as created (all else is in its own history). -->
-                    <p v-else class="mt-1.5 text-sm">
-                      <span class="text-caption font-semibold text-mute">Balken</span>{{ ' ' }}
-                      <RouterLink
-                        v-if="normalizeTag(pointItem.label)"
-                        :to="{
-                          name: 'timber-item',
-                          params: { tag: normalizeTag(pointItem.label)! },
-                        }"
-                        class="underline"
-                        ><FormattedTag :tag-number="pointItem.label"
-                      /></RouterLink>
-                      <template v-else>{{ pointItem.label }}</template>
-                      angelegt
+                  <time
+                    class="pb-6 leading-5 font-bold tabular-nums"
+                    :datetime="String(row.year)"
+                    >{{ row.year }}</time
+                  >
+                  <div class="relative">
+                    <span
+                      class="absolute -bottom-2.5 left-1/2 w-0.5 -translate-x-1/2 bg-soft"
+                      :class="index === 0 ? 'top-2.5' : 'top-0'"
+                    ></span>
+                  </div>
+                </li>
+                <li v-else class="grid grid-cols-[56px_10px_minmax(0,1fr)]">
+                  <time
+                    class="tabular-nums"
+                    :class="index < timeline.length - 1 && 'pb-6'"
+                    :datetime="row.point.recordedAt"
+                  >
+                    <span class="block leading-5 font-bold"
+                      >{{ formatDayMonth(row.point.recordedAt)
+                      }}<span v-if="hasYearMarks" class="sr-only">{{
+                        yearOf(row.point.recordedAt)
+                      }}</span></span
+                    >
+                    <span class="block text-caption text-mute">{{
+                      formatTime(row.point.recordedAt)
+                    }}</span>
+                  </time>
+                  <div class="relative" aria-hidden="true">
+                    <!-- The line runs from this dot to the next one (10 px = the dot's centre below the top of the row, which the next row's dot has too). The gap between the points is padding of the time and content cells, so this cell spans the whole row.. -->
+                    <span
+                      v-if="index < timeline.length - 1"
+                      class="absolute top-2.5 -bottom-2.5 left-1/2 w-0.5 -translate-x-1/2 bg-soft"
+                    ></span>
+                    <span class="absolute top-[5px] left-0 size-2.5 rounded-full bg-ink"></span>
+                  </div>
+                  <div class="min-w-0 pl-5" :class="index < timeline.length - 1 && 'pb-6'">
+                    <p :id="`history-${index}`" class="leading-5 font-semibold">
+                      {{ row.point.user }}
                     </p>
-                  </template>
-                </div>
-              </li>
+                    <p v-if="row.point.transferredAt" class="text-caption text-mute tabular-nums">
+                      übertragen {{ formatDayMonthTime(row.point.transferredAt) }}
+                    </p>
+                    <template v-for="pointItem in row.point.items" :key="pointItem.timber_item_id">
+                      <KeyValueRows
+                        v-if="pointItem.timber_item_id === item.id"
+                        class="mt-1"
+                        :item="pointItem"
+                        :labelledby="`history-${index}`"
+                      />
+                      <!-- A beam shows up in the history of its stem only as created (all else is in its own history). -->
+                      <p v-else class="mt-1.5 text-sm">
+                        <span class="text-caption font-semibold text-mute">Balken</span>{{ ' ' }}
+                        <RouterLink
+                          v-if="normalizeTag(pointItem.label)"
+                          :to="{
+                            name: 'timber-item',
+                            params: { tag: normalizeTag(pointItem.label)! },
+                          }"
+                          class="underline"
+                          ><FormattedTag :tag-number="pointItem.label"
+                        /></RouterLink>
+                        <template v-else>{{ pointItem.label }}</template>
+                        angelegt
+                      </p>
+                    </template>
+                  </div>
+                </li>
+              </template>
             </ol>
           </details>
         </div>

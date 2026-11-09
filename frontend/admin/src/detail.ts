@@ -8,7 +8,7 @@ import type {
 import { bySortOrder, formatValue, isInheritedValue } from '@v29/shared/attributes'
 import { formatTag } from '@v29/shared/tag'
 
-import { MAX_TAG_NUMBER, formatDayMonth, sameDay } from '@/activity'
+import { MAX_TAG_NUMBER, formatDayMonthUnlessThisYear, sameDay, yearOf } from '@/activity'
 
 /** "00104" → "104", "104-c" → "104-C"; null if it is no tag within the plaque range. */
 export function normalizeTag(param: string): string | null {
@@ -85,7 +85,7 @@ export function splitValues(
   const userName = (record: AttributeValueRecord) =>
     users.find((user) => user.id === record.user_id)?.name ?? 'Unbekannt'
   const who = (record: AttributeValueRecord) =>
-    `${userName(record)} · ${formatDayMonth(record.recorded_at)}`
+    `${userName(record)} · ${formatDayMonthUnlessThisYear(record.recorded_at)}`
   const line = (attribute: Attribute, record: AttributeValueRecord, inherited: boolean) => ({
     text: formatRecorded(attribute, record.value),
     source: inherited ? 'vom Stamm geerbt' : who(record),
@@ -228,4 +228,25 @@ export function historyPoints(
       }
     })
     .reverse()
+}
+
+export type TimelineRow =
+  | { key: string; year: number; point?: undefined }
+  | { key: string; point: HistoryPoint; year?: undefined }
+
+/**
+ * The rows of the timeline: the points, newest first, with a year mark before the first point of each year –
+ * unless all points lie in `thisYear`, then there are no marks at all.
+ */
+export function timelineRows(points: HistoryPoint[], thisYear: number): TimelineRow[] {
+  const marked = points.some((point) => yearOf(point.recordedAt) !== thisYear)
+  const rows: TimelineRow[] = []
+  let previous: number | undefined
+  for (const point of points) {
+    const year = yearOf(point.recordedAt)
+    if (marked && year !== previous) rows.push({ key: `year-${year}`, year })
+    previous = year
+    rows.push({ key: point.key, point })
+  }
+  return rows
 }
