@@ -41,6 +41,8 @@ const largePhoto = (wrapper: VueWrapper) =>
 
 enableAutoUnmount(afterEach)
 beforeEach(() => {
+  // The origin dates and the year marks depend on the current year
+  vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-11-09T12:00:00Z') })
   user.value = null
   // jsdom has no modal dialogs
   HTMLDialogElement.prototype.showModal = function () {
@@ -51,7 +53,10 @@ beforeEach(() => {
     this.dispatchEvent(new Event('close'))
   }
 })
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => {
+  vi.unstubAllGlobals()
+  vi.useRealTimers()
+})
 
 describe('stem detail', () => {
   it('shows heading, subtitle and the cards, and asks the snapshot and the history anew', async () => {
@@ -109,6 +114,20 @@ describe('stem detail', () => {
     ])
   })
 
+  it('marks the year in the history and reads it with each date if the points are not in the current year', async () => {
+    vi.setSystemTime(new Date('2027-01-05T12:00:00Z'))
+    const { wrapper } = await open('/staemme/104')
+    const history = section(wrapper, 'Verlauf')
+
+    const marks = history.findAll('li[aria-hidden="true"]')
+    expect(marks.map((mark) => squeezed(mark.text()))).toEqual(['2026'])
+    expect(marks[0].get('time').attributes('datetime')).toBe('2026')
+    expect(history.findAll('ol > li:not([aria-hidden])')[0].get('time span').text()).toContain(
+      '31.10.2026',
+    )
+    expect(section(wrapper, 'Werte').text()).toContain('Alexander Summa · 29.10.26')
+  })
+
   it('shows the history as a closed timeline by device time, the stem without a heading, its beams with one', async () => {
     const { wrapper } = await open('/staemme/104')
     const history = section(wrapper, 'Verlauf')
@@ -120,6 +139,7 @@ describe('stem detail', () => {
     const point = history.get('li')
     expect(squeezed(point.get('time').text())).toBe('31.10.11:46')
     expect(point.get('p').text()).toBe('Alexander Barina')
+    expect(history.findAll('li[aria-hidden]')).toHaveLength(0)
     expect(point.text()).not.toContain('übertragen')
     // the stem has its rows; its beams show up only as created (their values are in their own history)
     const lists = history.findAll('dl')

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ActivityChange, ActivityEntry } from '@v29/shared/contract'
 
 import {
@@ -8,6 +8,8 @@ import {
   photoFileName,
   plaqueTag,
   splitValues,
+  timelineRows,
+  type HistoryPoint,
 } from '@/detail'
 import { activityFixture } from './fakeActivity'
 import { snapshotFixture, stemPhotos } from './fakeSnapshot'
@@ -15,6 +17,11 @@ import { snapshotFixture, stemPhotos } from './fakeSnapshot'
 const { timber_items: items, attributes, users } = snapshotFixture
 const stem = items.find((item) => item.tag_number === '104')!
 const beamC = items.find((item) => item.tag_number === '104-C')!
+
+// The origin dates show the year only outside the current one, so the clock is pinned.
+const today = (iso: string) => vi.useFakeTimers({ toFake: ['Date'], now: new Date(iso) })
+beforeEach(() => today('2026-11-09T12:00:00Z'))
+afterEach(() => vi.useRealTimers())
 describe('normalizeTag', () => {
   it('ignores leading zeros and the case of the letter', () => {
     expect(normalizeTag('104')).toBe('104')
@@ -299,5 +306,55 @@ describe('historyPoints', () => {
       ])
       expect(nextBerlinDay[0].transferredAt).toBe('2026-10-31T23:30:00.000Z')
     })
+  })
+})
+
+describe('origin date of a value', () => {
+  it('has no year in the current year', () => {
+    const { rows } = splitValues(stem, undefined, attributes, users)
+    expect(rows.find((row) => row.name === 'Holzart')!.lines[0].source).toBe(
+      'Alexander Summa · 29.10.',
+    )
+  })
+
+  it('has the year in two digits in another year', () => {
+    today('2027-01-05T12:00:00Z')
+    const { rows } = splitValues(stem, undefined, attributes, users)
+    expect(rows.find((row) => row.name === 'Holzart')!.lines[0].source).toBe(
+      'Alexander Summa · 29.10.26',
+    )
+  })
+})
+
+describe('timelineRows', () => {
+  const point = (recordedAt: string) => ({ key: recordedAt, recordedAt }) as HistoryPoint
+  const marks = (rows: ReturnType<typeof timelineRows>) =>
+    rows.map((row) => row.year ?? row.point!.recordedAt.slice(0, 10))
+  const newYear = [
+    point('2026-01-03T10:00:00Z'),
+    point('2025-12-30T10:00:00Z'),
+    point('2025-12-29T10:00:00Z'),
+  ]
+
+  it('has no year marks if all points are in the current year', () => {
+    expect(marks(timelineRows(newYear.slice(0, 1), 2026))).toEqual(['2026-01-03'])
+  })
+
+  it('marks every year, also the current one, if the points span a new year', () => {
+    expect(marks(timelineRows(newYear, 2026))).toEqual([
+      2026,
+      '2026-01-03',
+      2025,
+      '2025-12-30',
+      '2025-12-29',
+    ])
+  })
+
+  it('marks the year if all points are in the previous year', () => {
+    expect(marks(timelineRows(newYear.slice(1), 2026))).toEqual([2025, '2025-12-30', '2025-12-29'])
+  })
+
+  it('has no rows without points', () => {
+    expect(timelineRows([], 2026)).toEqual([])
   })
 })
