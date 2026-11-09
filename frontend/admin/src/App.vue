@@ -56,7 +56,7 @@ async function onSignOut() {
     <header
       v-if="user && route.name !== 'login'"
       ref="header"
-      class="z-50 bg-ink lg:sticky lg:top-0 text-paper **:focus-visible:outline-paper"
+      class="z-50 bg-ink text-paper **:focus-visible:outline-paper lg:sticky lg:top-0"
     >
       <div class="page-column flex min-h-[72px] flex-wrap items-center gap-x-4 gap-y-2 py-3">
         <div class="mr-auto flex items-center gap-3">
