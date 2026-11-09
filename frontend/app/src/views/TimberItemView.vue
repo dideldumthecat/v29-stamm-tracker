@@ -9,7 +9,7 @@ import {
 import { Trash2Icon } from '@lucide/vue'
 import { useTimberItemStore, type Attribute, type TimberItem } from '@/stores/timberItems'
 import { formatRecordedLines } from '@/utils/attributeDraft'
-import { bySortOrder } from '@/utils/sort'
+import { bySortOrder } from '@v29/shared/attributes'
 import { useToast } from '@/composables/useToast'
 import { useTimberItemDraft } from '@/composables/useTimberItemDraft'
 import TimberItemHeader from '@/components/TimberItemHeader.vue'

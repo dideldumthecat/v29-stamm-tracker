@@ -4,7 +4,8 @@ import { XIcon } from '@lucide/vue'
 import type { Attribute, AttributeValueRecord } from '@/stores/timberItems'
 import type { AttributeValue } from '@v29/shared/contract'
 import AttributeField from '@/components/AttributeField.vue'
-import { NUMBER_ERROR, formatNumber, parseNumber } from '@/utils/attributeDraft'
+import { formatNumber } from '@v29/shared/attributes'
+import { NUMBER_ERROR, parseNumber } from '@/utils/attributeDraft'
 import { formatDateTime } from '@/utils/date'
 
 /**

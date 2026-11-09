@@ -3,7 +3,7 @@ import { computed, useId } from 'vue'
 import { CalendarIcon } from '@lucide/vue'
 import type { Attribute, AttributeValueRecord } from '@/stores/timberItems'
 import AttributeField from '@/components/AttributeField.vue'
-import { formatDate, formatMonth } from '@/utils/date'
+import { formatDate, formatMonth } from '@v29/shared/attributes'
 
 const props = defineProps<{
   attribute: Attribute
