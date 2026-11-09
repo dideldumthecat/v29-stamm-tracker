@@ -4,17 +4,9 @@
  *
  * `projectItems` keeps own values only; inherited values are added at read time (`withInherited`).
  */
-import type {
-  Attribute,
-  AttributeValueRecord,
-  Event,
-  Snapshot,
-  TimberItem,
-  Uuid,
-} from '@v29/shared/contract'
+import type { Attribute, Event, Snapshot, TimberItem, Uuid } from '@v29/shared/contract'
+import { isInheritedValue, lastEventId } from '@v29/shared/attributes'
 import { nextBeamTag } from '@/utils/tag'
-
-const lastEventId = (records: AttributeValueRecord[] | undefined) => records?.slice(-1)[0]?.event_id
 
 const findById = (items: TimberItem[], id: string | null) => items.find((item) => item.id === id)
 
@@ -139,8 +131,7 @@ export function isInherited(
   if (!item || !parent) {
     return false
   }
-  const own = lastEventId(withInherited(item, items, attributes).values[attributeId])
-  return own !== undefined && own === lastEventId(parent.values[attributeId])
+  return isInheritedValue(withInherited(item, items, attributes), parent, attributeId)
 }
 
 // Sorted by tag like the Excel export: the snapshot order is device time, which skews between phones.

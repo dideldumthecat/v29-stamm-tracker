@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import type { Attribute, AttributeType, AttributeValueRecord } from '@v29/shared/contract'
 import { collectDraft, parseNumber } from '@/utils/attributeDraft'
-import { formatDate, formatMonth } from '@/utils/date'
 
 function attribute(id: string, type: AttributeType, overrides: Partial<Attribute> = {}): Attribute {
   return {
@@ -22,18 +21,6 @@ function attribute(id: string, type: AttributeType, overrides: Partial<Attribute
 function record(value: AttributeValueRecord['value']): AttributeValueRecord[] {
   return [{ value, recorded_at: '2026-10-02T07:12:00Z', user_id: 'u', event_id: 'e' }]
 }
-
-describe('formatDate', () => {
-  it('writes the contract date the way V29 does', () => {
-    expect(formatDate('2026-09-08')).toBe('08.09.2026')
-  })
-})
-
-describe('formatMonth', () => {
-  it('writes the contract month the way V29 does', () => {
-    expect(formatMonth('2026-10')).toBe('10/2026')
-  })
-})
 
 describe('parseNumber', () => {
   it('accepts comma and dot as decimal separator', () => {

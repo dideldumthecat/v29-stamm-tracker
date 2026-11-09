@@ -3,7 +3,7 @@ import { computed, useId } from 'vue'
 import { ChevronDownIcon } from '@lucide/vue'
 import type { Attribute, AttributeOption, AttributeValueRecord } from '@/stores/timberItems'
 import AttributeField from '@/components/AttributeField.vue'
-import { bySortOrder } from '@/utils/sort'
+import { bySortOrder } from '@v29/shared/attributes'
 
 const props = defineProps<{
   attribute: Attribute

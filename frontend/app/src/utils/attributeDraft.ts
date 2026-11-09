@@ -1,7 +1,6 @@
 import type { Attribute, AttributeValue, AttributeValueRecord } from '@v29/shared/contract'
-import { formatDate, formatMonth } from '@/utils/date'
+import { bySortOrder, formatValue } from '@v29/shared/attributes'
 import { plural } from '@/utils/plural'
-import { bySortOrder } from '@/utils/sort'
 
 /**
  * Raw input of one field, as the field holds it: choice → option id, boolean → true/false,
@@ -31,31 +30,6 @@ export const MONTH_ERROR = 'Bitte Jahr und Monat als JJJJ-MM eingeben, zum Beisp
 export function parseNumber(text: string): number | null {
   const trimmed = text.trim()
   return /^-?\d+([.,]\d+)?$/.test(trimmed) ? Number(trimmed.replace(',', '.')) : null
-}
-
-/** Number as V29 writes it: decimal comma. */
-export function formatNumber(value: number): string {
-  return String(value).replace('.', ',')
-}
-
-/** Short text of a recorded value, e.g. for the beam summary. null for types without text (photo). */
-export function formatValue(attribute: Attribute, value: AttributeValue): string | null {
-  switch (attribute.type) {
-    case 'choice':
-      return attribute.options.find((option) => option.id === value)?.label ?? null
-    case 'boolean':
-      return value ? attribute.name : `${attribute.name}: Nein`
-    case 'number':
-      return [formatNumber(Number(value)), attribute.unit ?? ''].join(' ').trim()
-    case 'date':
-      return formatDate(String(value))
-    case 'month':
-      return formatMonth(String(value))
-    case 'text':
-      return String(value)
-    default:
-      return null
-  }
 }
 
 /** One line for a value, as shown on the sync screen and in the leave dialog: "Holzart: Stieleiche", "Gesägt: Nein". */
