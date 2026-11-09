@@ -6,16 +6,6 @@ export function formatShortDate(isoDate: string): string {
   return `${day}.${month}.`
 }
 
-/** Contract date "2026-09-28" → "28.09.2026", the way V29 writes dates. */
-export function formatDate(calendarDate: string): string {
-  return calendarDate.split('-').reverse().join('.')
-}
-
-/** Contract month "2026-10" → "10/2026", the way V29 writes it. */
-export function formatMonth(calendarMonth: string): string {
-  return calendarMonth.split('-').reverse().join('/')
-}
-
 /** Short German date and time without year: "15.10., 18:42" */
 export function formatShortDateTime(timestamp: string): string {
   const time = new Date(timestamp).toLocaleTimeString('de-DE', {

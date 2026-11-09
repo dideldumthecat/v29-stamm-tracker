@@ -2,10 +2,9 @@
 import { computed } from 'vue'
 import { PlusIcon, Trash2Icon } from '@lucide/vue'
 import { useTimberItemStore, type TimberItem } from '@/stores/timberItems'
-import { formatValue } from '@/utils/attributeDraft'
-import { bySortOrder } from '@/utils/sort'
+import { beamSummary } from '@v29/shared/attributes'
 import { MAX_BEAMS } from '@/config/constants'
-import BeamRowLabel from '@/components/BeamRowLabel.vue'
+import BeamRowLabel from '@v29/shared/BeamRowLabel.vue'
 import FormattedTag from '@v29/shared/FormattedTag.vue'
 
 const props = defineProps<{
@@ -39,21 +38,6 @@ const rows = computed(() =>
     ...draftBeams.value.map((tag) => ({ tag, beam: undefined })),
   ].sort((a, b) => a.tag.localeCompare(b.tag)),
 )
-
-// First two own values in the order V29 set; inherited ones are the stem's, not worth repeating.
-function summary(beam: TimberItem | undefined): string {
-  const parts = beam
-    ? [...store.attributes]
-        .sort(bySortOrder)
-        .filter(
-          (attribute) => beam.values[attribute.id] && !store.isInherited(beam.id, attribute.id),
-        )
-        .map((attribute) => formatValue(attribute, beam.values[attribute.id]!.slice(-1)[0]!.value))
-        .filter((text) => text !== null)
-        .slice(0, 2)
-    : []
-  return parts.length > 0 ? parts.join(' · ') : 'noch keine eigenen Angaben'
-}
 
 // Nothing is saved or created here: the beam joins the draft and is created with "Speichern".
 function onAdd() {
@@ -103,7 +87,7 @@ function onRemove(row: { tag: string; beam: TimberItem | undefined }) {
           >
             <BeamRowLabel
               :tag-number="row.tag"
-              :summary="summary(row.beam)"
+              :summary="beamSummary(row.beam, stem, store.attributes)"
               :note="store.isUnsynced(row.beam.id) ? 'nicht synchronisiert' : undefined"
             />
           </a>
@@ -116,7 +100,7 @@ function onRemove(row: { tag: string; beam: TimberItem | undefined }) {
         >
           <BeamRowLabel
             :tag-number="row.tag"
-            :summary="summary(undefined)"
+            :summary="beamSummary(undefined, stem, store.attributes)"
             note="nicht gespeichert"
           />
         </button>
