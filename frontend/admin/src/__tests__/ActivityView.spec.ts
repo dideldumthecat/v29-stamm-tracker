@@ -64,13 +64,12 @@ describe('activity page', () => {
     const { wrapper } = await open()
 
     expect(wrapper.get('h1').text()).toBe('Aktivität')
-    expect(wrapper.text()).toContain('Wer hat wann was erfasst')
-    expect(wrapper.text()).not.toContain('neueste zuerst')
-    expect(wrapper.get('main > p.flex span.text-lg').text()).toBe('6 Einträge')
-    // the note sits in the same line as the number, not below the list
-    expect(wrapper.get('main > p.flex').text()).toContain(
-      'Uhrzeit = Eingang am Server · „erfasst“ = Uhrzeit am Handy',
+    expect(wrapper.get('h1 + p').text().replace(/\s+/g, ' ')).toBe(
+      'Wer hat wann was erfasst? Die Uhrzeit links ist der Eingang am Server (nach einem Sync), die Zeiten in den Details sind die Uhrzeit am Handy zum Zeitpunkt der Erfassung.',
     )
+    expect(wrapper.text()).not.toContain('neueste zuerst')
+    // the number stands alone, without a legend behind it
+    expect(wrapper.get('main > p.text-lg').text()).toBe('6 Einträge')
     expect(wrapper.text()).not.toContain('Personen')
     const days = wrapper.findAll('section')
     expect(days.map((day) => day.get('h2').text())).toEqual(['Di, 03.11.2026', 'Sa, 31.10.2026'])
@@ -278,7 +277,6 @@ describe('activity page', () => {
       expect(wrapper.text()).toContain('Für diese Auswahl gibt es keine Einträge.')
       expect(wrapper.find('svg[aria-hidden=true]').exists()).toBe(true)
       expect(wrapper.text()).not.toContain('0 Einträge')
-      expect(wrapper.text()).not.toContain('Uhrzeit = Eingang am Server')
       expect(wrapper.text()).not.toContain('Ältere laden')
 
       await resetButton(wrapper)!.trigger('click')
@@ -325,7 +323,6 @@ describe('activity page', () => {
       'Die Filter verstehen wir nicht. Kennung zum Beispiel 104 oder 100-120.',
     )
     expect(wrapper.text()).not.toContain('Einträge')
-    expect(wrapper.text()).not.toContain('Uhrzeit = Eingang am Server')
     expect(wrapper.text()).not.toContain('Ältere laden')
 
     await resetLink(wrapper).trigger('click')
