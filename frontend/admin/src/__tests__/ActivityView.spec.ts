@@ -165,8 +165,8 @@ describe('activity page', () => {
     const header = details.querySelector('dl')!.previousElementSibling!
     expect(header.className).toContain('border-soft')
     expect(details.querySelector('dl')!.getAttribute('aria-labelledby')).toBe(header.id)
-    // the rows are separated by a line, but none after the last one
-    expect(details.querySelector('dl > div')!.className).toContain('not-last:border-b')
+    // the rows are not separated by lines
+    expect(details.querySelector('dl > div')!.className).not.toContain('border')
     expect(details.querySelector('summary')!.className).toContain('text-base')
     // values are not bold
     expect(last.querySelectorAll('dd.font-semibold, dd.font-bold')).toHaveLength(0)

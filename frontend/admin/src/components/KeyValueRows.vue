@@ -16,7 +16,7 @@ const rows = computed(() => detailRows(props.item))
     <div
       v-for="(row, index) in rows"
       :key="index"
-      class="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-x-4 border-soft py-[5px] not-last:border-b max-sm:grid-cols-1"
+      class="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-x-4 py-1.5 max-sm:grid-cols-1 max-sm:py-2"
     >
       <dt class="text-caption font-semibold wrap-anywhere text-mute">{{ row.name }}</dt>
       <dd class="text-sm wrap-anywhere text-ink max-sm:mt-0.5">{{ row.value }}</dd>
