@@ -153,7 +153,10 @@ const days = computed(() => groupByDay(entries.value))
 <template>
   <main class="page-column py-8">
     <h1 class="text-3xl font-bold">Aktivität</h1>
-    <p class="text-mute">Wer hat wann was erfasst?</p>
+    <p class="mt-2 text-measure text-mute">
+      Wer hat wann was erfasst? Die Uhrzeit links ist der Eingang am Server (nach einem Sync), die
+      Zeiten in den Details sind die Uhrzeit am Handy zum Zeitpunkt der Erfassung.
+    </p>
 
     <form class="mt-6 flex flex-wrap items-end gap-x-4 gap-y-3" @submit.prevent>
       <label class="flex flex-col text-sm text-mute">
@@ -302,12 +305,7 @@ const days = computed(() => groupByDay(entries.value))
     </StatusCard>
 
     <template v-else>
-      <p v-if="totals" class="mt-6 flex flex-wrap items-baseline gap-x-3">
-        <span class="text-lg font-bold">{{ entriesText(totals.entries) }}</span>
-        <span class="text-sm text-mute"
-          >Uhrzeit = Eingang am Server · „erfasst“ = Uhrzeit am Handy</span
-        >
-      </p>
+      <p v-if="totals" class="mt-6 text-lg font-bold">{{ entriesText(totals.entries) }}</p>
 
       <section
         v-for="day in days"
