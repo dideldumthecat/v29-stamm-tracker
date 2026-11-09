@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ActivityEntry, ActivityItem } from '@v29/shared/contract'
 
-import { detailRows, groupByDay, isReadableTags, recordedRange, summarize } from '@/activity'
+import { detailRows, formatRecordedTime, groupByDay, isReadableTags, summarize } from '@/activity'
 import { activityFixture } from './fakeActivity'
 
 const entryOf = (name: string) => activityFixture.entries.find((entry) => entry.user.name === name)!
@@ -163,11 +163,28 @@ describe('days and times', () => {
     const entry = { ...activityFixture.entries[0], received_at: '2026-10-31T23:30:00.000Z' }
     expect(groupByDay([entry])[0].heading).toBe('So, 01.11.2026')
   })
+})
 
-  it('shows the recorded range in German time, one time if it is a single minute, also for the console', () => {
-    expect(recordedRange(entryOf('Alexander Barina'))).toBe('erfasst 11:46–11:48')
-    expect(recordedRange(entryOf('Florian Summa'))).toBe('erfasst 11:40–11:41')
-    expect(recordedRange(activityFixture.entries[1])).toBe('erfasst 17:09')
+describe('recorded times against the arrival day', () => {
+  const received = '2026-11-08T10:30:00.000Z' // 08.11. 11:30 in Berlin
+
+  it('shows no date on the arrival day', () => {
+    expect(formatRecordedTime('2026-11-08T10:46:00Z', received)).toBe('11:46')
+  })
+
+  it('shows the date (TT.MM.) on any other day', () => {
+    // the production case of 8 Nov 2026: recorded 4 Nov 18:02 to 5 Nov 18:00
+    expect(formatRecordedTime('2026-11-04T17:02:00Z', received)).toBe('04.11. 18:02')
+    expect(formatRecordedTime('2026-11-05T17:00:00Z', received)).toBe('05.11. 18:00')
+  })
+
+  it('compares the days in German time, not in UTC', () => {
+    // 23:10 UTC on the 7th is 00:10 on the 8th in Berlin: the arrival day
+    expect(formatRecordedTime('2026-11-07T23:10:00Z', received)).toBe('00:10')
+    // arrival 23:30 UTC on the 7th is the 8th in Berlin; 22:30 UTC on the 7th is still the 7th there
+    expect(formatRecordedTime('2026-11-07T22:30:00Z', '2026-11-07T23:30:00.000Z')).toBe(
+      '07.11. 23:30',
+    )
   })
 })
 

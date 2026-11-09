@@ -161,7 +161,7 @@ test.describe('activity', () => {
     await expect(page.getByRole('heading', { name: 'Di, 03.11.2026' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Sa, 31.10.2026' })).toBeVisible()
     await expect(page.getByRole('article').filter({ hasText: 'Alexander Barina' })).toBeVisible()
-    await expect(page.getByText('11 Ereignisse · erfasst 11:46–11:48')).toBeVisible()
+    await expect(page.getByText('11 Ereignisse')).toBeVisible()
     await expect(page.getByText('3 Balken angelegt')).toBeVisible()
     await expect(page.getByText('Gesägt – 1 Stamm')).toBeVisible()
     await expect(page.getByText('2 Stämme storniert')).toBeVisible()

@@ -4,7 +4,7 @@ import { ChevronDownIcon } from '@lucide/vue'
 import type { ActivityEntry } from '@v29/shared/contract'
 import FormattedTag from '@v29/shared/FormattedTag.vue'
 
-import { detailRows, eventsText, formatTime, recordedRange, summarize } from '@/activity'
+import { detailRows, eventsText, formatRecordedTime, formatTime, summarize } from '@/activity'
 
 const props = defineProps<{ entry: ActivityEntry }>()
 
@@ -28,12 +28,10 @@ const hasNumber = (label: string) => /^\d/.test(label)
         formatTime(entry.received_at)
       }}</time>
       <div class="text-measure min-w-0">
-        <p class="flex flex-wrap items-baseline gap-x-4">
+        <p class="flex flex-wrap items-baseline gap-x-2 gap-y-1 max-sm:flex-col">
           <span class="font-semibold">{{ entry.user.name }}</span>
           {{ ' ' }}
-          <span class="text-sm text-mute tabular-nums"
-            >{{ eventsText(entry.event_count) }} · {{ recordedRange(entry) }}</span
-          >
+          <span class="text-sm text-mute tabular-nums">{{ eventsText(entry.event_count) }}</span>
         </p>
         <ul class="mt-2 list-disc space-y-1 pl-5">
           <li v-for="line in lines" :key="line">{{ line }}</li>
@@ -61,16 +59,18 @@ const hasNumber = (label: string) => /^\d/.test(label)
           <div v-for="(item, index) in items" :key="item.label" class="card">
             <div
               :id="`${uid}-${index}`"
-              class="flex items-baseline justify-between gap-x-3 border-b border-soft px-(--pad) py-2"
+              class="flex flex-wrap items-baseline justify-between gap-x-3 border-b border-soft px-(--pad) py-2"
             >
               <span class="font-semibold tracking-[.05em] tabular-nums">
                 <FormattedTag v-if="hasNumber(item.label)" :tag-number="item.label" />
                 <template v-else>{{ item.label }}</template>
               </span>
-              <!-- Device time of the item's first change: why the items are not sorted by tag. -->
-              <time class="text-mute tabular-nums" :datetime="item.changes[0].recorded_at">{{
-                formatTime(item.changes[0].recorded_at)
-              }}</time>
+              <!-- Device time of the item's first change (with the date if not on the arrival day): why the items are not sorted by tag. May wrap below the tag on narrow screens, never cut off. -->
+              <time
+                class="whitespace-nowrap text-mute tabular-nums"
+                :datetime="item.changes[0].recorded_at"
+                >{{ formatRecordedTime(item.changes[0].recorded_at, entry.received_at) }}</time
+              >
             </div>
             <table class="w-full text-left max-md:block" :aria-labelledby="`${uid}-${index}`">
               <!-- Only for screen readers: the columns explain themselves. -->
@@ -94,7 +94,11 @@ const hasNumber = (label: string) => /^\d/.test(label)
                   >
                     {{ row.name }}
                   </th>
-                  <td class="py-2 pr-(--pad) wrap-anywhere text-ink max-md:mt-0.5 max-md:block max-md:py-0 max-md:pl-(--pad)">{{ row.value }}</td>
+                  <td
+                    class="py-2 pr-(--pad) wrap-anywhere text-ink max-md:mt-0.5 max-md:block max-md:py-0 max-md:pl-(--pad)"
+                  >
+                    {{ row.value }}
+                  </td>
                 </tr>
               </tbody>
             </table>

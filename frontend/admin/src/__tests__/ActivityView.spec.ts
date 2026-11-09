@@ -83,7 +83,7 @@ describe('activity page', () => {
     const entry = entryAt(wrapper, '11:48')
 
     expect(entry.querySelector('p')!.textContent!.replace(/\s+/g, ' ').trim()).toBe(
-      'Alexander Barina 11 Ereignisse · erfasst 11:46–11:48',
+      'Alexander Barina 11 Ereignisse',
     )
     expect([...entry.querySelectorAll('ul > li')].map((li) => li.textContent)).toEqual([
       '3 Balken angelegt',
@@ -91,8 +91,7 @@ describe('activity page', () => {
       'Notiz – 1 Balken',
       '3 Fotos',
     ])
-    // also a console command has a recorded time: its own instant
-    expect(squeezed(entryAt(wrapper, '17:09'))).toContain('2 Ereignisse · erfasst 17:09')
+    expect(squeezed(entryAt(wrapper, '17:09'))).toContain('2 Ereignisse')
     expect(wrapper.findAll('button').find((b) => b.text() === 'Details')).toBeUndefined()
   })
 
