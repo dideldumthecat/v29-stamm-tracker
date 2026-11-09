@@ -325,7 +325,7 @@ watch(() => route.params.tag, load, { immediate: true })
                   <p :id="`history-${index}`" class="leading-5 font-semibold">
                     {{ point.user }}
                   </p>
-                  <p v-if="point.transferredAt" class="text-xs text-mute tabular-nums">
+                  <p v-if="point.transferredAt" class="text-caption text-mute tabular-nums">
                     übertragen {{ formatDayMonthTime(point.transferredAt) }}
                   </p>
                   <template v-for="pointItem in point.items" :key="pointItem.timber_item_id">
