@@ -22,16 +22,17 @@ const markMissing = (id: string) => (missing.value = new Set(missing.value).add(
     <template v-else>
       <div
         v-if="missing.has(ids[selected])"
-        class="mt-3 flex h-[420px] w-full flex-col items-center justify-center gap-3 bg-well text-dim"
+        class="mt-3 flex h-[420px] min-h-60 w-full flex-col items-center justify-center gap-3 bg-well text-dim"
       >
         <ImageIcon :size="64" :stroke-width="1.5" aria-hidden="true" />
         <p>Foto noch nicht hochgeladen</p>
       </div>
-      <!-- The whole frame opens the gallery; the lens is only the hint. object-contain: the photo is never cropped. -->
+      <!-- The whole frame opens the gallery; the lens is only the hint. object-contain: the photo is never cropped.
+           While the card is sticky it is a flex column with a maximum height (set by the page): the frame gives way, down to 240 px. -->
       <button
         v-else
         type="button"
-        class="relative mt-3 flex h-[420px] w-full cursor-zoom-in items-center justify-center bg-well"
+        class="relative mt-3 flex h-[420px] min-h-60 w-full cursor-zoom-in items-center justify-center bg-well"
         aria-label="Foto vergrößern"
         @click="galleryOpen = true"
       >
