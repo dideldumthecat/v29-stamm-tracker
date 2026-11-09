@@ -172,8 +172,11 @@ describe('beam detail', () => {
 
     expect(wrapper.get('h1').text()).toBe('00104-C')
     expect(wrapper.get('main header p').text()).toBe('BALKEN')
-    expect(wrapper.get('main header a').text()).toBe('Aus Stamm 00104')
-    expect(wrapper.get('main header a').attributes('href')).toBe('/staemme/104')
+    const stem = wrapper
+      .findAll('main header a')
+      .find((link) => link.text().startsWith('Aus Stamm'))!
+    expect(stem.text()).toBe('Aus Stamm 00104')
+    expect(stem.attributes('href')).toBe('/staemme/104')
     expect(wrapper.findAll('h2').map((h2) => h2.text())).not.toContain('Balken (3)')
     expect(valueRow(wrapper, 'Holzart')).toBe('HolzartStieleiche vom Stamm geerbt')
     const history = section(wrapper, 'Verlauf')
@@ -249,7 +252,7 @@ describe('back', () => {
   // history.state.back does not exist in a memory history: stepping back is covered by the E2E test.
   it('links to the activity when the page was opened directly', async () => {
     const { wrapper } = await open('/staemme/104', 'replace')
-    const back = wrapper.findAll('a').find((link) => link.text() === '← Zurück')!
+    const back = wrapper.findAll('a').find((link) => link.text() === 'Zurück')!
     expect(back.attributes('href')).toBe('/aktivitaet')
   })
 })
