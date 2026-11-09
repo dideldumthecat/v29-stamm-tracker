@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ChevronDownIcon, TreesIcon } from '@lucide/vue'
 import { beamSummary } from '@v29/shared/attributes'
@@ -108,22 +108,6 @@ const hasYearMarks = computed(() => timeline.value.some((row) => row.year !== un
 
 const card = 'card p-4 sm:p-6'
 
-// From 900 px on the header is sticky and the cards start below it: they share the grid cell, so the cards need the header's height
-// as their top margin (it varies with the meta line and the beam link). The guard is for jsdom, which has no ResizeObserver.
-const headerEl = ref<HTMLElement | null>(null)
-const headerHeight = ref(0)
-let headerObserver: ResizeObserver | undefined
-watch(headerEl, (element) => {
-  headerObserver?.disconnect()
-  if (!element) return
-  const measure = () => (headerHeight.value = element.offsetHeight)
-  measure()
-  if (typeof ResizeObserver === 'undefined') return
-  headerObserver = new ResizeObserver(measure)
-  headerObserver.observe(element)
-})
-onBeforeUnmount(() => headerObserver?.disconnect())
-
 // Last, so that everything `load` touches exists.
 watch(() => route.params.tag, load, { immediate: true })
 </script>
@@ -172,20 +156,11 @@ watch(() => route.params.tag, load, { immediate: true })
     </StatusCard>
 
     <template v-else>
-      <!-- From 900 px on two columns (40/60): the photos and the header stay in view while the cards scroll on the right.
+      <!-- From 900 px on two columns (40/60): the photos stay in view (sticky, spanning both rows) while header and cards scroll on the right.
            Below, one column in the order of the DOM: Kopf, Fotos, Balken, Werte, Notizen, Verlauf.
-           The header exists once (one heading for screen readers), the grid only moves it: header and cards share the right cell,
-           the cards start below the header (its measured height) and scroll under it. -->
-      <div
-        class="mt-8 grid items-start gap-6 min-[900px]:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]"
-        :style="{ '--header-block': `${headerHeight}px` }"
-      >
-        <!-- From 900 px: sticky like the photos. Its 24 px of padding above (taken back by the negative margin) and below hide the cards
-             scrolling past, so the text sits where the photos start (16 px from the top, from lg on 24 px under the sticky page header). -->
-        <header
-          ref="headerEl"
-          class="min-w-0 min-[900px]:sticky min-[900px]:-top-2 min-[900px]:z-10 min-[900px]:col-start-2 min-[900px]:row-start-1 min-[900px]:-mt-6 min-[900px]:bg-desk min-[900px]:px-6 min-[900px]:py-6 lg:top-[var(--header-height,0px)]"
-        >
+           The header exists once (one heading for screen readers), the grid only moves it. Its 24 px at the sides line the text up with the cards. -->
+      <div class="mt-8 grid items-start gap-6 min-[900px]:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+        <header class="min-w-0 min-[900px]:col-start-2 min-[900px]:row-start-1 min-[900px]:px-6">
           <p class="text-[22px] font-bold tracking-[.06em]">{{ isBeam ? 'BALKEN' : 'STAMM' }}</p>
           <h1 class="-mr-[.05em] text-5xl font-extrabold tracking-[.05em] tabular-nums">
             <FormattedTag :tag-number="tag!" />
@@ -206,17 +181,18 @@ watch(() => route.params.tag, load, { immediate: true })
           </RouterLink>
         </header>
 
-        <!-- Sticky 24 px (like the gap between the cards) under the header (sticky itself from lg on), otherwise 16 px from the top. -->
+        <!-- Sticky 24 px (like the gap between the cards) under the page header (sticky itself from lg on), otherwise 16 px from the top.
+             The maximum height keeps the whole card in the viewport (the main photo shrinks, see ItemPhotos). It also leaves room for what sits below
+             the grid at the end of the page (bottom padding of the page and footer, about 7 rem): there the card ends with its grid area,
+             and if it were taller it would be pushed up under the page header. -->
         <ItemPhotos
           :key="item.id"
-          class="min-[900px]:sticky min-[900px]:top-4 min-[900px]:col-start-1 min-[900px]:row-start-1 lg:top-[calc(var(--header-height,0px)+24px)]"
+          class="min-[900px]:sticky min-[900px]:top-4 min-[900px]:col-start-1 min-[900px]:row-span-2 min-[900px]:row-start-1 min-[900px]:flex min-[900px]:max-h-[calc(100dvh-1rem-7rem)] min-[900px]:flex-col lg:top-[calc(var(--header-height,0px)+24px)] lg:max-h-[calc(100dvh-var(--header-height,0px)-24px-7rem)]"
           :photos="parts.photos"
           :tag="tag!"
         />
 
-        <div
-          class="flex min-w-0 flex-col gap-6 min-[900px]:col-start-2 min-[900px]:row-start-1 min-[900px]:mt-[calc(var(--header-block)-24px)]"
-        >
+        <div class="flex min-w-0 flex-col gap-6 min-[900px]:col-start-2 min-[900px]:row-start-2">
           <section v-if="beams.length" :class="card" aria-labelledby="beams-heading">
             <h2 id="beams-heading" class="text-lg font-bold">Balken ({{ beams.length }})</h2>
             <ul class="mt-2">
