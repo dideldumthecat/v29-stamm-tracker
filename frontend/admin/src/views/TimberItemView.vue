@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { ChevronDownIcon, TreesIcon } from '@lucide/vue'
+import { useRoute } from 'vue-router'
+import { ChevronDownIcon, CornerLeftUpIcon, TreesIcon } from '@lucide/vue'
 import { beamSummary } from '@v29/shared/attributes'
 import type { ActivityEntry, ActivityResponse, Snapshot } from '@v29/shared/contract'
 import BeamRowLabel from '@v29/shared/BeamRowLabel.vue'
@@ -10,6 +10,7 @@ import SawBladeIcon from '@v29/shared/SawBladeIcon.vue'
 
 import { formatDateTime, formatDayMonth, formatDayMonthTime, formatTime, yearOf } from '@/activity'
 import { ApiError, request } from '@/api/client'
+import BackLink from '@/components/BackLink.vue'
 import ItemPhotos from '@/components/ItemPhotos.vue'
 import KeyValueRows from '@/components/KeyValueRows.vue'
 import StatusCard from '@/components/StatusCard.vue'
@@ -17,19 +18,12 @@ import {
   beamsOf,
   historyPoints,
   normalizeTag,
-  plaqueTag,
   splitValues,
   stemNumber,
   timelineRows,
 } from '@/detail'
 
 const route = useRoute()
-const router = useRouter()
-
-// "Zurück" steps back only if the page was opened from inside the administration (and not from the sign-in);
-// otherwise, e.g. after a pasted link, it leads to the activity.
-const previous = router.options.history.state.back
-const canGoBack = typeof previous === 'string' && !previous.startsWith('/login')
 
 const tag = computed(() => normalizeTag(String(route.params.tag)))
 
@@ -113,20 +107,13 @@ watch(() => route.params.tag, load, { immediate: true })
 </script>
 
 <template>
-  <main class="page-column py-8">
-    <button
-      v-if="canGoBack"
-      type="button"
-      class="inline-flex h-11 items-center underline"
-      @click="router.back()"
-    >
-      ← Zurück
-    </button>
-    <RouterLink v-else to="/aktivitaet" class="inline-flex h-11 items-center underline"
-      >← Zurück</RouterLink
-    >
+  <!-- Flex column, so the negative margins of the back link do not collapse with the margin of what follows. -->
+  <main class="page-column flex flex-col pt-4 pb-8">
+    <!-- Without header (loading, error, not found) the link sits above the card. 44 px tap target, but only the text line (24 px)
+         takes up space: the rest hangs into the padding and the gap below. With content it is the first element of the header. -->
+    <BackLink v-if="status !== 'ready' || !item" class="-my-2.5 self-start" />
 
-    <div v-if="status === 'error'" class="mt-6" role="alert">
+    <div v-if="status === 'error'" class="mt-2" role="alert">
       <p class="font-bold">
         {{
           failure === 0 ? 'Keine Verbindung zum Server.' : `${kind} konnte nicht geladen werden.`
@@ -141,14 +128,19 @@ watch(() => route.params.tag, load, { immediate: true })
       </button>
     </div>
 
-    <StatusCard v-else-if="status === 'loading'" title="Moment" role="status">
+    <StatusCard v-else-if="status === 'loading'" title="Moment" role="status" class="mt-2!">
       <template #icon>
         <SawBladeIcon :size="96" :stroke-width="1.5" spinning class="text-ink" aria-hidden="true" />
       </template>
       <template #text>{{ kind }} wird herausgesägt</template>
     </StatusCard>
 
-    <StatusCard v-else-if="status === 'missing' || !item" title="Waldesruh" role="status">
+    <StatusCard
+      v-else-if="status === 'missing' || !item"
+      title="Waldesruh"
+      role="status"
+      class="mt-2!"
+    >
       <template #icon>
         <TreesIcon :size="96" :stroke-width="1.5" class="text-ink" aria-hidden="true" />
       </template>
@@ -159,8 +151,9 @@ watch(() => route.params.tag, load, { immediate: true })
       <!-- From 900 px on two columns (40/60): the photos stay in view (sticky, spanning both rows) while header and cards scroll on the right.
            Below, one column in the order of the DOM: Kopf, Fotos, Balken, Werte, Notizen, Verlauf.
            The header exists once (one heading for screen readers), the grid only moves it. Its 24 px at the sides line the text up with the cards. -->
-      <div class="mt-8 grid items-start gap-6 min-[900px]:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+      <div class="grid items-start gap-6 min-[900px]:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
         <header class="min-w-0 min-[900px]:col-start-2 min-[900px]:row-start-1 min-[900px]:px-6">
+          <BackLink class="mb-2 w-fit" />
           <p class="text-[22px] font-bold tracking-[.06em]">{{ isBeam ? 'BALKEN' : 'STAMM' }}</p>
           <h1 class="-mr-[.05em] text-5xl font-extrabold tracking-[.05em] tabular-nums">
             <FormattedTag :tag-number="tag!" />
@@ -175,9 +168,13 @@ watch(() => route.params.tag, load, { immediate: true })
           <RouterLink
             v-if="isBeam"
             :to="{ name: 'timber-item', params: { tag: stemNumber(tag!) } }"
-            class="mt-2 inline-flex h-11 items-center underline"
+            class="mt-2 inline-flex h-11 items-center gap-2 font-semibold"
           >
-            Aus Stamm {{ plaqueTag(stemNumber(tag!)) }}
+            <CornerLeftUpIcon :size="20" aria-hidden="true" />
+            <span
+              >Aus Stamm
+              <FormattedTag :tag-number="stemNumber(tag!)" class="underline underline-offset-4"
+            /></span>
           </RouterLink>
         </header>
 
@@ -333,10 +330,11 @@ watch(() => route.params.tag, load, { immediate: true })
                     <p v-if="row.point.transferredAt" class="text-caption text-mute tabular-nums">
                       übertragen {{ formatDayMonthTime(row.point.transferredAt) }}
                     </p>
+                    <!-- The list is as wide as the cards of the activity at 1280 px (about 530 px): the fixed 2 : 3 columns would otherwise put name and value further apart than there. -->
                     <template v-for="pointItem in row.point.items" :key="pointItem.timber_item_id">
                       <KeyValueRows
                         v-if="pointItem.timber_item_id === item.id"
-                        class="mt-1"
+                        class="mt-1 sm:max-w-[33.5rem]"
                         :item="pointItem"
                         :labelledby="`history-${index}`"
                       />
