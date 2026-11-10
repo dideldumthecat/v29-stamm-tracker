@@ -488,10 +488,10 @@ test.describe('detail view', () => {
     page,
   }) => {
     const box = async (name: string) =>
-      (await page
-        .locator('section, details')
-        .filter({ hasText: new RegExp(`^\\s*${name}`) })
-        .boundingBox())!
+      (await (name === 'Fotos'
+        ? page.locator('section[aria-label="Fotos"]')
+        : page.locator('section, details').filter({ hasText: new RegExp(`^\\s*${name}`) })
+      ).boundingBox())!
     await page.setViewportSize({ width: 1200, height: 900 })
     await page.goto('/admin/staemme/104')
     await signIn(page, 'K7QM4XHT9RDP')
@@ -528,7 +528,7 @@ test.describe('detail view', () => {
   test('keeps the photos in view while scrolling from 900px on, and does not stick below', async ({
     page,
   }) => {
-    const photos = page.locator('section', { hasText: /^\s*Fotos/ })
+    const photos = page.locator('section[aria-label="Fotos"]')
     await page.setViewportSize({ width: 1200, height: 500 })
     await page.goto('/admin/staemme/104')
     await signIn(page, 'K7QM4XHT9RDP')
