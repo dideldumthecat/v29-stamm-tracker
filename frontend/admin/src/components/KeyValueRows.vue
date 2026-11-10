@@ -8,8 +8,9 @@ import { detailRows } from '@/activity'
 // Fixed columns (2fr | 3fr) in every block, never sized by the longest name, so that all blocks share one edge.
 // The parent may set --pad (the inner padding of its card); without it there is none.
 // `framed` (history): a faint border around the block, no lines between the rows.
-const props = defineProps<{ item: ActivityItem; labelledby: string; framed?: boolean }>()
-const rows = computed(() => detailRows(props.item))
+// Without `item` only the default slot is shown: extra rows (same row markup) appended to the list.
+const props = defineProps<{ item?: ActivityItem; labelledby: string; framed?: boolean }>()
+const rows = computed(() => (props.item ? detailRows(props.item) : []))
 </script>
 
 <template>
@@ -22,5 +23,6 @@ const rows = computed(() => detailRows(props.item))
       <dt class="text-caption font-semibold wrap-anywhere text-mute">{{ row.name }}</dt>
       <dd class="text-sm wrap-anywhere text-ink max-sm:mt-0.5">{{ row.value }}</dd>
     </div>
+    <slot />
   </dl>
 </template>

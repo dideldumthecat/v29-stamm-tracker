@@ -80,6 +80,7 @@ async function loadHistory(mine = latest) {
 
 const items = computed(() => snapshot.value?.timber_items ?? [])
 const item = computed(() => items.value.find((candidate) => candidate.tag_number === tag.value))
+const isOwn = (pointItem: { timber_item_id: string }) => pointItem.timber_item_id === item.value?.id
 const parent = computed(() =>
   items.value.find((candidate) => candidate.id === item.value?.parent_id),
 )
@@ -149,7 +150,7 @@ watch(() => route.params.tag, load, { immediate: true })
 
     <template v-else>
       <!-- From 900 px on two columns (40/60): the photos stay in view (sticky, spanning both rows) while header and cards scroll on the right.
-           Below, one column in the order of the DOM: Kopf, Fotos, Balken, Werte, Notizen, Verlauf.
+           Below, one column in the order of the DOM: Kopf, Fotos, Balken, Merkmale, Notizen, Verlauf.
            The header exists once (one heading for screen readers), the grid only moves it. Its 24 px at the sides line the text up with the cards. -->
       <div class="grid items-start gap-6 min-[900px]:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
         <header class="min-w-0 min-[900px]:col-start-2 min-[900px]:row-start-1 min-[900px]:px-6">
@@ -191,7 +192,7 @@ watch(() => route.params.tag, load, { immediate: true })
 
         <div class="flex min-w-0 flex-col gap-6 min-[900px]:col-start-2 min-[900px]:row-start-2">
           <section v-if="beams.length" :class="card" aria-labelledby="beams-heading">
-            <h2 id="beams-heading" class="text-lg font-bold">Balken ({{ beams.length }})</h2>
+            <h2 id="beams-heading" class="text-lg font-bold">Balken</h2>
             <ul class="mt-2">
               <li v-for="beam in beams" :key="beam.id" class="border-line not-last:border-b">
                 <RouterLink
@@ -208,7 +209,7 @@ watch(() => route.params.tag, load, { immediate: true })
           </section>
 
           <section :class="card" aria-labelledby="values-heading">
-            <h2 id="values-heading" class="text-lg font-bold">Werte</h2>
+            <h2 id="values-heading" class="text-lg font-bold">Merkmale</h2>
             <dl class="mt-2 divide-y divide-soft">
               <div
                 v-for="row in parts.rows"
@@ -331,30 +332,34 @@ watch(() => route.params.tag, load, { immediate: true })
                       übertragen {{ formatDayMonthTime(row.point.transferredAt) }}
                     </p>
                     <!-- Each block is framed (faint border, no lines between the rows) so that the rows of one point read as a group; name and "übertragen" stay above it. The width (36 rem) makes up for the border and the inner padding, so that the longest attribute name fits on one line; the fixed 2 : 3 columns would otherwise put name and value further apart. -->
-                    <template v-for="pointItem in row.point.items" :key="pointItem.timber_item_id">
-                      <KeyValueRows
-                        v-if="pointItem.timber_item_id === item.id"
-                        framed
-                        class="mt-2 [--pad:12px] sm:max-w-[36rem]"
-                        :item="pointItem"
-                        :labelledby="`history-${index}`"
-                      />
+                    <KeyValueRows
+                      :item="row.point.items.find((pointItem) => isOwn(pointItem))"
+                      framed
+                      class="mt-2 [--pad:12px] sm:max-w-[36rem]"
+                      :labelledby="`history-${index}`"
+                    >
                       <!-- A beam shows up in the history of its stem only as created (all else is in its own history). -->
-                      <p v-else class="mt-1.5 text-sm">
-                        <span class="text-caption font-semibold text-mute">Balken</span>{{ ' ' }}
-                        <RouterLink
-                          v-if="normalizeTag(pointItem.label)"
-                          :to="{
-                            name: 'timber-item',
-                            params: { tag: normalizeTag(pointItem.label)! },
-                          }"
-                          class="underline"
-                          ><FormattedTag :tag-number="pointItem.label"
-                        /></RouterLink>
-                        <template v-else>{{ pointItem.label }}</template>
-                        angelegt
-                      </p>
-                    </template>
+                      <div
+                        v-for="beam in row.point.items.filter((pointItem) => !isOwn(pointItem))"
+                        :key="beam.timber_item_id"
+                        class="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-x-4 px-[var(--pad,0px)] py-1.5 max-sm:grid-cols-1 max-sm:py-2"
+                      >
+                        <dt class="text-caption font-semibold wrap-anywhere text-mute">
+                          Balken{{ ' ' }}
+                          <RouterLink
+                            v-if="normalizeTag(beam.label)"
+                            :to="{
+                              name: 'timber-item',
+                              params: { tag: normalizeTag(beam.label)! },
+                            }"
+                            class="underline"
+                            ><FormattedTag :tag-number="beam.label"
+                          /></RouterLink>
+                          <template v-else>{{ beam.label }}</template>
+                        </dt>
+                        <dd class="text-sm wrap-anywhere text-ink max-sm:mt-0.5">angelegt</dd>
+                      </div>
+                    </KeyValueRows>
                   </div>
                 </li>
               </template>
