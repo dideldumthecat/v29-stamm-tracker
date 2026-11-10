@@ -330,11 +330,12 @@ watch(() => route.params.tag, load, { immediate: true })
                     <p v-if="row.point.transferredAt" class="text-caption text-mute tabular-nums">
                       übertragen {{ formatDayMonthTime(row.point.transferredAt) }}
                     </p>
-                    <!-- The list is as wide as the cards of the activity at 1280 px (about 530 px): the fixed 2 : 3 columns would otherwise put name and value further apart than there. -->
+                    <!-- Each block is framed (faint border, no lines between the rows) so that the rows of one point read as a group; name and "übertragen" stay above it. The width (36 rem) makes up for the border and the inner padding, so that the longest attribute name fits on one line; the fixed 2 : 3 columns would otherwise put name and value further apart. -->
                     <template v-for="pointItem in row.point.items" :key="pointItem.timber_item_id">
                       <KeyValueRows
                         v-if="pointItem.timber_item_id === item.id"
-                        class="mt-1 sm:max-w-[33.5rem]"
+                        framed
+                        class="mt-2 [--pad:12px] sm:max-w-[36rem]"
                         :item="pointItem"
                         :labelledby="`history-${index}`"
                       />
