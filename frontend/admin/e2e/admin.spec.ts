@@ -488,9 +488,10 @@ test.describe('detail view', () => {
     page,
   }) => {
     const box = async (name: string) =>
-      (await (name === 'Fotos'
-        ? page.locator('section[aria-label="Fotos"]')
-        : page.locator('section, details').filter({ hasText: new RegExp(`^\\s*${name}`) })
+      (await (
+        name === 'Fotos'
+          ? page.locator('section[aria-label="Fotos"]')
+          : page.locator('section, details').filter({ hasText: new RegExp(`^\\s*${name}`) })
       ).boundingBox())!
     await page.setViewportSize({ width: 1200, height: 900 })
     await page.goto('/admin/staemme/104')
