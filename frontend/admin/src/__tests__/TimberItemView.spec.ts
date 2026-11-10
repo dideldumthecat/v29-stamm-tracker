@@ -30,7 +30,9 @@ async function open(path: string, how: 'push' | 'replace' = 'push') {
 
 const squeezed = (text: string) => text.replace(/\s+/g, ' ').trim()
 const section = (wrapper: VueWrapper, heading: string) =>
-  wrapper.findAll('section, details').find((part) => part.text().startsWith(heading))!
+  heading === 'Fotos'
+    ? wrapper.find('section[aria-label="Fotos"]')
+    : wrapper.findAll('section, details').find((part) => part.text().startsWith(heading))!
 const valueRow = (wrapper: VueWrapper, name: string) =>
   squeezed(
     wrapper.findAll('dt').find((dt) => dt.text() === name)!.element.parentElement!.textContent!,
@@ -68,7 +70,6 @@ describe('stem detail', () => {
       'Angelegt 29.10.2026, 11:09 von Alexander Summa Zuletzt geändert 31.10.2026, 11:50 von Alexander Barina',
     )
     expect(wrapper.findAll('h2').map((h2) => h2.text())).toEqual([
-      'Fotos (2)',
       'Balken (3)',
       'Werte',
       'Notizen',
@@ -159,9 +160,11 @@ describe('stem detail', () => {
     ])
   })
 
-  it('shows "Keine Fotos." and a dash for the notes where there is nothing', async () => {
+  it('shows a placeholder that cannot be opened and a dash for the notes where there is nothing', async () => {
     const { wrapper } = await open('/staemme/104-B')
-    expect(section(wrapper, 'Fotos (0)').text()).toContain('Keine Fotos.')
+    const photos = section(wrapper, 'Fotos')
+    expect(photos.get('[role=img]').attributes('aria-label')).toBe('Noch keine Fotos')
+    expect(photos.findAll('button, img')).toHaveLength(0)
     expect(section(wrapper, 'Notizen').get('[aria-label="keine Notiz"]').text()).toBe('–')
   })
 })
@@ -274,7 +277,7 @@ describe('link from the activity', () => {
 describe('photos', () => {
   it('shows the first photo large and all as thumbnails, the chosen one pressed', async () => {
     const { wrapper } = await open('/staemme/104')
-    const photos = section(wrapper, 'Fotos (2)')
+    const photos = section(wrapper, 'Fotos')
 
     expect(largePhoto(wrapper).get('img').attributes('src')).toBe(photoUrl(stemPhotos[0]))
     const thumbs = photos.findAll('button[aria-pressed]')
