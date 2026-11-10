@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { ImageIcon, ImageOffIcon } from '@lucide/vue'
 
+import { formatDateTime } from '@/activity'
 import PhotoGallery from '@/components/PhotoGallery.vue'
 import type { PhotoRecord } from '@/detail'
 
@@ -55,6 +56,12 @@ const markMissing = (id: string) => (missing.value = new Set(missing.value).add(
           @error="markMissing(ids[selected])"
         />
       </button>
+
+      <!-- shrink-0: in the sticky column only the stage gives way. -->
+      <p class="mt-2 shrink-0 text-center text-caption text-mute tabular-nums">
+        Foto {{ selected + 1 }} von {{ ids.length }} ·
+        {{ formatDateTime(photos[selected].recorded_at) }}
+      </p>
 
       <div class="mt-3 flex flex-wrap gap-2">
         <button

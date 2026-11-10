@@ -69,11 +69,7 @@ describe('stem detail', () => {
     expect(squeezed(wrapper.get('h1 + p').text())).toBe(
       'Angelegt 29.10.2026, 11:09 von Alexander Summa Zuletzt geändert 31.10.2026, 11:50 von Alexander Barina',
     )
-    expect(wrapper.findAll('h2').map((h2) => h2.text())).toEqual([
-      'Balken (3)',
-      'Werte',
-      'Notizen',
-    ])
+    expect(wrapper.findAll('h2').map((h2) => h2.text())).toEqual(['Balken (3)', 'Werte', 'Notizen'])
     expect(api.calls).toContain('GET /api/snapshot')
     expect(api.calls).toContain('GET /api/admin/activity?tags=104')
     expect(wrapper.text()).not.toContain('Aus Stamm')
@@ -287,6 +283,19 @@ describe('photos', () => {
     await thumbs[1].trigger('click')
     expect(largePhoto(wrapper).get('img').attributes('src')).toBe(photoUrl(stemPhotos[1]))
     expect(thumbs.map((thumb) => thumb.attributes('aria-pressed'))).toEqual(['false', 'true'])
+  })
+
+  it('names position and recording time of the chosen photo under the large one, also if it is not uploaded', async () => {
+    const { wrapper } = await open('/staemme/104')
+    const photos = section(wrapper, 'Fotos')
+    const line = () => photos.get('p.tabular-nums').text()
+
+    expect(line()).toBe(`Foto 1 von 2 · ${stemPhotoDays[0]}`)
+    await photos.findAll('button[aria-pressed]')[1].trigger('click')
+    expect(line()).toBe(`Foto 2 von 2 · ${stemPhotoDays[1]}`)
+
+    await largePhoto(wrapper).get('img').trigger('error')
+    expect(line()).toBe(`Foto 2 von 2 · ${stemPhotoDays[1]}`)
   })
 
   it('replaces a photo that is not uploaded yet with a placeholder that cannot be opened', async () => {
