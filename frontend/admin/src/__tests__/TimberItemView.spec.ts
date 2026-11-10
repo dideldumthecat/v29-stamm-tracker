@@ -69,7 +69,7 @@ describe('stem detail', () => {
     expect(squeezed(wrapper.get('h1 + p').text())).toBe(
       'Angelegt 29.10.2026, 11:09 von Alexander Summa Zuletzt geändert 31.10.2026, 11:50 von Alexander Barina',
     )
-    expect(wrapper.findAll('h2').map((h2) => h2.text())).toEqual(['Balken (3)', 'Werte', 'Notizen'])
+    expect(wrapper.findAll('h2').map((h2) => h2.text())).toEqual(['Balken', 'Merkmale', 'Notizen'])
     expect(api.calls).toContain('GET /api/snapshot')
     expect(api.calls).toContain('GET /api/admin/activity?tags=104')
     expect(wrapper.text()).not.toContain('Aus Stamm')
@@ -77,7 +77,7 @@ describe('stem detail', () => {
 
   it('lists the values with who and when, the notes with their line breaks', async () => {
     const { wrapper } = await open('/staemme/104')
-    const values = section(wrapper, 'Werte')
+    const values = section(wrapper, 'Merkmale')
 
     expect(valueRow(wrapper, 'Holzart')).toBe('HolzartStieleiche Alexander Summa · 29.10.')
     const missing = wrapper.findAll('dt').find((dt) => dt.text() === 'Lieferdatum')!.element
@@ -97,7 +97,7 @@ describe('stem detail', () => {
 
   it('lists the beams as links with their short info', async () => {
     const { wrapper } = await open('/staemme/104')
-    const links = section(wrapper, 'Balken (3)').findAll('a')
+    const links = section(wrapper, 'Balken').findAll('a')
 
     expect(links.map((link) => link.attributes('href'))).toEqual([
       '/staemme/104-A',
@@ -122,7 +122,7 @@ describe('stem detail', () => {
     expect(history.findAll('ol > li:not([aria-hidden])')[0].get('time span').text()).toContain(
       '31.10.2026',
     )
-    expect(section(wrapper, 'Werte').text()).toContain('Alexander Summa · 29.10.26')
+    expect(section(wrapper, 'Merkmale').text()).toContain('Alexander Summa · 29.10.26')
   })
 
   it('shows the history as a closed timeline by device time, the stem without a heading, its beams with one', async () => {
@@ -138,17 +138,17 @@ describe('stem detail', () => {
     expect(point.get('p').text()).toBe('Alexander Barina')
     expect(history.findAll('li[aria-hidden]')).toHaveLength(0)
     expect(point.text()).not.toContain('übertragen')
-    // the stem has its rows; its beams show up only as created (their values are in their own history)
+    // the stem has its rows; its beams are further rows of the same list (their values are in their own history)
     const lists = history.findAll('dl')
     expect(lists).toHaveLength(1)
-    expect(lists[0].findAll('dl > div').map((row) => squeezed(row.text()))).toEqual(['Gesägtja'])
-    expect(lists[0].attributes('aria-labelledby')).toBe(point.get('p').attributes('id'))
-    expect(point.findAll('p').map((p) => squeezed(p.text()))).toEqual([
-      'Alexander Barina',
-      'Balken 00104-A angelegt',
-      'Balken 00104-B angelegt',
-      'Balken 00104-C angelegt',
+    expect(lists[0].findAll('dl > div').map((row) => squeezed(row.text()))).toEqual([
+      'Gesägtja',
+      'Balken 00104-Aangelegt',
+      'Balken 00104-Bangelegt',
+      'Balken 00104-Cangelegt',
     ])
+    expect(lists[0].attributes('aria-labelledby')).toBe(point.get('p').attributes('id'))
+    expect(point.findAll('p').map((p) => squeezed(p.text()))).toEqual(['Alexander Barina'])
     expect(history.findAll('a').map((link) => link.attributes('href'))).toEqual([
       '/staemme/104-A',
       '/staemme/104-B',
@@ -176,7 +176,7 @@ describe('beam detail', () => {
       .find((link) => link.text().startsWith('Aus Stamm'))!
     expect(stem.text()).toBe('Aus Stamm 00104')
     expect(stem.attributes('href')).toBe('/staemme/104')
-    expect(wrapper.findAll('h2').map((h2) => h2.text())).not.toContain('Balken (3)')
+    expect(wrapper.findAll('h2').map((h2) => h2.text())).not.toContain('Balken')
     expect(valueRow(wrapper, 'Holzart')).toBe('HolzartStieleiche vom Stamm geerbt')
     const history = section(wrapper, 'Verlauf')
     expect(squeezed(history.get('summary').text())).toBe('Verlauf')
