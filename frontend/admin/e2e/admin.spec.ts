@@ -484,7 +484,7 @@ test.describe('detail view', () => {
     await expect(dialog).toBeHidden()
   })
 
-  test('puts Fotos left (40 %), Balken, Werte, Notizen and Verlauf right (60 %), one column below 900px', async ({
+  test('puts Fotos left (40 %), Balken, Merkmale, Notizen and Verlauf right (60 %), one column below 900px', async ({
     page,
   }) => {
     const box = async (name: string) =>
@@ -500,7 +500,7 @@ test.describe('detail view', () => {
     const [photos, beams, values, notes, history] = [
       await box('Fotos'),
       await box('Balken'),
-      await box('Werte'),
+      await box('Merkmale'),
       await box('Notizen'),
       await box('Verlauf'),
     ]
@@ -516,7 +516,7 @@ test.describe('detail view', () => {
     const ys = [
       await box('Fotos'),
       await box('Balken'),
-      await box('Werte'),
+      await box('Merkmale'),
       await box('Notizen'),
       await box('Verlauf'),
     ]
