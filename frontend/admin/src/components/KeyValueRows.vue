@@ -13,10 +13,7 @@ const rows = computed(() => detailRows(props.item))
 </script>
 
 <template>
-  <dl
-    :class="framed && 'rounded-lg border border-soft'"
-    :aria-labelledby="labelledby"
-  >
+  <dl :class="framed && 'rounded-lg border border-soft'" :aria-labelledby="labelledby">
     <div
       v-for="(row, index) in rows"
       :key="index"
