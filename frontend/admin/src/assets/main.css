@@ -31,4 +31,9 @@
     outline: 3px solid var(--color-ink);
     outline-offset: 2px;
   }
+  /* Tailwind 4 resets buttons to the default cursor; utilities such as cursor-zoom-in still win over this layer. */
+  button:not(:disabled),
+  [role='button']:not(:disabled) {
+    cursor: pointer;
+  }
 }
