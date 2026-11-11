@@ -6,7 +6,7 @@
 
 /* The one column of every page (header, content, footer): the left edge stays put when switching pages. */
 @utility page-column {
-  @apply mx-auto w-full max-w-[1280px] px-4 sm:px-8;
+  @apply mx-auto w-full max-w-[1280px] px-(--page-gutter);
 }
 
 /* A white card on the grey page background. */
@@ -20,11 +20,26 @@
 }
 
 @layer base {
-  /* The 8px keep the focus ring clear of the edge; from lg on (header sticky) App.vue's measured header height is added. */
+  :root {
+    --page-gutter: 1rem; /* the side margin of the page column, 16 px */
+    @variant sm {
+      --page-gutter: 2rem;
+    }
+  }
+  /* The width of the window without its scrollbar, for what must be as wide as the window although the page is wider (1cqw = 1 % of it).
+     A page that scrolls sideways (the stem list) sticks such parts to the left edge. */
+  #app {
+    container-type: inline-size;
+  }
+  /* The 8px keep the focus ring clear of the edge. --sticky-top is what sticks to the top of the window: from lg on the header (measured by
+     App.vue, below it scrolls away) and the bar of a page that has one (the stem list, --sticky-bar-height). The table head and the first column
+     of the stem list add their sizes (--table-head-height, --stem-column-width): focused elements land clear of all of it. */
   html {
-    scroll-padding-top: 8px;
+    --sticky-top: var(--sticky-bar-height, 0px);
+    scroll-padding-top: calc(var(--sticky-top) + var(--table-head-height, 0px) + 8px);
+    scroll-padding-left: calc(var(--stem-column-width, 0px) + 8px);
     @variant lg {
-      scroll-padding-top: calc(var(--header-height, 0px) + 8px);
+      --sticky-top: calc(var(--header-height, 0px) + var(--sticky-bar-height, 0px));
     }
   }
   :focus-visible {

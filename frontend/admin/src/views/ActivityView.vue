@@ -1,14 +1,15 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, useTemplateRef, watch } from 'vue'
+import { computed, ref, useTemplateRef, watch } from 'vue'
 import { useRoute, useRouter, type LocationQueryRaw } from 'vue-router'
 import { ChevronDownIcon, TreesIcon, XIcon } from '@lucide/vue'
 import type { ActivityEntry, ActivityResponse } from '@v29/shared/contract'
 import SawBladeIcon from '@v29/shared/SawBladeIcon.vue'
 
-import { entriesText, groupByDay, isReadableTags } from '@/activity'
+import { entriesText, groupByDay } from '@/activity'
 import { ApiError, request } from '@/api/client'
 import ActivityEntryCard from '@/components/ActivityEntry.vue'
 import StatusCard from '@/components/StatusCard.vue'
+import { useTagsField } from '@/tagsField'
 
 const route = useRoute()
 const router = useRouter()
@@ -25,50 +26,12 @@ function setFilter(name: (typeof FILTERS)[number], value: string, replace = fals
   void (replace ? router.replace({ query }) : router.push({ query }))
 }
 
-// "Kennung" searches while typing. The field keeps its own text (the URL would round it, and the field must not be
-// re-rendered under the typing hand); the URL stays the only source of the filter and the field follows it.
-const AUTO_SEARCH_DELAY = 500
-const tagsInput = ref(filter.value.tags)
 const tagsField = useTemplateRef<HTMLInputElement>('tagsField')
-let tagsTimer: ReturnType<typeof setTimeout> | undefined
-function cancelTagsTimer() {
-  clearTimeout(tagsTimer)
-  tagsTimer = undefined
-}
-function onTagsInput() {
-  cancelTagsTimer()
-  const text = tagsInput.value.trim()
-  if (!text) return setFilter('tags', '')
-  // Only complete input is sent on its own; "100-" waits for Enter or leaving the field. A pause is a replace,
-  // so that searching does not fill the browser history; the first filter after "none" is a step of its own.
-  if (!isReadableTags(text)) return
-  tagsTimer = setTimeout(() => {
-    tagsTimer = undefined
-    setFilter('tags', text, filter.value.tags !== '')
-  }, AUTO_SEARCH_DELAY)
-}
-// Enter and leaving the field apply at once, whatever was typed
-function applyTagsNow() {
-  cancelTagsTimer()
-  setFilter('tags', tagsInput.value)
-}
-function clearTags() {
-  cancelTagsTimer()
-  tagsInput.value = ''
-  setFilter('tags', '')
-  tagsField.value?.focus()
-}
-// The URL changed from outside (back button, reset): the field shows it and a waiting pause is dropped.
-// Our own change has the same text as the field (apart from blanks), so typing is not disturbed.
-watch(
-  () => filter.value.tags,
-  (tags) => {
-    if (tagsInput.value.trim() === tags) return
-    cancelTagsTimer()
-    tagsInput.value = tags
-  },
-)
-onBeforeUnmount(cancelTagsTimer)
+const { tagsInput, onTagsInput, applyTagsNow, clearTags, resetTagsInput } = useTagsField({
+  current: () => filter.value.tags,
+  apply: (tags, replace) => setFilter('tags', tags, replace),
+  field: tagsField,
+})
 
 // A set filter (per the URL) turns white with a black border; an empty one stays on the grey page, and focus makes it white while typing.
 function fieldClass(name: (typeof FILTERS)[number]) {
@@ -80,9 +43,7 @@ function fieldClass(name: (typeof FILTERS)[number]) {
 
 const hasFilter = computed(() => FILTERS.some((name) => filter.value[name]))
 function resetFilter() {
-  // A pause that is still running or text that was never applied must not bring the old filter back.
-  cancelTagsTimer()
-  tagsInput.value = ''
+  resetTagsInput()
   void router.push({ query: {} })
 }
 const fromField = useTemplateRef<HTMLInputElement>('fromField')
