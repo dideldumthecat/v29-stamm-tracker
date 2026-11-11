@@ -80,7 +80,7 @@ test('the frame: active navigation item, credit, and one 1280px column from head
   await expect(page.getByRole('link', { name: 'Alexander Summa' })).toBeVisible()
   await signIn(page, 'K7QM4XHT9RDP')
 
-  await expect(page.getByRole('navigation').getByRole('link')).toHaveCount(1)
+  await expect(page.getByRole('navigation').getByRole('link')).toHaveCount(2)
   await expect(page.getByRole('link', { name: 'Aktivität' })).toHaveAttribute(
     'aria-current',
     'page',
@@ -213,7 +213,8 @@ test.describe('activity', () => {
       all.map((list) => {
         const box = (element: Element) => element.getBoundingClientRect()
         const list0 = box(list)
-        const padding = parseFloat(getComputedStyle(list).paddingLeft)
+        // the card's padding sits on the rows, not on the list
+        const padding = parseFloat(getComputedStyle(list.firstElementChild!).paddingLeft)
         const dt = [...list.querySelectorAll('dt')].map((dt) => box(dt))
         const dd = [...list.querySelectorAll('dd')].map((dd) => box(dd))
         return {
@@ -584,4 +585,322 @@ test.describe('detail view', () => {
       expect(overflow).toBe(0)
     })
   }
+})
+
+test.describe('stem list', () => {
+  const tags = (page: Page) => page.locator('tbody th')
+  // On a phone the emulated window cannot scroll sideways (see below), so a head button far to the right is out of reach for a click
+  const sortOn = (page: Page, name: string) =>
+    page.getByRole('button', { name }).dispatchEvent('click')
+
+  test('opens from the navigation, sorts, filters by tag and keeps both through the detail view', async ({
+    page,
+  }) => {
+    await page.goto('/admin/aktivitaet')
+    await signIn(page, 'K7QM4XHT9RDP')
+    await page.getByRole('navigation').getByRole('link', { name: 'Stämme' }).click()
+    await expect(page).toHaveURL(/\/admin\/staemme$/)
+    await expect(page.locator('h1')).toHaveText('Stämme')
+    await expect(page.getByText('4 Stämme', { exact: true })).toBeVisible()
+    await expect(tags(page)).toHaveText(['00007', '00104', '01500', 'ohne Kennung'])
+
+    await sortOn(page, 'Balken')
+    await expect(page).toHaveURL(/\?sort=beams$/)
+    await sortOn(page, 'Balken')
+    await expect(page).toHaveURL(/\?sort=beams&dir=desc$/)
+    await expect(page.getByRole('columnheader', { name: /Balken/ })).toHaveAttribute(
+      'aria-sort',
+      'descending',
+    )
+    await expect(tags(page).first()).toHaveText('00104')
+
+    await page.getByRole('textbox', { name: 'Kennung' }).fill('1-200')
+    await expect(page).toHaveURL(/tags=1-200/)
+    await expect(page.getByText('2 von 4 Stämmen')).toBeVisible()
+
+    await page.getByRole('link', { name: '00104' }).click()
+    await expect(page).toHaveURL(/\/admin\/staemme\/104$/)
+    await expect(page.locator('h1')).toHaveText('00104')
+
+    await page.getByRole('button', { name: 'Zurück' }).click()
+    await expect(page).toHaveURL(/\/admin\/staemme\?sort=beams&dir=desc&tags=1-200$/)
+    await expect(page.getByRole('textbox', { name: 'Kennung' })).toHaveValue('1-200')
+    await expect(page.getByText('2 von 4 Stämmen')).toBeVisible()
+    await expect(tags(page).first()).toHaveText('00104')
+  })
+
+  test('sorts the notes by whether there is one: with a note first, then without', async ({
+    page,
+  }) => {
+    await page.goto('/admin/staemme')
+    await signIn(page, 'K7QM4XHT9RDP')
+    await sortOn(page, 'Notiz')
+    await expect(tags(page)).toHaveText(['00104', 'ohne Kennung', '00007', '01500'])
+    await sortOn(page, 'Notiz')
+    await expect(tags(page)).toHaveText(['00007', '01500', '00104', 'ohne Kennung'])
+  })
+
+  // Many stems, so that the page has to scroll down
+  async function openLong(page: Page, size: { width: number; height: number }) {
+    await page.setViewportSize(size)
+    const stems = Array.from({ length: 60 }, (_, index) => ({
+      ...snapshotFixture.timber_items.find((item) => item.tag_number === '7')!,
+      id: `many-${index}`,
+      tag_number: String(200 + index),
+    }))
+    await page.route('**/api/snapshot', (route) =>
+      route.fulfill({
+        json: { ...snapshotFixture, timber_items: [...snapshotFixture.timber_items, ...stems] },
+      }),
+    )
+    await page.goto('/admin/staemme')
+    await signIn(page, 'K7QM4XHT9RDP')
+    await expect(tags(page)).toHaveCount(64)
+  }
+  const sideways = (page: Page) =>
+    page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+  const top = (locator: Locator) =>
+    locator.evaluate((element) => element.getBoundingClientRect().top)
+  const bottom = (locator: Locator) =>
+    locator.evaluate((element) => element.getBoundingClientRect().bottom)
+  const left = (locator: Locator) =>
+    locator.evaluate((element) => element.getBoundingClientRect().left)
+
+  for (const [width, height] of [
+    [1280, 700],
+    [400, 800],
+  ]) {
+    test(`keeps the table head right under the bar while scrolling down, at ${width}px`, async ({
+      page,
+    }) => {
+      await openLong(page, { width, height })
+      const bar = page.locator('main > div.sticky').nth(1)
+      const head = page.getByRole('columnheader', { name: 'Stamm' })
+      // the bar sticks below the header from lg on, and to the top of the window below it (the header scrolls away)
+      const stuck = await bar.evaluate((element) => parseFloat(getComputedStyle(element).top))
+
+      for (const y of [600, 1500, 2500]) {
+        await page.evaluate((to) => window.scrollTo(0, to), y)
+        await expect(head).toBeInViewport()
+        expect(await top(bar)).toBe(stuck)
+        // 1 px: the head sits exactly on the lower edge of the bar
+        expect(Math.abs((await top(head)) - (await bottom(bar)))).toBeLessThan(1)
+        await expect(bar.getByText('64 Stämme')).toBeVisible()
+      }
+    })
+  }
+
+  // A phone widens the layout viewport to the content and pans the visual one: window.scrollTo has no effect there, so what sticks
+  // to the left edge can only be checked in the desktop browser (and by hand on the phone).
+  test.describe('scrolled sideways', () => {
+    // eslint-disable-next-line playwright/no-skipped-test
+    test.skip(({ isMobile }) => isMobile, 'a phone pans instead of scrolling the window')
+
+    test('scrolls the page sideways, not a box: header, bar and filter stay, the stem column sits at the edge', async ({
+      page,
+    }) => {
+      await openLong(page, { width: 1024, height: 700 })
+      expect(await sideways(page)).toBeGreaterThan(0)
+
+      const fixed = [
+        page.locator('header'),
+        page.getByRole('heading', { level: 1 }),
+        page.getByRole('textbox', { name: 'Kennung' }),
+        page.locator('main > div.sticky').nth(1),
+        page.getByRole('contentinfo').getByRole('link'),
+      ]
+      const placed = async () =>
+        Promise.all(
+          fixed.map(async (locator) => {
+            const box = (await locator.boundingBox())!
+            // whole pixels: the scroll position is fractional on some screens
+            return [Math.round(box.x) + 0, Math.round(box.y), Math.round(box.width)]
+          }),
+        )
+      const before = await placed()
+      await page.evaluate(() => window.scrollTo(300, 0))
+      expect(await page.evaluate(() => window.scrollX)).toBeGreaterThan(100)
+      expect(await placed()).toEqual(before)
+
+      // the first column sticks to the edge of the window, in the head and in the rows
+      expect(await left(page.getByRole('columnheader', { name: 'Stamm' }))).toBe(0)
+      expect(await left(tags(page).nth(1))).toBe(0)
+      await expect(tags(page).nth(1)).toBeInViewport()
+
+      // nothing around the table scrolls by itself
+      const scrollers = await page.locator('table').evaluate((table) => {
+        const found: string[] = []
+        for (let element = table.parentElement; element; element = element.parentElement) {
+          const { overflowX, overflowY } = getComputedStyle(element)
+          if (overflowX !== 'visible' || overflowY !== 'visible') found.push(element.tagName)
+        }
+        return found
+      })
+      expect(scrollers).toEqual([])
+    })
+
+    test('the arrows scroll the page and are disabled at the ends', async ({ page }) => {
+      await openLong(page, { width: 1024, height: 700 })
+      const next = page.getByRole('button', { name: 'Tabelle nach rechts scrollen' })
+      const back = page.getByRole('button', { name: 'Tabelle nach links scrollen' })
+      await expect(back).toBeDisabled()
+
+      await next.click()
+      await expect.poll(() => page.evaluate(() => window.scrollX)).toBeGreaterThan(100)
+      await expect(back).toBeEnabled()
+
+      await page.evaluate(() => window.scrollTo(document.documentElement.scrollWidth, 0))
+      await expect(next).toBeDisabled()
+      await back.click()
+      await expect.poll(() => page.evaluate(() => window.scrollX)).toBeGreaterThan(0)
+    })
+
+    test('a link focused by keyboard lies clear of header, bar, table head and the stem column', async ({
+      page,
+    }) => {
+      await openLong(page, { width: 1024, height: 700 })
+      const head = page.getByRole('columnheader', { name: 'Stamm' })
+
+      await tags(page).nth(40).getByRole('link').focus()
+      const row = await tags(page).nth(40).getByRole('link').boundingBox()
+      expect(row!.y).toBeGreaterThan(await bottom(head))
+
+      // a head button far to the right is not left under the stem column
+      await page.evaluate(() => window.scrollTo(0, 0))
+      await page.getByRole('button', { name: 'Geändert' }).focus()
+      const button = (await page.getByRole('button', { name: 'Geändert' }).boundingBox())!
+      expect(button.x).toBeGreaterThanOrEqual((await head.boundingBox())!.width)
+      expect(await page.evaluate(() => window.scrollY)).toBe(0)
+
+      // and one in a head that is stuck while the page is scrolled down
+      await page.evaluate(() => window.scrollTo(0, 1500))
+      await page.getByRole('button', { name: 'Balken' }).focus()
+      await expect(page.getByRole('button', { name: 'Balken' })).toBeInViewport()
+      expect(await page.evaluate(() => window.scrollY)).toBe(1500)
+    })
+  })
+
+  // The three widths of the card around the table (desktop): narrower than the column, wider than the column but inside the window,
+  // wider than the window. The column content is at most 1216 px wide (1280 px minus the page margin of 32 px on both sides).
+  const cardBox = async (page: Page) => (await page.locator('table >> xpath=..').boundingBox())!
+  const radius = (page: Page, selector: string) =>
+    page
+      .locator(selector)
+      .first()
+      .evaluate((element) => getComputedStyle(element).borderTopLeftRadius)
+
+  test('a table with little content fills the column, lines up with the bar and has round corners', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 2400, height: 800 })
+    // without attributes there are only the columns "Stamm", "Balken" and "Geändert"
+    await page.route('**/api/snapshot', (route) =>
+      route.fulfill({ json: { ...snapshotFixture, attributes: [] } }),
+    )
+    await page.goto('/admin/staemme')
+    await signIn(page, 'K7QM4XHT9RDP')
+    await expect(tags(page)).toHaveCount(4)
+
+    const bar = page.locator('main > div.sticky').nth(1).locator('p')
+    const box = await cardBox(page)
+    expect(box.width).toBeCloseTo(1216, 0)
+    expect(Math.abs(box.x - (await left(bar)))).toBeLessThan(1)
+    expect(await sideways(page)).toBe(0)
+    await expect(page.getByRole('button', { name: /Tabelle nach/ })).toHaveCount(0)
+    expect(await radius(page, 'table >> xpath=..')).toBe('12px')
+  })
+
+  test('a table wider than the column but inside the window is centered and round, without sideways scrolling', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1400, height: 800 })
+    await page.goto('/admin/staemme')
+    await signIn(page, 'K7QM4XHT9RDP')
+    await expect(tags(page)).toHaveCount(4)
+    const natural = (await cardBox(page)).width
+    expect(natural).toBeGreaterThan(1216)
+
+    await page.setViewportSize({ width: 2400, height: 800 })
+    const box = await cardBox(page)
+    // as wide as before (not stretched), wider than the column, and the same room on both sides
+    expect(box.width).toBeCloseTo(natural, 0)
+    expect(box.width).toBeLessThan(2400)
+    expect(Math.abs(box.x - (2400 - box.x - box.width))).toBeLessThan(1)
+    expect(await sideways(page)).toBe(0)
+    await expect(page.getByRole('button', { name: /Tabelle nach/ })).toHaveCount(0)
+
+    // a card around the table: radius, line and white ground; the table itself has neither border nor radius
+    const card = page.locator('table >> xpath=..')
+    await expect(card).toHaveCSS('border-top-left-radius', '12px')
+    await expect(card).toHaveCSS('border-left-width', '1px')
+    await expect(card).toHaveCSS('background-color', 'rgb(255, 255, 255)')
+    await expect(page.locator('table')).toHaveCSS('border-top-width', '0px')
+  })
+
+  test('only the white edge of the card shows beside the head while it sticks under the bar', async ({
+    page,
+  }) => {
+    await openLong(page, { width: 2400, height: 700 })
+    await page.evaluate(() => window.scrollTo(0, 1500))
+    const head = page.getByRole('columnheader', { name: 'Stamm' })
+    await expect(head).toBeInViewport()
+
+    const beside = await head.evaluate((element) => {
+      const box = element.getBoundingClientRect()
+      const card = element.closest('table')!.parentElement!
+      // a point left of the head, in the row of the head and in the first rows under it
+      return [10, 40, 100].map((below) => {
+        const found = document.elementFromPoint(box.left - 2, box.top + below)
+        return found === card
+      })
+    })
+    expect(beside).toEqual([true, true, true])
+    await expect(head).toHaveCSS('border-top-left-radius', '0px')
+  })
+
+  test('a table wider than the window starts at the left edge, ends flush at the right one and keeps its round corners', async ({
+    page,
+    isMobile,
+  }) => {
+    // the phone cannot scroll the window sideways (see above)
+    // eslint-disable-next-line playwright/no-skipped-test
+    test.skip(isMobile, 'a phone pans instead of scrolling the window')
+    await page.setViewportSize({ width: 1100, height: 800 })
+    await page.goto('/admin/staemme')
+    await signIn(page, 'K7QM4XHT9RDP')
+    await expect(tags(page)).toHaveCount(4)
+
+    expect(await sideways(page)).toBeGreaterThan(0)
+    // no page background to the left of the card
+    expect((await cardBox(page)).x).toBe(0)
+    expect(await radius(page, 'table >> xpath=..')).toBe('12px')
+
+    await page.evaluate(() => window.scrollTo(document.documentElement.scrollWidth, 0))
+    const box = await cardBox(page)
+    expect(Math.abs(1100 - (box.x + box.width))).toBeLessThan(1)
+  })
+
+  test('keeps the page free of sideways scrolling when the list is empty or the filter unreadable', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 800 })
+    await page.goto('/admin/staemme?tags=300-400')
+    await signIn(page, 'K7QM4XHT9RDP')
+    await expect(page.getByRole('heading', { name: 'Waldesruh' })).toBeVisible()
+    expect(await sideways(page)).toBe(0)
+  })
+
+  test('on a phone the page is wider than the window and the head stays under the bar', async ({
+    page,
+  }) => {
+    await openLong(page, { width: 390, height: 800 })
+    expect(await sideways(page)).toBeGreaterThan(0)
+    await page.evaluate(() => window.scrollTo(0, 800))
+    const bar = page.locator('main > div.sticky').nth(1)
+    expect(
+      Math.abs(
+        (await top(page.getByRole('columnheader', { name: 'Stamm' }))) - (await bottom(bar)),
+      ),
+    ).toBeLessThan(1)
+  })
 })
