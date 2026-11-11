@@ -155,7 +155,7 @@ watch(() => route.params.tag, load, { immediate: true })
       <div class="grid items-start gap-6 min-[900px]:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
         <header class="min-w-0 min-[900px]:col-start-2 min-[900px]:row-start-1 min-[900px]:px-6">
           <BackLink class="mb-2 w-fit" />
-          <p class="text-[22px] font-bold tracking-[.06em]">{{ isBeam ? 'BALKEN' : 'STAMM' }}</p>
+          <p class="text-[22px] font-bold">{{ isBeam ? 'BALKEN' : 'STAMM' }}</p>
           <h1 class="-mr-[.05em] text-5xl font-extrabold tracking-[.05em] tabular-nums">
             <FormattedTag :tag-number="tag!" />
           </h1>
