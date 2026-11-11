@@ -3,10 +3,14 @@
 # Order in this file = order in the app. An attribute with a key can be renamed safely: the import matches by key.
 # Without a key it matches by name, so renaming would create a new attribute. Options always match by label:
 # never rename an option that already has values. A key is never changed once set (see the README).
+# is_series, is_inheritable and applies_to are required in every entry. applies_to lists where the app offers the
+# attribute for input: stem, beam or both (a stem sawn as a whole counts as a beam too); the server does not enforce it.
 
 - name: Holzart
   type: choice
+  is_series: false
   is_inheritable: true
+  applies_to: [stem]
   options:
     - Traubeneiche (Quercus petraea)
     - Stieleiche (Quercus robur)
@@ -14,30 +18,40 @@
 
 - name: Polternummer
   type: choice
+  is_series: false
   is_inheritable: true
+  applies_to: [stem]
   options: ['01 (0101/0145)', '02', '03', '04', '05', '06', '07', '08', '09', '10']
 
 - name: Fällzeitpunkt
   type: month
+  is_series: false
   is_inheritable: true
+  applies_to: [stem]
 
 - name: Stammmittendurchmesser groß
   key: mid_diameter_max
   type: number
   unit: cm
+  is_series: false
   is_inheritable: true
+  applies_to: [stem]
 
 - name: Stammmittendurchmesser klein
   key: mid_diameter_min
   type: number
   unit: cm
+  is_series: false
   is_inheritable: true
+  applies_to: [stem]
 
 # Same value for a stem and the beams sawn lengthwise from it; set the beam's own value after a cross cut.
 - name: Länge
   key: length
   type: choice
+  is_series: false
   is_inheritable: true
+  applies_to: [stem, beam]
   options: ['4,10 m', '3,60 m', '3,20 m']
 
 # The stem cannot be sawn into construction beams; other uses such as planks do not count. The reason stays in "Notiz".
@@ -47,34 +61,48 @@
   key: unsawable
   type: boolean
   description: "Stamm lässt sich nicht zu Balken sägen, Grund in die Notiz."
+  is_series: false
   is_inheritable: false
+  applies_to: [stem]
 
 - name: Gesägt
   key: sawn
   type: boolean
+  is_series: false
   is_inheritable: true
+  applies_to: [stem]
 
 # Recorded on each beam: the cross-section is a property of the sawn beam, not of the stem.
 - name: Gesägter Querschnitt
   key: sawn_cross_section
   type: choice
+  is_series: false
   is_inheritable: false
+  applies_to: [beam]
   options: ['14,7 x 14,7 cm', '10,5 x 14,7 cm']
 
 - name: Entlastungsschnitt
   type: boolean
+  is_series: false
   is_inheritable: true
+  applies_to: [beam]
 
 - name: Entrindet
   type: boolean
+  is_series: false
   is_inheritable: true
+  applies_to: [beam]
 
 - name: Notiz
   key: notes
   type: text
   is_series: true
+  is_inheritable: false
+  applies_to: [stem, beam]
 
 - name: Fotos
   key: photos
   type: photo
   is_series: true
+  is_inheritable: false
+  applies_to: [stem, beam]

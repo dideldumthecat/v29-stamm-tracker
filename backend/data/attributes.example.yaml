@@ -6,51 +6,76 @@
 #   key [none] – stable identifier for code and console commands, set by the developer only for attributes code refers to:
 #     lowercase letters, digits, underscore, starts with a letter, max. 64 characters, unique. Never changes once set.
 #   name, type (boolean | choice | number | text | date | month | photo)
-#   description [''], unit [none, only for number], is_series [false], is_inheritable [false], active [true]
+#   is_series, is_inheritable – required, true or false (no default: a forgotten line must not change behaviour)
+#   applies_to – required: [stem], [beam] or [stem, beam]. Where the app offers the attribute for input; a stem sawn as a
+#     whole counts as a beam too. Elsewhere an existing value is shown read-only. The server does not enforce it.
+#   description [''], unit [none, only for number], active [true]
 #   options – only for choice, required there: a label, or { label: …, active: false }
 - name: Holzart
   description: Eichenart laut Rinde und Blatt
   type: choice
+  is_series: false
   is_inheritable: true
+  applies_to: [stem]
   options: [Traubeneiche, Stieleiche, { label: Roteiche, active: false }]
 - name: Fälldatum
   description: Monat der Fällung
   type: month
+  is_series: false
   is_inheritable: true
+  applies_to: [stem]
 - name: Lieferdatum
   description: Tag der Anlieferung am Sägewerk
   type: date
+  is_series: false
   is_inheritable: true
+  applies_to: [stem, beam]
 - name: Lagerplatz
   description: Wo der Stamm im Wald liegt
   type: choice
+  is_series: false
+  is_inheritable: false
+  applies_to: [stem]
   options: [Polter Nord, Polter Süd, { label: Waldweg Ost, active: false }]
 - name: Gesägt
   key: sawn
   description: Stamm ist im Sägewerk aufgeteilt
   type: boolean
+  is_series: false
   is_inheritable: true
+  applies_to: [stem]
 - name: Entlastungsschnitt
   description: Längsschnitt gegen Rissbildung
   type: boolean
+  is_series: false
   is_inheritable: true
+  applies_to: [beam]
   active: false
 - name: Sortierklasse
   description: Visuelle Sortierung
   type: choice
+  is_series: false
+  is_inheritable: false
+  applies_to: [beam]
   options: [A, B, C]
 - name: Holzfeuchte
   description: Messung mit Feuchtemessgerät
   type: number
   unit: '%'
   is_series: true
+  is_inheritable: false
+  applies_to: [stem, beam]
 - name: Notiz
   key: notes
   description: Freitext
   type: text
   is_series: true
+  is_inheritable: false
+  applies_to: [stem, beam]
 - name: Fotos
   key: photos
   description: Übersichtsfotos
   type: photo
   is_series: true
+  is_inheritable: false
+  applies_to: [stem, beam]
