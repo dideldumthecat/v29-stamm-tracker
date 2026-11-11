@@ -13,7 +13,7 @@ class DbDumpCommandTest extends KernelTestCase
     {
         $tester = new CommandTester((new Application(self::bootKernel()))->find('app:db:dump'));
 
-        self::assertSame(Command::SUCCESS, $tester->execute([]));
+        self::assertSame(Command::SUCCESS, $tester->execute([]), $tester->getDisplay());
         self::assertStringContainsString('CREATE TABLE `timber_items`', $tester->getDisplay());
         self::assertStringContainsString('CREATE TABLE `photos`', $tester->getDisplay());
     }
