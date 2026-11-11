@@ -64,7 +64,7 @@ test('beam inherits a stem value and can override it', async ({ page }) => {
   await expect(page.locator('h1')).toContainText('01777-A')
   const holzartField = page.locator('section', { hasText: 'Holzart' }).first()
   await expect(holzartField).toContainText('Traubeneiche')
-  await expect(holzartField).toContainText('vom Stamm')
+  await expect(holzartField).toContainText('Vom Stamm geerbt')
   // Holzart belongs to the stem: shown, not overridable. Lieferdatum is for stems and beams.
   await expect(page.getByRole('button', { name: 'Holzart ändern' })).toHaveCount(0)
   await page.getByRole('button', { name: 'Lieferdatum ändern' }).click()
@@ -167,10 +167,10 @@ test('"Mehrere Balken" locks the stem and saves it with the beams A and B; the b
 
   await page.locator('a[href="/timber-item/1444-B"]').click()
   const gesaegt = page.locator('section', { hasText: 'Gesägt' }).first()
-  await expect(gesaegt).toContainText('vom Stamm')
+  await expect(gesaegt).toContainText('Vom Stamm geerbt')
   const holzart = page.locator('section', { hasText: 'Holzart' }).first()
   await expect(holzart).toContainText('Traubeneiche')
-  await expect(holzart).toContainText('vom Stamm')
+  await expect(holzart).toContainText('Vom Stamm geerbt')
 
   // Sent in one go: stem and beams, 1 + 1 + 1 entries.
   await page.goto('/sync')
