@@ -23,7 +23,7 @@ use Symfony\Component\Yaml\Yaml;
 #[AsCommand(name: 'app:attributes:import', description: 'Create or update attributes and their options from a YAML file, see data/attributes.example.yaml')]
 class AttributesImportCommand
 {
-    private const array KEYS = ['key', 'name', 'description', 'type', 'unit', 'is_series', 'is_inheritable', 'active', 'options'];
+    private const array KEYS = ['key', 'name', 'description', 'type', 'unit', 'is_series', 'is_inheritable', 'applies_to', 'active', 'options'];
 
     public function __construct(
         private readonly EntityManagerInterface $em,
@@ -68,7 +68,7 @@ class AttributesImportCommand
             foreach ($attributes as $name => $a) {
                 $attribute = $matches[$name] ?? null;
                 if (!$attribute) {
-                    $attribute = new Attribute($name, $a['type'], $a['description'], $a['unit'], $a['is_series'], $a['is_inheritable'], $a['sort_order'], $a['active'], key: $a['key']);
+                    $attribute = new Attribute($name, $a['type'], $a['description'], $a['unit'], $a['is_series'], $a['is_inheritable'], $a['sort_order'], $a['active'], key: $a['key'], appliesTo: $a['applies_to']);
                     $this->persist($attribute, $dryRun);
                     foreach ($a['options'] as $label => $o) {
                         $this->persist(new AttributeOption($attribute, $label, $o['sort_order'], $o['active']), $dryRun);
@@ -84,7 +84,7 @@ class AttributesImportCommand
                 $changes = $this->apply($attribute, [
                     'name' => $name,
                     'type' => $a['type'], 'description' => $a['description'], 'unit' => $a['unit'], 'isSeries' => $a['is_series'],
-                    'isInheritable' => $a['is_inheritable'], 'sortOrder' => $a['sort_order'], 'active' => $a['active'],
+                    'isInheritable' => $a['is_inheritable'], 'appliesTo' => $a['applies_to'], 'sortOrder' => $a['sort_order'], 'active' => $a['active'],
                 ], $dryRun);
                 $changes = array_values(array_diff($changes, ['name']));
                 if ($a['key'] && null === $attribute->key) {
@@ -206,7 +206,7 @@ class AttributesImportCommand
     }
 
     /**
-     * Applies defaults and checks every entry, collecting all errors instead of stopping at the first.
+     * Applies defaults (none for is_series, is_inheritable and applies_to) and checks every entry, collecting all errors instead of stopping at the first.
      *
      * @param array<mixed> $entries as read from the YAML file
      * @param list<string> $errors
@@ -256,6 +256,18 @@ class AttributesImportCommand
                     $fail("$key must be true or false.");
                 }
             }
+            // No defaults: a forgotten line would silently change inheritance or where the app offers the field.
+            foreach (['is_series', 'is_inheritable', 'applies_to'] as $key) {
+                if (!isset($entry[$key])) {
+                    $fail("$key is missing.");
+                }
+            }
+            $appliesTo = $entry['applies_to'] ?? null;
+            if (null !== $appliesTo && (!\is_array($appliesTo) || !array_is_list($appliesTo) || [] === $appliesTo
+                || array_diff($appliesTo, Attribute::KINDS) || \count($appliesTo) !== \count(array_unique($appliesTo)))) {
+                $fail(\sprintf('applies_to must be a list of %s, at least one, each only once.', implode(' and/or ', Attribute::KINDS)));
+                $appliesTo = null;
+            }
             // Every photo counts and none replaces another (T11); only a series keeps all recordings.
             if (AttributeType::Photo === $type && !($entry['is_series'] ?? false)) {
                 $fail('type photo needs is_series: true.');
@@ -291,6 +303,8 @@ class AttributesImportCommand
                     'unit' => $entry['unit'] ?? null,
                     'is_series' => $entry['is_series'] ?? false,
                     'is_inheritable' => $entry['is_inheritable'] ?? false,
+                    // Canonical order, so the same kinds in another order are no change.
+                    'applies_to' => array_values(array_intersect(Attribute::KINDS, $appliesTo ?? [])),
                     'active' => $entry['active'] ?? true,
                     'sort_order' => 10 * ($i + 1),
                     'options' => $options,
