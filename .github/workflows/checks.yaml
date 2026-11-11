@@ -13,6 +13,7 @@ permissions:
 jobs:
   frontend:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: frontend
@@ -43,6 +44,7 @@ jobs:
 
   backend:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: backend
@@ -72,12 +74,7 @@ jobs:
           php-version: '8.4'
           tools: composer
 
-      # app:db:dump calls mysqldump; the runner's MySQL 8 client may not work against MariaDB.
-      - name: Install MariaDB client
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y mariadb-client
-
+      # DbDumpCommandTest skips itself when this is not the MariaDB client.
       - name: Show mysqldump version
         run: mysqldump --version
 
