@@ -319,7 +319,8 @@ describe('App: attributes by kind and the split choice', () => {
     const text = wrapper.text()
     // Inherited from the stem.
     expect(text).toContain('Stieleiche')
-    expect(text).toContain('vom Stamm')
+    expect(text).toContain('Vom Stamm geerbt')
+    expect(text).not.toContain('· Vom Stamm')
     expect(wrapper.find('button[aria-label="Holzart ändern"]').exists()).toBe(false)
     expect(wrapper.find('button[aria-label="Gesägt ändern"]').exists()).toBe(false)
     // Stem attributes without a value are not shown.

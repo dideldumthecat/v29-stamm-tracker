@@ -70,10 +70,11 @@ function toggle() {
     <p v-if="attribute.description" class="text-sm leading-copy text-body">
       {{ attribute.description }}
     </p>
-    <span v-if="current" class="text-caption text-mute"
-      >{{ formatDateTime(current.recorded_at) }} · {{ userName(current.user_id)
-      }}{{ inherited ? ' · vom Stamm' : '' }}</span
-    >
+    <span v-if="current" class="text-caption text-mute">{{
+      inherited
+        ? 'Vom Stamm geerbt'
+        : `${formatDateTime(current.recorded_at)} · ${userName(current.user_id)}`
+    }}</span>
   </section>
 
   <section

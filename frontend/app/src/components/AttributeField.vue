@@ -69,10 +69,9 @@ const isLocked = computed(() => props.record !== undefined && (props.readonly ||
     <p v-if="description && !descriptionAbove" class="text-sm leading-copy text-body">
       {{ description }}
     </p>
-    <span class="text-caption text-mute"
-      >{{ formatDateTime(record.recorded_at) }} · {{ recordedBy
-      }}{{ inherited ? ' · vom Stamm' : '' }}</span
-    >
+    <span class="text-caption text-mute">{{
+      inherited ? 'Vom Stamm geerbt' : `${formatDateTime(record.recorded_at)} · ${recordedBy}`
+    }}</span>
   </section>
 
   <section

@@ -35,7 +35,7 @@ type Named = { id: string; name: string }
 
 export interface ValueLine {
   text: string
-  /** "Alexander Summa · 29.10." or "vom Stamm geerbt". */
+  /** "Alexander Summa · 29.10." or "Vom Stamm geerbt". */
   source: string
 }
 
@@ -88,7 +88,7 @@ export function splitValues(
     `${userName(record)} · ${formatDayMonthUnlessThisYear(record.recorded_at)}`
   const line = (attribute: Attribute, record: AttributeValueRecord, inherited: boolean) => ({
     text: formatRecorded(attribute, record.value),
-    source: inherited ? 'vom Stamm geerbt' : who(record),
+    source: inherited ? 'Vom Stamm geerbt' : who(record),
   })
 
   const photos: AttributeValueRecord[] = []

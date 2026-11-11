@@ -118,10 +118,11 @@ function remove(index: number) {
         class="flex min-h-10 items-center justify-between gap-2.5 border-b border-soft py-1 text-detail"
       >
         <strong>{{ withUnit(record.value) }}</strong>
-        <span class="text-right text-caption text-mute"
-          >{{ formatDateTime(record.recorded_at) }} · {{ userName(record.user_id)
-          }}{{ inherited ? ' · vom Stamm' : '' }}</span
-        >
+        <span class="text-right text-caption text-mute">{{
+          inherited
+            ? 'Vom Stamm geerbt'
+            : `${formatDateTime(record.recorded_at)} · ${userName(record.user_id)}`
+        }}</span>
       </div>
     </div>
 

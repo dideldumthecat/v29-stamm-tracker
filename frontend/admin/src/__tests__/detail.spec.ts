@@ -99,8 +99,8 @@ describe('splitValues', () => {
   it('marks what a beam inherits and leaves it out of photos, notes and the last change', () => {
     const beam = splitValues(beamC, stem, attributes, users)
     const row = (name: string) => beam.rows.find((candidate) => candidate.name === name)!
-    expect(row('Holzart').lines).toEqual([{ text: 'Stieleiche', source: 'vom Stamm geerbt' }])
-    expect(row('Gesägt').lines[0].source).toBe('vom Stamm geerbt')
+    expect(row('Holzart').lines).toEqual([{ text: 'Stieleiche', source: 'Vom Stamm geerbt' }])
+    expect(row('Gesägt').lines[0].source).toBe('Vom Stamm geerbt')
     expect(row('Sortierklasse').lines[0]).toEqual({
       text: 'B',
       source: 'Alexander Barina · 31.10.',

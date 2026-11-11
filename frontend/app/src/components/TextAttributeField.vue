@@ -58,10 +58,11 @@ function onInput(event: Event) {
         <p class="text-detail leading-copy wrap-anywhere whitespace-pre-line">
           {{ record.value }}
         </p>
-        <span class="text-caption text-mute"
-          >{{ formatDateTime(record.recorded_at) }} · {{ userName(record.user_id)
-          }}{{ inherited ? ' · vom Stamm' : '' }}</span
-        >
+        <span class="text-caption text-mute">{{
+          inherited
+            ? 'Vom Stamm geerbt'
+            : `${formatDateTime(record.recorded_at)} · ${userName(record.user_id)}`
+        }}</span>
       </div>
     </div>
     <!-- A series starts empty (new entry); a single value starts with the recorded text. -->
