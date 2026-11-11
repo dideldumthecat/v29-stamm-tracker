@@ -1,0 +1,90 @@
+name: Checks
+
+# No end-to-end tests here: they need the Playwright image from DDEV and run locally.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint:check
+
+      # The build includes the type check of the app and the administration.
+      - name: Build
+        run: npm run build
+
+      - name: Unit tests
+        run: npm run tests
+
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      db:
+        image: mariadb:11.8
+        env:
+          MARIADB_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      # Overrides .env.test, which points to the DDEV host "db".
+      DATABASE_URL: mysql://root:root@127.0.0.1:3306/db?serverVersion=11.8.0-MariaDB&charset=utf8mb4
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Create and migrate the test database
+        run: |
+          php bin/console doctrine:database:create --env=test
+          php bin/console doctrine:migrations:migrate -n --env=test
+
+      # Same as .ddev/commands/web/phpstan: the Symfony extension reads the compiled dev container.
+      - name: PHPStan
+        run: |
+          php bin/console cache:warmup -q
+          vendor/bin/phpstan
+
+      - name: PHPUnit
+        run: php bin/phpunit
