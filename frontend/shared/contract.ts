@@ -140,6 +140,8 @@ export interface Attribute {
   is_inheritable: boolean
   /** Kinds of timber item the attribute is recorded on. Never empty. Only the app applies it; the server accepts any event. */
   applies_to: ItemKind[]
+  /** Keys of yes/no attributes: while one of them is "ja" on the item, this attribute is not offered. */
+  hidden_when: string[]
   sort_order: number
   active: boolean
   /** Only filled for type "choice", otherwise empty. */

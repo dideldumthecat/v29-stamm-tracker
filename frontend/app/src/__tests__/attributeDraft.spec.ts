@@ -13,6 +13,7 @@ function attribute(id: string, type: AttributeType, overrides: Partial<Attribute
     is_series: false,
     is_inheritable: false,
     applies_to: ['stem', 'beam'],
+    hidden_when: [],
     sort_order: 0,
     active: true,
     options: [],

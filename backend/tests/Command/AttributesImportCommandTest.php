@@ -35,7 +35,7 @@ class AttributesImportCommandTest extends KernelTestCase
     {
         if ($complete) {
             $yaml = preg_replace_callback('/^(\s*- \{ name: .*) \}$/m', static function (array $m): string {
-                foreach (['is_series' => 'false', 'is_inheritable' => 'false', 'applies_to' => '[stem, beam]'] as $key => $value) {
+                foreach (['is_series' => 'false', 'is_inheritable' => 'false', 'applies_to' => '[stem, beam]', 'hidden_when' => '[]'] as $key => $value) {
                     $m[1] .= str_contains($m[1], $key) ? '' : ", $key: $value";
                 }
 
@@ -158,18 +158,22 @@ class AttributesImportCommandTest extends KernelTestCase
     public function testRequiredFieldsHaveNoDefaults(): void
     {
         $tester = $this->import(<<<'YAML'
-            - { name: A, type: text, is_inheritable: false, applies_to: [stem] }
-            - { name: B, type: text, is_series: false, applies_to: [stem] }
-            - { name: C, type: text, is_series: false, is_inheritable: false }
-            - { name: D, type: text, is_series: false, is_inheritable: false, applies_to: [] }
-            - { name: E, type: text, is_series: false, is_inheritable: false, applies_to: [stem, stem] }
-            - { name: F, type: text, is_series: false, is_inheritable: false, applies_to: [stem, plank] }
-            - { name: G, type: text, is_series: false, is_inheritable: false, applies_to: beam }
+            - { name: A, type: text, is_inheritable: false, applies_to: [stem], hidden_when: [] }
+            - { name: B, type: text, is_series: false, applies_to: [stem], hidden_when: [] }
+            - { name: C, type: text, is_series: false, is_inheritable: false, hidden_when: [] }
+            - { name: D, type: text, is_series: false, is_inheritable: false, applies_to: [], hidden_when: [] }
+            - { name: E, type: text, is_series: false, is_inheritable: false, applies_to: [stem, stem], hidden_when: [] }
+            - { name: F, type: text, is_series: false, is_inheritable: false, applies_to: [stem, plank], hidden_when: [] }
+            - { name: G, type: text, is_series: false, is_inheritable: false, applies_to: beam, hidden_when: [] }
+            - { name: H, type: text, is_series: false, is_inheritable: false, applies_to: [stem] }
+            - { name: I, type: text, is_series: false, is_inheritable: false, applies_to: [stem], hidden_when: sawn }
+            - { name: J, type: text, is_series: false, is_inheritable: false, applies_to: [stem], hidden_when: [sawn, sawn] }
             YAML, complete: false);
 
         self::assertSame(Command::FAILURE, $tester->getStatusCode());
         $display = preg_replace('/\s+/', ' ', $tester->getDisplay());
-        foreach (['"A": is_series is missing', '"B": is_inheritable is missing', '"C": applies_to is missing'] as $error) {
+        foreach (['"A": is_series is missing', '"B": is_inheritable is missing', '"C": applies_to is missing', '"H": hidden_when is missing',
+            '"I": hidden_when must be a list', '"J": hidden_when must be a list'] as $error) {
             self::assertStringContainsString($error, $display);
         }
         foreach (['D', 'E', 'F', 'G'] as $name) {
@@ -190,6 +194,46 @@ class AttributesImportCommandTest extends KernelTestCase
 
         $this->import("- { name: Querschnitt, type: text, applies_to: [beam] }\n");
         self::assertSame(['beam'], $this->attributes()['Querschnitt']->appliesTo);
+    }
+
+    public function testHiddenWhenIsStoredAndAChangeShowsInTheDryRun(): void
+    {
+        $yaml = "- { name: Gesägt, key: sawn, type: boolean, hidden_when: [unsawable] }\n- { name: Nicht sägbar, key: unsawable, type: boolean, hidden_when: %s }\n";
+        $this->import(\sprintf($yaml, '[]'));
+        self::assertSame(['unsawable'], $this->attributes()['Gesägt']->hiddenWhen);
+
+        $display = $this->import(\sprintf($yaml, '[sawn]'), true)->getDisplay();
+        self::assertStringContainsString('updated    Nicht sägbar (hiddenWhen)', $display);
+        self::assertStringContainsString('unchanged  Gesägt', $display);
+        self::assertSame([], $this->attributes()['Nicht sägbar']->hiddenWhen);
+
+        $this->import(\sprintf($yaml, '[sawn]'));
+        self::assertSame(['sawn'], $this->attributes()['Nicht sägbar']->hiddenWhen);
+    }
+
+    public function testHiddenWhenMustNameOtherYesNoAttributes(): void
+    {
+        $this->import("- { name: Entrindet, key: debarked, type: boolean }\n- { name: Länge, key: length, type: text }\n");
+
+        $tester = $this->import(<<<'YAML'
+            - { name: Gesägt, key: sawn, type: boolean, hidden_when: [sawn] }
+            - { name: A, type: text, hidden_when: [nowhere] }
+            - { name: B, type: text, hidden_when: [length] }
+            - { name: C, type: text, hidden_when: [notes] }
+            - { name: Notiz, key: notes, type: text }
+            - { name: Entrindet, type: boolean, hidden_when: [debarked] }
+            - { name: Fine, type: text, hidden_when: [sawn, debarked] }
+            YAML);
+
+        self::assertSame(Command::FAILURE, $tester->getStatusCode());
+        $display = preg_replace('/\s+/', ' ', $tester->getDisplay());
+        foreach (['"Gesägt": hidden_when must not name the attribute itself (sawn)', '"A": hidden_when names the unknown key nowhere',
+            '"B": hidden_when names length, which is of type text', '"C": hidden_when names notes, which is of type text',
+            '"Entrindet": hidden_when must not name the attribute itself (debarked)'] as $error) {
+            self::assertStringContainsString($error, $display);
+        }
+        self::assertStringNotContainsString('"Fine"', $display);
+        self::assertCount(2, $this->attributes());
     }
 
     public function testRefusesTypeChangeOnceValuesWereRecorded(): void

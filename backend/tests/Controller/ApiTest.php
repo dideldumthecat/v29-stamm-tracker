@@ -59,7 +59,7 @@ class ApiTest extends WebTestCase
         }
         foreach ($snapshot['attributes'] as $a) {
             $attribute = new Attribute($a['name'], AttributeType::from($a['type']), $a['description'], $a['unit'], $a['is_series'],
-                $a['is_inheritable'], $a['sort_order'], $a['active'], Uuid::fromString($a['id']), $a['key'], $a['applies_to']);
+                $a['is_inheritable'], $a['sort_order'], $a['active'], Uuid::fromString($a['id']), $a['key'], $a['applies_to'], $a['hidden_when']);
             $this->em->persist($attribute);
             foreach ($a['options'] as $o) {
                 $this->em->persist(new AttributeOption($attribute, $o['label'], $o['sort_order'], $o['active'], Uuid::fromString($o['id'])));
