@@ -12,6 +12,7 @@ import type { SplitChoice } from '@/stores/itemRoles'
 import { formatRecordedLines } from '@/utils/attributeDraft'
 import { useToast } from '@/composables/useToast'
 import { useTimberItemDraft } from '@/composables/useTimberItemDraft'
+import { useKeepFieldPosition } from '@/composables/useKeepFieldPosition'
 import TimberItemHeader from '@/components/TimberItemHeader.vue'
 import TimberItemStatus from '@/components/TimberItemStatus.vue'
 import ChoiceAttributeField from '@/components/ChoiceAttributeField.vue'
@@ -94,8 +95,21 @@ const saveLabel = computed(
 const screen = useTemplateRef<HTMLElement>('screen')
 const beamList = useTemplateRef<HTMLElement>('beamList')
 
+// An input that makes fields appear or disappear must not move the field it was made in.
+const { setAnchor } = useKeepFieldPosition(screen, () =>
+  fields.value.map(({ attribute, mode }) => attribute.id + mode).join(),
+)
+
+function onInput(attribute: Attribute, input: Parameters<typeof setField>[1]) {
+  setAnchor(attribute.id)
+  setField(attribute, input)
+}
+
 // The beam list sits above the form: without this the two new beams would appear off screen.
 async function onChooseSplit(choice: SplitChoice) {
+  if (choice === 'split') {
+    setAnchor(null)
+  }
   chooseSplit(choice)
   if (choice === 'split') {
     await nextTick()
@@ -103,7 +117,14 @@ async function onChooseSplit(choice: SplitChoice) {
   }
 }
 
+// The button of a stem without beams: the tapped button stays where it is, so nothing scrolls.
+function onSplit() {
+  setAnchor(null)
+  chooseSplit('split')
+}
+
 async function saveDraft(): Promise<TimberItem | null> {
+  setAnchor(null)
   const target = save()
   if (!target) {
     // The save bar sticks to the bottom; without this the error may be off screen and "nothing happens".
@@ -234,7 +255,7 @@ function onDiscard() {
         :is-dirty="isDirty"
         @save-first="beamToOpen = $event"
         @remove="beamToRemove = $event"
-        @split="chooseSplit('split')"
+        @split="onSplit"
       />
     </div>
 
@@ -246,6 +267,7 @@ function onDiscard() {
           :pending="photosOf(attribute.id)"
           :uploaded-count="item ? store.uploadedPhotoCount(item.id, attribute.id) : 0"
           :can-capture="mode === 'input'"
+          :data-field="attribute.id"
           :busy="isCompressing"
           @add="addPhotos(attribute.id, $event)"
           @picker="isPicking = $event"
@@ -260,8 +282,9 @@ function onDiscard() {
           :readonly="mode === 'readonly'"
           :inherited="item && store.isInherited(item.id, attribute.id)"
           :user-name="store.userName"
+          :data-field="attribute.id"
           v-bind="extraFieldProps(attribute)"
-          @update:model-value="setField(attribute, $event)"
+          @update:model-value="onInput(attribute, $event)"
         />
       </template>
     </div>
