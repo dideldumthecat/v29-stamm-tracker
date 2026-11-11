@@ -2,11 +2,28 @@
  * Which attributes an item offers for input. App-only rules: the server accepts any event (applies_to is not enforced there).
  * Pure functions, so the rules can be tested without the store.
  */
-import type { Attribute, ItemKind } from '@v29/shared/contract'
+import type { Attribute, ItemKind, Snapshot } from '@v29/shared/contract'
 
 /** Keys of the attributes the rules refer to (never their names, which V29 may change). */
 export const SAWN_KEY = 'sawn'
 export const NOTES_KEY = 'notes'
+
+/**
+ * A snapshot stored by an app version from before `key`, `applies_to` and `hidden_when` lacks these fields, and it stays
+ * on the device until the next download succeeds. With these defaults the app behaves as it did then:
+ * every attribute everywhere, no split question (no key "sawn").
+ */
+export function withAttributeDefaults(snapshot: Snapshot): Snapshot {
+  return {
+    ...snapshot,
+    attributes: snapshot.attributes.map((attribute) => ({
+      ...attribute,
+      key: attribute.key ?? null,
+      applies_to: attribute.applies_to ?? ['stem', 'beam'],
+      hidden_when: attribute.hidden_when ?? [],
+    })),
+  }
+}
 
 /**
  * What became of a sawn stem: 'whole' = "Nicht aufgeteilt" (it is its own beam), 'split' = "Mehrere Balken".
