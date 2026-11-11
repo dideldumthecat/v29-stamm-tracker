@@ -61,7 +61,7 @@ flowchart LR
 ├── frontend/    npm workspace: app/ (Vue capture app), admin/ (administration), shared/ (API contract, fixtures, design values)
 ├── docs/        clickable prototype and static screens from the design phase
 ├── .ddev/       local development environment
-└── .github/     deployment workflow
+└── .github/     checks and deployment workflows
 ```
 
 The API contract lives in `frontend/shared/contract.ts`. Its JSON fixtures (`frontend/shared/fixtures/`) serve both as mock data for the app and as expected results in the backend tests, so frontend and backend cannot drift apart unnoticed.
@@ -130,7 +130,7 @@ ddev share --provider=cloudflared                 # open the printed address on 
 
 ## Deployment
 
-A manually started GitHub Actions workflow (`.github/workflows/deploy.yaml`) builds the app into `backend/public/` and the administration into `backend/public/admin/`, uploads `backend/` via rsync over SSH, clears the cache and runs migrations on the server.
+Every push to `main` runs lint, build, unit tests, PHPStan and PHPUnit on GitHub (`.github/workflows/checks.yaml`). A manually started GitHub Actions workflow (`.github/workflows/deploy.yaml`) runs these checks first and then builds the app into `backend/public/` and the administration into `backend/public/admin/`, uploads `backend/` via rsync over SSH, clears the cache and runs migrations on the server.
 
 **One-time setup**
 

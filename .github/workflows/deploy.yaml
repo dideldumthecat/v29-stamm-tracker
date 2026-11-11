@@ -5,7 +5,11 @@ on:
   workflow_dispatch:
 
 jobs:
+  checks:
+    uses: ./.github/workflows/checks.yaml
+
   deploy:
+    needs: checks
     runs-on: ubuntu-latest
     environment: IONOS
     permissions:
