@@ -38,8 +38,6 @@ class ApiTest extends WebTestCase
     private const FOTOS = 'c8bcdbf8-6f14-46e2-b82d-b6962ba1ae10';
     private const STIELEICHE = '8b2b5909-3247-4abe-8604-08909006f9e9';
 
-    /** Keys of the fixture attributes by name. */
-    private const KEYS = ['Gesägt' => 'sawn', 'Notiz' => 'notes', 'Fotos' => 'photos'];
     private const EXPORT_ONLY = [
         ['Stammmittendurchmesser groß', 'mid_diameter_max', AttributeType::Number],
         ['Stammmittendurchmesser klein', 'mid_diameter_min', AttributeType::Number],
@@ -61,14 +59,13 @@ class ApiTest extends WebTestCase
         }
         foreach ($snapshot['attributes'] as $a) {
             $attribute = new Attribute($a['name'], AttributeType::from($a['type']), $a['description'], $a['unit'], $a['is_series'],
-                $a['is_inheritable'], $a['sort_order'], $a['active'], Uuid::fromString($a['id']), self::KEYS[$a['name']] ?? null);
+                $a['is_inheritable'], $a['sort_order'], $a['active'], Uuid::fromString($a['id']), $a['key'], $a['applies_to']);
             $this->em->persist($attribute);
             foreach ($a['options'] as $o) {
                 $this->em->persist(new AttributeOption($attribute, $o['label'], $o['sort_order'], $o['active'], Uuid::fromString($o['id'])));
             }
         }
-        // Keys are not part of the contract, so they are not in the fixture. Like in production, the attributes the export
-        // refers to have one; the rest are only here for the export, after the fixture attributes.
+        // Attributes the export refers to by key and the fixture lacks; they come after the fixture attributes.
         foreach (self::EXPORT_ONLY as $order => [$name, $key, $type]) {
             $this->em->persist(new Attribute($name, $type, sortOrder: 1000 + $order, key: $key));
         }

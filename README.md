@@ -107,7 +107,7 @@ Every command explains its options with `--help`; bulk changes, imports and void
 |---|---|
 | `app:user:create` / `list` / `revoke` | Manage users and invite codes (`create --role=user, admin or superadmin`) |
 | `app:user:role <name or ID> <role>` | Change the role of an active user |
-| `app:attributes:import` | Create and update attributes from YAML |
+| `app:attributes:import` | Create and update attributes from YAML; every entry must state `is_series`, `is_inheritable` and `applies_to` (`stem` and/or `beam`: where the app offers the attribute for input), see `backend/data/attributes.example.yaml` |
 | `app:attribute:set` / `clear` | Set or clear one attribute on many logs |
 | `app:item:void` / `restore` | Void a log or beam created by mistake, or undo that |
 | `app:photo:import` | Attach existing photos from a CSV |

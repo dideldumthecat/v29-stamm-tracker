@@ -5,12 +5,14 @@ import { collectDraft, parseNumber } from '@/utils/attributeDraft'
 function attribute(id: string, type: AttributeType, overrides: Partial<Attribute> = {}): Attribute {
   return {
     id,
+    key: null,
     name: id,
     description: '',
     type,
     unit: null,
     is_series: false,
     is_inheritable: false,
+    applies_to: ['stem', 'beam'],
     sort_order: 0,
     active: true,
     options: [],

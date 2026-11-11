@@ -11,7 +11,7 @@ use Symfony\Component\Uid\Uuid;
  * Never deleted, only deactivated: old values must stay displayable.
  *
  * The optional key is how code and console commands refer to an attribute; the name is only for display and may change.
- * Once set it never changes, and it is not part of the API contract.
+ * Once set it never changes.
  */
 #[ORM\Entity]
 #[ORM\Table(name: 'attributes')]
@@ -22,6 +22,9 @@ class Attribute
     public private(set) Uuid $id;
 
     public const int KEY_MAX_LENGTH = 64;
+
+    /** Kinds of timber item, see ItemKind in frontend/shared/contract.ts. */
+    public const array KINDS = ['stem', 'beam'];
 
     #[ORM\Column(name: '`key`', length: self::KEY_MAX_LENGTH, unique: true, nullable: true)]
     public private(set) ?string $key = null;
@@ -46,6 +49,13 @@ class Attribute
         public bool $active = true,
         ?Uuid $id = null,
         ?string $key = null,
+        /**
+         * Kinds the attribute is recorded on, in the order of KINDS, never empty. Only the app applies it.
+         *
+         * @var list<string>
+         */
+        #[ORM\Column(type: 'json')]
+        public array $appliesTo = self::KINDS,
     ) {
         $this->id = $id ?? Uuid::v7();
         if (null !== $key) {

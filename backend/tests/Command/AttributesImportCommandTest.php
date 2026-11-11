@@ -28,8 +28,20 @@ class AttributesImportCommandTest extends KernelTestCase
         $this->application = new Application($kernel);
     }
 
-    private function import(string $yaml, bool $dryRun = false): CommandTester
+    /**
+     * $complete: entries written as "- { name: … }" get the required fields they leave out, so each test only states what it is about.
+     */
+    private function import(string $yaml, bool $dryRun = false, bool $complete = true): CommandTester
     {
+        if ($complete) {
+            $yaml = preg_replace_callback('/^(\s*- \{ name: .*) \}$/m', static function (array $m): string {
+                foreach (['is_series' => 'false', 'is_inheritable' => 'false', 'applies_to' => '[stem, beam]'] as $key => $value) {
+                    $m[1] .= str_contains($m[1], $key) ? '' : ", $key: $value";
+                }
+
+                return $m[1].' }';
+            }, $yaml);
+        }
         $file = tempnam(sys_get_temp_dir(), 'attributes');
         file_put_contents($file, $yaml);
         $tester = new CommandTester($this->application->find('app:attributes:import'));
@@ -52,7 +64,7 @@ class AttributesImportCommandTest extends KernelTestCase
         return array_column($this->em->getRepository(AttributeOption::class)->findBy(['attribute' => $attribute]), null, 'label');
     }
 
-    public function testExampleFileImportsWithDefaultsAndFileOrder(): void
+    public function testExampleFileImportsInFileOrder(): void
     {
         $tester = $this->import(file_get_contents(__DIR__.'/../../data/attributes.example.yaml'));
 
@@ -61,6 +73,8 @@ class AttributesImportCommandTest extends KernelTestCase
         self::assertCount(10, $attributes);
         $species = $attributes['Holzart'];
         self::assertSame([AttributeType::Choice, true, false, 10, true, null], [$species->type, $species->isInheritable, $species->isSeries, $species->sortOrder, $species->active, $species->unit]);
+        self::assertSame(['stem'], $species->appliesTo);
+        self::assertSame(['beam'], $attributes['Sortierklasse']->appliesTo);
         self::assertSame('%', $attributes['Holzfeuchte']->unit);
         self::assertSame(20, $attributes['Fälldatum']->sortOrder);
         $options = $this->options($species);
@@ -139,6 +153,43 @@ class AttributesImportCommandTest extends KernelTestCase
             self::assertStringContainsString($error, $display);
         }
         self::assertSame([], $this->attributes());
+    }
+
+    public function testRequiredFieldsHaveNoDefaults(): void
+    {
+        $tester = $this->import(<<<'YAML'
+            - { name: A, type: text, is_inheritable: false, applies_to: [stem] }
+            - { name: B, type: text, is_series: false, applies_to: [stem] }
+            - { name: C, type: text, is_series: false, is_inheritable: false }
+            - { name: D, type: text, is_series: false, is_inheritable: false, applies_to: [] }
+            - { name: E, type: text, is_series: false, is_inheritable: false, applies_to: [stem, stem] }
+            - { name: F, type: text, is_series: false, is_inheritable: false, applies_to: [stem, plank] }
+            - { name: G, type: text, is_series: false, is_inheritable: false, applies_to: beam }
+            YAML, complete: false);
+
+        self::assertSame(Command::FAILURE, $tester->getStatusCode());
+        $display = preg_replace('/\s+/', ' ', $tester->getDisplay());
+        foreach (['"A": is_series is missing', '"B": is_inheritable is missing', '"C": applies_to is missing'] as $error) {
+            self::assertStringContainsString($error, $display);
+        }
+        foreach (['D', 'E', 'F', 'G'] as $name) {
+            self::assertStringContainsString("\"$name\": applies_to must be a list of stem and/or beam", $display);
+        }
+        self::assertSame([], $this->attributes());
+    }
+
+    public function testAppliesToIsStoredAndAChangeShowsInTheDryRun(): void
+    {
+        $this->import("- { name: Querschnitt, type: text, applies_to: [beam, stem] }\n");
+        self::assertSame(['stem', 'beam'], $this->attributes()['Querschnitt']->appliesTo);
+        self::assertStringContainsString('unchanged  Querschnitt', $this->import("- { name: Querschnitt, type: text, applies_to: [stem, beam] }\n")->getDisplay());
+
+        $display = $this->import("- { name: Querschnitt, type: text, applies_to: [beam] }\n", true)->getDisplay();
+        self::assertStringContainsString('updated    Querschnitt (appliesTo)', $display);
+        self::assertSame(['stem', 'beam'], $this->attributes()['Querschnitt']->appliesTo);
+
+        $this->import("- { name: Querschnitt, type: text, applies_to: [beam] }\n");
+        self::assertSame(['beam'], $this->attributes()['Querschnitt']->appliesTo);
     }
 
     public function testRefusesTypeChangeOnceValuesWereRecorded(): void

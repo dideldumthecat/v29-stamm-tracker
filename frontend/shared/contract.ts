@@ -124,8 +124,13 @@ export interface Snapshot {
 
 export type AttributeType = 'boolean' | 'choice' | 'number' | 'text' | 'date' | 'month' | 'photo'
 
+/** A stem sawn as a whole (no beams) is a beam too; a stem with beams is only a stem. */
+export type ItemKind = 'stem' | 'beam'
+
 export interface Attribute {
   id: Uuid
+  /** Stable key from the database, null for attributes without a key. */
+  key: string | null
   name: string
   description: string
   type: AttributeType
@@ -133,6 +138,8 @@ export interface Attribute {
   unit: string | null
   is_series: boolean
   is_inheritable: boolean
+  /** Kinds of timber item the attribute is recorded on. Never empty. Only the app applies it; the server accepts any event. */
+  applies_to: ItemKind[]
   sort_order: number
   active: boolean
   /** Only filled for type "choice", otherwise empty. */
