@@ -8,8 +8,8 @@ import {
 } from 'vue-router'
 import { Trash2Icon } from '@lucide/vue'
 import { useTimberItemStore, type Attribute, type TimberItem } from '@/stores/timberItems'
+import type { SplitChoice } from '@/stores/itemRoles'
 import { formatRecordedLines } from '@/utils/attributeDraft'
-import { bySortOrder } from '@v29/shared/attributes'
 import { useToast } from '@/composables/useToast'
 import { useTimberItemDraft } from '@/composables/useTimberItemDraft'
 import TimberItemHeader from '@/components/TimberItemHeader.vue'
@@ -42,16 +42,6 @@ const parent = computed(() =>
 )
 const parentTag = computed(() => parent.value?.tag_number ?? undefined)
 const kind = computed(() => (parent.value ? 'Balken' : 'Stamm'))
-// Split into beams: the values stay visible, but nothing can be recorded any more.
-const isSplit = computed(() => item.value?.has_children ?? false)
-
-// Fields in the order V29 set.
-// Read-only attributes (inactive, or all on a split stem) stay visible only for an existing value.
-const attributes = computed(() =>
-  store.attributes
-    .filter((attribute) => (attribute.active && !isSplit.value) || item.value?.values[attribute.id])
-    .sort(bySortOrder),
-)
 
 const fieldComponents: Partial<Record<Attribute['type'], Component>> = {
   choice: ChoiceAttributeField,
@@ -64,6 +54,15 @@ const fieldComponents: Partial<Record<Attribute['type'], Component>> = {
 
 const {
   draft,
+  fields,
+  roles,
+  hasSavedBeams,
+  canSplit,
+  isAskingSplit,
+  pendingBeamDiscard,
+  setField,
+  chooseSplit,
+  discardDraftBeams,
   draftBeams,
   formKey,
   isDirty,
@@ -75,10 +74,15 @@ const {
   unsaved,
   save,
   extraFieldProps,
-} = useTimberItemDraft(item, () => props.tagNumber, attributes)
+} = useTimberItemDraft(item, () => props.tagNumber)
 
-// A split stem is read-only; the bar only leads back to the start screen, unless new beams wait to be saved.
-const isClosing = computed(() => isSplit.value && draftBeams.value.length === 0)
+// A stem with saved beams takes little more (notes, new beams); with nothing to save the bar only leads back to the start screen.
+const isClosing = computed(() => hasSavedBeams.value && !isDirty.value)
+
+// Every stem offers beams, unless "Gesägt" is not on offer; existing beams are always listed.
+const showsBeams = computed(
+  () => !parent.value && (canSplit.value || hasSavedBeams.value || draftBeams.value.length > 0),
+)
 
 // A stem saved with new beams stays open (the beams are the next step); anything else closes.
 const saveLabel = computed(
@@ -86,15 +90,25 @@ const saveLabel = computed(
     `${item.value ? 'Speichern' : 'Stamm anlegen'}${draftBeams.value.length > 0 ? '' : ' & schließen'}`,
 )
 
-// The fields render their own error; the form is where to look for the first one.
-const form = useTemplateRef<HTMLElement>('form')
+// The fields render their own error; the screen is where to look for the first one.
+const screen = useTemplateRef<HTMLElement>('screen')
+const beamList = useTemplateRef<HTMLElement>('beamList')
+
+// The beam list sits above the form: without this the two new beams would appear off screen.
+async function onChooseSplit(choice: SplitChoice) {
+  chooseSplit(choice)
+  if (choice === 'split') {
+    await nextTick()
+    beamList.value?.scrollIntoView({ block: 'center' })
+  }
+}
 
 async function saveDraft(): Promise<TimberItem | null> {
   const target = save()
   if (!target) {
     // The save bar sticks to the bottom; without this the error may be off screen and "nothing happens".
     await nextTick()
-    form.value?.querySelector('[role="alert"]')?.scrollIntoView({ block: 'center' })
+    screen.value?.querySelector('[role="alert"]')?.scrollIntoView({ block: 'center' })
   }
   return target
 }
@@ -163,6 +177,10 @@ let isLeaveConfirmed = false
 
 // Parent ↔ beam stays on the same route, which counts as an update, not a leave.
 function guardLeave(to: { fullPath: string }) {
+  // The split question takes no way out but its own buttons, the back gesture included.
+  if (isAskingSplit.value) {
+    return false
+  }
   if (isLeaveConfirmed || !isDirty.value) {
     return true
   }
@@ -192,7 +210,7 @@ function onDiscard() {
 
 <template>
   <!-- Scroll container of this screen; header and save bar stick to its edges. -->
-  <div class="flex min-h-0 flex-col overflow-y-auto">
+  <div ref="screen" class="flex min-h-0 flex-col overflow-y-auto">
     <TimberItemHeader
       :tag-number="tagNumber"
       :kind="kind.toUpperCase()"
@@ -202,29 +220,32 @@ function onDiscard() {
 
     <TimberItemStatus :item="item" :parent-tag="parentTag" />
 
-    <!-- Beams are cut from a stem only, never from another beam. -->
-    <BeamList
-      v-if="!parent"
-      v-model:draft-beams="draftBeams"
-      :stem="item"
-      :tag-number="tagNumber"
-      :is-dirty="isDirty"
-      @save-first="beamToOpen = $event"
-      @remove="beamToRemove = $event"
-    />
-
-    <p v-if="isSplit" class="my-2 mx-gutter rounded-lg bg-well p-3 text-sm leading-copy">
+    <!-- Close to the status above (its margin is the gap), set off from the beam list below. -->
+    <p v-if="roles.locked" class="mx-gutter mb-4 rounded-lg bg-well p-3 text-sm leading-copy">
       Aufgeteilter Stamm: Angaben am jeweiligen Balken erfassen.
     </p>
 
-    <div ref="form" :key="formKey" class="border-b border-line">
-      <template v-for="attribute in attributes" :key="attribute.id">
+    <!-- Beams are cut from a stem only, never from another beam. -->
+    <div v-if="showsBeams" ref="beamList">
+      <BeamList
+        v-model:draft-beams="draftBeams"
+        :stem="item"
+        :tag-number="tagNumber"
+        :is-dirty="isDirty"
+        @save-first="beamToOpen = $event"
+        @remove="beamToRemove = $event"
+        @split="chooseSplit('split')"
+      />
+    </div>
+
+    <div :key="formKey" class="border-b border-line">
+      <template v-for="{ attribute, mode } in fields" :key="attribute.id">
         <PhotoSection
           v-if="attribute.type === 'photo'"
           :attribute="attribute"
           :pending="photosOf(attribute.id)"
           :uploaded-count="item ? store.uploadedPhotoCount(item.id, attribute.id) : 0"
-          :can-capture="attribute.active && !isSplit"
+          :can-capture="mode === 'input'"
           :busy="isCompressing"
           @add="addPhotos(attribute.id, $event)"
           @picker="isPicking = $event"
@@ -236,16 +257,16 @@ function onDiscard() {
           :model-value="draft[attribute.id]"
           :attribute="attribute"
           :recorded="item?.values[attribute.id]"
-          :readonly="!attribute.active || isSplit"
+          :readonly="mode === 'readonly'"
           :inherited="item && store.isInherited(item.id, attribute.id)"
           :user-name="store.userName"
           v-bind="extraFieldProps(attribute)"
-          @update:model-value="draft[attribute.id] = $event"
+          @update:model-value="setField(attribute, $event)"
         />
       </template>
     </div>
 
-    <section v-if="item && !isSplit && parent" class="py-section px-gutter">
+    <section v-if="item && parent" class="py-section px-gutter">
       <button
         type="button"
         class="flex h-14 w-full items-center justify-center gap-2 rounded-lg border-2 border-ink bg-paper text-label font-bold"
@@ -260,7 +281,7 @@ function onDiscard() {
     <div class="flex-auto"></div>
 
     <!-- A stem not recorded yet can always be saved: creating it is the change.
-         A split stem is read-only, so the bar only leads back to the start screen, unless it has draft beams. -->
+         A stem with saved beams and nothing to save: the bar only leads back to the start screen. -->
     <SaveBar
       :label="isClosing ? 'Zurück zum Start' : saveLabel"
       :disabled="isCompressing || (!isClosing && !!item && !isDirty)"
@@ -306,6 +327,36 @@ function onDiscard() {
       <p>
         Dein Stand für {{ kind }} <FormattedTag :tag-number="tagNumber" /> ist noch nicht
         gespeichert. Erst danach lässt sich der Balken öffnen.
+      </p>
+    </ConfirmSheet>
+
+    <!-- Asked the moment "Gesägt" is ticked: the answer decides where the beam attributes are recorded. -->
+    <ConfirmSheet
+      v-if="isAskingSplit"
+      title="Stamm aufgeteilt?"
+      safe-label="Abbrechen"
+      :choices="[
+        { value: 'whole', label: 'Nein, nicht aufgeteilt' },
+        { value: 'split', label: 'Ja, mehrere Balken' },
+      ]"
+      @safe="isAskingSplit = false"
+      @choose="onChooseSplit($event as SplitChoice)"
+    />
+
+    <ConfirmSheet
+      v-if="pendingBeamDiscard"
+      title="Balken verwerfen?"
+      safe-label="Abbrechen"
+      action-label="Verwerfen"
+      emphasize-action
+      @safe="pendingBeamDiscard = false"
+      @action="discardDraftBeams"
+    >
+      <p>
+        Noch nicht gespeichert und damit verworfen: Balken
+        <template v-for="(tag, index) in unsaved.beams" :key="tag"
+          ><template v-if="index > 0">, </template><FormattedTag :tag-number="tag"
+        /></template>
       </p>
     </ConfirmSheet>
 

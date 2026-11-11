@@ -16,6 +16,7 @@ import {
   removedBeams as projectRemovedBeams,
   withInherited as projectWithInherited,
 } from './projection'
+import { isOpenOnSplitStem } from './itemRoles'
 import { createPersistence } from './persistence'
 import { createSync, type SyncProgress } from './sync'
 
@@ -197,7 +198,7 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     return create(String(tagNumber), null)
   }
 
-  // The parent is split from then on and accepts no more recordings.
+  // The parent is split from then on and accepts no more recordings, except notes.
   // tag: the letter the draft showed already; without it the next free one.
   function addBeam(parentId: string, tag?: string | null): TimberItem {
     const parent = findById(parentId)
@@ -276,19 +277,20 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     discard((candidate) => itemIds.has(candidate.timber_item_id), itemIds)
   }
 
-  function assertRecordable(itemId: string) {
+  function assertRecordable(itemId: string, attributeId?: string) {
     const item = findById(itemId)
     if (!item) {
       throw new Error(`Unknown timber item ${itemId}`)
     }
-    // App-only rule: the server still accepts late events from other devices.
-    if (item.has_children) {
+    // App-only rule: the server still accepts late events from other devices (see stores/itemRoles.ts).
+    const attribute = attributes.value.find((candidate) => candidate.id === attributeId)
+    if (item.has_children && !(attribute && isOpenOnSplitStem(attribute, true))) {
       throw new Error(`Timber item ${itemId} is split into beams and read-only`)
     }
   }
 
   function recordAttribute(itemId: string, attributeId: string, value: AttributeValue) {
-    assertRecordable(itemId)
+    assertRecordable(itemId, attributeId)
     emit('attribute_recorded', itemId, { attribute_id: attributeId, value })
   }
 

@@ -26,7 +26,13 @@ test('stamm screen has no horizontal scroll and equal date/choice fields', async
   expect(c!.height).toBeCloseTo(52, 0)
 })
 
-// Flow: create a stem, record an inheritable value, add a beam, see it inherited, override it.
+// "Gesägt" and the answer "Mehrere Balken" in its dialog: one way to beams; puts A and B into the draft.
+async function splitIntoBeams(page: Page) {
+  await page.getByRole('button', { name: 'Gesägt', exact: true }).click()
+  await page.getByRole('button', { name: 'Ja, mehrere Balken' }).click()
+}
+
+// Flow: create a stem, record inheritable values, split it, see them inherited, override the one a beam may hold itself.
 test('beam inherits a stem value and can override it', async ({ page }) => {
   await page.goto('/')
   for (const digit of '1777') {
@@ -36,6 +42,7 @@ test('beam inherits a stem value and can override it', async ({ page }) => {
 
   const holzart = page.getByLabel('Holzart')
   await holzart.selectOption({ label: 'Traubeneiche' })
+  await page.locator('input[type="date"]').fill('2026-09-08')
   await page.getByRole('button', { name: 'Stamm anlegen & schließen' }).click()
   // Saving closes the stem: back on the start screen, the toast is still visible.
   await expect(page.getByText('Stamm 01777 gespeichert')).toBeVisible()
@@ -46,9 +53,9 @@ test('beam inherits a stem value and can override it', async ({ page }) => {
   await page.getByRole('button', { name: /öffnen/i }).click()
   await expect(page.getByText('Traubeneiche')).toBeVisible()
 
-  // Adding only joins the draft; saving creates the beam and stays on the stem, where it is listed.
-  await page.getByRole('button', { name: 'Balken 01777-A hinzufügen' }).click()
-  await expect(page.getByText('nicht gespeichert')).toBeVisible()
+  // The beams only join the draft; saving creates them and stays on the stem, where they are listed.
+  await splitIntoBeams(page)
+  await expect(page.getByText('nicht gespeichert')).toHaveCount(2)
   await page.getByRole('button', { name: 'Speichern', exact: true }).click()
   await expect(page.locator('a[href="/timber-item/1777-A"]')).toBeVisible()
   await expect(page.locator('h1')).toContainText('STAMM')
@@ -58,17 +65,20 @@ test('beam inherits a stem value and can override it', async ({ page }) => {
   const holzartField = page.locator('section', { hasText: 'Holzart' }).first()
   await expect(holzartField).toContainText('Traubeneiche')
   await expect(holzartField).toContainText('vom Stamm')
-
-  await page.getByRole('button', { name: 'Holzart ändern' }).click()
-  await page.getByLabel('Holzart').selectOption({ label: 'Stieleiche' })
+  // Holzart belongs to the stem: shown, not overridable. Lieferdatum is for stems and beams.
+  await expect(page.getByRole('button', { name: 'Holzart ändern' })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Lieferdatum ändern' }).click()
+  await page.locator('input[type="date"]').fill('2026-09-10')
   await page.getByRole('button', { name: 'Speichern & schließen' }).click()
 
   // Saving closes the beam: back on its stem, which lists the beam and is read-only now.
   await expect(page.getByText('Balken 01777-A gespeichert')).toBeVisible()
   await expect(page.locator('h1')).toContainText('STAMM')
-  await expect(page.getByRole('link', { name: /01777-A/ })).toContainText('Stieleiche')
+  await expect(page.getByRole('link', { name: /01777-A/ })).toContainText('10.09.2026')
   await expect(page.getByText('Aufgeteilter Stamm')).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Holzart ändern' })).toHaveCount(0)
+  // Holzart belongs to the stem alone and stays open; Lieferdatum is recorded on the beams now.
+  await expect(page.getByRole('button', { name: 'Holzart ändern' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Lieferdatum ändern' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: /Speichern/ })).toHaveCount(0)
   await page.getByRole('button', { name: 'Zurück zum Start' }).click()
   await expect(page.locator('h1')).toHaveText('V29 Stamm-Tracker')
@@ -78,12 +88,13 @@ test('beam letters run to Z, are reused after removal, and stop after 26', async
   // 27 clicks, each re-checked for stability: about 17 s on WebKit normally, over the 30 s limit when the machine is busy.
   test.slow()
   await page.goto('/timber-item/1888')
-  await page.getByRole('button', { name: 'Balken 01888-A hinzufügen' }).click()
+  await splitIntoBeams(page)
   // A draft beam goes without a question.
   await page.getByRole('button', { name: 'Balken 1888-A entfernen' }).click()
   await expect(page.getByRole('button', { name: 'Balken 1888-A entfernen' })).toHaveCount(0)
 
-  for (let count = 0; count < 25; count++) {
+  // B is there; A and C to Y follow.
+  for (let count = 0; count < 24; count++) {
     await page.getByRole('button', { name: /^Balken \d+-[A-Z] hinzufügen$/ }).click()
   }
   await page.getByRole('button', { name: 'Balken 01888-Z hinzufügen' }).click()
@@ -91,15 +102,62 @@ test('beam letters run to Z, are reused after removal, and stop after 26', async
   await expect(page.getByText('Höchstens 26 Balken je Stamm')).toBeVisible()
 })
 
-// Flow: stem values and new beams are saved together; the beams inherit; the app stays on the stem.
-test('records a stem with "Gesägt" and two beams in one save; the beams inherit it', async ({
+// Flow "Nicht aufgeteilt": the sawn stem is its own beam, so the beam attributes are recorded on it.
+test('"Gesägt" asks in a dialog whether the stem was split; "Nicht aufgeteilt" records beam attributes on the stem', async ({
+  page,
+}) => {
+  await page.goto('/timber-item/1446')
+  await expect(page.getByText('Sortierklasse')).toHaveCount(0)
+  const sawn = page.getByRole('button', { name: 'Gesägt', exact: true })
+  await sawn.click()
+  const dialog = page.getByRole('dialog')
+  await expect(dialog).toContainText('Stamm aufgeteilt?')
+  // A tap next to the dialog does not close it.
+  await page.mouse.click(20, 20)
+  await expect(dialog).toBeVisible()
+  // "Abbrechen" takes the tick back.
+  await dialog.getByRole('button', { name: 'Abbrechen' }).click()
+  await expect(dialog).toHaveCount(0)
+  await expect(sawn).toHaveAttribute('aria-pressed', 'false')
+
+  await sawn.click()
+  await dialog.getByRole('button', { name: 'Nein, nicht aufgeteilt' }).click()
+  await expect(dialog).toHaveCount(0)
+  await expect(sawn).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByText('Nein, nicht aufgeteilt')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Balken A und B hinzufügen' })).toBeVisible()
+  await page.getByLabel('Sortierklasse').selectOption({ label: 'A' })
+  await page.getByRole('button', { name: 'Stamm anlegen & schließen' }).click()
+  await expect(page.getByText('Stamm 01446 gespeichert')).toBeVisible()
+
+  // Opened again: no dialog, the stem counts as not split.
+  await openStem(page, '1446')
+  await expect(page.getByRole('button', { name: 'Sortierklasse ändern' })).toBeVisible()
+  await expect(dialog).toHaveCount(0)
+})
+
+// Flow "Mehrere Balken": stem values and the beams are saved together; the beams inherit; the app stays on the stem.
+test('"Mehrere Balken" locks the stem and saves it with the beams A and B; the beams inherit', async ({
   page,
 }) => {
   await page.goto('/timber-item/1444')
-  await page.getByRole('button', { name: 'Gesägt', exact: true }).click()
-  await page.getByRole('button', { name: 'Balken 01444-A hinzufügen' }).click()
-  await page.getByRole('button', { name: 'Balken 01444-B hinzufügen' }).click()
+  await splitIntoBeams(page)
   await expect(page.getByText('nicht gespeichert')).toHaveCount(2)
+  // Locked from the answer on: left are the attributes of the stem alone, "Gesägt" and the notes.
+  await expect(page.getByText('Aufgeteilter Stamm')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Fotos' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Foto aufnehmen' })).toHaveCount(0)
+  await expect(page.locator('input[type="date"]')).toHaveCount(0)
+  await expect(page.locator('textarea')).toHaveCount(1)
+  await page.getByLabel('Holzart').selectOption({ label: 'Traubeneiche' })
+
+  // Unticking "Gesägt" asks, because it drops the draft beams.
+  await page.getByRole('button', { name: 'Gesägt', exact: true }).click()
+  await expect(page.getByRole('dialog')).toContainText('Balken verwerfen?')
+  await expect(page.getByRole('dialog')).toContainText('01444-A, 01444-B')
+  await page.getByRole('button', { name: 'Abbrechen' }).click()
+  await expect(page.getByText('nicht gespeichert')).toHaveCount(2)
+
   await page.getByRole('button', { name: 'Stamm anlegen', exact: true }).click()
 
   await expect(page.getByText('Stamm 01444 gespeichert')).toBeVisible()
@@ -110,12 +168,15 @@ test('records a stem with "Gesägt" and two beams in one save; the beams inherit
   await page.locator('a[href="/timber-item/1444-B"]').click()
   const gesaegt = page.locator('section', { hasText: 'Gesägt' }).first()
   await expect(gesaegt).toContainText('vom Stamm')
+  const holzart = page.locator('section', { hasText: 'Holzart' }).first()
+  await expect(holzart).toContainText('Traubeneiche')
+  await expect(holzart).toContainText('vom Stamm')
 
   // Sent in one go: stem and beams, 1 + 1 + 1 entries.
   await page.goto('/sync')
-  await expect(page.locator('h1')).toHaveText('Synchronisierung (4)')
+  await expect(page.locator('h1')).toHaveText('Synchronisierung (5)')
   await page.getByRole('button', { name: 'Jetzt synchronisieren' }).click()
-  await expect(page.getByText('4 Einträge übertragen')).toBeVisible()
+  await expect(page.getByText('5 Einträge übertragen')).toBeVisible()
 })
 
 // Flow: remove a synced beam, sync, and the next new beam takes its letter again.
@@ -708,6 +769,25 @@ test('a split stem offers neither camera nor library', async ({ page }) => {
   await expect(page.getByText('Aufgeteilter Stamm')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Foto aufnehmen' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Aus Galerie' })).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'Fotos' })).toHaveCount(0)
+})
+
+// Open on a stem with saved beams: the notes and what only stems take (Lagerplatz), and the server takes both.
+// Lieferdatum is also for beams: its value stays without pencil.
+test('a split stem still takes a note and a stem attribute, and the sync sends them', async ({
+  page,
+}) => {
+  await page.goto('/timber-item/789')
+  await expect(page.getByRole('button', { name: 'Holzart ändern' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Lieferdatum ändern' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Gesägt ändern' })).toHaveCount(0)
+  await page.getByLabel('Lagerplatz').selectOption({ index: 1 })
+  await page.locator('textarea').fill('Kern faul')
+  await page.getByRole('button', { name: 'Speichern & schließen' }).click()
+  await expect(page.getByText('Stamm 00789 gespeichert')).toBeVisible()
+  await syncLink(page, 2).click()
+  await page.getByRole('button', { name: 'Jetzt synchronisieren' }).click()
+  await expect(page.getByText('2 Einträge übertragen')).toBeVisible()
 })
 
 // Nobody taps anything for the report: the failed sync is enough.
