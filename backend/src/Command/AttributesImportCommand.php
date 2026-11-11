@@ -23,7 +23,7 @@ use Symfony\Component\Yaml\Yaml;
 #[AsCommand(name: 'app:attributes:import', description: 'Create or update attributes and their options from a YAML file, see data/attributes.example.yaml')]
 class AttributesImportCommand
 {
-    private const array KEYS = ['key', 'name', 'description', 'type', 'unit', 'is_series', 'is_inheritable', 'applies_to', 'active', 'options'];
+    private const array KEYS = ['key', 'name', 'description', 'type', 'unit', 'is_series', 'is_inheritable', 'applies_to', 'hidden_when', 'active', 'options'];
 
     public function __construct(
         private readonly EntityManagerInterface $em,
@@ -57,6 +57,7 @@ class AttributesImportCommand
                 $errors[] = \sprintf('"%s": type cannot change from %s to %s, values have already been recorded.', $name, $current->type->value, $a['type']->value);
             }
         }
+        $this->checkHiddenWhen($attributes, $existing, $matches, $errors);
         if ($errors) {
             $io->error(['Nothing imported.', ...$errors]);
 
@@ -68,7 +69,7 @@ class AttributesImportCommand
             foreach ($attributes as $name => $a) {
                 $attribute = $matches[$name] ?? null;
                 if (!$attribute) {
-                    $attribute = new Attribute($name, $a['type'], $a['description'], $a['unit'], $a['is_series'], $a['is_inheritable'], $a['sort_order'], $a['active'], key: $a['key'], appliesTo: $a['applies_to']);
+                    $attribute = new Attribute($name, $a['type'], $a['description'], $a['unit'], $a['is_series'], $a['is_inheritable'], $a['sort_order'], $a['active'], key: $a['key'], appliesTo: $a['applies_to'], hiddenWhen: $a['hidden_when']);
                     $this->persist($attribute, $dryRun);
                     foreach ($a['options'] as $label => $o) {
                         $this->persist(new AttributeOption($attribute, $label, $o['sort_order'], $o['active']), $dryRun);
@@ -84,7 +85,7 @@ class AttributesImportCommand
                 $changes = $this->apply($attribute, [
                     'name' => $name,
                     'type' => $a['type'], 'description' => $a['description'], 'unit' => $a['unit'], 'isSeries' => $a['is_series'],
-                    'isInheritable' => $a['is_inheritable'], 'appliesTo' => $a['applies_to'], 'sortOrder' => $a['sort_order'], 'active' => $a['active'],
+                    'isInheritable' => $a['is_inheritable'], 'appliesTo' => $a['applies_to'], 'hiddenWhen' => $a['hidden_when'], 'sortOrder' => $a['sort_order'], 'active' => $a['active'],
                 ], $dryRun);
                 $changes = array_values(array_diff($changes, ['name']));
                 if ($a['key'] && null === $attribute->key) {
@@ -171,6 +172,43 @@ class AttributesImportCommand
     }
 
     /**
+     * Every key in hidden_when must name a yes/no attribute other than the entry itself. The file counts before the database:
+     * it is what the attributes will be after the import.
+     *
+     * @param array<string, array<string, mixed>> $attributes by name
+     * @param list<Attribute>                     $existing
+     * @param array<string, Attribute>            $matches    by name in the file
+     * @param list<string>                        $errors
+     */
+    private function checkHiddenWhen(array $attributes, array $existing, array $matches, array &$errors): void
+    {
+        $types = [];
+        foreach ($existing as $attribute) {
+            if (null !== $attribute->key) {
+                $types[$attribute->key] = $attribute->type;
+            }
+        }
+        $keys = [];
+        foreach ($attributes as $name => $a) {
+            $keys[$name] = $a['key'] ?? ($matches[$name] ?? null)?->key;
+            if (null !== $keys[$name]) {
+                $types[$keys[$name]] = $a['type'];
+            }
+        }
+        foreach ($attributes as $name => $a) {
+            foreach ($a['hidden_when'] as $key) {
+                if ($key === $keys[$name]) {
+                    $errors[] = \sprintf('"%s": hidden_when must not name the attribute itself (%s).', $name, $key);
+                } elseif (!isset($types[$key])) {
+                    $errors[] = \sprintf('"%s": hidden_when names the unknown key %s.', $name, $key);
+                } elseif (AttributeType::Boolean !== $types[$key]) {
+                    $errors[] = \sprintf('"%s": hidden_when names %s, which is of type %s, not boolean.', $name, $key, $types[$key]->value);
+                }
+            }
+        }
+    }
+
+    /**
      * @param array<string, mixed> $values by property name
      *
      * @return list<string> names of the properties that differ; set on the entity unless $dryRun
@@ -206,7 +244,7 @@ class AttributesImportCommand
     }
 
     /**
-     * Applies defaults (none for is_series, is_inheritable and applies_to) and checks every entry, collecting all errors instead of stopping at the first.
+     * Applies defaults (none for is_series, is_inheritable, applies_to and hidden_when) and checks every entry, collecting all errors instead of stopping at the first.
      *
      * @param array<mixed> $entries as read from the YAML file
      * @param list<string> $errors
@@ -257,7 +295,7 @@ class AttributesImportCommand
                 }
             }
             // No defaults: a forgotten line would silently change inheritance or where the app offers the field.
-            foreach (['is_series', 'is_inheritable', 'applies_to'] as $key) {
+            foreach (['is_series', 'is_inheritable', 'applies_to', 'hidden_when'] as $key) {
                 if (!isset($entry[$key])) {
                     $fail("$key is missing.");
                 }
@@ -268,6 +306,14 @@ class AttributesImportCommand
                 $fail(\sprintf('applies_to must be a list of %s, at least one, each only once.', implode(' and/or ', Attribute::KINDS)));
                 $appliesTo = null;
             }
+            $hiddenWhen = $entry['hidden_when'] ?? [];
+            if (!\is_array($hiddenWhen) || !array_is_list($hiddenWhen) || array_filter($hiddenWhen, static fn (mixed $key) => !\is_string($key))
+                || \count($hiddenWhen) !== \count(array_unique($hiddenWhen))) {
+                $fail('hidden_when must be a list of attribute keys (may be empty), each only once.');
+                $hiddenWhen = [];
+            }
+            // Sorted, so the same keys in another order are no change.
+            sort($hiddenWhen);
             // Every photo counts and none replaces another (T11); only a series keeps all recordings.
             if (AttributeType::Photo === $type && !($entry['is_series'] ?? false)) {
                 $fail('type photo needs is_series: true.');
@@ -305,6 +351,7 @@ class AttributesImportCommand
                     'is_inheritable' => $entry['is_inheritable'] ?? false,
                     // Canonical order, so the same kinds in another order are no change.
                     'applies_to' => array_values(array_intersect(Attribute::KINDS, $appliesTo ?? [])),
+                    'hidden_when' => $hiddenWhen,
                     'active' => $entry['active'] ?? true,
                     'sort_order' => 10 * ($i + 1),
                     'options' => $options,

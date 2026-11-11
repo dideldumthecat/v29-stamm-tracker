@@ -56,6 +56,13 @@ class Attribute
          */
         #[ORM\Column(type: 'json')]
         public array $appliesTo = self::KINDS,
+        /**
+         * Keys of yes/no attributes, sorted: while one of them is "ja" on the item, the app does not offer this attribute. Only the app applies it.
+         *
+         * @var list<string>
+         */
+        #[ORM\Column(type: 'json')]
+        public array $hiddenWhen = [],
     ) {
         $this->id = $id ?? Uuid::v7();
         if (null !== $key) {
