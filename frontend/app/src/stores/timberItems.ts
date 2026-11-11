@@ -16,7 +16,7 @@ import {
   removedBeams as projectRemovedBeams,
   withInherited as projectWithInherited,
 } from './projection'
-import { isOpenOnSplitStem } from './itemRoles'
+import { isOpenOnSplitStem, withAttributeDefaults } from './itemRoles'
 import { createPersistence } from './persistence'
 import { createSync, type SyncProgress } from './sync'
 
@@ -135,7 +135,7 @@ export const useTimberItemStore = defineStore('timberItems', () => {
   async function load() {
     const stored = await loadStored()
     currentUser.value = stored.user ?? currentUser.value
-    snapshot.value = stored.snapshot ?? snapshot.value
+    snapshot.value = stored.snapshot ? withAttributeDefaults(stored.snapshot) : snapshot.value
     events.value = stored.events
     photos.value = stored.photos
     lastSyncedAt.value = stored.lastSyncedAt

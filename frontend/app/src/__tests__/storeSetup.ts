@@ -26,6 +26,23 @@ export async function restartWith(events: Event[]) {
   await store.load()
 }
 
+/**
+ * Restarts the store with the snapshot an app version from before `key`, `applies_to` and `hidden_when` left on the device.
+ */
+export async function restartWithOldSnapshot() {
+  const store = useTimberItemStore()
+  await vi.waitFor(() => expect(store.pendingWrites).toBe(0))
+  const snapshot = structuredClone(toRaw(store.snapshot)) as Snapshot
+  for (const attribute of snapshot.attributes as Partial<Snapshot['attributes'][number]>[]) {
+    delete attribute.key
+    delete attribute.applies_to
+    delete attribute.hidden_when
+  }
+  // The queue too: the test database may still hold one from an earlier test.
+  await save({ snapshot, events: store.events.map((event) => structuredClone(toRaw(event))) })
+  await store.load()
+}
+
 /** Starts a sync that waits for its download until the returned function lets it finish. */
 export function holdSync(): () => Promise<void> {
   let release!: () => void

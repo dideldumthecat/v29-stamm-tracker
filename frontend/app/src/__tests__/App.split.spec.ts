@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 import { useTimberItemStore } from '@/stores/timberItems'
 import { buttonByText, mountAt, setupApp, splitIntoBeams } from './appSetup'
+import { restartWithOldSnapshot } from './storeSetup'
 
 vi.mock('virtual:pwa-register/vue', () => import('./appMocks').then((mocks) => mocks.pwaRegister))
 vi.mock('@/composables/useUpdateCheck', () =>
@@ -333,6 +334,53 @@ describe('App: attributes by kind and the split choice', () => {
     expect(wrapper.find('input[inputmode="decimal"]').exists()).toBe(true)
     expect(wrapper.find('textarea').exists()).toBe(true)
     expect(text).toContain('Foto aufnehmen')
+  })
+
+  it('works with a stored snapshot from before key, applies_to and hidden_when, and takes the new rules from the next download', async () => {
+    const store = useTimberItemStore()
+    await restartWithOldSnapshot()
+    expect(
+      store.attributes.every(
+        (attribute) =>
+          attribute.key === null &&
+          attribute.applies_to.join() === 'stem,beam' &&
+          attribute.hidden_when.length === 0,
+      ),
+    ).toBe(true)
+
+    const { wrapper, router } = await mountAt('/timber-item/456')
+    // As before the update: every attribute on the stem, "Gesägt" without a question.
+    expect(wrapper.findAll('select')).toHaveLength(3)
+    await tap(sawnButton())
+    expect(dialog()).toBeNull()
+    expect(sawnButton().getAttribute('aria-pressed')).toBe('true')
+    await tap(sawnButton())
+    // The button adds the beams without ticking "Gesägt"; the stem stays open until they are saved.
+    await tap(addTwoButton())
+    expect(dialog()).toBeNull()
+    expect(sawnButton().getAttribute('aria-pressed')).toBe('false')
+    expect(wrapper.text()).not.toContain('Aufgeteilter Stamm')
+    expect(wrapper.findAll('select')).toHaveLength(3)
+    await wrapper.find('input[type="date"]').setValue('2026-09-08')
+    await tap(saveButton())
+    expect(store.events.map((event) => event.type)).toEqual([
+      'attribute_recorded',
+      'created',
+      'tag_assigned',
+      'created',
+      'tag_assigned',
+    ])
+    expect(wrapper.text()).toContain('Aufgeteilter Stamm')
+    expect(wrapper.findAll('select, input, textarea')).toHaveLength(0)
+
+    // The download brings the fields: the new rules apply without a restart.
+    await store.refresh()
+    expect(store.attributes.some((attribute) => attribute.key === 'sawn')).toBe(true)
+    await router.push('/timber-item/42')
+    await flushPromises()
+    expect(wrapper.text()).not.toContain('Sortierklasse')
+    await tap(sawnButton())
+    expect(dialog()!.querySelector('h2')!.textContent).toBe('Stamm aufgeteilt?')
   })
 
   it('shows a value recorded in the wrong place read-only', async () => {

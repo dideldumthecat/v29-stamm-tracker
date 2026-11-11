@@ -78,7 +78,8 @@ export function useTimberItemDraft(item: Ref<TimberItem | undefined>, tagNumber:
     itemRoles({
       isBeam: isBeam.value,
       sawn: sawn.value,
-      hasBeams: hasSavedBeams.value || draftBeams.value.length > 0,
+      // Without the key "sawn" (snapshot from before keys) there is no split choice: as before it, only saved beams lock the stem.
+      hasBeams: hasSavedBeams.value || (sawnId.value !== '' && draftBeams.value.length > 0),
       choice: splitChoice.value,
     }),
   )
@@ -95,10 +96,13 @@ export function useTimberItemDraft(item: Ref<TimberItem | undefined>, tagNumber:
           .map((attribute) => attribute.id),
       ),
   )
-  // A stem can be split wherever "Gesägt" is offered: splitting sets it.
+  // A stem can be split wherever "Gesägt" is offered: splitting sets it. Without the key "sawn" beams are added without it.
   const canSplit = computed(() => {
     const sawnAttribute = store.attributes.find((attribute) => attribute.id === sawnId.value)
-    return !isBeam.value && !!sawnAttribute?.active && !hiddenByOthers.value.has(sawnId.value)
+    return (
+      !isBeam.value &&
+      (!sawnAttribute || (sawnAttribute.active && !hiddenByOthers.value.has(sawnId.value)))
+    )
   })
   // Such a field adds nothing to the draft: what was typed there is dropped, not kept for later.
   watch(hiddenByOthers, (ids) => {
@@ -201,7 +205,9 @@ export function useTimberItemDraft(item: Ref<TimberItem | undefined>, tagNumber:
   // To take 'split' back, the draft beams are removed; "Gesägt" then stays on "ja".
   function chooseSplit(choice: SplitChoice) {
     isAskingSplit.value = false
-    draft.value[sawnId.value] = true
+    if (sawnId.value) {
+      draft.value[sawnId.value] = true
+    }
     picked.value = choice
     // Two beams to start with: fewer would not be a split.
     if (choice === 'split' && !hasSavedBeams.value && draftBeams.value.length === 0) {

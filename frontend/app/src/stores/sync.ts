@@ -5,6 +5,7 @@ import { api, ApiError, describeFailure, type User } from '@/api/client'
 import type { PhotoChanges, StoredPhoto, StoredState } from '@/persistence/database'
 import { record } from '@/diagnostics/record'
 import { sendDiagnostics } from '@/diagnostics/send'
+import { withAttributeDefaults } from './itemRoles'
 import { SYNC_TIMEOUT_MS } from '@/config/constants'
 
 // A type, not an interface: it travels as router history state, which needs an index signature.
@@ -280,7 +281,7 @@ export function createSync({
     isPhotoDropped?: (photo: StoredPhoto) => boolean
     signal?: AbortSignal
   } = {}) {
-    const fresh = await api.loadSnapshot(signal)
+    const fresh = withAttributeDefaults(await api.loadSnapshot(signal))
     // Accepted events leave the queue only together with the snapshot that contains them, so a failed
     // download hides nothing. Resending them next time is harmless: the server ignores known ids.
     snapshot.value = fresh
