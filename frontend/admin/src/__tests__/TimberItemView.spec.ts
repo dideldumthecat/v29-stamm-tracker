@@ -177,7 +177,7 @@ describe('beam detail', () => {
     expect(stem.text()).toBe('Aus Stamm 00104')
     expect(stem.attributes('href')).toBe('/staemme/104')
     expect(wrapper.findAll('h2').map((h2) => h2.text())).not.toContain('Balken')
-    expect(valueRow(wrapper, 'Holzart')).toBe('HolzartStieleiche vom Stamm geerbt')
+    expect(valueRow(wrapper, 'Holzart')).toBe('HolzartStieleiche Vom Stamm geerbt')
     const history = section(wrapper, 'Verlauf')
     expect(squeezed(history.get('summary').text())).toBe('Verlauf')
     expect(history.findAll('dl')).toHaveLength(1)

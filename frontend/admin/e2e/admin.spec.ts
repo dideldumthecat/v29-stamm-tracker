@@ -435,7 +435,7 @@ test.describe('detail view', () => {
     await expect(page).toHaveURL(/\/admin\/staemme\/104-C$/)
     await expect(page.locator('h1')).toHaveText('00104-C')
     await expect(page.getByRole('link', { name: 'Aus Stamm 00104' })).toBeVisible()
-    await expect(page.getByText('vom Stamm geerbt').first()).toBeVisible()
+    await expect(page.getByText('Vom Stamm geerbt').first()).toBeVisible()
 
     await page.getByRole('button', { name: 'Zurück' }).click()
     await expect(page).toHaveURL(/\/admin\/aktivitaet\?tags=104$/)
