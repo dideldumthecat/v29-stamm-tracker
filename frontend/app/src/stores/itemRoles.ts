@@ -62,6 +62,29 @@ export function splitChoiceOf(state: {
   return state.picked || state.recordedSawn ? 'whole' : null
 }
 
+/** What the rule `hidden_when` needs to know about the item. */
+export interface YesValues {
+  /** The attribute with this key stands on "ja" as the form shows it: draft over recorded, own over inherited. */
+  isYes: (key: string) => boolean
+  /**
+   * The attribute itself is recorded as "ja". The draft does not count: taking the "ja" back must not hide the field
+   * (and drop that input) before it is saved.
+   */
+  recordedYes: boolean
+}
+
+/**
+ * An attribute is not offered while one of the attributes it names in `hidden_when` stands on "ja".
+ * Its own recorded "ja" keeps it open: two contradicting "ja" from the data can then be resolved in the app
+ * instead of locking each other.
+ */
+export function isHiddenByOthers(
+  attribute: Pick<Attribute, 'hidden_when'>,
+  { isYes, recordedYes }: YesValues,
+): boolean {
+  return !recordedYes && attribute.hidden_when.some(isYes)
+}
+
 /**
  * What a split stem still takes. The lock keeps what describes the sawn timber (cross-section, length, photos) off the stem,
  * so it covers exactly the attributes the beams take too. Attributes of the stem alone stay open: sawyers add the diameters
@@ -79,15 +102,29 @@ export function isOpenOnSplitStem(
 }
 
 export function isEditable(
-  attribute: Pick<Attribute, 'key' | 'active' | 'applies_to'>,
+  attribute: Pick<Attribute, 'key' | 'active' | 'applies_to' | 'hidden_when'>,
   roles: ItemRoles,
   hasSavedBeams: boolean,
+  yes: YesValues,
 ): boolean {
   return (
     attribute.active &&
     attribute.applies_to.some((kind) => roles.kinds.includes(kind)) &&
+    !isHiddenByOthers(attribute, yes) &&
     (!roles.locked || isOpenOnSplitStem(attribute, hasSavedBeams))
   )
+}
+
+/**
+ * hasValue for `fieldMode`. The "nein" of a yes/no attribute hidden by others counts as empty:
+ * it says nothing the "ja" of the other attribute does not say already.
+ */
+export function keepsField(
+  attribute: Pick<Attribute, 'type'>,
+  hasValue: boolean,
+  hiddenByOthers: boolean,
+): boolean {
+  return hasValue && !(hiddenByOthers && attribute.type === 'boolean')
 }
 
 export type FieldMode = 'input' | 'readonly' | 'hidden'
