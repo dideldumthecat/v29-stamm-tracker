@@ -22,11 +22,18 @@ const emit = defineEmits<{
   // The beam cannot be opened before the stem is saved.
   saveFirst: [tag: string]
   remove: [beam: TimberItem]
+  // The first tap on a stem without beams: it splits the stem (two beams, like "Ja, mehrere Balken").
+  split: []
 }>()
 
 const store = useTimberItemStore()
 
 const nextBeam = computed(() => store.nextBeamTagOf(props.stem, props.tagNumber, draftBeams.value))
+
+// Shown on the button of a stem without beams, which adds two at once.
+const secondBeam = computed(() =>
+  nextBeam.value ? store.nextBeamTagOf(props.stem, props.tagNumber, [nextBeam.value]) : null,
+)
 
 // A draft beam has no TimberItem yet.
 const rows = computed(() =>
@@ -41,7 +48,9 @@ const rows = computed(() =>
 
 // Nothing is saved or created here: the beam joins the draft and is created with "Speichern".
 function onAdd() {
-  if (nextBeam.value) {
+  if (rows.value.length === 0) {
+    emit('split')
+  } else if (nextBeam.value) {
     draftBeams.value = [...draftBeams.value, nextBeam.value]
   }
 }
@@ -121,16 +130,14 @@ function onRemove(row: { tag: string; beam: TimberItem | undefined }) {
       @click="onAdd"
     >
       <PlusIcon :size="22" :stroke-width="2.5" aria-hidden="true" />
-      <span v-if="nextBeam">Balken <FormattedTag :tag-number="nextBeam" /> hinzufügen</span>
+      <span v-if="rows.length === 0 && nextBeam && secondBeam"
+        >Balken {{ nextBeam.slice(-1) }} und {{ secondBeam.slice(-1) }} hinzufügen</span
+      >
+      <span v-else-if="nextBeam">Balken <FormattedTag :tag-number="nextBeam" /> hinzufügen</span>
       <span v-else>Balken hinzufügen</span>
     </button>
     <span v-if="!nextBeam" class="text-caption text-mute"
       >Höchstens {{ MAX_BEAMS }} Balken je Stamm</span
     >
-    <p v-if="rows.length === 0" class="text-sm leading-copy text-body">
-      Nur wenn der Stamm in mehrere Balken gesägt wird: je Balken einmal tippen und die Kennung auf
-      den Balken schreiben. Angaben, die für alle Balken gelten, am Stamm erfassen – mit dem
-      Speichern ist der Stamm gesperrt.
-    </p>
   </section>
 </template>

@@ -52,6 +52,21 @@ export const optionLabel = (name: string, label: string) =>
     .attributes.find((attribute) => attribute.name === name)!
     .options.find((option) => option.label === label)!.id
 
+// Any button on the page, sheets included.
+export const buttonByText = (text: RegExp) =>
+  [...document.body.querySelectorAll('button')].find((button) =>
+    text.test(button.textContent ?? ''),
+  )!
+
+// One of the two ways to beams (the other is the button "Balken A und B hinzufügen"): tick "Gesägt", then answer the dialog with "Mehrere Balken",
+// which puts the beams A and B into the draft.
+export async function splitIntoBeams() {
+  buttonByText(/^\s*Gesägt\s*$/).click()
+  await flushPromises()
+  buttonByText(/Ja, mehrere Balken/).click()
+  await flushPromises()
+}
+
 // Memory history: no browser URL needed in the test environment.
 export async function mountAt(path: string) {
   const router = createRouter({ history: createMemoryHistory(), routes })

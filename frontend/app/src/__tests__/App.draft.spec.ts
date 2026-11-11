@@ -4,7 +4,14 @@ import { Blob as NodeBlob } from 'node:buffer'
 import { useTimberItemStore } from '@/stores/timberItems'
 import { useToast } from '@/composables/useToast'
 import { api } from '@/api/client'
-import { leaveDialog, mountAt, optionLabel, setupApp } from './appSetup'
+import {
+  buttonByText,
+  leaveDialog,
+  mountAt,
+  optionLabel,
+  setupApp,
+  splitIntoBeams,
+} from './appSetup'
 
 vi.mock('virtual:pwa-register/vue', () => import('./appMocks').then((mocks) => mocks.pwaRegister))
 vi.mock('@/composables/useUpdateCheck', () =>
@@ -29,6 +36,8 @@ describe('App', () => {
       // Typed first, but its attribute comes after Holzart and Gesägt in the form.
       await wrapper.find('input[inputmode="decimal"]').setValue('41,5')
       await wrapper.find('button[aria-pressed]').trigger('click')
+      buttonByText(/Nein, nicht aufgeteilt/).click()
+      await flushPromises()
       await wrapper.find('select').setValue(optionLabel('Holzart', 'Stieleiche'))
       expect(await closeAndRead(wrapper)).toEqual([
         'Holzart: Stieleiche',
@@ -62,6 +71,16 @@ describe('App', () => {
       wrapper.findAll('img[alt="Foto, noch nicht hochgeladen"]')
     const closeButton = (wrapper: Awaited<ReturnType<typeof mountAt>>['wrapper']) =>
       wrapper.find('button[aria-label="Schließen"]')
+
+    it('keeps the photos of a locked stem visible, without buttons and without a hint', async () => {
+      const { wrapper } = await mountAt('/timber-item/42')
+      await pick(wrapper)
+      await splitIntoBeams()
+      expect(wrapper.text()).toContain('Aufgeteilter Stamm')
+      expect(previews(wrapper)).toHaveLength(1)
+      expect(wrapper.text()).not.toContain('Foto aufnehmen')
+      expect(wrapper.text()).not.toContain('Fotos am jeweiligen Balken')
+    })
     const saveButton = (wrapper: Awaited<ReturnType<typeof mountAt>>['wrapper']) =>
       wrapper.find('button.bg-ink.text-lg')
     const sheetButton = (name: string) =>
@@ -108,11 +127,11 @@ describe('App', () => {
       const { wrapper } = await mountAt('/timber-item/123')
       const photosBefore = useTimberItemStore().photos.length
       await pick(wrapper)
-      await wrapper.find('select').setValue(wrapper.findAll('option')[1]!.element.value)
+      await wrapper.find('input[type="month"]').setValue('2026-10')
 
       await closeButton(wrapper).trigger('click')
       await flushPromises()
-      expect(leaveDialog().items).toEqual(['Sortierklasse: A', '1 Foto'])
+      expect(leaveDialog().items).toEqual(['Fälldatum: 10/2026', '1 Foto'])
       sheetButton('Weiter bearbeiten').click()
       await flushPromises()
       expect(previews(wrapper)).toHaveLength(1)
@@ -277,7 +296,7 @@ describe('App', () => {
     it('is open with unsaved input and closed again by saving', async () => {
       const { wrapper } = await mountAt('/timber-item/456')
       expect(isDraftOpen()).toBe(false)
-      await wrapper.find('button[aria-pressed]').trigger('click')
+      await wrapper.find('input[type="date"]').setValue('2026-09-08')
       expect(isDraftOpen()).toBe(true)
       await wrapper.find('button.bg-ink.text-lg').trigger('click')
       await flushPromises()
@@ -286,7 +305,7 @@ describe('App', () => {
 
     it('is closed when the screen is left after discarding', async () => {
       const { wrapper, router } = await mountAt('/timber-item/456')
-      await wrapper.find('button[aria-pressed]').trigger('click')
+      await wrapper.find('input[type="date"]').setValue('2026-09-08')
       await router.push('/')
       await flushPromises()
       ;[...document.body.querySelectorAll('[role="dialog"] button')]
@@ -317,6 +336,8 @@ describe('App', () => {
   it('records a ticked boolean attribute on save', async () => {
     const { wrapper } = await mountAt('/timber-item/456')
     await wrapper.find('button[aria-pressed]').trigger('click')
+    buttonByText(/Nein, nicht aufgeteilt/).click()
+    await flushPromises()
     await wrapper.find('button.bg-ink.text-lg').trigger('click')
     await flushPromises()
     const store = useTimberItemStore()
@@ -400,6 +421,8 @@ describe('App', () => {
     const positions = names
       // Inactive attributes without a value are hidden, so they have no position.
       .filter((attribute) => attribute.active)
+      // So are attributes for beams on a stem that is not sawn.
+      .filter((attribute) => attribute.applies_to.includes('stem'))
       .filter((attribute) => ['choice', 'date', 'boolean', 'number'].includes(attribute.type))
       .map((attribute) => text.indexOf(attribute.name))
     expect(positions).toEqual([...positions].sort((a, b) => a - b))
@@ -414,13 +437,18 @@ describe('App', () => {
   it('walks through a known item: one value per type, saved, locked, counted', async () => {
     const { wrapper, router } = await mountAt('/timber-item/456')
     const store = useTimberItemStore()
+    // Sawn as a whole: the stem is its own beam, so the beam attribute Sortierklasse appears.
+    await wrapper.find('button[aria-pressed]').trigger('click')
+    expect(wrapper.findAll('select')).toHaveLength(2)
+    buttonByText(/Nein, nicht aufgeteilt/).click()
+    await flushPromises()
     // First option after the placeholder of each select (Holzart, Lagerplatz, Sortierklasse).
     const selects = wrapper.findAll('select')
+    expect(selects).toHaveLength(3)
     for (const select of selects) {
       await select.setValue(select.findAll('option')[1]!.element.value)
     }
     await wrapper.find('input[type="date"]').setValue('2026-09-08')
-    await wrapper.find('button[aria-pressed]').trigger('click')
     const measurement = wrapper.find('input[inputmode="decimal"]')
     await measurement.setValue('40')
     await wrapper

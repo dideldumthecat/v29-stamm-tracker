@@ -57,13 +57,35 @@ describe('timber item store: beams and inheritance', () => {
     store.recordAttribute(stem.id, holzart, 'first')
     const beam = store.addBeam(stem.id)
     expect(store.findByTag('5-A')!.values[holzart]![0]!.value).toBe('first')
-    // The stem is read-only now, so change the stored value directly as an offline edit would.
-    store.items.find((item) => item.id === stem.id)!.values[holzart]![0]!.value = 'second'
+    // Holzart is for stems only, so the split stem still takes it.
+    store.recordAttribute(stem.id, holzart, 'second')
     expect(store.findByTag('5-A')!.values[holzart]![0]!.value).toBe('second')
+    expect(store.isInherited(beam.id, holzart)).toBe(true)
 
     store.recordAttribute(beam.id, holzart, 'own')
     expect(store.findByTag('5-A')!.values[holzart]!.map((record) => record.value)).toEqual(['own'])
     expect(store.isInherited(beam.id, holzart)).toBe(false)
+  })
+
+  it('records on a stem with beams only what beams do not take, and the notes', () => {
+    const store = useTimberItemStore()
+    const stem = store.createTimberItem(5)
+    store.addBeam(stem.id)
+    const holzart = store.attributes.find((attribute) => attribute.name === 'Holzart')!.id
+    const notes = store.attributes.find((attribute) => attribute.key === 'notes')!.id
+    const sawn = store.attributes.find((attribute) => attribute.key === 'sawn')!.id
+    expect(() => store.recordAttribute(stem.id, attributeId('Holzfeuchte'), 40)).toThrow(
+      /read-only/,
+    )
+    expect(() => store.recordAttribute(stem.id, attributeId('Sortierklasse'), 'x')).toThrow(
+      /read-only/,
+    )
+    expect(() => store.recordAttribute(stem.id, sawn, false)).toThrow(/read-only/)
+    expect(() => store.addPhoto(stem.id, attributeId('Fotos'), new Blob())).toThrow(/read-only/)
+    store.recordAttribute(stem.id, holzart, 'x')
+    expect(store.findByTag('5')!.values[holzart]![0]!.value).toBe('x')
+    store.recordAttribute(stem.id, notes, 'Krumm')
+    expect(store.findByTag('5')!.values[notes]![0]!.value).toBe('Krumm')
   })
 
   it('takes an inherited series as a whole list; an own recording replaces it', () => {
@@ -98,7 +120,7 @@ describe('timber item store: beams and inheritance', () => {
     const store = useTimberItemStore()
     const stem = store.findByTag('789')!
     expect(store.addBeam(stem.id).tag_number).toBe('789-C')
-    expect(() => store.recordAttribute(stem.id, attributeId('Holzart'), 'x')).toThrow()
+    expect(() => store.recordAttribute(stem.id, attributeId('Lieferdatum'), '2026-10-02')).toThrow()
 
     expect(store.canRemove(store.findByTag('789-A')!.id)).toBe(true)
     expect(store.canRemove(stem.id)).toBe(false)
@@ -229,11 +251,11 @@ describe('timber item store: removing synced beams', () => {
     const stem = store.findByTag('789')!
     store.removeTimberItem(store.findByTag('789-A')!.id)
     expect(store.findByTag('789')!.has_children).toBe(true)
-    expect(() => store.recordAttribute(stem.id, attributeId('Holzart'), 'x')).toThrow()
+    expect(() => store.recordAttribute(stem.id, attributeId('Lieferdatum'), '2026-10-02')).toThrow()
 
     store.removeTimberItem(store.findByTag('789-B')!.id)
     expect(store.findByTag('789')!.has_children).toBe(false)
-    store.recordAttribute(stem.id, attributeId('Holzart'), 'x')
+    store.recordAttribute(stem.id, attributeId('Lieferdatum'), '2026-10-02')
   })
 
   it('brings the beam back with its data when the removal is discarded', () => {

@@ -2,7 +2,14 @@ import { describe, it, expect, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 import { Blob as NodeBlob } from 'node:buffer'
 import { useTimberItemStore } from '@/stores/timberItems'
-import { leaveDialog, mountAt, optionLabel, setupApp } from './appSetup'
+import {
+  buttonByText,
+  leaveDialog,
+  mountAt,
+  optionLabel,
+  setupApp,
+  splitIntoBeams,
+} from './appSetup'
 
 vi.mock('virtual:pwa-register/vue', () => import('./appMocks').then((mocks) => mocks.pwaRegister))
 vi.mock('@/composables/useUpdateCheck', () =>
@@ -16,23 +23,18 @@ describe('App', () => {
   setupApp()
 
   describe('beams', () => {
-    const buttonByText = (text: RegExp) =>
-      [...document.body.querySelectorAll('button')].find((button) =>
-        text.test(button.textContent ?? ''),
-      )!
-
     const rowOf = (tag: string) =>
       [...document.body.querySelectorAll('[class*="border-b"]')].find((row) =>
         row.querySelector(`button[aria-label="Balken ${tag} entfernen"]`),
       )!
 
-    it('adds a beam to the draft of the stem: listed right away, nothing is saved', async () => {
+    it('puts the beams A and B into the draft with "Mehrere Balken": listed right away, nothing is saved', async () => {
       const { wrapper, router } = await mountAt('/timber-item/42')
-      buttonByText(/Balken 00042-A hinzufügen/).click()
-      await flushPromises()
+      await splitIntoBeams()
       expect(router.currentRoute.value.params.tagNumber).toBe('42')
       expect(document.body.querySelector(':scope > [role="status"]')).toBeNull()
       expect(wrapper.text()).toContain('00042-A')
+      expect(wrapper.text()).toContain('00042-B')
       expect(wrapper.text()).toContain('nicht gespeichert')
       expect(useTimberItemStore().events).toEqual([])
       expect(useTimberItemStore().findByTag('42')).toBeUndefined()
@@ -42,10 +44,7 @@ describe('App', () => {
 
     it('creates the stem with its draft beams on save and stays on the stem', async () => {
       const { router } = await mountAt('/timber-item/42')
-      buttonByText(/Balken 00042-A hinzufügen/).click()
-      await flushPromises()
-      buttonByText(/Balken 00042-B hinzufügen/).click()
-      await flushPromises()
+      await splitIntoBeams()
       buttonByText(/^\s*Stamm anlegen\s*$/).click()
       await flushPromises()
 
@@ -97,7 +96,8 @@ describe('App', () => {
 
     it('stops at Z: the 26th beam is "-Z", then adding is disabled', async () => {
       await mountAt('/timber-item/42')
-      for (let count = 0; count < 25; count++) {
+      await splitIntoBeams()
+      for (let count = 0; count < 23; count++) {
         buttonByText(/hinzufügen/).click()
         await flushPromises()
       }
@@ -107,12 +107,22 @@ describe('App', () => {
       expect(document.body.textContent).toContain('Höchstens 26 Balken je Stamm')
     })
 
-    it('keeps a split stem fully read-only, without save bar', async () => {
+    it('keeps on a split stem only stem attributes and the notes open, without save bar', async () => {
       const { wrapper } = await mountAt('/timber-item/789')
       expect(wrapper.text()).toContain('Aufgeteilter Stamm')
       expect(wrapper.text()).not.toContain('Speichern')
-      expect(wrapper.find('button[aria-label$=" ändern"]').exists()).toBe(false)
-      expect(wrapper.findAll('select, textarea, input').length).toBe(0)
+      // Holzart is for stems only: recorded, so with pencil. Lieferdatum (also for beams) and "Gesägt" have none.
+      expect(
+        wrapper
+          .findAll('button[aria-label$=" ändern"]')
+          .map((button) => button.attributes('aria-label')),
+      ).toEqual(['Holzart ändern'])
+      // The empty stem attributes Fälldatum and Lagerplatz; Holzfeuchte (also for beams) is gone.
+      expect(wrapper.findAll('select, input').length).toBe(2)
+      expect(wrapper.findAll('textarea').length).toBe(1)
+      // No photos, so no photo section either.
+      expect(wrapper.text()).not.toContain('Fotos')
+      expect(wrapper.text()).not.toContain('Foto aufnehmen')
     })
 
     it('saves new beams on a split stem: "Speichern" instead of "Zurück zum Start", the stem stays locked', async () => {
@@ -133,7 +143,7 @@ describe('App', () => {
       ])
       expect(router.currentRoute.value.params.tagNumber).toBe('789')
       expect(document.body.textContent).toContain('Stamm 00789 gespeichert')
-      expect(wrapper.findAll('select, textarea, input')).toHaveLength(0)
+      expect(wrapper.findAll('select, input')).toHaveLength(2)
       // Saved now: no draft left, the bar leads back to the start screen again, and removing asks.
       expect(buttonByText(/Zurück zum Start/)).toBeDefined()
       expect(wrapper.text()).toContain('nicht synchronisiert')
@@ -163,8 +173,7 @@ describe('App', () => {
     it('records the stem values and the new beams in one save; the beams inherit the values', async () => {
       const { wrapper, router } = await mountAt('/timber-item/42')
       await wrapper.find('select').setValue(optionLabel('Holzart', 'Stieleiche'))
-      buttonByText(/00042-A hinzufügen/).click()
-      await flushPromises()
+      await splitIntoBeams()
       expect(useTimberItemStore().events).toEqual([])
 
       buttonByText(/^\s*Stamm anlegen\s*$/).click()
@@ -174,6 +183,9 @@ describe('App', () => {
         'created',
         'tag_assigned',
         'attribute_recorded',
+        'attribute_recorded',
+        'created',
+        'tag_assigned',
         'created',
         'tag_assigned',
       ])
@@ -187,8 +199,7 @@ describe('App', () => {
     it('adds a beam while the input is invalid, but saving is blocked until it is fixed', async () => {
       const { wrapper } = await mountAt('/timber-item/42')
       await wrapper.find('input[inputmode="decimal"]').setValue('abc')
-      buttonByText(/00042-A hinzufügen/).click()
-      await flushPromises()
+      await splitIntoBeams()
       expect(wrapper.text()).toContain('nicht gespeichert')
       buttonByText(/^\s*Stamm anlegen\s*$/).click()
       await flushPromises()
@@ -199,10 +210,9 @@ describe('App', () => {
 
     it('removes a draft beam without asking; letters never change, the free one is handed out next', async () => {
       const { wrapper } = await mountAt('/timber-item/42')
-      for (const letter of ['A', 'B', 'C']) {
-        buttonByText(new RegExp(`Balken 00042-${letter} hinzufügen`)).click()
-        await flushPromises()
-      }
+      await splitIntoBeams()
+      buttonByText(/Balken 00042-C hinzufügen/).click()
+      await flushPromises()
       await wrapper.find('button[aria-label="Balken 42-A entfernen"]').trigger('click')
       expect(document.body.querySelector('[role="dialog"]')).toBeNull()
       expect(rowOf('42-A')).toBeUndefined()
@@ -216,8 +226,7 @@ describe('App', () => {
       const { wrapper } = await mountAt('/timber-item/42')
       await wrapper.find('select').setValue(optionLabel('Holzart', 'Stieleiche'))
       await wrapper.find('input[inputmode="decimal"]').setValue('34abc')
-      buttonByText(/00042-A hinzufügen/).click()
-      await flushPromises()
+      // The photo first: once the stem is split, its photos go to the beams.
       const input = wrapper.find('input[accept="image/*"][multiple]')
       Object.defineProperty(input.element, 'files', {
         value: [new NodeBlob(['x']) as unknown as Blob],
@@ -225,12 +234,14 @@ describe('App', () => {
       })
       await input.trigger('change')
       await flushPromises()
+      await splitIntoBeams()
       await wrapper.find('button[aria-label="Schließen"]').trigger('click')
       await flushPromises()
       expect(leaveDialog().items).toEqual([
         'Holzart: Stieleiche',
+        'Gesägt',
         'Holzfeuchte: ungültige Eingabe',
-        'Balken 00042-A',
+        'Balken 00042-A, 00042-B',
         '1 Foto',
       ])
     })
@@ -250,13 +261,14 @@ describe('App', () => {
     it('names the beams when the stem draft is discarded, and drops them', async () => {
       const { wrapper, router } = await mountAt('/timber-item/42')
       await wrapper.find('select').setValue(optionLabel('Holzart', 'Stieleiche'))
-      buttonByText(/00042-A hinzufügen/).click()
-      await flushPromises()
-      buttonByText(/00042-B hinzufügen/).click()
-      await flushPromises()
+      await splitIntoBeams()
       await wrapper.find('button[aria-label="Schließen"]').trigger('click')
       await flushPromises()
-      expect(leaveDialog().items).toEqual(['Holzart: Stieleiche', 'Balken 00042-A, 00042-B'])
+      expect(leaveDialog().items).toEqual([
+        'Holzart: Stieleiche',
+        'Gesägt',
+        'Balken 00042-A, 00042-B',
+      ])
 
       buttonByText(/^Verwerfen$/).click()
       await flushPromises()
@@ -266,8 +278,7 @@ describe('App', () => {
 
     it('asks "Speichern" when a draft beam is tapped, without a discard option', async () => {
       const { wrapper, router } = await mountAt('/timber-item/42')
-      buttonByText(/00042-A hinzufügen/).click()
-      await flushPromises()
+      await splitIntoBeams()
       await wrapper.find('button.flex-1.items-center').trigger('click')
       await flushPromises()
       const dialog = document.body.querySelector('[role="dialog"]')!

@@ -40,6 +40,42 @@ describe('ConfirmSheet', () => {
     expect(buttons().map(isFilled)).toEqual([true, false])
   })
 
+  it('with choices: one filled button each, the safe choice set apart below, and no way out by the backdrop', () => {
+    const wrapper = mount(ConfirmSheet, {
+      props: {
+        title: 'Titel',
+        safeLabel: 'Abbrechen',
+        choices: [
+          { value: 'a', label: 'Eins' },
+          { value: 'b', label: 'Zwei' },
+        ],
+      },
+      attachTo: document.body,
+    })
+    mounted.push(wrapper)
+    expect(buttons().map((button) => button.textContent?.trim())).toEqual([
+      'Eins',
+      'Zwei',
+      'Abbrechen',
+    ])
+    expect(buttons().map(isFilled)).toEqual([true, true, false])
+    expect(document.activeElement?.textContent?.trim()).toBe('Abbrechen')
+    ;(document.body.querySelector('.fixed') as HTMLElement).click()
+    expect(wrapper.emitted('safe')).toBeUndefined()
+    buttons()[1]!.click()
+    expect(wrapper.emitted('choose')).toEqual([['b']])
+  })
+
+  it('keeps Tab inside the sheet', () => {
+    mountSheet(false)
+    const [first, last] = buttons()
+    last!.focus()
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab' }))
+    expect(document.activeElement).toBe(first)
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true }))
+    expect(document.activeElement).toBe(last)
+  })
+
   describe.each([
     ['with the safe choice on top', false],
     ['with the action on top', true],
