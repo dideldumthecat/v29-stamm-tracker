@@ -26,6 +26,7 @@
       "is_series": false,
       "is_inheritable": true,
       "applies_to": ["stem"],
+      "hidden_when": [],
       "sort_order": 10,
       "active": true,
       "options": [
@@ -59,6 +60,7 @@
       "is_series": false,
       "is_inheritable": true,
       "applies_to": ["stem"],
+      "hidden_when": [],
       "sort_order": 15,
       "active": true,
       "options": []
@@ -73,6 +75,7 @@
       "is_series": false,
       "is_inheritable": true,
       "applies_to": ["stem", "beam"],
+      "hidden_when": [],
       "sort_order": 20,
       "active": true,
       "options": []
@@ -87,6 +90,7 @@
       "is_series": false,
       "is_inheritable": false,
       "applies_to": ["stem"],
+      "hidden_when": [],
       "sort_order": 25,
       "active": true,
       "options": [
@@ -120,6 +124,7 @@
       "is_series": false,
       "is_inheritable": true,
       "applies_to": ["stem"],
+      "hidden_when": [],
       "sort_order": 30,
       "active": true,
       "options": []
@@ -134,6 +139,7 @@
       "is_series": false,
       "is_inheritable": true,
       "applies_to": ["beam"],
+      "hidden_when": [],
       "sort_order": 35,
       "active": false,
       "options": []
@@ -148,6 +154,7 @@
       "is_series": false,
       "is_inheritable": false,
       "applies_to": ["beam"],
+      "hidden_when": [],
       "sort_order": 40,
       "active": true,
       "options": [
@@ -181,6 +188,7 @@
       "is_series": true,
       "is_inheritable": false,
       "applies_to": ["stem", "beam"],
+      "hidden_when": [],
       "sort_order": 50,
       "active": true,
       "options": []
@@ -195,6 +203,7 @@
       "is_series": true,
       "is_inheritable": false,
       "applies_to": ["stem", "beam"],
+      "hidden_when": [],
       "sort_order": 60,
       "active": true,
       "options": []
@@ -209,6 +218,7 @@
       "is_series": true,
       "is_inheritable": false,
       "applies_to": ["stem", "beam"],
+      "hidden_when": [],
       "sort_order": 70,
       "active": true,
       "options": []

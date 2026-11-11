@@ -63,6 +63,7 @@ final class SnapshotController extends AbstractController
                 'is_series' => $attribute->isSeries,
                 'is_inheritable' => $attribute->isInheritable,
                 'applies_to' => $attribute->appliesTo,
+                'hidden_when' => $attribute->hiddenWhen,
                 'sort_order' => $attribute->sortOrder,
                 'active' => $attribute->active,
                 'options' => $options[$attribute->id->toRfc4122()] ?? [],
