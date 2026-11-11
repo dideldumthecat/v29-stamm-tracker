@@ -1,6 +1,13 @@
 import { describe, it, expect } from 'vitest'
-import type { ItemKind } from '@v29/shared/contract'
-import { fieldMode, isEditable, itemRoles, splitChoiceOf } from '@/stores/itemRoles'
+import type { AttributeType, ItemKind } from '@v29/shared/contract'
+import {
+  fieldMode,
+  isEditable as isEditableWith,
+  isHiddenByOthers,
+  itemRoles,
+  keepsField,
+  splitChoiceOf,
+} from '@/stores/itemRoles'
 
 const stem = { isBeam: false, sawn: false, hasBeams: false, choice: null }
 
@@ -80,7 +87,10 @@ describe('isEditable and fieldMode', () => {
     key,
     active,
     applies_to,
+    hidden_when: [],
   })
+  const isEditable = (...args: [ReturnType<typeof attribute>, typeof unsawn, boolean]) =>
+    isEditableWith(...args, { isYes: () => false, recordedYes: false })
   const unsawn = itemRoles(stem)
   const whole = itemRoles({ ...stem, sawn: true, choice: 'whole' })
   const split = itemRoles({ ...stem, sawn: true, choice: 'split' })
@@ -122,5 +132,105 @@ describe('isEditable and fieldMode', () => {
     expect(fieldMode(true, true)).toBe('input')
     expect(fieldMode(false, true)).toBe('readonly')
     expect(fieldMode(false, false)).toBe('hidden')
+  })
+})
+
+describe('hidden_when', () => {
+  const roles = itemRoles(stem)
+  const field = (key: string, hidden_when: string[], type: AttributeType = 'boolean') => ({
+    key,
+    type,
+    active: true,
+    applies_to: ['stem' as const],
+    hidden_when,
+  })
+  const unsawable = field('unsawable', ['sawn'])
+  const sawn = field('sawn', ['unsawable'])
+
+  /**
+   * values: what the form shows per key (draft over recorded); recorded: what is saved.
+   * Without `recorded` nothing is in the draft, so both are the same.
+   */
+  const mode = (
+    attribute: ReturnType<typeof field>,
+    values: Record<string, unknown>,
+    recorded: Record<string, unknown> = values,
+  ) => {
+    const yes = {
+      isYes: (key: string) => values[key] === true,
+      recordedYes: recorded[attribute.key] === true,
+    }
+    return fieldMode(
+      isEditableWith(attribute, roles, false, yes),
+      keepsField(attribute, attribute.key in recorded, isHiddenByOthers(attribute, yes)),
+    )
+  }
+
+  it('offers both fields on a stem that is neither sawn nor unsawable', () => {
+    expect(mode(sawn, {})).toBe('input')
+    expect(mode(unsawable, {})).toBe('input')
+    expect(mode(unsawable, { sawn: false })).toBe('input')
+  })
+
+  it('hides "Nicht sägbar" while "Gesägt" is ticked and brings it back with the tick taken out', () => {
+    expect(mode(unsawable, { sawn: true }, {})).toBe('hidden')
+    expect(mode(sawn, { sawn: true }, {})).toBe('input')
+    expect(mode(unsawable, { sawn: false }, {})).toBe('input')
+    // Saved as sawn, the tick taken out in the draft.
+    expect(mode(unsawable, { sawn: true })).toBe('hidden')
+    expect(mode(unsawable, { sawn: false }, { sawn: true })).toBe('input')
+  })
+
+  it('hides "Gesägt" while "Nicht sägbar" is "ja" and brings it back with the value taken back', () => {
+    expect(mode(sawn, { unsawable: true })).toBe('hidden')
+    expect(mode(unsawable, { unsawable: true })).toBe('input')
+    expect(mode(sawn, { unsawable: false }, { unsawable: true })).toBe('input')
+  })
+
+  it('hides a field whose own value is "nein" like an empty one', () => {
+    expect(mode(unsawable, { sawn: true, unsawable: false })).toBe('hidden')
+  })
+
+  it('keeps both fields open when both are recorded as "ja", until one is saved as taken back', () => {
+    const both = { sawn: true, unsawable: true }
+    expect(mode(sawn, both)).toBe('input')
+    expect(mode(unsawable, both)).toBe('input')
+    // Taken back in the draft: the field stays, so the input is not dropped before it is saved.
+    expect(mode(unsawable, { sawn: true, unsawable: false }, both)).toBe('input')
+    expect(mode(sawn, { sawn: true, unsawable: false }, both)).toBe('input')
+    // Saved: the normal rule again.
+    expect(mode(unsawable, { sawn: true, unsawable: false })).toBe('hidden')
+    expect(mode(sawn, { sawn: true, unsawable: false })).toBe('input')
+  })
+
+  it('shows an attribute that is not yes/no read-only with a value and not at all without', () => {
+    const reason = field('reason', ['sawn'], 'text')
+    expect(mode(reason, { sawn: true, reason: 'Fäule' })).toBe('readonly')
+    expect(mode(reason, { sawn: true })).toBe('hidden')
+    expect(mode(reason, { sawn: false })).toBe('input')
+  })
+
+  it('applies on top of applies_to and the lock, never instead', () => {
+    const yes = { isYes: () => false, recordedYes: false }
+    expect(isEditableWith(unsawable, itemRoles({ ...stem, isBeam: true }), false, yes)).toBe(false)
+    const locked = itemRoles({ ...stem, sawn: true, choice: 'split' })
+    expect(isEditableWith({ ...unsawable, applies_to: ['stem', 'beam'] }, locked, false, yes)).toBe(
+      false,
+    )
+    // A stem attribute stays open on a locked stem, but not while another attribute hides it.
+    expect(isEditableWith(unsawable, locked, false, yes)).toBe(true)
+    expect(
+      isEditableWith(unsawable, locked, false, { isYes: () => true, recordedYes: false }),
+    ).toBe(false)
+    expect(
+      isEditableWith({ ...field('notes', ['sawn'], 'text') }, locked, true, {
+        isYes: () => true,
+        recordedYes: false,
+      }),
+    ).toBe(false)
+  })
+
+  it('ignores a key no attribute stands on "ja" for', () => {
+    expect(mode(field('other', ['gone']), { sawn: true })).toBe('input')
   })
 })
