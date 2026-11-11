@@ -72,6 +72,15 @@ jobs:
           php-version: '8.4'
           tools: composer
 
+      # app:db:dump calls mysqldump; the runner's MySQL 8 client may not work against MariaDB.
+      - name: Install MariaDB client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mariadb-client
+
+      - name: Show mysqldump version
+        run: mysqldump --version
+
       - name: Install Composer dependencies
         run: composer install --no-interaction --prefer-dist
 
