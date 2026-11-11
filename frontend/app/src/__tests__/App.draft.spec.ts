@@ -442,6 +442,24 @@ describe('App', () => {
     expect(toggle('Nicht sägbar')).toBeUndefined()
     expect(toggle('Gesägt')!.attributes('aria-pressed')).toBe('true')
 
+    // "Nicht sägbar" comes back above "Gesägt": the screen scrolls by what "Gesägt" moved, so it stays under the finger.
+    const top = vi
+      .spyOn(Element.prototype, 'getBoundingClientRect')
+      .mockReturnValueOnce({ top: 300 } as DOMRect)
+      .mockReturnValueOnce({ top: 380 } as DOMRect)
+    await toggle('Gesägt')!.trigger('click')
+    await flushPromises()
+    expect(toggle('Nicht sägbar')).toBeDefined()
+    expect(top.mock.contexts.map((element) => (element as Element).textContent)).toEqual([
+      expect.stringContaining('Gesägt'),
+      expect.stringContaining('Gesägt'),
+    ])
+    expect(wrapper.find('.overflow-y-auto').element.scrollTop).toBe(80)
+    top.mockRestore()
+    await toggle('Gesägt')!.trigger('click')
+    buttonByText(/Nein, nicht aufgeteilt/).click()
+    await flushPromises()
+
     await wrapper.find('button.bg-ink.text-lg').trigger('click')
     await flushPromises()
     const recorded = store.events.filter((event) => event.type === 'attribute_recorded')
