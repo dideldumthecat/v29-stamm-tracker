@@ -97,8 +97,10 @@ export function groupByDay(entries: ActivityEntry[]): Day[] {
   return days
 }
 
+export const formatCount = (n: number) => number.format(n)
+
 export const plural = (n: number, one: string, many: string) =>
-  `${number.format(n)} ${n === 1 ? one : many}`
+  `${formatCount(n)} ${n === 1 ? one : many}`
 
 export const eventsText = (n: number) => plural(n, 'Ereignis', 'Ereignisse')
 
@@ -195,17 +197,22 @@ export function detailRows(item: ActivityItem) {
 export const MAX_TAG_NUMBER = 1999
 
 /**
- * Whether the server would read this "Kennung" filter: the same rule as `StemSelection::parseRange` in the backend
- * ("all", or parts like 104 and 100-120 joined by commas, numbers 1 to 1999, blanks around parts ignored).
- * Used to search while typing only for input that is complete.
+ * The ranges of a "Kennung" filter as the server reads it, the same rule as `StemSelection::parseRange` in the backend
+ * ("all", or parts like 104 and 100-120 joined by commas, numbers 1 to 1999, blanks around parts ignored); null if it is not readable.
  */
-export function isReadableTags(text: string): boolean {
-  if (text.trim() === 'all') return true
-  return text.split(',').every((part) => {
+export function parseTagRanges(text: string): [number, number][] | null {
+  if (text.trim() === 'all') return [[1, MAX_TAG_NUMBER]]
+  const ranges: [number, number][] = []
+  for (const part of text.split(',')) {
     const match = /^\s*0*(\d+)\s*(?:-\s*0*(\d+)\s*)?$/.exec(part)
-    if (!match) return false
+    if (!match) return null
     const from = Number(match[1])
     const to = Number(match[2] ?? match[1])
-    return from >= 1 && from <= to && to <= MAX_TAG_NUMBER
-  })
+    if (from < 1 || from > to || to > MAX_TAG_NUMBER) return null
+    ranges.push([from, to])
+  }
+  return ranges
 }
+
+/** Whether the server would read this "Kennung" filter. Used to search while typing only for input that is complete. */
+export const isReadableTags = (text: string) => parseTagRanges(text) !== null

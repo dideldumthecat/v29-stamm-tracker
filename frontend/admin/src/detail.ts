@@ -94,15 +94,11 @@ export function splitValues(
   const photos: AttributeValueRecord[] = []
   const rows: ValueRow[] = []
   const notes: NoteGroup[] = []
-  let last: AttributeValueRecord | undefined
-  for (const attribute of [...attributes].sort(bySortOrder)) {
+  const sorted = [...attributes].sort(bySortOrder)
+  const last = latestOwnRecord(item, parent, sorted)
+  for (const attribute of sorted) {
     const records = item.values[attribute.id] ?? []
     const inherited = isInheritedValue(item, parent, attribute.id)
-    if (!inherited) {
-      for (const record of records) {
-        if (!last || record.recorded_at > last.recorded_at) last = record
-      }
-    }
     if (attribute.type === 'photo') {
       if (!inherited) photos.push(...records)
     } else if (isTextSeries(attribute)) {
@@ -133,7 +129,23 @@ export function splitValues(
   }
 }
 
-function formatRecorded(attribute: Attribute, value: AttributeValueRecord['value']): string {
+/** The latest own recording of an item (inherited values are its parent's): the rule behind "last changed". */
+export function latestOwnRecord(
+  item: TimberItem,
+  parent: TimberItem | undefined,
+  attributes: Attribute[],
+): AttributeValueRecord | undefined {
+  let last: AttributeValueRecord | undefined
+  for (const attribute of attributes) {
+    if (isInheritedValue(item, parent, attribute.id)) continue
+    for (const record of item.values[attribute.id] ?? []) {
+      if (!last || record.recorded_at > last.recorded_at) last = record
+    }
+  }
+  return last
+}
+
+export function formatRecorded(attribute: Attribute, value: AttributeValueRecord['value']): string {
   if (attribute.type === 'boolean') return value ? 'ja' : 'nein'
   return formatValue(attribute, value) ?? String(value)
 }

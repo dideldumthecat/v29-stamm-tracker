@@ -178,7 +178,7 @@ describe('frame', () => {
     await signIn(wrapper, ADMIN)
     await router.push('/')
 
-    expect(wrapper.findAll('nav a')).toHaveLength(1)
+    expect(wrapper.findAll('nav a').map((link) => link.text())).toEqual(['Stämme', 'Aktivität'])
     const current = wrapper.get('nav [aria-current=page]')
     expect(current.text()).toBe('Aktivität')
 

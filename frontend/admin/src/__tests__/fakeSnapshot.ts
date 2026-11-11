@@ -68,7 +68,19 @@ const beam = (letter: string, values: TimberItem['values']): TimberItem => ({
   values: { ...inherited, ...values },
 })
 
-/** Stem 104 with the beams A to C and an inactive attribute without a value, matching the activity fixture of the 31 October. */
+// Further stems for the list: one without values, one with others, one without a tag
+const otherStem = (tag: string | null, values: TimberItem['values']): TimberItem => ({
+  id: `stem-${tag ?? 'none'}`,
+  parent_id: null,
+  tag_number: tag,
+  has_children: false,
+  created_at: '2026-10-20T08:00:00.000Z',
+  created_by: summa,
+  values,
+})
+
+/** Stem 104 with the beams A to C and an inactive attribute without a value, matching the activity fixture of the 31 October.
+ *  Beside it the stems 7 (nothing recorded), 1500 and one without a tag, for the list. */
 export const snapshotFixture: Snapshot = {
   ...base,
   users: activityFixture.users,
@@ -85,6 +97,18 @@ export const snapshotFixture: Snapshot = {
         record(option('Sortierklasse', 'B'), '2026-10-31T10:47:45.000Z', barina),
       ],
       [attribute('Notiz').id]: [record('105x145', '2026-10-31T10:47:50.000Z', barina)],
+    }),
+    otherStem('7', {}),
+    otherStem('1500', {
+      [attribute('Holzart').id]: [
+        record(option('Holzart', 'Traubeneiche'), '2025-12-30T09:00:00.000Z'),
+      ],
+      [attribute('Fälldatum').id]: [record('2025-12', '2025-12-30T09:01:00.000Z')],
+      [attribute('Gesägt').id]: [record(false, '2025-12-30T09:02:00.000Z')],
+      [attribute('Holzfeuchte').id]: [record(30, '2025-12-30T09:03:00.000Z')],
+    }),
+    otherStem(null, {
+      [attribute('Notiz').id]: [record('Plakette fehlt', '2026-10-21T08:00:00.000Z')],
     }),
   ],
 }
