@@ -11,6 +11,11 @@ class DbDumpCommandTest extends KernelTestCase
 {
     public function testDumpsTheSchema(): void
     {
+        // The MySQL 8 client (GitHub runners) cannot dump MariaDB 11.8; the check runs locally in DDEV only.
+        if (!str_contains((string) shell_exec('mysqldump --version 2>&1'), 'MariaDB')) {
+            self::markTestSkipped('mysqldump is not the MariaDB client.');
+        }
+
         $tester = new CommandTester((new Application(self::bootKernel()))->find('app:db:dump'));
 
         self::assertSame(Command::SUCCESS, $tester->execute([]), $tester->getDisplay());
