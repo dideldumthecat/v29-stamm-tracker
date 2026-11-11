@@ -1,4 +1,4 @@
-import { computed, onUnmounted, ref, watchEffect, type Ref } from 'vue'
+import { computed, onUnmounted, ref, watch, watchEffect, type Ref } from 'vue'
 import type { AttributeValue } from '@v29/shared/contract'
 import { useTimberItemStore, type Attribute, type TimberItem } from '@/stores/timberItems'
 import {
@@ -13,7 +13,9 @@ import { bySortOrder } from '@v29/shared/attributes'
 import {
   fieldMode,
   isEditable,
+  isHiddenByOthers,
   itemRoles,
+  keepsField,
   SAWN_KEY,
   splitChoiceOf,
   type FieldMode,
@@ -83,10 +85,35 @@ export function useTimberItemDraft(item: Ref<TimberItem | undefined>, tagNumber:
   const appliesNow = (attribute: Attribute) =>
     attribute.applies_to.some((kind) => roles.value.kinds.includes(kind))
 
+  // --- Attributes hidden while another one stands on "ja" (`hidden_when`) ----
+  const yesValuesOf = (attribute: Attribute) => ({ isYes, recordedYes: recordedYes(attribute.id) })
+  const hiddenByOthers = computed(
+    () =>
+      new Set(
+        store.attributes
+          .filter((attribute) => isHiddenByOthers(attribute, yesValuesOf(attribute)))
+          .map((attribute) => attribute.id),
+      ),
+  )
   // A stem can be split wherever "Gesägt" is offered: splitting sets it.
   const canSplit = computed(() => {
     const sawnAttribute = store.attributes.find((attribute) => attribute.id === sawnId.value)
-    return !isBeam.value && !!sawnAttribute?.active
+    return !isBeam.value && !!sawnAttribute?.active && !hiddenByOthers.value.has(sawnId.value)
+  })
+  // Such a field adds nothing to the draft: what was typed there is dropped, not kept for later.
+  watch(hiddenByOthers, (ids) => {
+    for (const id of ids) {
+      // A dropped "Gesägt" takes its beams with it, like unticking it.
+      if (id === sawnId.value && draft.value[id] === true && !isBeam.value) {
+        draftBeams.value = []
+        picked.value = null
+      }
+      delete draft.value[id]
+      delete added.value[id]
+    }
+    if (draftPhotos.value.some((photo) => ids.has(photo.attributeId))) {
+      draftPhotos.value = draftPhotos.value.filter((photo) => !ids.has(photo.attributeId))
+    }
   })
 
   // The form in the order V29 set. Input typed before the stem got locked, for an attribute the lock closes
@@ -99,14 +126,24 @@ export function useTimberItemDraft(item: Ref<TimberItem | undefined>, tagNumber:
         draft.value[id] !== undefined ||
         (added.value[id]?.length ?? 0) > 0 ||
         draftPhotos.value.some((photo) => photo.attributeId === id)
-      const editable = isEditable(attribute, roles.value, hasSavedBeams.value)
+      const hidden = hiddenByOthers.value.has(id)
+      const editable = isEditable(
+        attribute,
+        roles.value,
+        hasSavedBeams.value,
+        yesValuesOf(attribute),
+      )
       const mode: FieldMode =
-        attribute.type !== 'photo' && lockedOnly && hasDraft
+        attribute.type !== 'photo' && lockedOnly && hasDraft && !hidden
           ? 'input'
           : // Draft photos count as a value (they keep their previews); other draft input for a field that does not fit is not shown.
             fieldMode(
               editable,
-              (attribute.type === 'photo' && hasDraft) || !!item.value?.values[id],
+              keepsField(
+                attribute,
+                (attribute.type === 'photo' && hasDraft) || !!item.value?.values[id],
+                hidden,
+              ),
             )
       return mode === 'hidden' ? [] : [{ attribute, mode }]
     }),

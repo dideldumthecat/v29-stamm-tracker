@@ -411,6 +411,43 @@ describe('App', () => {
     )
   })
 
+  it('hides a field while the attribute named in its hidden_when is ticked and drops its input', async () => {
+    const store = useTimberItemStore()
+    const sawn = store.attributes.find((attribute) => attribute.key === 'sawn')!
+    sawn.hidden_when = ['unsawable']
+    store.attributes.push({
+      ...sawn,
+      id: crypto.randomUUID(),
+      key: 'unsawable',
+      name: 'Nicht sägbar',
+      sort_order: sawn.sort_order - 1,
+      hidden_when: ['sawn'],
+    })
+    const { wrapper } = await mountAt('/timber-item/456')
+    const toggle = (name: string) =>
+      wrapper.findAll('button[aria-pressed]').find((button) => button.text().includes(name))
+    expect([toggle('Nicht sägbar'), toggle('Gesägt')].every(Boolean)).toBe(true)
+
+    await toggle('Nicht sägbar')!.trigger('click')
+    expect(toggle('Gesägt')).toBeUndefined()
+    // Without "Gesägt" there is no way to beams either.
+    expect(buttonByText(/hinzufügen/)).toBeUndefined()
+    await toggle('Nicht sägbar')!.trigger('click')
+    expect(toggle('Gesägt')).toBeDefined()
+    expect(buttonByText(/Balken A und B hinzufügen/)).toBeDefined()
+
+    await toggle('Gesägt')!.trigger('click')
+    buttonByText(/Nein, nicht aufgeteilt/).click()
+    await flushPromises()
+    expect(toggle('Nicht sägbar')).toBeUndefined()
+    expect(toggle('Gesägt')!.attributes('aria-pressed')).toBe('true')
+
+    await wrapper.find('button.bg-ink.text-lg').trigger('click')
+    await flushPromises()
+    const recorded = store.events.filter((event) => event.type === 'attribute_recorded')
+    expect(recorded.map((event) => event.data)).toEqual([{ attribute_id: sawn.id, value: true }])
+  })
+
   it('orders attributes and options by sort_order, not by position in the snapshot', async () => {
     const store = useTimberItemStore()
     store.attributes.reverse()
