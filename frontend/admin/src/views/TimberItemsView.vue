@@ -63,9 +63,7 @@ const rows = computed(() => {
   return sortRows(applyFilters(allRows.value, filters.value), column, query.value.dir)
 })
 const hasFilter = computed(() => query.value.tags !== '')
-const showTable = computed(
-  () => status.value === 'ready' && !!filters.value && rows.value.length > 0,
-)
+const showTable = computed(() => status.value === 'ready' && rows.value.length > 0)
 
 function sortOn(columnId: string) {
   void router.push({ query: writeQuery(sortBy(query.value, columnId)) })
@@ -206,7 +204,7 @@ function resetFromBar() {
         </StatusCard>
 
         <StatusCard
-          v-else-if="!filters || !rows.length"
+          v-else-if="!rows.length"
           title="Waldesruh"
           text-class="md:whitespace-nowrap"
           role="status"
@@ -215,16 +213,12 @@ function resetFromBar() {
             <TreesIcon :size="96" :stroke-width="1.5" class="text-ink" aria-hidden="true" />
           </template>
           <template #text>
-            {{
-              filters
-                ? 'Für diese Auswahl gibt es keine Stämme.'
-                : 'Die Filter verstehen wir nicht. Kennung zum Beispiel 104 oder 100-120.'
-            }}
+            Keine Ergebnisse weit und breit gefunden.
           </template>
           <button
             v-if="hasFilter"
             type="button"
-            class="h-11 rounded-lg border-2 border-ink px-4 font-bold"
+            class="mt-2 h-11 rounded-lg border-2 border-ink px-4 font-bold"
             @click="resetFilter"
           >
             Filter zurücksetzen

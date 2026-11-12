@@ -290,7 +290,7 @@ test.describe('activity', () => {
     await expect(page.getByText('6 Einträge', { exact: true })).toBeVisible()
   })
 
-  test('shows the saw blade on a white card while loading and keeps the filters', async ({
+  test('shows the saw blade on the grey page while loading and keeps the filters', async ({
     page,
   }) => {
     let release!: () => void
@@ -305,7 +305,8 @@ test.describe('activity', () => {
     const card = page.getByRole('status')
     await expect(card.getByRole('heading', { name: 'Moment' })).toBeVisible()
     await expect(card.getByText('Ergebnis wird zurechtgesägt')).toBeVisible()
-    await expect(card).toHaveCSS('background-color', 'rgb(255, 255, 255)')
+    await expect(card).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
+    await expect(card).toHaveCSS('border-top-width', '0px')
     await expect(card.locator('svg g')).not.toHaveCSS('animation-name', 'none')
     await expect(card.locator('h2')).toHaveCSS('font-size', '26px')
     await expect(page.getByLabel('Kennung', { exact: true })).toHaveCSS(
@@ -330,9 +331,7 @@ test.describe('activity', () => {
     await page.getByLabel('Kennung', { exact: true }).fill('abc')
     await page.getByLabel('Kennung', { exact: true }).press('Enter')
     await expect(page.getByRole('heading', { name: 'Waldesruh' })).toBeVisible()
-    await expect(
-      page.getByText('Die Filter verstehen wir nicht. Kennung zum Beispiel 104 oder 100-120.'),
-    ).toBeVisible()
+    await expect(page.getByText('Keine Ergebnisse weit und breit gefunden.')).toBeVisible()
     await expect(page.getByRole('alert')).toHaveCount(0)
 
     await page.getByRole('status').getByRole('button', { name: 'Filter zurücksetzen' }).click()
@@ -371,7 +370,7 @@ test.describe('activity', () => {
     await page.getByLabel('Kennung', { exact: true }).fill('999')
     await page.getByLabel('Kennung', { exact: true }).press('Enter')
     await expect(page.getByRole('heading', { name: 'Waldesruh' })).toBeVisible()
-    await expect(page.getByText('Für diese Auswahl gibt es keine Einträge.')).toBeVisible()
+    await expect(page.getByText('Keine Ergebnisse weit und breit gefunden.')).toBeVisible()
 
     await page.getByRole('status').getByRole('button', { name: 'Filter zurücksetzen' }).click()
     await expect(page).not.toHaveURL(/tags=/)
