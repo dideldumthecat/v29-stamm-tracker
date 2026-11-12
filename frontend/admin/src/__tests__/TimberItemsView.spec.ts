@@ -109,7 +109,7 @@ describe('stem list', () => {
     expect(router.currentRoute.value.query).toEqual({ sort: expect.any(String) })
     expect(rowTags(wrapper)).toEqual(['01500', '00104', '00007', 'ohne Kennung'])
     expect(header(wrapper, 'Holzfeuchte').attributes('aria-sort')).toBe('ascending')
-    expect(header(wrapper, 'Holzfeuchte').find('svg.lucide-arrow-up').exists()).toBe(true)
+    expect(header(wrapper, 'Holzfeuchte').find('svg.lucide-arrow-up-narrow-wide').exists()).toBe(true)
 
     await header(wrapper, 'Holzfeuchte').get('button').trigger('click')
     await flushPromises()
@@ -117,8 +117,12 @@ describe('stem list', () => {
     // not recorded stays last when descending
     expect(rowTags(wrapper)).toEqual(['00104', '01500', '00007', 'ohne Kennung'])
     expect(header(wrapper, 'Holzfeuchte').attributes('aria-sort')).toBe('descending')
-    expect(header(wrapper, 'Holzfeuchte').find('svg.lucide-arrow-down').exists()).toBe(true)
-    expect(wrapper.findAll('thead svg')).toHaveLength(1)
+    expect(header(wrapper, 'Holzfeuchte').find('svg.lucide-arrow-down-wide-narrow').exists()).toBe(true)
+    // every column has an icon: the sorted one the bar icon, all others the faint double arrow
+    expect(wrapper.findAll('thead svg')).toHaveLength(wrapper.findAll('thead th').length)
+    expect(wrapper.findAll('thead svg.lucide-chevrons-up-down')).toHaveLength(
+      wrapper.findAll('thead th').length - 1,
+    )
   })
 
   it('takes sort and filter from a link and ignores an unknown column', async () => {
