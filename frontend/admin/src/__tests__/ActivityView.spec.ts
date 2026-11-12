@@ -287,9 +287,7 @@ describe('activity page', () => {
     const { api, wrapper } = await open('/aktivitaet?from=2026-10-31')
     api.failActivity()
     await setTags(wrapper, '1998')
-    expect(wrapper.get('[role=alert]').text()).toContain(
-      'Die Aktivität konnte nicht geladen werden.',
-    )
+    expect(wrapper.get('[role=alert]').text()).toContain('Hier ist grad der Wurm drin')
 
     api.failActivity(false)
     await wrapper
@@ -401,7 +399,7 @@ describe('activity page', () => {
     const { wrapper } = await open()
     vi.mocked(fetch).mockRejectedValueOnce(new TypeError('Failed to fetch'))
     await setTags(wrapper, '128')
-    expect(wrapper.get('[role=alert]').text()).toContain('Keine Verbindung zum Server.')
+    expect(wrapper.get('[role=alert]').text()).toContain('Auf dem Holzweg')
     expect(wrapper.text()).not.toContain('Waldesruh')
   })
 

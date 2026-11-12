@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { ChevronDownIcon, CornerLeftUpIcon, TreesIcon } from '@lucide/vue'
+import { ChevronDownIcon, CornerLeftUpIcon, TreesIcon, BugIcon } from '@lucide/vue'
 import { beamSummary } from '@v29/shared/attributes'
 import type { ActivityEntry, ActivityResponse, Snapshot } from '@v29/shared/contract'
 import BeamRowLabel from '@v29/shared/BeamRowLabel.vue'
@@ -13,6 +13,7 @@ import { ApiError, request } from '@/api/client'
 import BackLink from '@/components/BackLink.vue'
 import ItemPhotos from '@/components/ItemPhotos.vue'
 import KeyValueRows from '@/components/KeyValueRows.vue'
+import LoadFailure from '@/components/LoadFailure.vue'
 import StatusCard from '@/components/StatusCard.vue'
 import {
   beamsOf,
@@ -114,20 +115,7 @@ watch(() => route.params.tag, load, { immediate: true })
          takes up space: the rest hangs into the padding and the gap below. With content it is the first element of the header. -->
     <BackLink v-if="status !== 'ready' || !item" class="-my-2.5 self-start" />
 
-    <div v-if="status === 'error'" class="mt-2" role="alert">
-      <p class="font-bold">
-        {{
-          failure === 0 ? 'Keine Verbindung zum Server.' : `${kind} konnte nicht geladen werden.`
-        }}
-      </p>
-      <button
-        type="button"
-        class="mt-2 h-11 rounded-lg border-2 border-ink px-4 font-bold"
-        @click="load"
-      >
-        Erneut versuchen
-      </button>
-    </div>
+    <LoadFailure v-if="status === 'error'" :failure="failure" class="mt-2!" @retry="load" />
 
     <StatusCard v-else-if="status === 'loading'" title="Moment" role="status" class="mt-2!">
       <template #icon>
@@ -254,8 +242,13 @@ watch(() => route.params.tag, load, { immediate: true })
             </div>
           </section>
 
-          <div v-if="historyFailed" :class="card" role="alert">
-            <p class="font-bold">Der Verlauf konnte nicht geladen werden.</p>
+          <div
+            v-if="historyFailed"
+            :class="[card, 'flex flex-col items-center gap-4 text-center']"
+            role="alert"
+          >
+            <BugIcon :size="40" :stroke-width="1.5" class="text-ink" aria-hidden="true" />
+            <p class="leading-message">Der Verlauf konnte nicht geladen werden.</p>
             <button
               type="button"
               class="mt-2 h-11 rounded-lg border-2 border-ink px-4 font-bold"

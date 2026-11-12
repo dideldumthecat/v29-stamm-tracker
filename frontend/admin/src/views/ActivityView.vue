@@ -8,6 +8,7 @@ import SawBladeIcon from '@v29/shared/SawBladeIcon.vue'
 import { entriesText, groupByDay } from '@/activity'
 import { ApiError, request } from '@/api/client'
 import ActivityEntryCard from '@/components/ActivityEntry.vue'
+import LoadFailure from '@/components/LoadFailure.vue'
 import StatusCard from '@/components/StatusCard.vue'
 import { useTagsField } from '@/tagsField'
 
@@ -216,22 +217,7 @@ const days = computed(() => groupByDay(entries.value))
       </button>
     </form>
 
-    <div v-if="status === 'error'" class="mt-6" role="alert">
-      <p class="font-bold">
-        {{
-          failure === 0
-            ? 'Keine Verbindung zum Server.'
-            : 'Die Aktivität konnte nicht geladen werden.'
-        }}
-      </p>
-      <button
-        type="button"
-        class="mt-2 h-11 rounded-lg border-2 border-ink px-4 font-bold"
-        @click="load"
-      >
-        Erneut versuchen
-      </button>
-    </div>
+    <LoadFailure v-if="status === 'error'" :failure="failure" @retry="load" />
 
     <StatusCard
       v-else-if="status === 'loading'"
@@ -255,9 +241,7 @@ const days = computed(() => groupByDay(entries.value))
         <TreesIcon :size="96" :stroke-width="1.5" class="text-ink" aria-hidden="true" />
       </template>
       <!-- Not broken up on wide screens; on a phone it has to wrap. -->
-      <template #text>
-        Keine Ergebnisse weit und breit gefunden.
-      </template>
+      <template #text> Keine Ergebnisse weit und breit gefunden. </template>
       <button
         v-if="hasFilter"
         type="button"
