@@ -10,6 +10,7 @@ import { ApiError, request } from '@/api/client'
 import ActivityEntryCard from '@/components/ActivityEntry.vue'
 import LoadFailure from '@/components/LoadFailure.vue'
 import StatusCard from '@/components/StatusCard.vue'
+import { useSizeVariable } from '@/sizeVariable'
 import { useTagsField } from '@/tagsField'
 
 const route = useRoute()
@@ -128,177 +129,205 @@ async function loadMore() {
 }
 
 watch(() => route.query, load, { immediate: true })
+
+const showList = computed(() => status.value === 'ready' && entries.value.length > 0)
+
+// The bar with the number of entries sticks to the top; its height goes into the scroll padding of the page (main.css),
+// so that a focused entry or "Ältere laden" does not end up behind it.
+const bar = useTemplateRef<HTMLElement>('bar')
+useSizeVariable(bar, '--sticky-bar-height', 'height')
 // TODO: "Gefilterte Liste exportieren" (see the design) once the administration has an export.
 </script>
 
 <template>
-  <main class="page-column py-8">
-    <h1 class="text-3xl font-bold">Aktivität</h1>
-    <p class="mt-2 text-measure text-mute">
-      Wer hat wann was erfasst? Die Uhrzeit links ist der Eingang am Server (nach einem Sync), die
-      Zeiten in den Details sind die Uhrzeit am Handy zum Zeitpunkt der Erfassung.
-    </p>
+  <main class="py-8">
+    <div class="page-column" :class="{ 'pb-2': showList }">
+      <h1 class="text-3xl font-bold">Aktivität</h1>
+      <p class="mt-2 text-measure text-mute">
+        Wer hat wann was erfasst? Die Uhrzeit links ist der Eingang am Server (nach einem Sync), die
+        Zeiten in den Details sind die Uhrzeit am Handy zum Zeitpunkt der Erfassung.
+      </p>
 
-    <form class="mt-6 flex flex-wrap items-end gap-x-4 gap-y-3" @submit.prevent>
-      <label class="flex flex-col text-sm text-mute">
-        Von
-        <input
-          ref="fromField"
-          type="date"
-          :class="fieldClass('from')"
-          :value="filter.from"
-          @change="setFilter('from', ($event.target as HTMLInputElement).value)"
-        />
-      </label>
-      <label class="flex flex-col text-sm text-mute">
-        Bis
-        <input
-          type="date"
-          :class="fieldClass('to')"
-          :value="filter.to"
-          @change="setFilter('to', ($event.target as HTMLInputElement).value)"
-        />
-      </label>
-      <label class="flex flex-col text-sm text-mute">
-        Person
-        <span class="relative flex">
-          <select
-            class="w-full appearance-none pr-10"
-            :class="fieldClass('user')"
-            :value="filter.user"
-            @change="setFilter('user', ($event.target as HTMLSelectElement).value)"
-          >
-            <option value="">Alle</option>
-            <!-- :selected, because the options arrive after the URL has already set the value -->
-            <option
-              v-for="person in users"
-              :key="person.id"
-              :value="person.id"
-              :selected="person.id === filter.user"
-            >
-              {{ person.name }}
-            </option>
-          </select>
-          <ChevronDownIcon
-            :size="18"
-            class="pointer-events-none absolute top-1/2 right-3 mt-0.5 -translate-y-1/2 text-ink"
-            aria-hidden="true"
-          />
-        </span>
-      </label>
-      <div class="flex min-w-48 flex-1 flex-col text-sm text-mute">
-        <label for="activity-tags">Kennung</label>
-        <span class="relative flex">
+      <form class="mt-6 flex flex-wrap items-end gap-x-4 gap-y-3" @submit.prevent>
+        <label class="flex flex-col text-sm text-mute">
+          Von
           <input
-            id="activity-tags"
-            ref="tagsField"
-            v-model="tagsInput"
-            type="text"
-            inputmode="text"
-            autocomplete="off"
-            placeholder="z. B. 104 oder 100-120"
-            class="w-full pr-11"
-            :class="fieldClass('tags')"
-            @input="onTagsInput"
-            @keydown.enter="applyTagsNow"
-            @change="applyTagsNow"
+            ref="fromField"
+            type="date"
+            :class="fieldClass('from')"
+            :value="filter.from"
+            @change="setFilter('from', ($event.target as HTMLInputElement).value)"
           />
-          <!-- 44 x 44 px like the field is high: the touch target reaches over the border; mousedown.prevent keeps the focus in the field,
+        </label>
+        <label class="flex flex-col text-sm text-mute">
+          Bis
+          <input
+            type="date"
+            :class="fieldClass('to')"
+            :value="filter.to"
+            @change="setFilter('to', ($event.target as HTMLInputElement).value)"
+          />
+        </label>
+        <label class="flex flex-col text-sm text-mute">
+          Person
+          <span class="relative flex">
+            <select
+              class="w-full appearance-none pr-10"
+              :class="fieldClass('user')"
+              :value="filter.user"
+              @change="setFilter('user', ($event.target as HTMLSelectElement).value)"
+            >
+              <option value="">Alle</option>
+              <!-- :selected, because the options arrive after the URL has already set the value -->
+              <option
+                v-for="person in users"
+                :key="person.id"
+                :value="person.id"
+                :selected="person.id === filter.user"
+              >
+                {{ person.name }}
+              </option>
+            </select>
+            <ChevronDownIcon
+              :size="18"
+              class="pointer-events-none absolute top-1/2 right-3 mt-0.5 -translate-y-1/2 text-ink"
+              aria-hidden="true"
+            />
+          </span>
+        </label>
+        <div class="flex min-w-48 flex-1 flex-col text-sm text-mute">
+          <label for="activity-tags">Kennung</label>
+          <span class="relative flex">
+            <input
+              id="activity-tags"
+              ref="tagsField"
+              v-model="tagsInput"
+              type="text"
+              inputmode="text"
+              autocomplete="off"
+              placeholder="z. B. 104 oder 100-120"
+              class="w-full pr-11"
+              :class="fieldClass('tags')"
+              @input="onTagsInput"
+              @keydown.enter="applyTagsNow"
+              @change="applyTagsNow"
+            />
+            <!-- 44 x 44 px like the field is high: the touch target reaches over the border; mousedown.prevent keeps the focus in the field,
                so leaving it does not apply the half-typed text before the click clears it -->
-          <button
-            v-if="tagsInput"
-            type="button"
-            class="absolute top-1 right-0 flex size-11 items-center justify-center rounded-lg text-ink active:bg-ink active:text-paper"
-            aria-label="Kennung leeren"
-            @mousedown.prevent
-            @click="clearTags"
-          >
-            <XIcon :size="18" aria-hidden="true" />
-          </button>
-        </span>
-      </div>
-      <!-- Always shown; without a filter it is natively disabled (greyed out, not tabbable, announced as unavailable) -->
-      <button
-        type="button"
-        class="flex h-11 items-center gap-2 rounded-lg px-2 text-base whitespace-nowrap text-ink underline enabled:active:bg-ink enabled:active:text-paper disabled:text-dim disabled:no-underline"
-        :disabled="!hasFilter"
-        @click="resetFromBar"
-      >
-        <XIcon :size="18" aria-hidden="true" />
-        Filter zurücksetzen
-      </button>
-    </form>
-
-    <LoadFailure v-if="status === 'error'" :failure="failure" @retry="load" />
-
-    <StatusCard
-      v-else-if="status === 'loading'"
-      title="Moment"
-      text-class="max-w-[32ch]"
-      role="status"
-    >
-      <template #icon>
-        <SawBladeIcon :size="96" :stroke-width="1.5" spinning class="text-ink" aria-hidden="true" />
-      </template>
-      <template #text>Ergebnis wird zurechtgesägt</template>
-    </StatusCard>
-
-    <StatusCard
-      v-else-if="!entries.length"
-      title="Waldesruh"
-      text-class="md:whitespace-nowrap"
-      role="status"
-    >
-      <template #icon>
-        <TreesIcon :size="96" :stroke-width="1.5" class="text-ink" aria-hidden="true" />
-      </template>
-      <!-- Not broken up on wide screens; on a phone it has to wrap. -->
-      <template #text> Keine Ergebnisse weit und breit gefunden. </template>
-      <button
-        v-if="hasFilter"
-        type="button"
-        class="mt-2 h-11 rounded-lg border-2 border-ink px-4 font-bold"
-        @click="resetFilter"
-      >
-        Filter zurücksetzen
-      </button>
-    </StatusCard>
-
-    <template v-else>
-      <p v-if="totals" class="mt-6 text-lg font-bold">{{ entriesText(totals.entries) }}</p>
-
-      <section
-        v-for="day in days"
-        :key="day.key"
-        class="mt-4 card px-4 sm:px-6"
-        :aria-labelledby="`day-${day.key}`"
-      >
-        <h2 :id="`day-${day.key}`" class="border-b-2 border-ink pt-4 pb-2 text-lg font-bold">
-          {{ day.heading }}
-        </h2>
-        <div class="divide-y divide-soft">
-          <ActivityEntryCard v-for="entry in day.entries" :key="entry.id" :entry="entry" />
+            <button
+              v-if="tagsInput"
+              type="button"
+              class="absolute top-1 right-0 flex size-11 items-center justify-center rounded-lg text-ink active:bg-ink active:text-paper"
+              aria-label="Kennung leeren"
+              @mousedown.prevent
+              @click="clearTags"
+            >
+              <XIcon :size="18" aria-hidden="true" />
+            </button>
+          </span>
         </div>
-      </section>
-
-      <div v-if="cursor" class="mt-6 flex flex-col items-center gap-3">
-        <p v-if="moreFailed" class="text-sm font-semibold" role="alert">Laden fehlgeschlagen.</p>
+        <!-- Always shown; without a filter it is natively disabled (greyed out, not tabbable, announced as unavailable) -->
         <button
           type="button"
-          class="flex h-11 items-center gap-2 rounded-lg border-2 border-ink bg-paper px-4 font-bold disabled:text-mute"
-          :disabled="loadingMore"
-          @click="loadMore"
+          class="flex h-11 items-center gap-2 rounded-lg px-2 text-base whitespace-nowrap text-ink underline enabled:active:bg-ink enabled:active:text-paper disabled:text-dim disabled:no-underline"
+          :disabled="!hasFilter"
+          @click="resetFromBar"
         >
-          <!-- Same size as the chevron, so the button keeps its width while loading -->
-          <LoaderCircleIcon
-            v-if="loadingMore"
-            :size="18"
-            class="animate-spin motion-reduce:animate-none"
+          <XIcon :size="18" aria-hidden="true" />
+          Filter zurücksetzen
+        </button>
+      </form>
+
+      <LoadFailure v-if="status === 'error'" :failure="failure" @retry="load" />
+
+      <StatusCard
+        v-else-if="status === 'loading'"
+        title="Moment"
+        text-class="max-w-[32ch]"
+        role="status"
+      >
+        <template #icon>
+          <SawBladeIcon
+            :size="96"
+            :stroke-width="1.5"
+            spinning
+            class="text-ink"
             aria-hidden="true"
           />
-          <ChevronDownIcon v-else :size="18" aria-hidden="true" />
-          Ältere laden
+        </template>
+        <template #text>Ergebnis wird zurechtgesägt</template>
+      </StatusCard>
+
+      <StatusCard
+        v-else-if="status === 'ready' && !entries.length"
+        title="Waldesruh"
+        text-class="md:whitespace-nowrap"
+        role="status"
+      >
+        <template #icon>
+          <TreesIcon :size="96" :stroke-width="1.5" class="text-ink" aria-hidden="true" />
+        </template>
+        <!-- Not broken up on wide screens; on a phone it has to wrap. -->
+        <template #text> Keine Ergebnisse weit und breit gefunden. </template>
+        <button
+          v-if="hasFilter"
+          type="button"
+          class="mt-2 h-11 rounded-lg border-2 border-ink px-4 font-bold"
+          @click="resetFilter"
+        >
+          Filter zurücksetzen
         </button>
+      </StatusCard>
+    </div>
+
+    <template v-if="showList">
+      <!-- Sticks below the header (from lg on; below it the header scrolls away) like the bar of the stem list, as wide as the window with the
+           grey page background, so that the cards do not show at its sides. It lies above the cards and below the header (z-50).
+           The 8 px below the filter block (pb-2, not a margin on the sticky bar, which would stick 8 px too low) and min-h-15 keep the text 24 px under the filter, and the first card 16 px under the text, as without the bar. -->
+      <div
+        v-if="totals"
+        ref="bar"
+        class="sticky top-0 z-20 bg-desk lg:top-[var(--header-height,0px)]"
+      >
+        <div class="page-column flex min-h-15 items-center">
+          <p class="text-lg font-bold">{{ entriesText(totals.entries) }}</p>
+        </div>
+      </div>
+
+      <div class="page-column">
+        <section
+          v-for="day in days"
+          :key="day.key"
+          class="mt-4 card px-4 first:mt-0 sm:px-6"
+          :aria-labelledby="`day-${day.key}`"
+        >
+          <h2 :id="`day-${day.key}`" class="border-b-2 border-ink pt-4 pb-2 text-lg font-bold">
+            {{ day.heading }}
+          </h2>
+          <div class="divide-y divide-soft">
+            <ActivityEntryCard v-for="entry in day.entries" :key="entry.id" :entry="entry" />
+          </div>
+        </section>
+
+        <div v-if="cursor" class="mt-6 flex flex-col items-center gap-3">
+          <p v-if="moreFailed" class="text-sm font-semibold" role="alert">Laden fehlgeschlagen.</p>
+          <button
+            type="button"
+            class="flex h-11 items-center gap-2 rounded-lg border-2 border-ink bg-paper px-4 font-bold disabled:text-mute"
+            :disabled="loadingMore"
+            @click="loadMore"
+          >
+            <!-- Same size as the chevron, so the button keeps its width while loading -->
+            <LoaderCircleIcon
+              v-if="loadingMore"
+              :size="18"
+              class="animate-spin motion-reduce:animate-none"
+              aria-hidden="true"
+            />
+            <ChevronDownIcon v-else :size="18" aria-hidden="true" />
+            Ältere laden
+          </button>
+        </div>
       </div>
     </template>
   </main>
