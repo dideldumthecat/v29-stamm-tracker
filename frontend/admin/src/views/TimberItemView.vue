@@ -138,7 +138,7 @@ watch(() => route.params.tag, load, { immediate: true })
 
     <template v-else>
       <!-- From 900 px on two columns (40/60): the photos stay in view (sticky, spanning both rows) while header and cards scroll on the right.
-           Below, one column in the order of the DOM: Kopf, Fotos, Balken, Merkmale, Notizen, Verlauf.
+           Below, one column in the order of the DOM: Kopf, Fotos, Balken, Merkmale, Verlauf.
            The header exists once (one heading for screen readers), the grid only moves it. Its 24 px at the sides line the text up with the cards. -->
       <div class="grid items-start gap-6 min-[900px]:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
         <header class="min-w-0 min-[900px]:col-start-2 min-[900px]:row-start-1 min-[900px]:px-6">
@@ -205,7 +205,7 @@ watch(() => route.params.tag, load, { immediate: true })
                 class="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-x-4 py-3"
               >
                 <dt class="text-caption font-semibold wrap-anywhere text-mute">{{ row.name }}</dt>
-                <dd class="space-y-2 wrap-anywhere">
+                <dd class="space-y-3 wrap-anywhere">
                   <span
                     v-if="!row.lines.length"
                     role="img"
@@ -214,32 +214,12 @@ watch(() => route.params.tag, load, { immediate: true })
                     >–</span
                   >
                   <p v-for="(line, index) in row.lines" :key="index" class="leading-snug">
-                    {{ line.text }}
+                    <span class="block whitespace-pre-line">{{ line.text }}</span>
                     <span class="block text-caption text-mute">{{ line.source }}</span>
                   </p>
                 </dd>
               </div>
             </dl>
-          </section>
-
-          <section :class="card" aria-labelledby="notes-heading">
-            <h2 id="notes-heading" class="text-lg font-bold">
-              Notizen
-              <span v-if="!parts.notes.length" role="img" aria-label="keine Notiz" class="text-mute"
-                >–</span
-              >
-            </h2>
-            <div v-for="group in parts.notes" :key="group.name" class="mt-3">
-              <p v-if="parts.notes.length > 1" class="text-caption font-semibold text-mute">
-                {{ group.name }}
-              </p>
-              <ul class="divide-y divide-soft">
-                <li v-for="(entry, index) in group.entries" :key="index" class="py-3">
-                  <p class="wrap-anywhere whitespace-pre-line">{{ entry.text }}</p>
-                  <p class="text-caption text-mute">{{ entry.source }}</p>
-                </li>
-              </ul>
-            </div>
           </section>
 
           <div
