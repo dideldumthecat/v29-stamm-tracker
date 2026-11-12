@@ -159,7 +159,7 @@ describe('stem list', () => {
     const { wrapper, router } = await open('/staemme?tags=300-400')
 
     expect(wrapper.get('h2').text()).toBe('Waldesruh')
-    expect(wrapper.text()).toContain('Für diese Auswahl gibt es keine Stämme.')
+    expect(wrapper.text()).toContain('Keine Ergebnisse weit und breit gefunden.')
     expect(wrapper.find('table').exists()).toBe(false)
     await wrapper.get('[role="status"] button').trigger('click')
     await flushPromises()
@@ -170,9 +170,7 @@ describe('stem list', () => {
   it('shows "Waldesruh" for a filter it cannot read', async () => {
     const { wrapper } = await open('/staemme?tags=abc')
     expect(wrapper.get('h2').text()).toBe('Waldesruh')
-    expect(wrapper.text()).toContain(
-      'Die Filter verstehen wir nicht. Kennung zum Beispiel 104 oder 100-120.',
-    )
+    expect(wrapper.text()).toContain('Keine Ergebnisse weit und breit gefunden.')
   })
 
   it('shows the saw blade while loading', async () => {

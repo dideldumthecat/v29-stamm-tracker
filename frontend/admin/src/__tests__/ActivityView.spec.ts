@@ -261,7 +261,7 @@ describe('activity page', () => {
     it('shows "Waldesruh" and, with a filter, the button that clears it', async () => {
       const { api, router, wrapper } = await open('/aktivitaet?tags=999&from=2026-10-31')
       expect(wrapper.get('h2').text()).toBe('Waldesruh')
-      expect(wrapper.text()).toContain('Für diese Auswahl gibt es keine Einträge.')
+      expect(wrapper.text()).toContain('Keine Ergebnisse weit und breit gefunden.')
       expect(wrapper.find('svg[aria-hidden=true]').exists()).toBe(true)
       expect(wrapper.text()).not.toContain('0 Einträge')
       expect(wrapper.text()).not.toContain('Ältere laden')
@@ -306,9 +306,7 @@ describe('activity page', () => {
 
     expect(wrapper.find('[role=alert]').exists()).toBe(false)
     expect(wrapper.get('h2').text()).toBe('Waldesruh')
-    expect(wrapper.text()).toContain(
-      'Die Filter verstehen wir nicht. Kennung zum Beispiel 104 oder 100-120.',
-    )
+    expect(wrapper.text()).toContain('Keine Ergebnisse weit und breit gefunden.')
     expect(wrapper.text()).not.toContain('Einträge')
     expect(wrapper.text()).not.toContain('Ältere laden')
 
@@ -385,7 +383,8 @@ describe('activity page', () => {
     const card = wrapper.get('[role=status]')
     expect(card.get('h2').text()).toBe('Moment')
     expect(card.get('p').text()).toBe('Ergebnis wird zurechtgesägt')
-    expect(card.classes()).toEqual(expect.arrayContaining(['card', 'min-h-72']))
+    expect(card.classes()).toContain('min-h-72')
+    expect(card.classes()).not.toContain('card')
     expect(card.get('h2').classes()).toEqual(expect.arrayContaining(['text-display', 'font-bold']))
     expect(card.get('p').classes()).toEqual(expect.arrayContaining(['text-mute', 'max-w-[32ch]']))
     expect(card.get('svg').attributes('aria-hidden')).toBe('true')
@@ -462,7 +461,7 @@ describe('activity page', () => {
       await flushPromises()
       expect(router.currentRoute.value.query).toEqual({ tags: '100-' })
       expect(wrapper.get('h2').text()).toBe('Waldesruh')
-      expect(wrapper.text()).toContain('Die Filter verstehen wir nicht.')
+      expect(wrapper.text()).toContain('Keine Ergebnisse weit und breit gefunden.')
 
       // a complete entry waiting for its pause is applied by "change" at once, and the pause then does nothing more
       await typeTags(wrapper, '104')
