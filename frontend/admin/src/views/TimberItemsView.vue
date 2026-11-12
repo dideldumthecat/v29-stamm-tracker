@@ -2,10 +2,11 @@
 import { computed, ref, useTemplateRef } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
-  ArrowDownIcon,
-  ArrowUpIcon,
+  ArrowDownWideNarrowIcon,
+  ArrowUpNarrowWideIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  ChevronsUpDownIcon,
   TreesIcon,
   XIcon,
 } from '@lucide/vue'
@@ -289,21 +290,25 @@ function resetFromBar() {
                   ]"
                   @click="sortOn(column.id)"
                 >
-                  <!-- Short words are never broken, long ones are hyphenated. The arrow sits inside the last word, so that it cannot wrap on its own; the negative margin keeps it from making the line higher. -->
+                  <!-- Short words are never broken, long ones are hyphenated. The sort icon (every column has one, the sorted one a stronger one) sits inside the last word, so that it cannot wrap on its own; the negative margin keeps it from making the line higher. -->
                   <template v-for="(word, position) in headingWords(column.label)" :key="position">
                     <template v-if="position > 0">{{ ' ' }}</template>
                     <span
                       :class="word.hyphenate ? 'hyphens-auto' : 'hyphens-none whitespace-nowrap'"
                       >{{ word.text
                       }}<component
-                        :is="query.dir === 'desc' ? ArrowDownIcon : ArrowUpIcon"
-                        v-if="
-                          column.id === query.sort &&
-                          position === headingWords(column.label).length - 1
+                        :is="
+                          column.id !== query.sort
+                            ? ChevronsUpDownIcon
+                            : query.dir === 'desc'
+                              ? ArrowDownWideNarrowIcon
+                              : ArrowUpNarrowWideIcon
                         "
-                        :size="16"
-                        :stroke-width="2.5"
-                        class="-my-1 ml-1 inline-block align-middle text-ink"
+                        v-if="position === headingWords(column.label).length - 1"
+                        :size="column.id === query.sort ? 20 : 16"
+                        :stroke-width="column.id === query.sort ? 2.5 : 2"
+                        class="-my-1 ml-1 inline-block align-middle"
+                        :class="column.id === query.sort ? 'text-ink' : 'text-faint'"
                         aria-hidden="true"
                     /></span>
                   </template>
