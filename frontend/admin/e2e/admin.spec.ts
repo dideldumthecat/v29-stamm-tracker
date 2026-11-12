@@ -354,6 +354,55 @@ test.describe('activity', () => {
     await expect(page.getByRole('button', { name: 'Ältere laden' })).toHaveCount(0)
   })
 
+  for (const [width, height] of [
+    [1280, 700],
+    [400, 800],
+  ]) {
+    test(`keeps the number of entries in view while scrolling, at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height })
+      // 12 days with one entry each, and more on the server, so that "Ältere laden" is there
+      await page.route('**/api/admin/activity*', (route) => {
+        const base = activityAnswer(new URLSearchParams())!
+        const entries = Array.from({ length: 12 }, (_, day) => ({
+          ...base.entries[0],
+          id: `00000000-0000-7000-8000-0000000001${String(day).padStart(2, '0')}`,
+          received_at: `2026-10-${String(30 - day).padStart(2, '0')}T12:00:00.000Z`,
+        }))
+        return route.fulfill({
+          json: { ...base, entries, next_cursor: '12', totals: { ...base.totals, entries: 40 } },
+        })
+      })
+      await page.reload()
+      const bar = page.locator('main > div.sticky')
+      const top = (locator: Locator) =>
+        locator.evaluate((element) => element.getBoundingClientRect().top)
+      // below the header from lg on, at the top of the window below it (the header scrolls away)
+      const stuck = await bar.evaluate((element) => parseFloat(getComputedStyle(element).top))
+
+      for (const y of [1000, 1800, 3000]) {
+        await page.evaluate((to) => window.scrollTo(0, to), y)
+        await expect(bar.getByText('40 Einträge')).toBeInViewport()
+        expect(await top(bar)).toBe(stuck)
+        // as wide as the window, so that no card shows at its sides
+        expect((await bar.boundingBox())!.width).toBe(width)
+      }
+
+      // a button focused by keyboard lies clear of the bar
+      await page.evaluate(() => window.scrollTo(0, 0))
+      const more = page.getByRole('button', { name: 'Ältere laden' })
+      await more.focus()
+      await expect(more).toBeInViewport()
+      const barBottom = (await bar.boundingBox())!.y + (await bar.boundingBox())!.height
+      expect((await more.boundingBox())!.y).toBeGreaterThanOrEqual(barBottom)
+    })
+  }
+
+  test('without a result there is no bar', async ({ page }) => {
+    await page.goto('/admin/aktivitaet?tags=999')
+    await expect(page.getByRole('heading', { name: 'Waldesruh' })).toBeVisible()
+    await expect(page.locator('main > div.sticky')).toHaveCount(0)
+  })
+
   test('keeps the filter in the URL through a reload and the back button', async ({ page }) => {
     await page.getByLabel('Kennung', { exact: true }).fill('128')
     await page.getByLabel('Kennung', { exact: true }).press('Enter')

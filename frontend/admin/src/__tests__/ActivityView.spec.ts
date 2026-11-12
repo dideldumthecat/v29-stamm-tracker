@@ -69,12 +69,32 @@ describe('activity page', () => {
     )
     expect(wrapper.text()).not.toContain('neueste zuerst')
     // the number stands alone, without a legend behind it
-    expect(wrapper.get('main > p.text-lg').text()).toBe('6 Einträge')
+    expect(wrapper.get('main > div.sticky p').text()).toBe('6 Einträge')
     expect(wrapper.text()).not.toContain('Personen')
     const days = wrapper.findAll('section')
     expect(days.map((day) => day.get('h2').text())).toEqual(['Di, 03.11.2026', 'Sa, 31.10.2026'])
     expect(days[1].get('h2').element.parentElement).toBe(days[1].element)
     expect(days[1].text()).not.toContain('31 Ereignisse')
+  })
+
+  it('reports the height of the bar and leaves no value behind when the page is left', async () => {
+    // jsdom has no layout: every element is 60 px high
+    const height = vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(60)
+    const { wrapper, router } = await open()
+    const style = document.documentElement.style
+    expect(style.getPropertyValue('--sticky-bar-height')).toBe('60px')
+
+    // no bar without a result ("Waldesruh"), so no value either
+    await router.push('/aktivitaet?tags=999')
+    await flushPromises()
+    expect(style.getPropertyValue('--sticky-bar-height')).toBe('')
+
+    await router.push('/aktivitaet')
+    await flushPromises()
+    expect(style.getPropertyValue('--sticky-bar-height')).toBe('60px')
+    height.mockRestore()
+    wrapper.unmount()
+    expect(style.getPropertyValue('--sticky-bar-height')).toBe('')
   })
 
   it('writes an entry as time, person with counts behind it, and bullet points without tags', async () => {
@@ -252,7 +272,7 @@ describe('activity page', () => {
       expect(headings(wrapper)).toEqual(['Di, 03.11.2026'])
       expect(shownEntries(wrapper)).toHaveLength(1)
       // the count is the total of the filter, not of what is shown
-      expect(wrapper.get('main > p.text-lg').text()).toBe('6 Einträge')
+      expect(wrapper.get('main > div.sticky p').text()).toBe('6 Einträge')
       expect(pages(api)).toBe(1)
 
       await button(wrapper)!.trigger('click')
@@ -341,12 +361,12 @@ describe('activity page', () => {
       vi.mocked(fetch).mockImplementationOnce(() => held)
       await button(wrapper)!.trigger('click')
       await setTags(wrapper, '1998')
-      expect(wrapper.get('main > p.text-lg').text()).toBe('1 Eintrag')
+      expect(wrapper.get('main > div.sticky p').text()).toBe('1 Eintrag')
 
       release(new Response(JSON.stringify(activityFixture)))
       await flushPromises()
 
-      expect(wrapper.get('main > p.text-lg').text()).toBe('1 Eintrag')
+      expect(wrapper.get('main > div.sticky p').text()).toBe('1 Eintrag')
       expect(shownEntries(wrapper)).toHaveLength(1)
     })
 
