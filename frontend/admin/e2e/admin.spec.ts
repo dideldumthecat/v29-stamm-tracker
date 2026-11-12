@@ -6,7 +6,7 @@ import { snapshotFixture, stemPhotos } from '../src/__tests__/fakeSnapshot'
 /**
  * The API is imitated in the browser (no backend needed): POST/DELETE /api/session and GET /api/admin/me
  * behave like the real ones, with one code per role; GET /api/admin/activity answers from the fixture of the
- * 31 October (4 entries per page, so that "Ältere laden" has something to load).
+ * 31 October (one page; the test of "Ältere laden" asks for smaller pages).
  */
 async function fakeApi(page: Page) {
   const codes: Record<string, string> = { 'K7QM-4XHT-9RDP': 'admin', 'W3ZV-8NBC-2F6G': 'user' }
@@ -31,7 +31,7 @@ async function fakeApi(page: Page) {
     }
     if (call === 'GET /api/admin/activity') {
       if (!role) return route.fulfill({ status: 401 })
-      const answer = activityAnswer(new URL(request.url()).searchParams, 4)
+      const answer = activityAnswer(new URL(request.url()).searchParams)
       return answer ? route.fulfill({ json: answer }) : route.fulfill({ status: 400 })
     }
     if (call === 'GET /api/snapshot') {
@@ -339,10 +339,18 @@ test.describe('activity', () => {
     await expect(page.getByText('6 Einträge', { exact: true })).toBeVisible()
   })
 
-  test('loads older entries and then hides the button', async ({ page }) => {
-    await expect(page.getByRole('time')).toHaveCount(4)
+  test('loads older entries by whole days and then hides the button', async ({ page }) => {
+    await page.route('**/api/admin/activity*', (route) => {
+      const answer = activityAnswer(new URL(route.request().url()).searchParams, 4)
+      return route.fulfill({ json: answer })
+    })
+    await page.reload()
+    // the first page ends inside the 31 October, which is therefore held back until it is complete
+    await expect(page.getByRole('time')).toHaveCount(1)
+    await expect(page.getByRole('heading', { name: 'Sa, 31.10.2026' })).toHaveCount(0)
     await page.getByRole('button', { name: 'Ältere laden' }).click()
     await expect(page.getByRole('time')).toHaveCount(6)
+    await expect(page.getByRole('heading', { name: 'Sa, 31.10.2026' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Ältere laden' })).toHaveCount(0)
   })
 

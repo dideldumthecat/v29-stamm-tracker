@@ -237,17 +237,131 @@ describe('activity page', () => {
     expect(wrapper.text()).toContain('6 Einträge')
   })
 
-  it('appends the next page with "Ältere laden" until there is none', async () => {
-    const { wrapper } = await open('/aktivitaet', { pageSize: 4 })
-    const button = () => wrapper.findAll('button').find((b) => b.text() === 'Ältere laden')
-    expect(wrapper.findAll('section article > div > time')).toHaveLength(4)
+  describe('"Ältere laden" and whole days', () => {
+    // Fixture, newest first: 03.11. has 1 entry, 31.10. has 5 (user 4 wrote two of them, the last ones).
+    const button = (wrapper: Wrapper) =>
+      wrapper.findAll('button').find((b) => b.text() === 'Ältere laden')
+    const shownEntries = (wrapper: Wrapper) => wrapper.findAll('section article > div > time')
+    const headings = (wrapper: Wrapper) => wrapper.findAll('section h2').map((h) => h.text())
+    const pages = (api: Awaited<ReturnType<typeof open>>['api']) =>
+      api.calls.filter((call) => call.startsWith('GET /api/admin/activity')).length
 
-    await button()!.trigger('click')
-    await flushPromises()
+    it('holds back a day that continues on the next page and shows it complete after one click', async () => {
+      // page 1 = 03.11. and the first 3 of 31.10.: the older day may be unfinished
+      const { api, wrapper } = await open('/aktivitaet', { pageSize: 4 })
+      expect(headings(wrapper)).toEqual(['Di, 03.11.2026'])
+      expect(shownEntries(wrapper)).toHaveLength(1)
+      // the count is the total of the filter, not of what is shown
+      expect(wrapper.get('main > p.text-lg').text()).toBe('6 Einträge')
+      expect(pages(api)).toBe(1)
 
-    expect(wrapper.findAll('section article > div > time')).toHaveLength(6)
-    expect(wrapper.findAll('section')).toHaveLength(2)
-    expect(button()).toBeUndefined()
+      await button(wrapper)!.trigger('click')
+      await flushPromises()
+
+      expect(headings(wrapper)).toEqual(['Di, 03.11.2026', 'Sa, 31.10.2026'])
+      expect(shownEntries(wrapper)).toHaveLength(6)
+      expect(button(wrapper)).toBeUndefined()
+      expect(pages(api)).toBe(2)
+    })
+
+    it('does not change the days already shown when older ones arrive', async () => {
+      // pages of 1 entry: 03.11. is complete as soon as the first 31.10. entry shows up on page 2
+      const { wrapper } = await open('/aktivitaet', { pageSize: 1 })
+      const first = wrapper.findAll('section')[0].element
+      expect(headings(wrapper)).toEqual(['Di, 03.11.2026'])
+
+      await button(wrapper)!.trigger('click')
+      await flushPromises()
+
+      expect(wrapper.findAll('section')[0].element).toBe(first)
+      expect(wrapper.findAll('section')[0].findAll('article')).toHaveLength(1)
+      expect(headings(wrapper)).toEqual(['Di, 03.11.2026', 'Sa, 31.10.2026'])
+      expect(shownEntries(wrapper)).toHaveLength(6)
+    })
+
+    it('loads a day larger than a page without another click', async () => {
+      // 31.10. has 5 entries, pages hold 2: one click fetches pages until the day is complete
+      const { api, wrapper } = await open('/aktivitaet', { pageSize: 2 })
+      expect(headings(wrapper)).toEqual(['Di, 03.11.2026'])
+      expect(pages(api)).toBe(1)
+
+      await button(wrapper)!.trigger('click')
+      await flushPromises()
+
+      expect(pages(api)).toBe(3) // page 1 and the 2 pages that complete 31.10.
+      expect(shownEntries(wrapper)).toHaveLength(6)
+      expect(button(wrapper)).toBeUndefined()
+    })
+
+    it('keeps loading on the first load until one whole day can be shown', async () => {
+      // user 4 has two entries on 31.10. only: page 1 cannot tell whether the day is finished
+      const { api, wrapper } = await open('/aktivitaet?user=00000000-0000-7000-8000-000000000004', {
+        pageSize: 1,
+      })
+      expect(api.calls.filter((call) => call.includes('user=')).length).toBe(2)
+      expect(headings(wrapper)).toEqual(['Sa, 31.10.2026'])
+      expect(shownEntries(wrapper)).toHaveLength(2)
+      expect(button(wrapper)).toBeUndefined()
+    })
+
+    it('shows the oldest day once everything is loaded, and no button', async () => {
+      const { wrapper } = await open('/aktivitaet', { pageSize: 50 })
+      expect(headings(wrapper)).toEqual(['Di, 03.11.2026', 'Sa, 31.10.2026'])
+      expect(shownEntries(wrapper)).toHaveLength(6)
+      expect(button(wrapper)).toBeUndefined()
+    })
+
+    it('keeps what is shown, reports "Laden fehlgeschlagen." and carries on with the next click', async () => {
+      const { api, wrapper } = await open('/aktivitaet', { pageSize: 2 })
+      expect(headings(wrapper)).toEqual(['Di, 03.11.2026'])
+
+      api.failActivity()
+      await button(wrapper)!.trigger('click')
+      await flushPromises()
+
+      expect(wrapper.get('[role=alert]').text()).toBe('Laden fehlgeschlagen.')
+      expect(headings(wrapper)).toEqual(['Di, 03.11.2026'])
+      expect(shownEntries(wrapper)).toHaveLength(1)
+      expect(button(wrapper)!.attributes('disabled')).toBeUndefined()
+
+      api.failActivity(false)
+      await button(wrapper)!.trigger('click')
+      await flushPromises()
+
+      expect(wrapper.find('[role=alert]').exists()).toBe(false)
+      expect(headings(wrapper)).toEqual(['Di, 03.11.2026', 'Sa, 31.10.2026'])
+      expect(shownEntries(wrapper)).toHaveLength(6)
+    })
+
+    it('does not mix in pages of a filter that has been left', async () => {
+      const { wrapper } = await open('/aktivitaet', { pageSize: 2 })
+      // hold the page of the old filter back, then change the filter
+      let release!: (value: Response) => void
+      const held = new Promise<Response>((resolve) => (release = resolve))
+      vi.mocked(fetch).mockImplementationOnce(() => held)
+      await button(wrapper)!.trigger('click')
+      await setTags(wrapper, '1998')
+      expect(wrapper.get('main > p.text-lg').text()).toBe('1 Eintrag')
+
+      release(new Response(JSON.stringify(activityFixture)))
+      await flushPromises()
+
+      expect(wrapper.get('main > p.text-lg').text()).toBe('1 Eintrag')
+      expect(shownEntries(wrapper)).toHaveLength(1)
+    })
+
+    it('puts the button and the failure message in the middle', async () => {
+      const { api, wrapper } = await open('/aktivitaet', { pageSize: 2 })
+      api.failActivity()
+      await button(wrapper)!.trigger('click')
+      await flushPromises()
+
+      const box = button(wrapper)!.element.parentElement!
+      expect(box.className).toContain('flex-col')
+      expect(box.className).toContain('items-center')
+      // the message stands above the button
+      expect(box.firstElementChild).toBe(wrapper.get('[role=alert]').element)
+    })
   })
 
   describe('without entries', () => {

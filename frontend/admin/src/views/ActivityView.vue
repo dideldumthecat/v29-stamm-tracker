@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed, ref, useTemplateRef, watch } from 'vue'
 import { useRoute, useRouter, type LocationQueryRaw } from 'vue-router'
-import { ChevronDownIcon, TreesIcon, XIcon } from '@lucide/vue'
+import { ChevronDownIcon, LoaderCircleIcon, TreesIcon, XIcon } from '@lucide/vue'
 import type { ActivityEntry, ActivityResponse } from '@v29/shared/contract'
 import SawBladeIcon from '@v29/shared/SawBladeIcon.vue'
 
-import { entriesText, groupByDay } from '@/activity'
+import { completeDays, entriesText, groupByDay } from '@/activity'
 import { ApiError, request } from '@/api/client'
 import ActivityEntryCard from '@/components/ActivityEntry.vue'
 import LoadFailure from '@/components/LoadFailure.vue'
@@ -71,9 +71,24 @@ function url(before?: string) {
   return `admin/activity?${query}`
 }
 
+// Only complete days are shown (see completeDays), so a click or a filter may need several pages.
+const days = computed(() => completeDays(groupByDay(entries.value), cursor.value !== null))
+
+/** Fetches pages until more days than `shown` can be shown, or the server has no more. Each page is kept as it arrives. */
+async function fetchDays(mine: number, shown: number) {
+  while (cursor.value && days.value.length <= shown) {
+    const response = await request<ActivityResponse>('GET', url(cursor.value))
+    if (mine !== latest) return
+    entries.value = [...entries.value, ...response.entries]
+    // An empty page ends the loop, whatever the cursor says: a server that never runs dry must not keep us fetching.
+    cursor.value = response.entries.length ? response.next_cursor : null
+  }
+}
+
 async function load() {
   const mine = ++latest
   status.value = 'loading'
+  moreFailed.value = false
   try {
     const response = await request<ActivityResponse>('GET', url())
     if (mine !== latest) return
@@ -81,6 +96,8 @@ async function load() {
     totals.value = response.totals
     users.value = response.users
     cursor.value = response.next_cursor
+    await fetchDays(mine, 0)
+    if (mine !== latest) return
     status.value = 'ready'
   } catch (error) {
     if (mine !== latest) return
@@ -102,10 +119,7 @@ async function loadMore() {
   loadingMore.value = true
   moreFailed.value = false
   try {
-    const response = await request<ActivityResponse>('GET', url(cursor.value!))
-    if (mine !== latest) return
-    entries.value = [...entries.value, ...response.entries]
-    cursor.value = response.next_cursor
+    await fetchDays(mine, days.value.length)
   } catch {
     if (mine === latest) moreFailed.value = true
   } finally {
@@ -114,8 +128,6 @@ async function loadMore() {
 }
 
 watch(() => route.query, load, { immediate: true })
-
-const days = computed(() => groupByDay(entries.value))
 // TODO: "Gefilterte Liste exportieren" (see the design) once the administration has an export.
 </script>
 
@@ -269,14 +281,22 @@ const days = computed(() => groupByDay(entries.value))
         </div>
       </section>
 
-      <div v-if="cursor" class="mt-6 flex items-center gap-3">
+      <div v-if="cursor" class="mt-6 flex flex-col items-center gap-3">
         <p v-if="moreFailed" class="text-sm font-semibold" role="alert">Laden fehlgeschlagen.</p>
         <button
           type="button"
-          class="h-11 rounded-lg border-2 border-ink bg-paper px-4 font-bold disabled:text-mute"
+          class="flex h-11 items-center gap-2 rounded-lg border-2 border-ink bg-paper px-4 font-bold disabled:text-mute"
           :disabled="loadingMore"
           @click="loadMore"
         >
+          <!-- Same size as the chevron, so the button keeps its width while loading -->
+          <LoaderCircleIcon
+            v-if="loadingMore"
+            :size="18"
+            class="animate-spin motion-reduce:animate-none"
+            aria-hidden="true"
+          />
+          <ChevronDownIcon v-else :size="18" aria-hidden="true" />
           Ältere laden
         </button>
       </div>

@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import type { ActivityEntry, ActivityItem } from '@v29/shared/contract'
 
-import { detailRows, formatRecordedTime, groupByDay, isReadableTags, summarize } from '@/activity'
+import {
+  completeDays,
+  detailRows,
+  formatRecordedTime,
+  groupByDay,
+  isReadableTags,
+  summarize,
+} from '@/activity'
 import { activityFixture } from './fakeActivity'
 
 const entryOf = (name: string) => activityFixture.entries.find((entry) => entry.user.name === name)!
@@ -162,6 +169,24 @@ describe('days and times', () => {
   it('counts a day by German time: 23:30 UTC is already the next day', () => {
     const entry = { ...activityFixture.entries[0], received_at: '2026-10-31T23:30:00.000Z' }
     expect(groupByDay([entry])[0].heading).toBe('So, 01.11.2026')
+  })
+})
+
+describe('completeDays', () => {
+  const days = groupByDay(activityFixture.entries)
+
+  it('shows all days when the server has no more entries, the oldest one included', () => {
+    expect(completeDays(days, false).map((day) => day.key)).toEqual(['2026-11-03', '2026-10-31'])
+  })
+
+  it('holds back the oldest loaded day while the server has more: it may continue on the next page', () => {
+    expect(completeDays(days, true).map((day) => day.key)).toEqual(['2026-11-03'])
+  })
+
+  it('shows nothing when only one day is loaded and more is to come, and nothing for nothing', () => {
+    expect(completeDays(days.slice(0, 1), true)).toEqual([])
+    expect(completeDays([], true)).toEqual([])
+    expect(completeDays([], false)).toEqual([])
   })
 })
 

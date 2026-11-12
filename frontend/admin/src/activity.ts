@@ -97,6 +97,12 @@ export function groupByDay(entries: ActivityEntry[]): Day[] {
   return days
 }
 
+/**
+ * The days a list may show. While the server has more entries (`hasMore`), the oldest loaded day may continue on the
+ * next page, so it is held back: a day is never shown with only some of its entries.
+ */
+export const completeDays = (days: Day[], hasMore: boolean) => (hasMore ? days.slice(0, -1) : days)
+
 export const formatCount = (n: number) => number.format(n)
 
 export const plural = (n: number, one: string, many: string) =>
