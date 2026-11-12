@@ -14,6 +14,7 @@ import FormattedTag from '@v29/shared/FormattedTag.vue'
 import SawBladeIcon from '@v29/shared/SawBladeIcon.vue'
 
 import { ApiError, request } from '@/api/client'
+import LoadFailure from '@/components/LoadFailure.vue'
 import StatusCard from '@/components/StatusCard.vue'
 import {
   applyFilters,
@@ -168,22 +169,7 @@ function resetFromBar() {
           </div>
         </form>
 
-        <div v-if="status === 'error'" class="mt-6" role="alert">
-          <p class="font-bold">
-            {{
-              failure === 0
-                ? 'Keine Verbindung zum Server.'
-                : 'Die Stämme konnten nicht geladen werden.'
-            }}
-          </p>
-          <button
-            type="button"
-            class="mt-2 h-11 rounded-lg border-2 border-ink px-4 font-bold"
-            @click="load"
-          >
-            Erneut versuchen
-          </button>
-        </div>
+        <LoadFailure v-if="status === 'error'" :failure="failure" @retry="load" />
 
         <StatusCard
           v-else-if="status === 'loading'"
@@ -212,9 +198,7 @@ function resetFromBar() {
           <template #icon>
             <TreesIcon :size="96" :stroke-width="1.5" class="text-ink" aria-hidden="true" />
           </template>
-          <template #text>
-            Keine Ergebnisse weit und breit gefunden.
-          </template>
+          <template #text> Keine Ergebnisse weit und breit gefunden. </template>
           <button
             v-if="hasFilter"
             type="button"

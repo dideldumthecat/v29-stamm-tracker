@@ -191,9 +191,7 @@ describe('stem list', () => {
 
   it('shows an error with "Erneut versuchen"', async () => {
     const { wrapper, api } = await open('/staemme', (api) => api.failSnapshot())
-    expect(wrapper.get('[role="alert"]').text()).toContain(
-      'Die Stämme konnten nicht geladen werden.',
-    )
+    expect(wrapper.get('[role="alert"]').text()).toContain('Hier ist grad der Wurm drin')
 
     api.failSnapshot(false)
     await wrapper.get('[role="alert"] button').trigger('click')
