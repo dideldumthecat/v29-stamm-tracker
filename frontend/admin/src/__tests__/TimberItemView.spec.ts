@@ -223,7 +223,7 @@ describe('states', () => {
     api.failSnapshot()
     await wrapper.vm.$router.push('/staemme/104')
     await flushPromises()
-    expect(wrapper.get('[role=alert]').text()).toContain('Stamm konnte nicht geladen werden.')
+    expect(wrapper.get('[role=alert]').text()).toContain('Hier ist grad der Wurm drin')
 
     api.failSnapshot(false)
     await wrapper.get('[role=alert] button').trigger('click')
