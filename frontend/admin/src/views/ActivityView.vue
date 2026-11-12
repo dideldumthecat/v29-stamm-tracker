@@ -56,7 +56,7 @@ const entries = ref<ActivityEntry[]>([])
 const totals = ref<ActivityResponse['totals'] | null>(null)
 const users = ref<ActivityResponse['users']>([])
 const cursor = ref<string | null>(null)
-const status = ref<'loading' | 'ready' | 'invalid' | 'error'>('loading')
+const status = ref<'loading' | 'ready' | 'error'>('loading')
 const failure = ref<number>(0)
 const loadingMore = ref(false)
 const moreFailed = ref(false)
@@ -84,8 +84,15 @@ async function load() {
   } catch (error) {
     if (mine !== latest) return
     failure.value = error instanceof ApiError ? error.status : 0
-    // 400 = the server cannot read the filter: that is an empty result for the user, not a fault
-    status.value = failure.value === 400 ? 'invalid' : 'error'
+    if (failure.value === 400) {
+      // The server cannot read the filter: for the user that is an empty result, not a fault
+      entries.value = []
+      totals.value = null
+      cursor.value = null
+      status.value = 'ready'
+    } else {
+      status.value = 'error'
+    }
   }
 }
 
@@ -239,7 +246,7 @@ const days = computed(() => groupByDay(entries.value))
     </StatusCard>
 
     <StatusCard
-      v-else-if="status === 'invalid' || !entries.length"
+      v-else-if="!entries.length"
       title="Waldesruh"
       text-class="md:whitespace-nowrap"
       role="status"
@@ -249,16 +256,12 @@ const days = computed(() => groupByDay(entries.value))
       </template>
       <!-- Not broken up on wide screens; on a phone it has to wrap. -->
       <template #text>
-        {{
-          status === 'invalid'
-            ? 'Die Filter verstehen wir nicht. Kennung zum Beispiel 104 oder 100-120.'
-            : 'Für diese Auswahl gibt es keine Einträge.'
-        }}
+        Keine Ergebnisse weit und breit gefunden.
       </template>
       <button
         v-if="hasFilter"
         type="button"
-        class="h-11 rounded-lg border-2 border-ink px-4 font-bold"
+        class="mt-2 h-11 rounded-lg border-2 border-ink px-4 font-bold"
         @click="resetFilter"
       >
         Filter zurücksetzen
