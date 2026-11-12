@@ -55,7 +55,7 @@ describe('splitValues', () => {
     ])
   })
 
-  it('lists the attributes in V29 order, without photos and text series, an inactive one only with a value', () => {
+  it('lists the attributes in V29 order, notes included, without photos, an inactive one only with a value', () => {
     expect(parts.rows.map((row) => row.name)).toEqual([
       'Holzart',
       'Fälldatum',
@@ -64,6 +64,7 @@ describe('splitValues', () => {
       'Gesägt',
       'Sortierklasse',
       'Holzfeuchte',
+      'Notiz',
     ])
   })
 
@@ -83,20 +84,15 @@ describe('splitValues', () => {
     expect(rows.find((candidate) => candidate.name === 'Gesägt')!.lines[0].text).toBe('nein')
   })
 
-  it('collects the text series as notes, newest first, and the latest own time', () => {
-    expect(parts.notes).toEqual([
-      {
-        name: 'Notiz',
-        entries: [
-          { text: 'Zweite Zeile\nmit Umbruch', source: 'Alexander Barina · 31.10.' },
-          { text: 'Leichter Drehwuchs', source: 'Alexander Summa · 29.10.' },
-        ],
-      },
+  it('lists the text series as a row, newest entry first, and has the latest own time', () => {
+    expect(parts.rows.find((row) => row.name === 'Notiz')!.lines).toEqual([
+      { text: 'Zweite Zeile\nmit Umbruch', source: 'Alexander Barina · 31.10.' },
+      { text: 'Leichter Drehwuchs', source: 'Alexander Summa · 29.10.' },
     ])
     expect(parts.lastChanged).toBe('2026-10-31T10:50:00.000Z')
   })
 
-  it('marks what a beam inherits and leaves it out of photos, notes and the last change', () => {
+  it('marks what a beam inherits and leaves it out of photos and the last change, but shows only its own notes', () => {
     const beam = splitValues(beamC, stem, attributes, users)
     const row = (name: string) => beam.rows.find((candidate) => candidate.name === name)!
     expect(row('Holzart').lines).toEqual([{ text: 'Stieleiche', source: 'Vom Stamm geerbt' }])
@@ -105,11 +101,16 @@ describe('splitValues', () => {
       text: 'B',
       source: 'Alexander Barina · 31.10.',
     })
-    expect(beam.notes[0].entries).toEqual([
-      { text: '105x145', source: 'Alexander Barina · 31.10.' },
-    ])
+    expect(row('Notiz').lines).toEqual([{ text: '105x145', source: 'Alexander Barina · 31.10.' }])
     expect(beam.photos).toEqual([])
     expect(beam.lastChanged).toBe('2026-10-31T10:47:50.000Z')
+  })
+
+  it('shows no note of the stem on a beam without its own', () => {
+    const beamB = items.find((i) => i.tag_number === '104-B')!
+    expect(
+      splitValues(beamB, stem, attributes, users).rows.find((row) => row.name === 'Notiz')!.lines,
+    ).toEqual([])
   })
 
   it('has no last change without own values', () => {

@@ -69,30 +69,34 @@ describe('stem detail', () => {
     expect(squeezed(wrapper.get('h1 + p').text())).toBe(
       'Angelegt 29.10.2026, 11:09 von Alexander Summa Zuletzt geändert 31.10.2026, 11:50 von Alexander Barina',
     )
-    expect(wrapper.findAll('h2').map((h2) => h2.text())).toEqual(['Balken', 'Merkmale', 'Notizen'])
+    expect(wrapper.findAll('h2').map((h2) => h2.text())).toEqual(['Balken', 'Merkmale'])
     expect(api.calls).toContain('GET /api/snapshot')
     expect(api.calls).toContain('GET /api/admin/activity?tags=104')
     expect(wrapper.text()).not.toContain('Aus Stamm')
   })
 
-  it('lists the values with who and when, the notes with their line breaks', async () => {
+  it('lists the values with who and when, the notes as a row with their line breaks', async () => {
     const { wrapper } = await open('/staemme/104')
     const values = section(wrapper, 'Merkmale')
 
-    expect(valueRow(wrapper, 'Holzart')).toBe('HolzartStieleiche Alexander Summa · 29.10.')
+    expect(valueRow(wrapper, 'Holzart')).toBe('HolzartStieleicheAlexander Summa · 29.10.')
     const missing = wrapper.findAll('dt').find((dt) => dt.text() === 'Lieferdatum')!.element
     expect(missing.parentElement!.querySelector('[aria-label="nicht erfasst"]')!.textContent).toBe(
       '–',
     )
-    expect(values.text()).not.toContain('Notiz')
     expect(values.text()).not.toContain('Entlastungsschnitt')
 
-    const notes = section(wrapper, 'Notizen')
-    expect(notes.findAll('li').map((li) => squeezed(li.text()))).toEqual([
+    // One row with every note as its own entry, newest first, the source closing each entry
+    const entries = wrapper
+      .findAll('dt')
+      .find((dt) => dt.text() === 'Notiz')!
+      .element.parentElement!.querySelectorAll('dd > p')
+    expect([...entries].map((entry) => squeezed(entry.textContent!))).toEqual([
       'Zweite Zeile mit UmbruchAlexander Barina · 31.10.',
       'Leichter DrehwuchsAlexander Summa · 29.10.',
     ])
-    expect(notes.find('[aria-label="keine Notiz"]').exists()).toBe(false)
+    expect(entries[0].querySelector('span')!.textContent).toBe('Zweite Zeile\nmit Umbruch')
+    expect(wrapper.text()).not.toContain('Notizen')
   })
 
   it('lists the beams as links with their short info', async () => {
@@ -156,12 +160,12 @@ describe('stem detail', () => {
     ])
   })
 
-  it('shows a placeholder that cannot be opened and a dash for the notes where there is nothing', async () => {
+  it('shows a placeholder that cannot be opened and a dash for the note where there is nothing', async () => {
     const { wrapper } = await open('/staemme/104-B')
     const photos = section(wrapper, 'Fotos')
     expect(photos.get('[role=img]').attributes('aria-label')).toBe('Noch keine Fotos')
     expect(photos.findAll('button, img')).toHaveLength(0)
-    expect(section(wrapper, 'Notizen').get('[aria-label="keine Notiz"]').text()).toBe('–')
+    expect(valueRow(wrapper, 'Notiz')).toBe('Notiz–')
   })
 })
 
@@ -177,7 +181,7 @@ describe('beam detail', () => {
     expect(stem.text()).toBe('Aus Stamm 00104')
     expect(stem.attributes('href')).toBe('/staemme/104')
     expect(wrapper.findAll('h2').map((h2) => h2.text())).not.toContain('Balken')
-    expect(valueRow(wrapper, 'Holzart')).toBe('HolzartStieleiche Vom Stamm geerbt')
+    expect(valueRow(wrapper, 'Holzart')).toBe('HolzartStieleicheVom Stamm geerbt')
     const history = section(wrapper, 'Verlauf')
     expect(squeezed(history.get('summary').text())).toBe('Verlauf')
     expect(history.findAll('dl')).toHaveLength(1)

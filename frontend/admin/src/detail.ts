@@ -46,12 +46,6 @@ export interface ValueRow {
   lines: ValueLine[]
 }
 
-export interface NoteGroup {
-  name: string
-  /** Newest first. */
-  entries: ValueLine[]
-}
-
 /** A photo of an item: its id and the device time of the recording (the day shown in the gallery). */
 export interface PhotoRecord {
   id: string
@@ -62,19 +56,16 @@ export interface ItemParts {
   /** Oldest first; only the item's own. */
   photos: PhotoRecord[]
   rows: ValueRow[]
-  notes: NoteGroup[]
   /** Latest device time of an own value; undefined if there is none. */
   lastChanged: string | undefined
   /** Name of the person who recorded that value. */
   lastChangedBy: string | undefined
 }
 
-const isTextSeries = (attribute: Attribute) => attribute.type === 'text' && attribute.is_series
-
 /**
- * Splits an item's values (as the snapshot delivers them, inherited ones included) into photos, value rows and notes.
- * Photos and notes come from own values only; the rows show inherited values as such. Attribute names are never
- * assumed: photos are told apart by type, notes by "text series".
+ * Splits an item's values (as the snapshot delivers them, inherited ones included) into photos and value rows.
+ * Photos come from own values only; the rows show inherited values as such, except text series (notes): a beam shows
+ * only its own. Attribute names are never assumed: photos are told apart by type, notes by "text series".
  */
 export function splitValues(
   item: TimberItem,
@@ -93,7 +84,6 @@ export function splitValues(
 
   const photos: AttributeValueRecord[] = []
   const rows: ValueRow[] = []
-  const notes: NoteGroup[] = []
   const sorted = [...attributes].sort(bySortOrder)
   const last = latestOwnRecord(item, parent, sorted)
   for (const attribute of sorted) {
@@ -101,16 +91,15 @@ export function splitValues(
     const inherited = isInheritedValue(item, parent, attribute.id)
     if (attribute.type === 'photo') {
       if (!inherited) photos.push(...records)
-    } else if (isTextSeries(attribute)) {
-      if (!inherited && records.length) {
-        notes.push({
-          name: attribute.name,
-          entries: records.map((record) => line(attribute, record, false)).reverse(),
-        })
-      }
     } else if (attribute.active || records.length) {
       // A series lists every recording, newest first; anything else holds just its current value.
-      const shown = attribute.is_series ? [...records].reverse() : records.slice(-1)
+      // A beam does not show the stem's notes (text series), only its own.
+      const hidden = inherited && attribute.type === 'text' && attribute.is_series
+      const shown = hidden
+        ? []
+        : attribute.is_series
+          ? [...records].reverse()
+          : records.slice(-1)
       rows.push({
         id: attribute.id,
         name: attribute.name,
@@ -123,7 +112,6 @@ export function splitValues(
       .sort((a, b) => a.recorded_at.localeCompare(b.recorded_at))
       .map((p) => ({ id: String(p.value), recorded_at: p.recorded_at })),
     rows,
-    notes,
     lastChanged: last?.recorded_at,
     lastChangedBy: last && userName(last),
   }

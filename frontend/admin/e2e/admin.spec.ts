@@ -484,7 +484,7 @@ test.describe('detail view', () => {
     await expect(dialog).toBeHidden()
   })
 
-  test('puts Fotos left (40 %), Balken, Merkmale, Notizen and Verlauf right (60 %), one column below 900px', async ({
+  test('puts Fotos left (40 %), Balken, Merkmale and Verlauf right (60 %), one column below 900px', async ({
     page,
   }) => {
     const box = async (name: string) =>
@@ -497,18 +497,16 @@ test.describe('detail view', () => {
     await page.goto('/admin/staemme/104')
     await signIn(page, 'K7QM4XHT9RDP')
     await expect(page.locator('h1')).toHaveText('00104')
-    const [photos, beams, values, notes, history] = [
+    const [photos, beams, values, history] = [
       await box('Fotos'),
       await box('Balken'),
       await box('Merkmale'),
-      await box('Notizen'),
       await box('Verlauf'),
     ]
     expect(beams.x).toBeGreaterThan(photos.x + 300)
-    for (const right of [values, notes, history]) expect(right.x).toBe(beams.x)
+    for (const right of [values, history]) expect(right.x).toBe(beams.x)
     expect(beams.y).toBeLessThan(values.y)
-    expect(values.y).toBeLessThan(notes.y)
-    expect(notes.y).toBeLessThan(history.y)
+    expect(values.y).toBeLessThan(history.y)
     // 2fr | 3fr with a 24 px gap: the photo card takes 40 % of the width without the gap
     expect(photos.width / values.width).toBeCloseTo(2 / 3, 1)
 
@@ -517,10 +515,9 @@ test.describe('detail view', () => {
       await box('Fotos'),
       await box('Balken'),
       await box('Merkmale'),
-      await box('Notizen'),
       await box('Verlauf'),
     ]
-    expect(ys.map((heading) => heading.x)).toEqual(Array(5).fill(ys[0].x))
+    expect(ys.map((heading) => heading.x)).toEqual(Array(4).fill(ys[0].x))
     expect([...ys].map((heading) => heading.y)).toEqual(
       [...ys].map((heading) => heading.y).sort((a, b) => a - b),
     )
