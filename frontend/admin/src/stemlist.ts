@@ -2,7 +2,7 @@ import type { LocationQueryRaw } from 'vue-router'
 import { bySortOrder } from '@v29/shared/attributes'
 import type { Attribute, Snapshot, TimberItem } from '@v29/shared/contract'
 
-import { formatCount, formatDayMonthUnlessThisYear, parseTagRanges, plural } from '@/activity'
+import { countText, formatCount, formatDayMonthUnlessThisYear, parseTagRanges } from '@/activity'
 import { formatRecorded, latestOwnRecord } from '@/detail'
 
 /**
@@ -199,9 +199,7 @@ export function filtersFor(query: ListQuery): RowFilter[] | null {
 
 /** "130 Stämme", with a filter "34 von 130 Stämmen". */
 export const stemsText = (shown: number, total: number, filtered: boolean) =>
-  filtered
-    ? `${formatCount(shown)} von ${plural(total, 'Stamm', 'Stämmen')}`
-    : plural(total, 'Stamm', 'Stämme')
+  countText(shown, total, filtered, ['Stamm', 'Stämme', 'Stämmen'])
 
 /** The state of the list as the URL holds it: `tags` and `sort` (a column id) with `dir`. */
 export interface ListQuery {

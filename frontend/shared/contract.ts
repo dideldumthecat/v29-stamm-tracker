@@ -57,13 +57,15 @@ export interface AdminMeResponse {
 // before=<next_cursor of the previous page>. A malformed filter is a 400.
 // An entry is a run of events from one person whose arrival times are less than a second apart (one sync, or
 // one console command), never split across pages. With a tag filter an entry keeps only the matching items;
-// event_count counts those. Fixture: fixtures/activity-response.json.
+// event_count counts those. entries_unfiltered counts without from, to, user and tags. Fixture: fixtures/activity-response.json.
 
 export interface ActivityResponse {
   /** Newest first, at most 50. */
   entries: ActivityEntry[]
   /** For "Ältere laden"; null = no more. */
   next_cursor: string | null
+  /** All entries without any filter, formed like those of `totals.entries`; the same on every page. For "12 von 248 Einträgen". */
+  entries_unfiltered: number
   /** Over the whole filter, not just this page. */
   totals: { entries: number; events: number; photos: number; users: number }
   /** Everyone with events, regardless of the filter: for the person menu. */

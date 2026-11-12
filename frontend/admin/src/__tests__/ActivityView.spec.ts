@@ -216,7 +216,23 @@ describe('activity page', () => {
     const last = api.calls[api.calls.length - 1]
     expect(last).toContain('from=2026-10-31')
     expect(last).toContain('tags=128')
-    expect(wrapper.text()).toContain('1 Eintrag')
+    expect(wrapper.text()).toContain('1 von 6 Einträgen')
+  })
+
+  it('shows the total next to the count only with a filter, and keeps it when the filter changes', async () => {
+    const { wrapper } = await open()
+    const text = () => wrapper.get('main > div.sticky p').text()
+    expect(text()).toBe('6 Einträge')
+
+    await setTags(wrapper, '1998')
+    expect(text()).toBe('1 von 6 Einträgen')
+
+    await setTags(wrapper, '104')
+    expect(text()).toBe('1 von 6 Einträgen')
+
+    await resetLink(wrapper).trigger('click')
+    await flushPromises()
+    expect(text()).toBe('6 Einträge')
   })
 
   it('reads the filter from the URL, also after a reload', async () => {
@@ -229,14 +245,14 @@ describe('activity page', () => {
           .element as HTMLInputElement
       ).value,
     ).toBe('1998')
-    expect(wrapper.text()).toContain('1 Eintrag')
+    expect(wrapper.text()).toContain('1 von 6 Einträgen')
   })
 
   it('ignores filters an old link still carries and drops them with the next change', async () => {
     const { api, router, wrapper } = await open('/aktivitaet?source=console&tags=1998')
 
     expect(api.calls[api.calls.length - 1]).not.toContain('source')
-    expect(wrapper.text()).toContain('1 Eintrag')
+    expect(wrapper.text()).toContain('1 von 6 Einträgen')
 
     await wrapper
       .findAll('label')
@@ -250,7 +266,7 @@ describe('activity page', () => {
   it('goes back to the previous filter with the back button', async () => {
     const { router, wrapper } = await open()
     await setTags(wrapper, '1998')
-    expect(wrapper.text()).toContain('1 Eintrag')
+    expect(wrapper.text()).toContain('1 von 6 Einträgen')
 
     router.back()
     await flushPromises()
@@ -297,6 +313,18 @@ describe('activity page', () => {
       expect(wrapper.findAll('section')[0].findAll('article')).toHaveLength(1)
       expect(headings(wrapper)).toEqual(['Di, 03.11.2026', 'Sa, 31.10.2026'])
       expect(shownEntries(wrapper)).toHaveLength(6)
+    })
+
+    it('keeps the text of the bar with a filter when older entries are loaded', async () => {
+      const { wrapper } = await open('/aktivitaet?tags=1-200', { pageSize: 1 })
+      const text = () => wrapper.get('main > div.sticky p').text()
+      const before = text()
+      expect(before).toMatch(/^\d+ von 6 Einträgen$/)
+
+      await button(wrapper)!.trigger('click')
+      await flushPromises()
+
+      expect(text()).toBe(before)
     })
 
     it('loads a day larger than a page without another click', async () => {
@@ -361,12 +389,12 @@ describe('activity page', () => {
       vi.mocked(fetch).mockImplementationOnce(() => held)
       await button(wrapper)!.trigger('click')
       await setTags(wrapper, '1998')
-      expect(wrapper.get('main > div.sticky p').text()).toBe('1 Eintrag')
+      expect(wrapper.get('main > div.sticky p').text()).toBe('1 von 6 Einträgen')
 
       release(new Response(JSON.stringify(activityFixture)))
       await flushPromises()
 
-      expect(wrapper.get('main > div.sticky p').text()).toBe('1 Eintrag')
+      expect(wrapper.get('main > div.sticky p').text()).toBe('1 von 6 Einträgen')
       expect(shownEntries(wrapper)).toHaveLength(1)
     })
 
@@ -430,7 +458,7 @@ describe('activity page', () => {
       .trigger('click')
     await flushPromises()
     expect(wrapper.find('[role=alert]').exists()).toBe(false)
-    expect(wrapper.text()).toContain('1 Eintrag')
+    expect(wrapper.text()).toContain('1 von 6 Einträgen')
   })
 
   it('shows "Waldesruh" for a filter the server cannot read, with the button that clears it', async () => {

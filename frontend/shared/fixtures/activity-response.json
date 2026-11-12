@@ -404,6 +404,7 @@
     }
   ],
   "next_cursor": null,
+  "entries_unfiltered": 7,
   "totals": {
     "entries": 6,
     "events": 34,

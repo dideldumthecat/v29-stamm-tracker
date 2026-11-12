@@ -34,6 +34,9 @@ export function activityAnswer(query: URLSearchParams, pageSize = 50): ActivityR
   return {
     entries: page,
     next_cursor: start + pageSize < entries.length ? String(start + pageSize) : null,
+    // The fixture's own `entries_unfiltered` is 7 because the server counted the stems of 30 October too (the request
+    // had from=2026-10-31); dates are not imitated here, so all fixture entries are all entries.
+    entries_unfiltered: activityFixture.entries.length,
     totals: {
       entries: entries.length,
       events: entries.reduce((sum, entry) => sum + entry.event_count, 0),

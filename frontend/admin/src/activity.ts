@@ -110,7 +110,23 @@ export const plural = (n: number, one: string, many: string) =>
 
 export const eventsText = (n: number) => plural(n, 'Ereignis', 'Ereignisse')
 
-export const entriesText = (n: number) => plural(n, 'Eintrag', 'Einträge')
+/**
+ * "130 Stämme"; with a filter "34 von 130 Stämmen". The count after "von" is in the dative (`manyAfterVon`), which
+ * differs from the plural for "Stämme" and "Einträge". Without a filter, `total` is the count.
+ */
+export const countText = (
+  shown: number,
+  total: number,
+  filtered: boolean,
+  [one, many, manyAfterVon]: [string, string, string],
+) =>
+  filtered
+    ? `${formatCount(shown)} von ${plural(total, one, manyAfterVon)}`
+    : plural(total, one, many)
+
+/** "248 Einträge", with a filter "12 von 248 Einträgen". */
+export const entriesText = (shown: number, total: number, filtered: boolean) =>
+  countText(shown, total, filtered, ['Eintrag', 'Einträge', 'Einträgen'])
 
 /** A beam carries its stem's number plus a letter ("104-C"), a stem does not. */
 const isBeam = (label: string) => label.includes('-')

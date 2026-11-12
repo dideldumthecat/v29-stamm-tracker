@@ -56,6 +56,7 @@ function resetFromBar() {
 
 const entries = ref<ActivityEntry[]>([])
 const totals = ref<ActivityResponse['totals'] | null>(null)
+const entriesUnfiltered = ref(0)
 const users = ref<ActivityResponse['users']>([])
 const cursor = ref<string | null>(null)
 const status = ref<'loading' | 'ready' | 'error'>('loading')
@@ -95,6 +96,7 @@ async function load() {
     if (mine !== latest) return
     entries.value = response.entries
     totals.value = response.totals
+    entriesUnfiltered.value = response.entries_unfiltered
     users.value = response.users
     cursor.value = response.next_cursor
     await fetchDays(mine, 0)
@@ -290,7 +292,9 @@ useSizeVariable(bar, '--sticky-bar-height', 'height')
         class="sticky top-0 z-20 bg-desk lg:top-[var(--header-height,0px)]"
       >
         <div class="page-column flex min-h-15 items-center">
-          <p class="text-lg font-bold">{{ entriesText(totals.entries) }}</p>
+          <p class="text-lg font-bold">
+            {{ entriesText(totals.entries, entriesUnfiltered, hasFilter) }}
+          </p>
         </div>
       </div>
 

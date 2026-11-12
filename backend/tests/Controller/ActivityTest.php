@@ -387,6 +387,49 @@ class ActivityTest extends WebTestCase
         self::assertSame($this->ada->id->toRfc4122(), $response['users'][0]['id']);
     }
 
+    public function testEntriesUnfilteredCountsEveryEntryWhateverTheFilter(): void
+    {
+        $this->sawn($this->ada, '1', '2026-10-30 10:00:00.000100', '2026-10-30 09:00:00');
+        $this->stem($this->ada, '2', '2026-10-31 10:00:00.000100', '2026-10-31 09:00:00');
+        $this->sawn($this->barina, '3', '2026-10-31 11:00:00.000100', '2026-10-31 09:00:00');
+        for ($i = 0; $i < 60; ++$i) {
+            $this->sawn($this->ada, (string) (100 + $i), \sprintf('2026-11-01 10:%02d:00.000100', $i), '2026-11-01 09:00:00');
+        }
+        $this->project();
+
+        $none = $this->activity();
+        self::assertSame(63, $none['entries_unfiltered']);
+        self::assertSame(63, $none['totals']['entries']);
+
+        // "all" filters nothing
+        self::assertSame(63, $this->activity('?tags=all')['entries_unfiltered']);
+
+        $day = $this->activity('?from=2026-10-31&to=2026-10-31');
+        self::assertSame(2, $day['totals']['entries']);
+        self::assertSame(63, $day['entries_unfiltered']);
+
+        $person = $this->activity('?user='.$this->barina->id->toRfc4122());
+        self::assertSame(1, $person['totals']['entries']);
+        self::assertSame(63, $person['entries_unfiltered']);
+
+        $tag = $this->activity('?tags=2');
+        self::assertSame(1, $tag['totals']['entries']);
+        self::assertSame(63, $tag['entries_unfiltered']);
+
+        // a tag filter without any match still tells the total
+        $nothing = $this->activity('?tags=300');
+        self::assertSame(0, $nothing['totals']['entries']);
+        self::assertSame(63, $nothing['entries_unfiltered']);
+
+        // the same on every page
+        $first = $this->activity('?user='.$this->ada->id->toRfc4122());
+        self::assertSame(62, $first['totals']['entries']);
+        self::assertNotNull($first['next_cursor']);
+        $second = $this->activity('?user='.$this->ada->id->toRfc4122().'&before='.$first['next_cursor']);
+        self::assertSame(63, $first['entries_unfiltered']);
+        self::assertSame(63, $second['entries_unfiltered']);
+    }
+
     public function testMalformedFiltersAreRefused(): void
     {
         foreach (['?from=31.10.2026', '?to=2026-02-30', '?user=x', '?tags=abc', '?tags=0'] as $query) {
@@ -464,6 +507,6 @@ class ActivityTest extends WebTestCase
 
     public function testNothingRecordedIsAnEmptyList(): void
     {
-        self::assertSame(['entries' => [], 'next_cursor' => null, 'totals' => ['entries' => 0, 'events' => 0, 'photos' => 0, 'users' => 0], 'users' => []], $this->activity());
+        self::assertSame(['entries' => [], 'next_cursor' => null, 'entries_unfiltered' => 0, 'totals' => ['entries' => 0, 'events' => 0, 'photos' => 0, 'users' => 0], 'users' => []], $this->activity());
     }
 }

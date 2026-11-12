@@ -273,7 +273,7 @@ test.describe('activity', () => {
 
     await field.pressSequentially('128')
     await expect(page).toHaveURL(/tags=128/)
-    await expect(page.getByText('1 Eintrag', { exact: true })).toBeVisible()
+    await expect(page.getByText('1 von 6 Einträgen', { exact: true })).toBeVisible()
     await expect(field).toBeFocused()
 
     // the touch target is at least 44 x 44 px
@@ -316,7 +316,7 @@ test.describe('activity', () => {
     await expect(page.getByLabel('Von')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
     await expect(page.getByLabel('Kennung', { exact: true })).toBeVisible()
     release()
-    await expect(page.getByText('1 Eintrag', { exact: true })).toBeVisible()
+    await expect(page.getByText('1 von 6 Einträgen', { exact: true })).toBeVisible()
   })
 
   test('does not rotate the saw blade with reduced motion', async ({ page }) => {
@@ -369,7 +369,13 @@ test.describe('activity', () => {
           received_at: `2026-10-${String(30 - day).padStart(2, '0')}T12:00:00.000Z`,
         }))
         return route.fulfill({
-          json: { ...base, entries, next_cursor: '12', totals: { ...base.totals, entries: 40 } },
+          json: {
+            ...base,
+            entries,
+            next_cursor: '12',
+            totals: { ...base.totals, entries: 40 },
+            entries_unfiltered: 40,
+          },
         })
       })
       await page.reload()
@@ -409,7 +415,7 @@ test.describe('activity', () => {
     await page.getByLabel('Person').selectOption({ label: 'Florian Summa' })
     await expect(page).toHaveURL(/tags=128/)
     await expect(page).toHaveURL(/user=/)
-    await expect(page.getByText('1 Eintrag', { exact: true })).toBeVisible()
+    await expect(page.getByText('1 von 6 Einträgen', { exact: true })).toBeVisible()
 
     await page.reload()
     await expect(page.getByLabel('Kennung', { exact: true })).toHaveValue('128')
@@ -446,7 +452,7 @@ test.describe('activity', () => {
 
     await page.getByLabel('Kennung', { exact: true }).fill('128')
     await page.getByLabel('Kennung', { exact: true }).press('Enter')
-    await expect(page.getByText('1 Eintrag', { exact: true })).toBeVisible()
+    await expect(page.getByText('1 von 6 Einträgen', { exact: true })).toBeVisible()
     await expect(link).toBeVisible()
     expect(await von.boundingBox()).toEqual(box)
     expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(44)

@@ -4,6 +4,7 @@ import type { ActivityEntry, ActivityItem } from '@v29/shared/contract'
 import {
   completeDays,
   detailRows,
+  entriesText,
   formatRecordedTime,
   groupByDay,
   isReadableTags,
@@ -231,5 +232,15 @@ describe('isReadableTags', () => {
   it('refuses what is incomplete or out of range', () => {
     for (const text of ['', '100-', '-5', 'abc', '0', '2000', '130-100', '1,,2', '1-10,', '10 5'])
       expect({ text, ok: isReadableTags(text) }).toEqual({ text, ok: false })
+  })
+})
+
+describe('entriesText', () => {
+  it('shows only the count without a filter, "x von y" with one', () => {
+    expect(entriesText(248, 248, false)).toBe('248 Einträge')
+    expect(entriesText(1, 1, false)).toBe('1 Eintrag')
+    expect(entriesText(12, 248, true)).toBe('12 von 248 Einträgen')
+    expect(entriesText(1, 1, true)).toBe('1 von 1 Eintrag')
+    expect(entriesText(1, 1300, true)).toBe('1 von 1.300 Einträgen')
   })
 })

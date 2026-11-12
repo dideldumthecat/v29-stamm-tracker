@@ -72,7 +72,7 @@ final class ActivityLog
         }
         if (null !== $tags && null !== ($itemIds = $this->itemIds($tags))) {
             if ([] === $itemIds) {
-                return $this->response([], null, [0, 0, 0, 0]);
+                return $this->response([], null, [0, 0, 0, 0], $this->unfilteredEntries());
             }
             $where[] = 'timber_item_id IN (:items)';
             $params['items'] = $itemIds;
@@ -86,6 +86,33 @@ final class ActivityLog
             $cursor = [(int) $match[1], hex2bin($match[2])];
         }
 
+        [$groups, $events, $photos, $people] = $this->read($where, $params, $types);
+        $totals = [\count($groups), $events, $photos, $people];
+        // Without a filter the entries are the same ones: no second reading.
+        $unfiltered = ['1 = 1'] === $where ? $totals[0] : $this->unfilteredEntries();
+
+        usort($groups, static fn (array $a, array $b) => $b['first'] <=> $a['first'] ?: strcmp($b['id'], $a['id']));
+        if ($cursor) {
+            $groups = array_values(array_filter($groups, static fn (array $g) => $g['first'] < $cursor[0] || ($g['first'] === $cursor[0] && strcmp($g['id'], $cursor[1]) < 0)));
+        }
+        $page = \array_slice($groups, 0, self::PAGE_SIZE);
+        $last = end($page);
+        $next = \count($groups) > self::PAGE_SIZE ? $last['first'].'_'.bin2hex($last['id']) : null;
+
+        return $this->response($page, $next, $totals, $unfiltered);
+    }
+
+    /**
+     * Reads the events matching the filter and groups them into entries (see MAX_GAP_MICROSECONDS).
+     *
+     * @param list<string>        $where
+     * @param array<string,mixed> $params
+     * @param array<string,mixed> $types
+     *
+     * @return array{0: list<array<string, mixed>>, 1: int, 2: int, 3: int} groups in arrival order, number of events, of photos, of people
+     */
+    private function read(array $where, array $params, array $types): array
+    {
         $connection = $this->em->getConnection();
         $photoIds = array_map(static fn (string $id) => Uuid::fromBinary($id)->toRfc4122(),
             $connection->fetchFirstColumn('SELECT id FROM attributes WHERE type = ?', [AttributeType::Photo->value]));
@@ -115,17 +142,14 @@ final class ActivityLog
             $photos += (int) $row['photo'];
             $people[$row['user_id']] = true;
         }
-        $totals = [\count($groups), \count($rows), $photos, \count($people)];
 
-        usort($groups, static fn (array $a, array $b) => $b['first'] <=> $a['first'] ?: strcmp($b['id'], $a['id']));
-        if ($cursor) {
-            $groups = array_values(array_filter($groups, static fn (array $g) => $g['first'] < $cursor[0] || ($g['first'] === $cursor[0] && strcmp($g['id'], $cursor[1]) < 0)));
-        }
-        $page = \array_slice($groups, 0, self::PAGE_SIZE);
-        $last = end($page);
-        $next = \count($groups) > self::PAGE_SIZE ? $last['first'].'_'.bin2hex($last['id']) : null;
+        return [$groups, \count($rows), $photos, \count($people)];
+    }
 
-        return $this->response($page, $next, $totals);
+    /** The number of entries over all events, formed like the ones of `totals`. */
+    private function unfilteredEntries(): int
+    {
+        return \count($this->read(['1 = 1'], [], [])[0]);
     }
 
     /**
@@ -153,12 +177,13 @@ final class ActivityLog
     }
 
     /**
-     * @param list<array<string, mixed>> $page   groups of the requested page, newest first
-     * @param int[]                      $totals entries, events, photos, people
+     * @param list<array<string, mixed>> $page       groups of the requested page, newest first
+     * @param int[]                      $totals     entries, events, photos, people
+     * @param int                        $unfiltered entries without any filter
      *
      * @return array<string, mixed>
      */
-    private function response(array $page, ?string $next, array $totals): array
+    private function response(array $page, ?string $next, array $totals, int $unfiltered): array
     {
         $names = [];
         foreach ($this->em->getConnection()->fetchAllAssociative('SELECT id, name FROM users WHERE id IN (SELECT DISTINCT user_id FROM timber_item_events) ORDER BY name') as $user) {
@@ -169,6 +194,7 @@ final class ActivityLog
         return [
             'entries' => $page ? $this->entries($page, $names) : [],
             'next_cursor' => $next,
+            'entries_unfiltered' => $unfiltered,
             'totals' => ['entries' => $totals[0], 'events' => $totals[1], 'photos' => $totals[2], 'users' => $totals[3]],
             'users' => $people,
         ];
