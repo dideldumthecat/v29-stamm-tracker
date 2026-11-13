@@ -39,11 +39,11 @@ const rowTags = (wrapper: Wrapper) => wrapper.findAll('tbody th').map((th) => sq
 const header = (wrapper: Wrapper, label: string) =>
   wrapper.findAll('thead th').find((th) => th.text().startsWith(label))!
 const field = (wrapper: Wrapper) => wrapper.get<HTMLInputElement>('#stems-tags')
+// "Filter zurücksetzen" is in the results bar, and only there while a filter is set; undefined otherwise
 const resetButton = (wrapper: Wrapper) =>
-  wrapper
-    .get('form')
-    .findAll('button')
-    .find((button) => button.text() === 'Filter zurücksetzen')!
+  wrapper.findAll('button').find((button) => button.text() === 'Filter zurücksetzen')!
+const resetButtons = (wrapper: Wrapper) =>
+  wrapper.findAll('button').filter((button) => button.text() === 'Filter zurücksetzen')
 
 enableAutoUnmount(afterEach)
 beforeEach(() => {
@@ -144,7 +144,7 @@ describe('stem list', () => {
 
   it('filters by tag, counts "von" all and resets', async () => {
     const { wrapper, router } = await open()
-    expect(resetButton(wrapper).attributes('disabled')).toBeDefined()
+    expect(resetButton(wrapper)).toBeUndefined()
 
     await field(wrapper).setValue('100-120')
     await flushPromises()
@@ -166,13 +166,14 @@ describe('stem list', () => {
     expect(router.currentRoute.value.query).toEqual({ sort: 'beams' })
   })
 
-  it('shows "Waldesruh" for an empty result, with the button to reset', async () => {
+  it('shows "Waldesruh" for an empty result, with the button of the bar to reset', async () => {
     const { wrapper, router } = await open('/staemme?tags=300-400')
 
     expect(wrapper.get('h2').text()).toBe('Waldesruh')
     expect(wrapper.text()).toContain('Keine Ergebnisse weit und breit gefunden.')
     expect(wrapper.find('table').exists()).toBe(false)
-    await wrapper.get('[role="status"] button').trigger('click')
+    // the bar above it has the button
+    await resetButton(wrapper).trigger('click')
     await flushPromises()
     expect(router.currentRoute.value.query).toEqual({})
     expect(wrapper.find('table').exists()).toBe(true)
@@ -339,7 +340,7 @@ describe('filter bar and chips', () => {
     document.querySelector<HTMLElement>(`button[aria-label="Filter ${name} entfernen"]`)!
   const badge = (id: string) => filterButton(id).querySelector('span')?.textContent
 
-  it('puts a button behind the field "Kennung" for every column but "Stamm", in column order, and "Filter zurücksetzen" last', async () => {
+  it('puts a button behind the field "Kennung" for every column but "Stamm", in column order', async () => {
     const { wrapper } = await open()
     const bar = wrapper.get('form')
     expect(
@@ -359,7 +360,6 @@ describe('filter bar and chips', () => {
       'Fotos',
       'Balken',
       'Geändert',
-      'Filter zurücksetzen',
     ])
     expect(filterButton(attributeId('Holzart')).getAttribute('aria-expanded')).toBe('false')
     // the bar does not stick: the bar of the hits and the head do
@@ -470,12 +470,22 @@ describe('filter bar and chips', () => {
     expect(document.activeElement).toBe(field(wrapper).element)
   })
 
+  it('sets the focus into the field without scrolling the page up to it', async () => {
+    const focus = vi.spyOn(HTMLInputElement.prototype, 'focus')
+    const { wrapper } = await open('/staemme?tags=1-200')
+    await resetButton(wrapper).trigger('click')
+    await flushPromises()
+    expect(focus).toHaveBeenCalledWith({ preventScroll: true })
+    focus.mockRestore()
+  })
+
   it('shows "Waldesruh" without a chip for a filter it cannot read', async () => {
     const id = attributeId('Fotos')
     const { wrapper } = await open(`/staemme?f.${id}=maybe`)
     expect(wrapper.get('h2').text()).toBe('Waldesruh')
     expect(chipTexts()).toEqual([])
-    expect(resetButton(wrapper).attributes('disabled')).toBeUndefined()
+    // the one button is the one of the bar
+    expect(resetButtons(wrapper)).toHaveLength(1)
   })
 
   it('ignores a filter of a column that does not exist', async () => {
@@ -562,11 +572,17 @@ describe('filter bar and chips', () => {
     ])
   })
 
-  it('puts "Filter zurücksetzen" on a row of its own at the right edge, below the buttons', async () => {
+  it('has "Filter zurücksetzen" only with a filter, once, at the right of the bar left of the arrows', async () => {
     const { wrapper } = await open()
-    const reset = resetButton(wrapper).element
-    expect(reset.parentElement!.className).toContain('justify-end')
-    expect(wrapper.get('form > div').element.contains(reset)).toBe(false)
-    expect(wrapper.findAll('form > div:first-child button[data-filter]').length).toBeGreaterThan(5)
+    expect(resetButton(wrapper)).toBeUndefined()
+    expect(wrapper.get('form').text()).not.toContain('Filter zurücksetzen')
+
+    const { wrapper: filtered } = await open('/staemme?tags=300-400')
+    // "Waldesruh" has no button of its own any more
+    expect(resetButtons(filtered)).toHaveLength(1)
+    expect(filtered.get('[role=status]').find('button').exists()).toBe(false)
+    expect(filtered.get('form').text()).not.toContain('Filter zurücksetzen')
+    const actions = resetButton(filtered).element.parentElement!
+    expect(actions.className).toContain('justify-self-end')
   })
 })

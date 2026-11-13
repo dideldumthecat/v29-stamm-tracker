@@ -48,9 +48,10 @@ function resetFilter() {
   resetTagsInput()
   void router.push({ query: {} })
 }
+// The focus goes to the field, but the page stays where it is (the button is in the bar, the field far above after scrolling)
 function resetFromBar() {
   resetFilter()
-  tagsField.value?.focus()
+  tagsField.value?.focus({ preventScroll: true })
 }
 
 // The period is one filter of two URL values; the pop-up works with a range of days like the lists of stems.
@@ -267,19 +268,6 @@ const barText = computed(() =>
             />
           </FilterButton>
         </div>
-        <!-- On a row of its own at the right edge of the column. Always shown; without a filter it is natively disabled
-             (greyed out, not tabbable, announced as unavailable) -->
-        <div class="mt-3 flex justify-end">
-          <button
-            type="button"
-            class="flex h-11 items-center gap-2 rounded-lg px-2 text-base whitespace-nowrap text-ink underline enabled:active:bg-ink enabled:active:text-paper disabled:text-dim disabled:no-underline"
-            :disabled="!hasFilter"
-            @click="resetFromBar"
-          >
-            <XIcon :size="18" aria-hidden="true" />
-            Filter zurücksetzen
-          </button>
-        </div>
       </form>
     </div>
 
@@ -289,7 +277,9 @@ const barText = computed(() =>
       v-if="showBar"
       :text="barText"
       :chips="chips"
+      :can-reset="hasFilter"
       @open="openFilter"
+      @reset="resetFromBar"
       @remove="removeFilter"
     />
 
@@ -325,14 +315,6 @@ const barText = computed(() =>
         </template>
         <!-- Not broken up on wide screens; on a phone it has to wrap. -->
         <template #text> Keine Ergebnisse weit und breit gefunden. </template>
-        <button
-          v-if="hasFilter"
-          type="button"
-          class="mt-2 h-11 rounded-lg border-2 border-ink px-4 font-bold"
-          @click="resetFilter"
-        >
-          Filter zurücksetzen
-        </button>
       </StatusCard>
 
       <template v-if="showList">
