@@ -8,6 +8,7 @@ import { createAdminRouter } from '@/router'
 import App from '../App.vue'
 import { activityFixture } from './fakeActivity'
 import { fakeApi } from './fakeApi'
+import { chipTexts, filterButton, popup, pressEscape, stubBrowser } from './popup'
 
 const CODE = 'K7QM-4XHT-9RDP'
 
@@ -51,11 +52,38 @@ const resetLink = (wrapper: Wrapper) =>
     .get('form')
     .findAll('button')
     .find((b) => b.text() === 'Filter zurücksetzen')!
+// The filters "Zeitraum" and "Person" live in pop-ups. setValue also sends "change", which applies at once.
+const openPopup = async (id: string) => {
+  // A person first leaves the open one: the click outside closes it before the click on the next button
+  if (popup()) {
+    pressEscape()
+    await flushPromises()
+  }
+  filterButton(id).click()
+  await flushPromises()
+}
+const setDate = async (label: 'Von' | 'Bis', day: string) => {
+  const field = [...popup()!.querySelectorAll('label')]
+    .find((candidate) => candidate.textContent!.trim().startsWith(label))!
+    .querySelector('input')!
+  field.value = day
+  field.dispatchEvent(new Event('input'))
+  field.dispatchEvent(new Event('change'))
+  await flushPromises()
+}
+const pickPerson = async (name: string) => {
+  const radio = [...popup()!.querySelectorAll('label')]
+    .find((candidate) => candidate.textContent!.trim() === name)!
+    .querySelector('input')!
+  radio.click()
+  await flushPromises()
+}
 const squeezed = (element: Element) => element.textContent!.replace(/\s+/g, ' ')
 
 enableAutoUnmount(afterEach)
 beforeEach(() => {
   user.value = null
+  stubBrowser()
 })
 afterEach(() => vi.unstubAllGlobals())
 
@@ -194,16 +222,13 @@ describe('activity page', () => {
 
   it('puts the filters in the URL and asks the server with them', async () => {
     const { api, router, wrapper } = await open()
-    const labelled = (text: string) =>
-      wrapper.findAll('label').find((l) => l.text().startsWith(text))!
 
     // One change at a time, like a person: each one is a navigation that finishes before the next
-    await labelled('Von').get('input').setValue('2026-10-31')
-    await flushPromises()
-    await labelled('Bis').get('input').setValue('2026-11-03')
-    await flushPromises()
-    await labelled('Person').get('select').setValue(activityFixture.users[2].id)
-    await flushPromises()
+    await openPopup('range')
+    await setDate('Von', '2026-10-31')
+    await setDate('Bis', '2026-11-03')
+    await openPopup('user')
+    await pickPerson(activityFixture.users[2].name)
     await tagsField(wrapper).setValue(' 128 ')
     await flushPromises()
 
@@ -254,12 +279,8 @@ describe('activity page', () => {
     expect(api.calls[api.calls.length - 1]).not.toContain('source')
     expect(wrapper.text()).toContain('1 von 6 Einträgen')
 
-    await wrapper
-      .findAll('label')
-      .find((l) => l.text().startsWith('Von'))!
-      .get('input')
-      .setValue('2026-10-31')
-    await flushPromises()
+    await openPopup('range')
+    await setDate('Von', '2026-10-31')
     expect(router.currentRoute.value.query).toEqual({ tags: '1998', from: '2026-10-31' })
   })
 
@@ -489,7 +510,7 @@ describe('activity page', () => {
       }
     })
 
-    it('clears all filters, loads again, empties the Kennung field and focuses "Von"', async () => {
+    it('clears all filters, loads again, empties the Kennung field and focuses it', async () => {
       const { api, router, wrapper } = await open('/aktivitaet?from=2026-10-31&tags=128')
       expect(tagsField(wrapper).element.value).toBe('128')
 
@@ -500,7 +521,7 @@ describe('activity page', () => {
       expect(api.calls[api.calls.length - 1]).not.toMatch(/from=|tags=/)
       expect(wrapper.text()).toContain('6 Einträge')
       expect(tagsField(wrapper).element.value).toBe('')
-      expect(document.activeElement).toBe(wrapper.get('input[type=date]').element)
+      expect(document.activeElement).toBe(tagsField(wrapper).element)
     })
 
     it('drops a running search of the Kennung field', async () => {
@@ -520,16 +541,128 @@ describe('activity page', () => {
 
   it('turns exactly the filters that are set white with a black border', async () => {
     const { wrapper } = await open()
-    const fields = () => wrapper.findAll('form input, form select')
-    expect(fields()).toHaveLength(4)
-    for (const field of fields()) {
-      expect(field.classes()).toEqual(expect.arrayContaining(['border-dim', 'bg-transparent']))
-    }
+    const set = (id: string) => filterButton(id).className.includes('border-ink')
+    expect(tagsField(wrapper).classes()).toEqual(
+      expect.arrayContaining(['border-dim', 'bg-transparent']),
+    )
+    expect(['range', 'user'].map(set)).toEqual([false, false])
+
     await setTags(wrapper, '128')
-    const [from, to, person, tags] = fields()
-    for (const field of [from, to, person]) expect(field.classes()).toContain('border-dim')
-    expect(tags.classes()).toEqual(expect.arrayContaining(['border-ink', 'bg-paper']))
-    expect(tags.classes()).not.toContain('bg-transparent')
+    expect(tagsField(wrapper).classes()).toEqual(expect.arrayContaining(['border-ink', 'bg-paper']))
+    expect(tagsField(wrapper).classes()).not.toContain('bg-transparent')
+    expect(['range', 'user'].map(set)).toEqual([false, false])
+
+    await openPopup('range')
+    await setDate('Bis', '2026-11-03')
+    expect(set('range')).toBe(true)
+    expect(filterButton('range').className).toContain('font-bold')
+    expect(set('user')).toBe(false)
+  })
+
+  describe('the chips of the active filters', () => {
+    const person = activityFixture.users[1]
+    const all = `/aktivitaet?tags=1998&from=2026-11-01&to=2026-11-03&user=${person.id}`
+    const chip = (id: string) => document.querySelector<HTMLElement>(`[data-chip="${id}"]`)!
+    const remove = (name: string) =>
+      document.querySelector<HTMLElement>(`button[aria-label="Filter ${name} entfernen"]`)!
+    beforeEach(() => vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-11-09T12:00:00Z') }))
+    afterEach(() => vi.useRealTimers())
+
+    it('shows no chip without a filter', async () => {
+      await open()
+      expect(chipTexts()).toEqual([])
+      expect(document.querySelector('ul[aria-label="Aktive Filter"]')).toBeNull()
+    })
+
+    it('shows one chip per filter behind the count, in the order of the filter bar', async () => {
+      await open(all)
+      expect(chipTexts()).toEqual([
+        'Kennung: 1998',
+        'Zeitraum: 01.11.–03.11.',
+        `Person: ${person.name}`,
+      ])
+    })
+
+    it.each([
+      ['from=2026-11-01', 'Zeitraum: ab 01.11.'],
+      ['to=2026-11-03', 'Zeitraum: bis 03.11.'],
+    ])('writes a period with one end as "ab" or "bis" (%s)', async (filter, text) => {
+      await open(`/aktivitaet?${filter}`)
+      expect(chipTexts()).toEqual([text])
+    })
+
+    it('has a cross per chip that removes only this filter; the period goes as a whole', async () => {
+      const { router } = await open(all)
+      remove('Person').click()
+      await flushPromises()
+      expect(router.currentRoute.value.query).toEqual({
+        tags: '1998',
+        from: '2026-11-01',
+        to: '2026-11-03',
+      })
+      expect(chipTexts()).toEqual(['Kennung: 1998', 'Zeitraum: 01.11.–03.11.'])
+
+      remove('Zeitraum').click()
+      await flushPromises()
+      expect(router.currentRoute.value.query).toEqual({ tags: '1998' })
+
+      remove('Kennung').click()
+      await flushPromises()
+      expect(router.currentRoute.value.query).toEqual({})
+      expect(chipTexts()).toEqual([])
+    })
+
+    it('puts the focus on the next chip after a removal, without one on the button of the filter', async () => {
+      await open(all)
+      remove('Kennung').click()
+      await flushPromises()
+      expect(document.activeElement).toBe(chip('range'))
+
+      remove('Person').click()
+      await flushPromises()
+      expect(document.activeElement).toBe(filterButton('user'))
+    })
+
+    it('opens the pop-up of its filter on a click and scrolls to the button; the chip of the Kennung focuses the field', async () => {
+      const { wrapper } = await open(all)
+      chip('range').click()
+      await flushPromises()
+      expect(popup()?.getAttribute('aria-label')).toBe('Zeitraum')
+      expect(Element.prototype.scrollIntoView).toHaveBeenCalled()
+      // Escape brings the focus back to the button
+      pressEscape()
+      await flushPromises()
+      expect(popup()).toBeNull()
+      expect(document.activeElement).toBe(filterButton('range'))
+
+      chip('tags').click()
+      expect(document.activeElement).toBe(tagsField(wrapper).element)
+    })
+
+    it('shows none while the list is empty (Waldesruh): no bar, no chip', async () => {
+      await open('/aktivitaet?tags=1')
+      expect(chipTexts()).toEqual([])
+      expect(filterButton('range')).toBeTruthy()
+    })
+  })
+
+  it('offers the period and the people in pop-ups, with "Alle" for no person', async () => {
+    const { router, wrapper } = await open(`/aktivitaet?user=${activityFixture.users[1].id}`)
+    expect(wrapper.findAll('form label').map((label) => label.text())).toEqual(['Kennung'])
+    expect(filterButton('range').textContent).toContain('Zeitraum')
+    expect(filterButton('user').textContent).toContain('Person')
+    // no badge: only lists of ticks have one
+    expect(filterButton('user').querySelector('span')).toBeNull()
+
+    await openPopup('user')
+    const radios = [...popup()!.querySelectorAll<HTMLInputElement>('input[type=radio]')]
+    expect(radios.map((radio) => radio.parentElement!.textContent!.trim())).toEqual([
+      'Alle',
+      ...activityFixture.users.map((candidate) => candidate.name),
+    ])
+    expect(radios.filter((radio) => radio.checked).map((radio) => radio.value)).toHaveLength(1)
+    await pickPerson('Alle')
+    expect(router.currentRoute.value.query).toEqual({})
   })
 
   it('shows a rotating saw blade on a white card while loading, the filters stay', async () => {

@@ -313,7 +313,10 @@ test.describe('activity', () => {
       'background-color',
       'rgb(255, 255, 255)',
     )
-    await expect(page.getByLabel('Von')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
+    await expect(page.getByRole('button', { name: 'Zeitraum', exact: true })).toHaveCSS(
+      'background-color',
+      'rgba(0, 0, 0, 0)',
+    )
     await expect(page.getByLabel('Kennung', { exact: true })).toBeVisible()
     release()
     await expect(page.getByText('1 von 6 Einträgen', { exact: true })).toBeVisible()
@@ -412,14 +415,15 @@ test.describe('activity', () => {
   test('keeps the filter in the URL through a reload and the back button', async ({ page }) => {
     await page.getByLabel('Kennung', { exact: true }).fill('128')
     await page.getByLabel('Kennung', { exact: true }).press('Enter')
-    await page.getByLabel('Person').selectOption({ label: 'Mara Vogel' })
+    await page.getByRole('button', { name: 'Person', exact: true }).click()
+    await page.getByRole('dialog', { name: 'Person' }).getByLabel('Mara Vogel').check()
     await expect(page).toHaveURL(/tags=128/)
     await expect(page).toHaveURL(/user=/)
     await expect(page.getByText('1 von 6 Einträgen', { exact: true })).toBeVisible()
 
     await page.reload()
     await expect(page.getByLabel('Kennung', { exact: true })).toHaveValue('128')
-    await expect(page.getByLabel('Person')).toHaveValue(/-/)
+    await expect(page.getByRole('button', { name: 'Person: Mara Vogel' })).toBeVisible()
     await expect(page.getByRole('listitem').filter({ hasText: /^2 Fotos$/ })).toBeVisible()
     await expect(page.getByRole('article').filter({ hasText: 'Aaron Bauer' })).toHaveCount(0)
 
@@ -428,6 +432,60 @@ test.describe('activity', () => {
     await page.goBack()
     await expect(page.getByText('6 Einträge')).toBeVisible()
   })
+
+  test('filters by period and person in drop-downs and shows them as chips that open and remove them', async ({
+    page,
+  }) => {
+    const chips = page.getByRole('list', { name: 'Aktive Filter' })
+    await expect(chips).toHaveCount(0)
+
+    await page.getByRole('button', { name: 'Zeitraum', exact: true }).click()
+    const period = page.getByRole('dialog', { name: 'Zeitraum' })
+    await period.getByLabel('Von').fill('2026-10-31')
+    await expect(page).toHaveURL(/from=2026-10-31/)
+    await period.getByLabel('Bis').fill('2026-11-03')
+    await expect(page).toHaveURL(/to=2026-11-03/)
+    await page.keyboard.press('Escape')
+    await expect(period).toBeHidden()
+    await expect(page.getByRole('button', { name: 'Zeitraum', exact: true })).toBeFocused()
+
+    await page.getByRole('button', { name: 'Person', exact: true }).click()
+    await page.getByRole('dialog', { name: 'Person' }).getByLabel('Mara Vogel').check()
+    await page.keyboard.press('Escape')
+    await expect(page).toHaveURL(/user=/)
+
+    await expect(chips.getByRole('button', { name: 'Zeitraum: 31.10.–03.11.' })).toBeVisible()
+    await expect(chips.getByRole('button', { name: 'Person: Mara Vogel' })).toBeVisible()
+
+    // the chip opens its filter again
+    await chips.getByRole('button', { name: 'Zeitraum: 31.10.–03.11.' }).click()
+    await expect(period).toBeVisible()
+    await expect(period.getByLabel('Von')).toHaveValue('2026-10-31')
+    await page.keyboard.press('Escape')
+
+    // the cross removes the period as a whole and leaves the person; the focus moves on to the next chip
+    await page.getByRole('button', { name: 'Filter Zeitraum entfernen' }).click()
+    await expect(page).not.toHaveURL(/from=|to=/)
+    await expect(page).toHaveURL(/user=/)
+    await expect(page.getByRole('button', { name: 'Person: Mara Vogel' })).toBeFocused()
+  })
+
+  for (const width of [390, 1280]) {
+    test(`keeps the drop-downs inside the window, at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 700 })
+      for (const name of ['Zeitraum', 'Person']) {
+        await page.getByRole('button', { name, exact: true }).click()
+        const box = (await page.getByRole('dialog', { name }).boundingBox())!
+        expect(box.x).toBeGreaterThanOrEqual(0)
+        expect(box.x + box.width).toBeLessThanOrEqual(width)
+        // right under its button
+        const button = (await page.getByRole('button', { name, exact: true }).boundingBox())!
+        expect(box.y).toBeGreaterThanOrEqual(button.y + button.height)
+        expect(box.y).toBeLessThan(button.y + button.height + 12)
+        await page.keyboard.press('Escape')
+      }
+    })
+  }
 
   test('shows "Waldesruh" for an empty result and clears the filter again', async ({ page }) => {
     await page.getByLabel('Kennung', { exact: true }).fill('999')
@@ -445,8 +503,8 @@ test.describe('activity', () => {
     page,
   }) => {
     const link = page.getByRole('button', { name: 'Filter zurücksetzen' })
-    const von = page.getByLabel('Von')
-    const box = (await von.boundingBox())!
+    const period = page.getByRole('button', { name: 'Zeitraum', exact: true })
+    const box = (await period.boundingBox())!
     await expect(link).toBeVisible()
     await expect(link).toBeDisabled()
 
@@ -454,13 +512,13 @@ test.describe('activity', () => {
     await page.getByLabel('Kennung', { exact: true }).press('Enter')
     await expect(page.getByText('1 von 6 Einträgen', { exact: true })).toBeVisible()
     await expect(link).toBeVisible()
-    expect(await von.boundingBox()).toEqual(box)
+    expect(await period.boundingBox()).toEqual(box)
     expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(44)
 
     await link.click()
     await expect(page).not.toHaveURL(/tags=/)
     await expect(page.getByText('6 Einträge', { exact: true })).toBeVisible()
-    await expect(von).toBeFocused()
+    await expect(page.getByLabel('Kennung', { exact: true })).toBeFocused()
     await expect(link).toBeDisabled()
   })
 

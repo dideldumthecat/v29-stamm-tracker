@@ -261,3 +261,16 @@ describe('entriesText', () => {
     expect(entriesText(1, 1300, true)).toBe('1 von 1.300 Einträgen')
   })
 })
+
+describe('describePeriod', () => {
+  it('writes both ends, or only one with "ab" / "bis"', () => {
+    const year = new Date().getFullYear()
+    expect(describePeriod(`${year}-11-01`, `${year}-11-12`)).toBe('01.11.–12.11.')
+    expect(describePeriod(`${year}-11-01`, '')).toBe('ab 01.11.')
+    expect(describePeriod('', `${year}-11-12`)).toBe('bis 12.11.')
+  })
+
+  it('adds the year in two digits outside the current one', () => {
+    expect(describePeriod('2020-12-30', '2021-01-02')).toBe('30.12.20–02.01.21')
+  })
+})

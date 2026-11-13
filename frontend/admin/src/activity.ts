@@ -206,3 +206,17 @@ export function detailRows(item: ActivityItem) {
         : row.value,
   }))
 }
+
+/** "31.10." for a day "2026-10-31" of the current year, otherwise with the year in two digits: "31.10.25". */
+function formatDayShort(day: string): string {
+  const [year, month, date] = day.split('-')
+  return Number(year) === new Date().getFullYear()
+    ? `${date}.${month}.`
+    : `${date}.${month}.${year.slice(2)}`
+}
+
+/** The period filter in words, for its chip: "01.11.–12.11.", "ab 01.11.", "bis 12.11."; days as in the URL ("2026-11-01"). */
+export function describePeriod(from: string, to: string): string {
+  if (from && to) return `${formatDayShort(from)}–${formatDayShort(to)}`
+  return from ? `ab ${formatDayShort(from)}` : `bis ${formatDayShort(to)}`
+}
