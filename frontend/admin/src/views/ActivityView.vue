@@ -9,13 +9,13 @@ import { completeDays, describePeriod, entriesText, groupByDay } from '@/activit
 import { ApiError, request } from '@/api/client'
 import ActivityEntryCard from '@/components/ActivityEntry.vue'
 import FilterButton from '@/components/FilterButton.vue'
+import FilterChecklist from '@/components/FilterChecklist.vue'
 import FilterRange from '@/components/FilterRange.vue'
-import FilterSingle from '@/components/FilterSingle.vue'
 import LoadFailure from '@/components/LoadFailure.vue'
 import ResultsBar from '@/components/ResultsBar.vue'
 import StatusCard from '@/components/StatusCard.vue'
 import { useFilterBar } from '@/filterBar'
-import type { ColumnFilter, FilterChip } from '@/listFilters'
+import { describePicks, type ColumnFilter, type FilterChip } from '@/listFilters'
 import { useTagsField } from '@/tagsField'
 
 const route = useRoute()
@@ -63,14 +63,17 @@ function setPeriod(next: ColumnFilter | null, replace: boolean) {
   const range = next?.kind === 'range' ? next : { from: '', to: '' }
   void setFilters({ from: range.from, to: range.to }, replace)
 }
-const personOptions = computed(() => [
-  { id: '', label: 'Alle' },
-  ...users.value.map((person) => ({ id: person.id, label: person.name })),
-])
+// The people are one filter of one URL value, the ids joined by commas
+const people = computed(() => filter.value.user.split(',').filter(Boolean))
+const personOptions = computed(() =>
+  users.value.map((person) => ({ id: person.id, label: person.name })),
+)
 
 // The chips come with the list (the names of the people come with the response)
 const chips = computed<FilterChip[]>(() => {
-  const person = users.value.find((candidate) => candidate.id === filter.value.user)
+  const names = personOptions.value
+    .filter((option) => people.value.includes(option.id))
+    .map((option) => option.label)
   return [
     ...(filter.value.tags
       ? [{ id: 'tags', name: 'Kennung', text: `Kennung: ${filter.value.tags}` }]
@@ -84,7 +87,15 @@ const chips = computed<FilterChip[]>(() => {
           },
         ]
       : []),
-    ...(person ? [{ id: 'user', name: 'Person', text: `Person: ${person.name}` }] : []),
+    ...(names.length
+      ? [
+          {
+            id: 'user',
+            name: 'Person',
+            text: `Person: ${describePicks(names, people.value.length)}`,
+          },
+        ]
+      : []),
   ]
 })
 const { openId, setOpen, openFilter, focusAfterRemove, settle } = useFilterBar(tagsField)
@@ -100,7 +111,8 @@ async function removeFilter(id: string) {
 
 const entries = ref<ActivityEntry[]>([])
 const totals = ref<ActivityResponse['totals'] | null>(null)
-const entriesUnfiltered = ref(0)
+// The last count of all entries the server gave; null until it has: then the bar has the chips but no count
+const entriesUnfiltered = ref<number | null>(null)
 const users = ref<ActivityResponse['users']>([])
 const cursor = ref<string | null>(null)
 const status = ref<'loading' | 'ready' | 'error'>('loading')
@@ -178,84 +190,110 @@ watch(() => route.query, load, { immediate: true })
 watch(status, (now) => now === 'ready' && void nextTick(settle))
 
 const showList = computed(() => status.value === 'ready' && entries.value.length > 0)
+// The bar stays with "Waldesruh" as long as a filter is set, so that its chips show what caused it
+const showBar = computed(() => status.value === 'ready' && (showList.value || hasFilter.value))
+const barText = computed(() =>
+  entriesUnfiltered.value === null
+    ? ''
+    : entriesText(totals.value?.entries ?? 0, entriesUnfiltered.value, hasFilter.value),
+)
 // TODO: "Gefilterte Liste exportieren" (see the design) once the administration has an export.
 </script>
 
 <template>
   <main class="py-8">
-    <div class="page-column" :class="{ 'pb-2': showList }">
+    <div class="page-column" :class="{ 'pb-2': showBar }">
       <h1 class="text-3xl font-bold">Aktivität</h1>
       <p class="mt-2 text-measure text-mute">
         Wer hat wann was erfasst? Die Uhrzeit links ist der Eingang am Server (nach einem Sync), die
         Zeiten in den Details sind die Uhrzeit am Handy zum Zeitpunkt der Erfassung.
       </p>
 
-      <form class="mt-6 flex flex-wrap items-end gap-x-3 gap-y-3" @submit.prevent>
-        <div class="flex max-w-sm min-w-48 flex-1 flex-col text-sm text-mute">
-          <label for="activity-tags">Kennung</label>
-          <span class="relative flex">
-            <input
-              id="activity-tags"
-              ref="tagsField"
-              v-model="tagsInput"
-              type="text"
-              inputmode="text"
-              autocomplete="off"
-              placeholder="z. B. 104 oder 100-120"
-              class="mt-1 h-11 w-full rounded-lg border-2 px-3 pr-11 text-base text-ink placeholder:text-dim focus:bg-paper"
-              :class="filter.tags ? 'border-ink bg-paper' : 'border-dim bg-transparent'"
-              @input="onTagsInput"
-              @keydown.enter="applyTagsNow"
-              @change="applyTagsNow"
-            />
-            <!-- 44 x 44 px like the field is high: the touch target reaches over the border; mousedown.prevent keeps the focus in the field,
+      <form class="mt-6" @submit.prevent>
+        <div class="flex flex-wrap items-end gap-x-3 gap-y-3">
+          <div class="flex max-w-sm min-w-48 flex-1 flex-col text-sm text-mute">
+            <label for="activity-tags">Kennung</label>
+            <span class="relative flex">
+              <input
+                id="activity-tags"
+                ref="tagsField"
+                v-model="tagsInput"
+                type="text"
+                inputmode="text"
+                autocomplete="off"
+                placeholder="z. B. 104, 100-120 oder 104-A"
+                class="mt-1 h-11 w-full rounded-lg border-2 px-3 pr-11 text-base text-ink placeholder:text-dim focus:bg-paper"
+                :class="filter.tags ? 'border-ink bg-paper' : 'border-dim bg-transparent'"
+                @input="onTagsInput"
+                @keydown.enter="applyTagsNow"
+                @change="applyTagsNow"
+              />
+              <!-- 44 x 44 px like the field is high: the touch target reaches over the border; mousedown.prevent keeps the focus in the field,
                so leaving it does not apply the half-typed text before the click clears it -->
-            <button
-              v-if="tagsInput"
-              type="button"
-              class="absolute top-1 right-0 flex size-11 items-center justify-center rounded-lg text-ink active:bg-ink active:text-paper"
-              aria-label="Kennung leeren"
-              @mousedown.prevent
-              @click="clearTags"
-            >
-              <XIcon :size="18" aria-hidden="true" />
-            </button>
-          </span>
+              <button
+                v-if="tagsInput"
+                type="button"
+                class="absolute top-1 right-0 flex size-11 items-center justify-center rounded-lg text-ink active:bg-ink active:text-paper"
+                aria-label="Kennung leeren"
+                @mousedown.prevent
+                @click="clearTags"
+              >
+                <XIcon :size="18" aria-hidden="true" />
+              </button>
+            </span>
+          </div>
+          <FilterButton
+            id="range"
+            name="Zeitraum"
+            :active="!!period"
+            :open="openId === 'range'"
+            @update:open="setOpen('range', $event)"
+          >
+            <FilterRange type="date" :filter="period" @change="setPeriod" />
+          </FilterButton>
+          <FilterButton
+            id="user"
+            name="Person"
+            :active="!!filter.user"
+            :count="people.length || undefined"
+            :open="openId === 'user'"
+            @update:open="setOpen('user', $event)"
+          >
+            <FilterChecklist
+              :options="personOptions"
+              :picks="people"
+              without-none
+              @change="(picks) => setFilters({ user: picks.join(',') })"
+            />
+          </FilterButton>
         </div>
-        <FilterButton
-          id="range"
-          name="Zeitraum"
-          :active="!!period"
-          :open="openId === 'range'"
-          @update:open="setOpen('range', $event)"
-        >
-          <FilterRange type="date" :filter="period" @change="setPeriod" />
-        </FilterButton>
-        <FilterButton
-          id="user"
-          name="Person"
-          :active="!!filter.user"
-          :open="openId === 'user'"
-          @update:open="setOpen('user', $event)"
-        >
-          <FilterSingle
-            :options="personOptions"
-            :value="filter.user"
-            @change="(user) => setFilters({ user })"
-          />
-        </FilterButton>
-        <!-- Always shown; without a filter it is natively disabled (greyed out, not tabbable, announced as unavailable) -->
-        <button
-          type="button"
-          class="flex h-11 items-center gap-2 rounded-lg px-2 text-base whitespace-nowrap text-ink underline enabled:active:bg-ink enabled:active:text-paper disabled:text-dim disabled:no-underline"
-          :disabled="!hasFilter"
-          @click="resetFromBar"
-        >
-          <XIcon :size="18" aria-hidden="true" />
-          Filter zurücksetzen
-        </button>
+        <!-- On a row of its own at the right edge of the column. Always shown; without a filter it is natively disabled
+             (greyed out, not tabbable, announced as unavailable) -->
+        <div class="mt-3 flex justify-end">
+          <button
+            type="button"
+            class="flex h-11 items-center gap-2 rounded-lg px-2 text-base whitespace-nowrap text-ink underline enabled:active:bg-ink enabled:active:text-paper disabled:text-dim disabled:no-underline"
+            :disabled="!hasFilter"
+            @click="resetFromBar"
+          >
+            <XIcon :size="18" aria-hidden="true" />
+            Filter zurücksetzen
+          </button>
+        </div>
       </form>
+    </div>
 
+    <!-- The 8 px below the filter block (pb-2, not a margin on the sticky bar, which would stick 8 px too low) and the bar's min-h-15 keep the text 24 px
+         under the filter, and the first card 16 px under the text, as without the bar. -->
+    <ResultsBar
+      v-if="showBar"
+      :text="barText"
+      :chips="chips"
+      @open="openFilter"
+      @remove="removeFilter"
+    />
+
+    <div class="page-column">
       <LoadFailure v-if="status === 'error'" :failure="failure" @retry="load" />
 
       <StatusCard
@@ -296,20 +334,8 @@ const showList = computed(() => status.value === 'ready' && entries.value.length
           Filter zurücksetzen
         </button>
       </StatusCard>
-    </div>
 
-    <template v-if="showList">
-      <!-- The 8 px below the filter block (pb-2, not a margin on the sticky bar, which would stick 8 px too low) and the bar's min-h-15 keep the text 24 px
-           under the filter, and the first card 16 px under the text, as without the bar. -->
-      <ResultsBar
-        v-if="totals"
-        :text="entriesText(totals.entries, entriesUnfiltered, hasFilter)"
-        :chips="chips"
-        @open="openFilter"
-        @remove="removeFilter"
-      />
-
-      <div class="page-column">
+      <template v-if="showList">
         <section
           v-for="day in days"
           :key="day.key"
@@ -343,7 +369,7 @@ const showList = computed(() => status.value === 'ready' && entries.value.length
             Ältere laden
           </button>
         </div>
-      </div>
-    </template>
+      </template>
+    </div>
   </main>
 </template>

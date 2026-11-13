@@ -406,10 +406,67 @@ test.describe('activity', () => {
     })
   }
 
-  test('without a result there is no bar', async ({ page }) => {
+  test('keeps the bar above "Waldesruh" with 0 of N and the chips, and removing the chip brings the list back', async ({
+    page,
+  }) => {
     await page.goto('/admin/aktivitaet?tags=999')
     await expect(page.getByRole('heading', { name: 'Waldesruh' })).toBeVisible()
-    await expect(page.locator('main > div.sticky')).toHaveCount(0)
+    const bar = page.locator('main > div.sticky')
+    await expect(bar.getByText('0 von 6 Einträgen')).toBeVisible()
+    await expect(bar.getByRole('button', { name: 'Kennung: 999' })).toBeVisible()
+    // the card does not slide under the bar
+    expect(await bar.evaluate((e) => e.getBoundingClientRect().bottom)).toBeLessThanOrEqual(
+      await page.getByRole('status').evaluate((e) => e.getBoundingClientRect().top),
+    )
+
+    await bar.getByRole('button', { name: 'Filter Kennung entfernen' }).click()
+    await expect(page.getByRole('heading', { name: 'Waldesruh' })).toHaveCount(0)
+    await expect(page.getByText('6 Einträge', { exact: true })).toBeVisible()
+  })
+
+  test('filters by a beam tag and by two people at once', async ({ page }) => {
+    await page.getByLabel('Kennung', { exact: true }).fill('104-a')
+    await expect(page).toHaveURL(/tags=104-a/)
+    await expect(page.getByRole('button', { name: 'Kennung: 104-a' })).toBeVisible()
+    await expect(page.getByText('1 von 6 Einträgen', { exact: true })).toBeVisible()
+    await page.getByRole('button', { name: 'Filter Kennung entfernen' }).click()
+    await expect(page.getByText('6 Einträge', { exact: true })).toBeVisible()
+
+    await page.getByRole('button', { name: 'Person', exact: true }).click()
+    const people = page.getByRole('dialog', { name: 'Person' })
+    await expect(people.getByLabel('Alle')).toHaveCount(0)
+    await people.getByLabel('Mara Vogel').check()
+    await people.getByLabel('Aaron Bauer').check()
+    await expect(page).toHaveURL(/user=[0-9a-f-]+,[0-9a-f-]+/)
+    await expect(page.locator('[data-filter="user"]')).toHaveText(/Person\s*2/)
+    await expect(
+      page.getByRole('button', { name: 'Person: Aaron Bauer, Mara Vogel' }),
+    ).toBeVisible()
+    await expect(
+      page.getByRole('article').filter({ hasText: 'Mara Vogel' }).first(),
+    ).toBeVisible()
+    await expect(
+      page.getByRole('article').filter({ hasText: 'Aaron Bauer' }).first(),
+    ).toBeVisible()
+    await expect(page.getByRole('article').filter({ hasText: 'Sägewerk' })).toHaveCount(0)
+
+    await page.reload()
+    await expect(
+      page.getByRole('button', { name: 'Person: Aaron Bauer, Mara Vogel' }),
+    ).toBeVisible()
+  })
+
+  test('puts "Filter zurücksetzen" on a row of its own at the right edge of the column', async ({
+    page,
+  }) => {
+    const link = page.getByRole('button', { name: 'Filter zurücksetzen' })
+    const filters = page.getByRole('button', { name: 'Zeitraum', exact: true })
+    const linkBox = (await link.boundingBox())!
+    const filterBox = (await filters.boundingBox())!
+    expect(linkBox.y).toBeGreaterThanOrEqual(filterBox.y + filterBox.height)
+    const form = (await page.locator('form').boundingBox())!
+    // right edge of the column: the text ends 8 px (inner padding of the link) before it at most
+    expect(form.x + form.width - (linkBox.x + linkBox.width)).toBeLessThanOrEqual(1)
   })
 
   test('keeps the filter in the URL through a reload and the back button', async ({ page }) => {
@@ -891,6 +948,54 @@ test.describe('stem list', () => {
     await range.getByLabel('Von').fill('90')
     await range.getByLabel('Von').press('Enter')
     await expect(page.getByText('Keine Ergebnisse weit und breit gefunden.')).toBeVisible()
+  })
+
+  test('keeps the bar above "Waldesruh" with 0 of N and the chips, and removing the chip brings the table back', async ({
+    page,
+  }) => {
+    await page.goto('/admin/staemme?tags=300-400')
+    await signIn(page, 'K7QM4XHT9RDP')
+    await expect(page.getByRole('heading', { name: 'Waldesruh' })).toBeVisible()
+    const bar = page.locator('main > div.sticky').nth(1)
+    await expect(bar.getByText('0 von 4 Stämmen')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Tabelle nach rechts scrollen' })).toHaveCount(0)
+    expect(await bottom(bar)).toBeLessThanOrEqual(
+      await top(page.getByRole('heading', { name: 'Waldesruh' })),
+    )
+
+    await bar.getByRole('button', { name: 'Filter Kennung entfernen' }).click()
+    await expect(tags(page)).toHaveCount(4)
+    await expect(page.getByText('4 Stämme', { exact: true })).toBeVisible()
+  })
+
+  test('finds the stem of a beam tag, and offers no "Nicht erfasst" for "Geändert"', async ({
+    page,
+  }) => {
+    await page.goto('/admin/staemme')
+    await signIn(page, 'K7QM4XHT9RDP')
+    await page.getByRole('textbox', { name: 'Kennung' }).fill('104-a')
+    await expect(tags(page)).toHaveText(['00104'])
+    await expect(page.getByRole('button', { name: 'Kennung: 104-a' })).toBeVisible()
+    await page.getByRole('textbox', { name: 'Kennung' }).fill('104-d')
+    await expect(page.getByRole('heading', { name: 'Waldesruh' })).toBeVisible()
+    await page.getByRole('button', { name: 'Filter Kennung entfernen' }).click()
+
+    await filterButton(page, 'Geändert').click()
+    const popup = page.getByRole('dialog', { name: 'Geändert' })
+    await expect(popup.getByLabel('Von')).toBeVisible()
+    await expect(popup.getByText('Nicht erfasst')).toHaveCount(0)
+  })
+
+  test('puts "Filter zurücksetzen" on a row of its own at the right edge of the column', async ({
+    page,
+  }) => {
+    await page.goto('/admin/staemme')
+    await signIn(page, 'K7QM4XHT9RDP')
+    const link = (await page.getByRole('button', { name: 'Filter zurücksetzen' }).boundingBox())!
+    const last = (await filterButton(page, 'Geändert').boundingBox())!
+    expect(link.y).toBeGreaterThanOrEqual(last.y + last.height)
+    const form = (await bar(page).boundingBox())!
+    expect(form.x + form.width - (link.x + link.width)).toBeLessThanOrEqual(1)
   })
 
   test('keeps the drop-downs inside a narrow window', async ({ page }) => {

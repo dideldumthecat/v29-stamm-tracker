@@ -73,6 +73,7 @@ const rows = computed(() => {
 const hasTags = computed(() => query.value.tags !== '')
 const hasFilter = computed(() => hasTags.value || Object.keys(query.value.filters).length > 0)
 const showTable = computed(() => status.value === 'ready' && rows.value.length > 0)
+const showBar = computed(() => status.value === 'ready' && (showTable.value || hasFilter.value))
 
 function sortOn(columnId: string) {
   void router.push({ query: writeQuery(sortBy(query.value, columnId)) })
@@ -158,58 +159,102 @@ async function removeFilter(id: string) {
         <h1 class="text-3xl font-bold">Stämme</h1>
         <p class="mt-2 text-mute">Eine Spalte je Merkmal, Reihenfolge wie in der App.</p>
 
-        <form class="mt-6 flex flex-wrap items-end gap-x-3 gap-y-3" @submit.prevent>
-          <div class="flex max-w-sm min-w-48 flex-1 flex-col text-sm text-mute">
-            <label for="stems-tags">Kennung</label>
-            <span class="relative flex">
-              <input
-                id="stems-tags"
-                ref="tagsField"
-                v-model="tagsInput"
-                type="text"
-                inputmode="text"
-                autocomplete="off"
-                placeholder="z. B. 104 oder 100-120"
-                class="mt-1 h-11 w-full rounded-lg border-2 px-3 pr-11 text-base text-ink placeholder:text-dim focus:bg-paper"
-                :class="hasTags ? 'border-ink bg-paper' : 'border-dim bg-transparent'"
-                @input="onTagsInput"
-                @keydown.enter="applyTagsNow"
-                @change="applyTagsNow"
-              />
-              <!-- mousedown.prevent keeps the focus in the field, so leaving it does not apply the half-typed text before the click clears it -->
-              <button
-                v-if="tagsInput"
-                type="button"
-                class="absolute top-1 right-0 flex size-11 items-center justify-center rounded-lg text-ink active:bg-ink active:text-paper"
-                aria-label="Kennung leeren"
-                @mousedown.prevent
-                @click="clearTags"
-              >
-                <XIcon :size="18" aria-hidden="true" />
-              </button>
-            </span>
+        <form class="mt-6" @submit.prevent>
+          <div class="flex flex-wrap items-end gap-x-3 gap-y-3">
+            <div class="flex max-w-sm min-w-48 flex-1 flex-col text-sm text-mute">
+              <label for="stems-tags">Kennung</label>
+              <span class="relative flex">
+                <input
+                  id="stems-tags"
+                  ref="tagsField"
+                  v-model="tagsInput"
+                  type="text"
+                  inputmode="text"
+                  autocomplete="off"
+                  placeholder="z. B. 104, 100-120 oder 104-A"
+                  class="mt-1 h-11 w-full rounded-lg border-2 px-3 pr-11 text-base text-ink placeholder:text-dim focus:bg-paper"
+                  :class="hasTags ? 'border-ink bg-paper' : 'border-dim bg-transparent'"
+                  @input="onTagsInput"
+                  @keydown.enter="applyTagsNow"
+                  @change="applyTagsNow"
+                />
+                <!-- mousedown.prevent keeps the focus in the field, so leaving it does not apply the half-typed text before the click clears it -->
+                <button
+                  v-if="tagsInput"
+                  type="button"
+                  class="absolute top-1 right-0 flex size-11 items-center justify-center rounded-lg text-ink active:bg-ink active:text-paper"
+                  aria-label="Kennung leeren"
+                  @mousedown.prevent
+                  @click="clearTags"
+                >
+                  <XIcon :size="18" aria-hidden="true" />
+                </button>
+              </span>
+            </div>
+            <ColumnFilterButton
+              v-for="column in filterableColumns"
+              :key="column.id"
+              :column="column"
+              :filter="filterOf(column.id)"
+              :rows="allRows"
+              :open="openId === column.id"
+              @update:open="setOpen(column.id, $event)"
+              @change="(filter, replace) => setColumnFilter(column.id, filter, replace)"
+            />
           </div>
-          <ColumnFilterButton
-            v-for="column in filterableColumns"
-            :key="column.id"
-            :column="column"
-            :filter="filterOf(column.id)"
-            :rows="allRows"
-            :open="openId === column.id"
-            @update:open="setOpen(column.id, $event)"
-            @change="(filter, replace) => setColumnFilter(column.id, filter, replace)"
-          />
+          <!-- On a row of its own at the right edge of the column -->
+          <div class="mt-3 flex justify-end">
+            <button
+              type="button"
+              class="flex h-11 items-center gap-2 rounded-lg px-2 text-base whitespace-nowrap text-ink underline enabled:active:bg-ink enabled:active:text-paper disabled:text-dim disabled:no-underline"
+              :disabled="!hasFilter"
+              @click="resetFromBar"
+            >
+              <XIcon :size="18" aria-hidden="true" />
+              Filter zurücksetzen
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- The bar stays with "Waldesruh" as long as a filter is set, so that its chips show what caused it; the arrows are only there with a table -->
+    <ResultsBar
+      v-if="showBar"
+      class="mt-4"
+      :text="stemsText(rows.length, allRows.length, hasFilter)"
+      :chips="chips"
+      @open="openFilter"
+      @remove="removeFilter"
+    >
+      <template #end>
+        <!-- Only for a table that does not fit; an arrow is disabled where there is nothing more to see -->
+        <div v-if="canScrollLeft || canScrollRight" class="flex gap-2">
           <button
             type="button"
-            class="flex h-11 items-center gap-2 rounded-lg px-2 text-base whitespace-nowrap text-ink underline enabled:active:bg-ink enabled:active:text-paper disabled:text-dim disabled:no-underline"
-            :disabled="!hasFilter"
-            @click="resetFromBar"
+            class="flex size-11 items-center justify-center rounded-lg border-2 border-ink bg-paper disabled:border-line disabled:text-dim"
+            aria-label="Tabelle nach links scrollen"
+            :disabled="!canScrollLeft"
+            @click="scrollTable(-1)"
           >
-            <XIcon :size="18" aria-hidden="true" />
-            Filter zurücksetzen
+            <ChevronLeftIcon :size="22" aria-hidden="true" />
           </button>
-        </form>
+          <button
+            type="button"
+            class="flex size-11 items-center justify-center rounded-lg border-2 border-ink bg-paper disabled:border-line disabled:text-dim"
+            aria-label="Tabelle nach rechts scrollen"
+            :disabled="!canScrollRight"
+            @click="scrollTable(1)"
+          >
+            <ChevronRightIcon :size="22" aria-hidden="true" />
+          </button>
+        </div>
+      </template>
+    </ResultsBar>
 
+    <!-- Loading, error and "Waldesruh" below the bar, like the table -->
+    <div v-if="!showTable" class="sticky left-0 w-[100cqw]">
+      <div class="page-column">
         <LoadFailure v-if="status === 'error'" :failure="failure" @retry="load" />
 
         <StatusCard
@@ -253,38 +298,6 @@ async function removeFilter(id: string) {
     </div>
 
     <template v-if="showTable">
-      <ResultsBar
-        class="mt-4"
-        :text="stemsText(rows.length, allRows.length, hasFilter)"
-        :chips="chips"
-        @open="openFilter"
-        @remove="removeFilter"
-      >
-        <template #end>
-          <!-- Only for a table that does not fit; an arrow is disabled where there is nothing more to see -->
-          <div v-if="canScrollLeft || canScrollRight" class="flex gap-2">
-            <button
-              type="button"
-              class="flex size-11 items-center justify-center rounded-lg border-2 border-ink bg-paper disabled:border-line disabled:text-dim"
-              aria-label="Tabelle nach links scrollen"
-              :disabled="!canScrollLeft"
-              @click="scrollTable(-1)"
-            >
-              <ChevronLeftIcon :size="22" aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              class="flex size-11 items-center justify-center rounded-lg border-2 border-ink bg-paper disabled:border-line disabled:text-dim"
-              aria-label="Tabelle nach rechts scrollen"
-              :disabled="!canScrollRight"
-              @click="scrollTable(1)"
-            >
-              <ChevronRightIcon :size="22" aria-hidden="true" />
-            </button>
-          </div>
-        </template>
-      </ResultsBar>
-
       <!-- The card around the table is as wide as its content, but at least as wide as the content of the page column, and centered in the window
            (auto margins). Wider than the window, it starts at the left edge, the page scrolls sideways and it ends flush with the right edge.
            The padding of 8 px keeps the square corners of the rows inside the round ones of the card; the last row has no line below it. No column shrinks below its content.
