@@ -258,6 +258,23 @@ class ActivityTest extends WebTestCase
         self::assertSame(['restored'], array_column($entries[0]['items'][0]['changes'], 'kind'));
     }
 
+    public function testAMovedPhotoIsRemovedAtTheSourceAndAddedAtTheTarget(): void
+    {
+        $this->stem($this->ada, '55', '2026-10-30 10:00:00.000100');
+        $this->stem($this->ada, '56', '2026-10-30 10:00:00.000200');
+        $photo = $this->photo($this->ada, '55', '2026-10-30 10:00:00.000300');
+        $this->add($this->ada, EventType::Voided, '55', [], '2026-10-31 10:00:00.000100', reference: $photo);
+        $this->photo($this->ada, '56', '2026-10-31 10:00:00.000200');
+        $this->project();
+
+        $entry = $this->activity()['entries'][0];
+
+        self::assertSame([['photo_removed', 'Fotos', 'entfernt'], ['photo', 'Fotos', 'hinzugefügt']], array_map(
+            static fn (array $item) => [$item['changes'][0]['kind'], $item['changes'][0]['name'], $item['changes'][0]['value']],
+            $entry['items'],
+        ));
+    }
+
     public function testEveryChangeHasNameAndValueForTheTable(): void
     {
         $this->stem($this->ada, '10', '2026-10-30 10:00:00.000100');
@@ -287,7 +304,7 @@ class ActivityTest extends WebTestCase
         self::assertSame([
             ['10', 'Stamm', 'angelegt'], ['10', 'Kennung', '10'], ['10', 'Gesägt', 'ja'], ['10', 'Fotos', 'hinzugefügt'],
             ['10-A', 'Balken', 'angelegt'], ['10-A', 'Kennung', '10-A'],
-            ['10', 'Gesägt', 'storniert'], ['10', 'Fotos', 'storniert'],
+            ['10', 'Gesägt', 'storniert'], ['10', 'Fotos', 'entfernt'],
             ['10-A', 'Balken', 'storniert'], ['10-A', 'Kennung', 'storniert'],
             ['10', 'Stamm', 'storniert'], ['10', 'Stamm', 'wiederhergestellt'],
             ['10', 'Ereignis', 'storniert'],
