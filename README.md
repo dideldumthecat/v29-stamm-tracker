@@ -101,7 +101,7 @@ ddev frontend run dev          # capture app; the administration: ddev frontend 
 
 ### Console commands
 
-Every command explains its options with `--help`; bulk changes, imports and voids offer `--dry-run`. The commands that write events (`app:attribute:set`/`clear`, `app:item:void`/`restore`, `app:photo:import`) record them under the superadmin and stop without a change if there is no active one.
+Every command explains its options with `--help`; bulk changes, imports and voids offer `--dry-run`. The commands that write events (`app:attribute:set`/`clear`, `app:item:void`/`restore`, `app:photo:import`, `app:photo:move`) record them under the superadmin and stop without a change if there is no active one.
 
 | Command | Purpose |
 |---|---|
@@ -111,6 +111,7 @@ Every command explains its options with `--help`; bulk changes, imports and void
 | `app:attribute:set` / `clear` | Set or clear one attribute on many logs |
 | `app:item:void` / `restore` | Void a log or beam created by mistake, or undo that |
 | `app:photo:import` | Attach existing photos from a CSV |
+| `app:photo:move <target> <photo ID>...` | Move photos to another log or beam (IDs may be shortened to 8+ characters, the source is found automatically) |
 | `app:export` | Evaluation (round wood, sawn timber, yield) as Excel |
 | `app:projections:rebuild` | Recompute the current state from all events |
 | `app:db:dump` | Database dump (without photos) |
