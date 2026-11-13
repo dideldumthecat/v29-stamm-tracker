@@ -112,10 +112,11 @@ describe('activity page', () => {
     const style = document.documentElement.style
     expect(style.getPropertyValue('--sticky-bar-height')).toBe('60px')
 
-    // no bar without a result ("Waldesruh"), so no value either
+    // the bar stays with "Waldesruh" as long as a filter is set
     await router.push('/aktivitaet?tags=999')
     await flushPromises()
-    expect(style.getPropertyValue('--sticky-bar-height')).toBe('')
+    expect(wrapper.text()).toContain('Waldesruh')
+    expect(style.getPropertyValue('--sticky-bar-height')).toBe('60px')
 
     await router.push('/aktivitaet')
     await flushPromises()
@@ -482,14 +483,24 @@ describe('activity page', () => {
     expect(wrapper.text()).toContain('1 von 6 Einträgen')
   })
 
+  it('keeps the last known count for an answer 400 and shows 0 of it', async () => {
+    const { router, wrapper } = await open()
+    await router.push('/aktivitaet?tags=bad')
+    await flushPromises()
+    expect(wrapper.get('main > div.sticky p').text()).toBe('0 von 6 Einträgen')
+    expect(chipTexts()).toEqual(['Kennung: bad'])
+  })
+
   it('shows "Waldesruh" for a filter the server cannot read, with the button that clears it', async () => {
     const { api, router, wrapper } = await open('/aktivitaet?tags=bad')
 
     expect(wrapper.find('[role=alert]').exists()).toBe(false)
     expect(wrapper.get('h2').text()).toBe('Waldesruh')
     expect(wrapper.text()).toContain('Keine Ergebnisse weit und breit gefunden.')
-    expect(wrapper.text()).not.toContain('Einträge')
     expect(wrapper.text()).not.toContain('Ältere laden')
+    // the chip of an unreadable Kennung is there; the answer 400 has no count, the one of the page before counts
+    expect(chipTexts()).toEqual(['Kennung: bad'])
+    expect(wrapper.get('main > div.sticky p').text()).toBe('0 von 6 Einträgen')
 
     await resetLink(wrapper).trigger('click')
     await flushPromises()
@@ -639,30 +650,119 @@ describe('activity page', () => {
       expect(document.activeElement).toBe(tagsField(wrapper).element)
     })
 
-    it('shows none while the list is empty (Waldesruh): no bar, no chip', async () => {
-      await open('/aktivitaet?tags=1')
-      expect(chipTexts()).toEqual([])
-      expect(filterButton('range')).toBeTruthy()
+    it('stays above "Waldesruh" with the count 0 and the chips, and removing the chip brings the list back', async () => {
+      const { wrapper, router } = await open('/aktivitaet?tags=999')
+      expect(wrapper.get('h2').text()).toBe('Waldesruh')
+      const bar = wrapper.get('main > div.sticky')
+      expect(bar.get('p').text()).toBe('0 von 6 Einträgen')
+      expect(chipTexts()).toEqual(['Kennung: 999'])
+      // the bar comes before the card
+      expect(
+        bar.element.compareDocumentPosition(wrapper.get('[role=status]').element) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy()
+      expect(wrapper.find('section').exists()).toBe(false)
+
+      document.querySelector<HTMLElement>('button[aria-label="Filter Kennung entfernen"]')!.click()
+      await flushPromises()
+      expect(router.currentRoute.value.query).toEqual({})
+      expect(wrapper.get('main > div.sticky p').text()).toBe('6 Einträge')
+      expect(wrapper.findAll('section').length).toBeGreaterThan(0)
+    })
+
+    it('has no bar while loading, and none without a filter and without entries', async () => {
+      const { wrapper } = await open()
+      let release!: (value: Response) => void
+      const held = new Promise<Response>((resolve) => (release = resolve))
+      vi.mocked(fetch).mockImplementationOnce(() => held)
+      await setTags(wrapper, '128')
+      expect(wrapper.find('main > div.sticky').exists()).toBe(false)
+      release(new Response(JSON.stringify(activityFixture)))
+      await flushPromises()
+      expect(wrapper.find('main > div.sticky').exists()).toBe(true)
+
+      // the server has nothing at all
+      const { router, wrapper: empty } = await open()
+      vi.mocked(fetch).mockImplementationOnce(async () =>
+        Response.json({
+          ...activityFixture,
+          entries: [],
+          next_cursor: null,
+          entries_unfiltered: 0,
+          totals: { entries: 0, events: 0, photos: 0, users: 0 },
+        }),
+      )
+      await router.push('/aktivitaet?x=1')
+      await flushPromises()
+      expect(empty.get('h2').text()).toBe('Waldesruh')
+      expect(empty.find('main > div.sticky').exists()).toBe(false)
     })
   })
 
-  it('offers the period and the people in pop-ups, with "Alle" for no person', async () => {
-    const { router, wrapper } = await open(`/aktivitaet?user=${activityFixture.users[1].id}`)
+  it('offers the period and the people in pop-ups; people are ticks without "Alle" and "Nicht erfasst", with a badge', async () => {
+    const people = activityFixture.users
+    const { router, wrapper } = await open()
     expect(wrapper.findAll('form label').map((label) => label.text())).toEqual(['Kennung'])
     expect(filterButton('range').textContent).toContain('Zeitraum')
     expect(filterButton('user').textContent).toContain('Person')
-    // no badge: only lists of ticks have one
+    // no badge without a pick
     expect(filterButton('user').querySelector('span')).toBeNull()
 
     await openPopup('user')
-    const radios = [...popup()!.querySelectorAll<HTMLInputElement>('input[type=radio]')]
-    expect(radios.map((radio) => radio.parentElement!.textContent!.trim())).toEqual([
-      'Alle',
-      ...activityFixture.users.map((candidate) => candidate.name),
-    ])
-    expect(radios.filter((radio) => radio.checked).map((radio) => radio.value)).toHaveLength(1)
-    await pickPerson('Alle')
+    const labels = [...popup()!.querySelectorAll('label')].map((label) => label.textContent!.trim())
+    expect(labels).toEqual(people.map((candidate) => candidate.name))
+    expect(popup()!.querySelectorAll('input[type=checkbox]')).toHaveLength(people.length)
+
+    await pickPerson(people[2].name)
+    await pickPerson(people[0].name)
+    expect(router.currentRoute.value.query.user).toBe(`${people[2].id},${people[0].id}`)
+    expect(filterButton('user').querySelector('span')!.textContent).toBe('2')
+    expect(chipTexts()).toEqual([`Person: ${people[0].name}, ${people[2].name}`])
+    // the entries of both
+    expect(
+      wrapper
+        .findAll('article p span.font-semibold')
+        .map((name) => name.text())
+        .sort(),
+    ).toEqual([people[0].name, people[2].name, people[2].name].sort())
+
+    await pickPerson(people[1].name)
+    expect(chipTexts()).toEqual(['Person: 3 ausgewählt'])
+    // unticking the last ones leaves no filter
+    for (const person of people.slice(0, 3)) await pickPerson(person.name)
     expect(router.currentRoute.value.query).toEqual({})
+  })
+
+  it('reads an old link with a single person and a link with two', async () => {
+    const people = activityFixture.users
+    await open(`/aktivitaet?user=${people[2].id}`)
+    expect(chipTexts()).toEqual([`Person: ${people[2].name}`])
+    await openPopup('user')
+    expect(popup()!.querySelectorAll('input:checked')).toHaveLength(1)
+
+    const { api: second } = await open(`/aktivitaet?user=${people[0].id},${people[3].id}`)
+    expect(second.calls[second.calls.length - 1]).toContain(
+      `user=${encodeURIComponent(`${people[0].id},${people[3].id}`)}`,
+    )
+  })
+
+  it('takes a beam tag in the Kennung and shows it as typed', async () => {
+    const { wrapper } = await open()
+    await setTags(wrapper, '104-a')
+    expect(chipTexts()).toEqual(['Kennung: 104-a'])
+    expect(wrapper.text()).toContain('1 von 6 Einträgen')
+    // only the beam, not the stem
+    expect(wrapper.text()).toContain('104-A')
+    expect(wrapper.findAll('article a').map((link) => link.text())).toEqual(['00104-A'])
+    expect(tagsField(wrapper).attributes('placeholder')).toBe('z. B. 104, 100-120 oder 104-A')
+  })
+
+  it('puts "Filter zurücksetzen" on a row of its own at the right edge of the filters', async () => {
+    const { wrapper } = await open()
+    const filters = wrapper.get('form > div')
+    expect(filters.element.contains(resetLink(wrapper).element)).toBe(false)
+    expect(resetLink(wrapper).element.parentElement!.className).toContain('justify-end')
+    expect(filters.findAll('button[data-filter]')).toHaveLength(2)
   })
 
   it('shows a rotating saw blade on a white card while loading, the filters stay', async () => {

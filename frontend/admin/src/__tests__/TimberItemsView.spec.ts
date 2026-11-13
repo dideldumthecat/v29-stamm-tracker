@@ -498,4 +498,75 @@ describe('filter bar and chips', () => {
     await flushPromises()
     expect(rowTags(wrapper)).toHaveLength(4)
   })
+
+  it('stays above "Waldesruh" with "0 von N Stämmen" and the chips; removing a chip brings the table back', async () => {
+    const id = attributeId('Fotos')
+    const { wrapper, router } = await open(`/staemme?tags=300-400&f.${id}=has`)
+    expect(wrapper.get('h2').text()).toBe('Waldesruh')
+    const bar = wrapper.get('main p.text-lg')
+    expect(bar.text()).toBe('0 von 4 Stämmen')
+    expect(chipTexts()).toEqual(['Kennung: 300-400', 'Fotos: mit Fotos'])
+    // before the card, and without the arrows (there is no table)
+    expect(
+      bar.element.compareDocumentPosition(wrapper.get('[role=status]').element) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+    expect(wrapper.find('button[aria-label^="Tabelle nach"]').exists()).toBe(false)
+
+    cross('Kennung').click()
+    await flushPromises()
+    expect(router.currentRoute.value.query).toEqual({ [`f.${id}`]: 'has' })
+    expect(rowTags(wrapper)).toEqual(['00104'])
+    expect(wrapper.get('main p.text-lg').text()).toBe('1 von 4 Stämmen')
+  })
+
+  it('has the chip of an unreadable Kennung', async () => {
+    const { wrapper } = await open('/staemme?tags=abc')
+    expect(wrapper.get('h2').text()).toBe('Waldesruh')
+    expect(chipTexts()).toEqual(['Kennung: abc'])
+    expect(wrapper.get('main p.text-lg').text()).toBe('0 von 4 Stämmen')
+  })
+
+  it('has the bar but no chip for an unreadable column filter', async () => {
+    const { wrapper } = await open(`/staemme?f.${attributeId('Fotos')}=maybe`)
+    expect(wrapper.get('h2').text()).toBe('Waldesruh')
+    expect(chipTexts()).toEqual([])
+    expect(wrapper.get('main p.text-lg').text()).toBe('0 von 4 Stämmen')
+  })
+
+  it('takes a beam tag in the Kennung: it shows the stem that has such a beam', async () => {
+    const { wrapper } = await open('/staemme?tags=104-b')
+    expect(rowTags(wrapper)).toEqual(['00104'])
+    expect(chipTexts()).toEqual(['Kennung: 104-b'])
+    expect(field(wrapper).attributes('placeholder')).toBe('z. B. 104, 100-120 oder 104-A')
+  })
+
+  it('shows "Waldesruh" for a beam tag no stem has', async () => {
+    const { wrapper } = await open('/staemme?tags=104-D')
+    expect(wrapper.get('h2').text()).toBe('Waldesruh')
+  })
+
+  it('mixes numbers and beam tags', async () => {
+    const { wrapper } = await open('/staemme?tags=7,104A')
+    expect(rowTags(wrapper)).toEqual(['00007', '00104'])
+  })
+
+  it('has no "Nicht erfasst" for "Geändert", and an old link with it is an unreadable filter', async () => {
+    const { wrapper } = await open('/staemme?f.changed=none')
+    expect(wrapper.get('h2').text()).toBe('Waldesruh')
+    expect(chipTexts()).toEqual([])
+    await openPopup('changed')
+    expect([...popup()!.querySelectorAll('label')].map((l) => l.textContent!.trim())).toEqual([
+      'Von',
+      'Bis',
+    ])
+  })
+
+  it('puts "Filter zurücksetzen" on a row of its own at the right edge, below the buttons', async () => {
+    const { wrapper } = await open()
+    const reset = resetButton(wrapper).element
+    expect(reset.parentElement!.className).toContain('justify-end')
+    expect(wrapper.get('form > div').element.contains(reset)).toBe(false)
+    expect(wrapper.findAll('form > div:first-child button[data-filter]').length).toBeGreaterThan(5)
+  })
 })
