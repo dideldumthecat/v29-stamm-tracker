@@ -141,23 +141,18 @@ watch(() => route.params.tag, load, { immediate: true })
            Below, one column in the order of the DOM: Kopf, Fotos, Balken, Merkmale, Verlauf.
            The header exists once (one heading for screen readers), the grid only moves it. Its 24 px at the sides line the text up with the cards. -->
       <div class="grid items-start gap-6 min-[900px]:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-        <header class="min-w-0 min-[900px]:col-start-2 min-[900px]:row-start-1 min-[900px]:px-6">
+        <header
+          class="min-w-0 min-[900px]:col-start-2 min-[900px]:row-start-1 min-[900px]:-mb-2 min-[900px]:px-6"
+        >
           <BackLink class="mb-2 w-fit" />
           <p class="text-[22px] font-bold">{{ isBeam ? 'BALKEN' : 'STAMM' }}</p>
           <h1 class="-mr-[.05em] text-5xl font-extrabold tracking-[.05em] tabular-nums">
             <FormattedTag :tag-number="tag!" />
           </h1>
-          <p class="mt-2 text-mute">
-            Angelegt {{ formatDateTime(item.created_at) }} von {{ userName(item.created_by) }}
-            <template v-if="parts.lastChanged">
-              <br />Zuletzt geändert {{ formatDateTime(parts.lastChanged) }} von
-              {{ parts.lastChangedBy }}
-            </template>
-          </p>
           <RouterLink
             v-if="isBeam"
             :to="{ name: 'timber-item', params: { tag: stemNumber(tag!) } }"
-            class="mt-2 inline-flex h-11 items-center gap-2 font-semibold"
+            class="mt-2 -mb-2.5 flex h-11 w-fit items-center gap-2 font-semibold"
           >
             <CornerLeftUpIcon :size="20" aria-hidden="true" />
             <span
@@ -165,6 +160,28 @@ watch(() => route.params.tag, load, { immediate: true })
               <FormattedTag :tag-number="stemNumber(tag!)" class="underline underline-offset-4"
             /></span>
           </RouterLink>
+          <!-- The same columns as the rows of KeyValueRows (2fr | 3fr, 16 px gap, one column below 640 px), so that the blocks line up
+               with the names and the values of the card "Merkmale" (from 900 px the header has the card's 24 px at the sides). -->
+          <dl
+            class="mt-9 grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-x-4 gap-y-3 max-sm:grid-cols-1"
+          >
+            <div>
+              <dt class="text-caption wrap-anywhere text-mute">
+                Angelegt von {{ userName(item.created_by) }}
+              </dt>
+              <dd class="text-label whitespace-nowrap text-ink tabular-nums">
+                {{ formatDateTime(item.created_at) }}
+              </dd>
+            </div>
+            <div v-if="parts.lastChanged">
+              <dt class="text-caption wrap-anywhere text-mute">
+                Zuletzt geändert von {{ parts.lastChangedBy }}
+              </dt>
+              <dd class="text-label whitespace-nowrap text-ink tabular-nums">
+                {{ formatDateTime(parts.lastChanged) }}
+              </dd>
+            </div>
+          </dl>
         </header>
 
         <!-- Sticky 24 px (like the gap between the cards) under the page header (sticky itself from lg on), otherwise 16 px from the top.
