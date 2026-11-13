@@ -73,7 +73,7 @@ async function onSignOut() {
         <p v-if="error" class="text-sm font-semibold" role="alert">Abmelden fehlgeschlagen.</p>
         <button
           type="button"
-          class="flex size-11 items-center justify-center rounded-lg"
+          class="-mr-2.5 flex size-11 items-center justify-center rounded-lg"
           aria-label="Abmelden"
           title="Abmelden"
           @click="onSignOut"

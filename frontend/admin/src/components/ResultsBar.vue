@@ -43,7 +43,7 @@ useSizeVariable(bar, '--sticky-bar-height', 'height')
         <button
           v-if="canReset"
           type="button"
-          class="flex h-11 items-center gap-2 rounded-lg px-2 text-base whitespace-nowrap text-ink underline active:bg-ink active:text-paper"
+          class="flex h-11 items-center gap-2 rounded-lg px-2 text-base whitespace-nowrap text-ink underline last:-mr-2 active:bg-ink active:text-paper"
           @click="$emit('reset')"
         >
           <XIcon :size="18" aria-hidden="true" />
