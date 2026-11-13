@@ -66,9 +66,17 @@ describe('stem detail', () => {
 
     expect(wrapper.get('h1').text()).toBe('00104')
     expect(wrapper.get('main header p').text()).toBe('STAMM')
-    expect(squeezed(wrapper.get('h1 + p').text())).toBe(
-      'Angelegt 29.10.2026, 11:09 von Alex Beispiel Zuletzt geändert 31.10.2026, 11:50 von Aaron Bauer',
-    )
+    expect(
+      wrapper.findAll('h1 + dl > div').map((row) =>
+        row
+          .findAll('dt, dd')
+          .map((cell) => cell.text())
+          .join(' '),
+      ),
+    ).toEqual([
+      'Angelegt von Alex Beispiel 29.10.2026, 11:09',
+      'Zuletzt geändert von Aaron Bauer 31.10.2026, 11:50',
+    ])
     expect(wrapper.findAll('h2').map((h2) => h2.text())).toEqual(['Balken', 'Merkmale'])
     expect(api.calls).toContain('GET /api/snapshot')
     expect(api.calls).toContain('GET /api/admin/activity?tags=104')
