@@ -1,16 +1,21 @@
 <script setup lang="ts">
-import { computed, ref, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
 import { useRoute, useRouter, type LocationQueryRaw } from 'vue-router'
 import { ChevronDownIcon, LoaderCircleIcon, TreesIcon, XIcon } from '@lucide/vue'
 import type { ActivityEntry, ActivityResponse } from '@v29/shared/contract'
 import SawBladeIcon from '@v29/shared/SawBladeIcon.vue'
 
-import { completeDays, entriesText, groupByDay } from '@/activity'
+import { completeDays, describePeriod, entriesText, groupByDay } from '@/activity'
 import { ApiError, request } from '@/api/client'
 import ActivityEntryCard from '@/components/ActivityEntry.vue'
+import FilterButton from '@/components/FilterButton.vue'
+import FilterRange from '@/components/FilterRange.vue'
+import FilterSingle from '@/components/FilterSingle.vue'
 import LoadFailure from '@/components/LoadFailure.vue'
+import ResultsBar from '@/components/ResultsBar.vue'
 import StatusCard from '@/components/StatusCard.vue'
-import { useSizeVariable } from '@/sizeVariable'
+import { useFilterBar } from '@/filterBar'
+import type { ColumnFilter, FilterChip } from '@/listFilters'
 import { useTagsField } from '@/tagsField'
 
 const route = useRoute()
@@ -21,37 +26,76 @@ const FILTERS = ['from', 'to', 'user', 'tags'] as const
 const filter = computed(() =>
   Object.fromEntries(FILTERS.map((name) => [name, String(route.query[name] ?? '')])),
 )
-function setFilter(name: (typeof FILTERS)[number], value: string, replace = false) {
+function setFilters(changes: Partial<Record<(typeof FILTERS)[number], string>>, replace = false) {
   // Only the known filters are carried over: anything else in an old link is dropped with the next change.
-  const query: LocationQueryRaw = { ...filter.value, [name]: value.trim() }
-  for (const key of FILTERS) if (!query[key]) delete query[key]
-  void (replace ? router.replace({ query }) : router.push({ query }))
+  const query: LocationQueryRaw = { ...filter.value, ...changes }
+  for (const key of FILTERS) {
+    query[key] = String(query[key] ?? '').trim()
+    if (!query[key]) delete query[key]
+  }
+  return replace ? router.replace({ query }) : router.push({ query })
 }
 
 const tagsField = useTemplateRef<HTMLInputElement>('tagsField')
 const { tagsInput, onTagsInput, applyTagsNow, clearTags, resetTagsInput } = useTagsField({
   current: () => filter.value.tags,
-  apply: (tags, replace) => setFilter('tags', tags, replace),
+  apply: (tags, replace) => setFilters({ tags }, replace),
   field: tagsField,
 })
-
-// A set filter (per the URL) turns white with a black border; an empty one stays on the grey page, and focus makes it white while typing.
-function fieldClass(name: (typeof FILTERS)[number]) {
-  return [
-    'mt-1 h-11 rounded-lg border-2 px-3 text-base text-ink placeholder:text-dim focus:bg-paper',
-    filter.value[name] ? 'border-ink bg-paper' : 'border-dim bg-transparent',
-  ]
-}
 
 const hasFilter = computed(() => FILTERS.some((name) => filter.value[name]))
 function resetFilter() {
   resetTagsInput()
   void router.push({ query: {} })
 }
-const fromField = useTemplateRef<HTMLInputElement>('fromField')
 function resetFromBar() {
   resetFilter()
-  fromField.value?.focus()
+  tagsField.value?.focus()
+}
+
+// The period is one filter of two URL values; the pop-up works with a range of days like the lists of stems.
+const period = computed<ColumnFilter | null>(() =>
+  filter.value.from || filter.value.to
+    ? { kind: 'range', from: filter.value.from, to: filter.value.to }
+    : null,
+)
+function setPeriod(next: ColumnFilter | null, replace: boolean) {
+  const range = next?.kind === 'range' ? next : { from: '', to: '' }
+  void setFilters({ from: range.from, to: range.to }, replace)
+}
+const personOptions = computed(() => [
+  { id: '', label: 'Alle' },
+  ...users.value.map((person) => ({ id: person.id, label: person.name })),
+])
+
+// The chips come with the list (the names of the people come with the response)
+const chips = computed<FilterChip[]>(() => {
+  const person = users.value.find((candidate) => candidate.id === filter.value.user)
+  return [
+    ...(filter.value.tags
+      ? [{ id: 'tags', name: 'Kennung', text: `Kennung: ${filter.value.tags}` }]
+      : []),
+    ...(period.value
+      ? [
+          {
+            id: 'range',
+            name: 'Zeitraum',
+            text: `Zeitraum: ${describePeriod(filter.value.from, filter.value.to)}`,
+          },
+        ]
+      : []),
+    ...(person ? [{ id: 'user', name: 'Person', text: `Person: ${person.name}` }] : []),
+  ]
+})
+const { openId, setOpen, openFilter, focusAfterRemove, settle } = useFilterBar(tagsField)
+async function removeFilter(id: string) {
+  const ids = chips.value.map((chip) => chip.id)
+  if (id === 'tags') {
+    resetTagsInput()
+    await setFilters({ tags: '' })
+  } else await setFilters(id === 'range' ? { from: '', to: '' } : { user: '' })
+  // The list is gone while the new result loads
+  focusAfterRemove(ids, id, true)
 }
 
 const entries = ref<ActivityEntry[]>([])
@@ -131,13 +175,9 @@ async function loadMore() {
 }
 
 watch(() => route.query, load, { immediate: true })
+watch(status, (now) => now === 'ready' && void nextTick(settle))
 
 const showList = computed(() => status.value === 'ready' && entries.value.length > 0)
-
-// The bar with the number of entries sticks to the top; its height goes into the scroll padding of the page (main.css),
-// so that a focused entry or "Ältere laden" does not end up behind it.
-const bar = useTemplateRef<HTMLElement>('bar')
-useSizeVariable(bar, '--sticky-bar-height', 'height')
 // TODO: "Gefilterte Liste exportieren" (see the design) once the administration has an export.
 </script>
 
@@ -150,54 +190,8 @@ useSizeVariable(bar, '--sticky-bar-height', 'height')
         Zeiten in den Details sind die Uhrzeit am Handy zum Zeitpunkt der Erfassung.
       </p>
 
-      <form class="mt-6 flex flex-wrap items-end gap-x-4 gap-y-3" @submit.prevent>
-        <label class="flex flex-col text-sm text-mute">
-          Von
-          <input
-            ref="fromField"
-            type="date"
-            :class="fieldClass('from')"
-            :value="filter.from"
-            @change="setFilter('from', ($event.target as HTMLInputElement).value)"
-          />
-        </label>
-        <label class="flex flex-col text-sm text-mute">
-          Bis
-          <input
-            type="date"
-            :class="fieldClass('to')"
-            :value="filter.to"
-            @change="setFilter('to', ($event.target as HTMLInputElement).value)"
-          />
-        </label>
-        <label class="flex flex-col text-sm text-mute">
-          Person
-          <span class="relative flex">
-            <select
-              class="w-full appearance-none pr-10"
-              :class="fieldClass('user')"
-              :value="filter.user"
-              @change="setFilter('user', ($event.target as HTMLSelectElement).value)"
-            >
-              <option value="">Alle</option>
-              <!-- :selected, because the options arrive after the URL has already set the value -->
-              <option
-                v-for="person in users"
-                :key="person.id"
-                :value="person.id"
-                :selected="person.id === filter.user"
-              >
-                {{ person.name }}
-              </option>
-            </select>
-            <ChevronDownIcon
-              :size="18"
-              class="pointer-events-none absolute top-1/2 right-3 mt-0.5 -translate-y-1/2 text-ink"
-              aria-hidden="true"
-            />
-          </span>
-        </label>
-        <div class="flex min-w-48 flex-1 flex-col text-sm text-mute">
+      <form class="mt-6 flex flex-wrap items-end gap-x-3 gap-y-3" @submit.prevent>
+        <div class="flex max-w-sm min-w-48 flex-1 flex-col text-sm text-mute">
           <label for="activity-tags">Kennung</label>
           <span class="relative flex">
             <input
@@ -208,8 +202,8 @@ useSizeVariable(bar, '--sticky-bar-height', 'height')
               inputmode="text"
               autocomplete="off"
               placeholder="z. B. 104 oder 100-120"
-              class="w-full pr-11"
-              :class="fieldClass('tags')"
+              class="mt-1 h-11 w-full rounded-lg border-2 px-3 pr-11 text-base text-ink placeholder:text-dim focus:bg-paper"
+              :class="filter.tags ? 'border-ink bg-paper' : 'border-dim bg-transparent'"
               @input="onTagsInput"
               @keydown.enter="applyTagsNow"
               @change="applyTagsNow"
@@ -228,6 +222,28 @@ useSizeVariable(bar, '--sticky-bar-height', 'height')
             </button>
           </span>
         </div>
+        <FilterButton
+          id="range"
+          name="Zeitraum"
+          :active="!!period"
+          :open="openId === 'range'"
+          @update:open="setOpen('range', $event)"
+        >
+          <FilterRange type="date" :filter="period" @change="setPeriod" />
+        </FilterButton>
+        <FilterButton
+          id="user"
+          name="Person"
+          :active="!!filter.user"
+          :open="openId === 'user'"
+          @update:open="setOpen('user', $event)"
+        >
+          <FilterSingle
+            :options="personOptions"
+            :value="filter.user"
+            @change="(user) => setFilters({ user })"
+          />
+        </FilterButton>
         <!-- Always shown; without a filter it is natively disabled (greyed out, not tabbable, announced as unavailable) -->
         <button
           type="button"
@@ -283,20 +299,15 @@ useSizeVariable(bar, '--sticky-bar-height', 'height')
     </div>
 
     <template v-if="showList">
-      <!-- Sticks below the header (from lg on; below it the header scrolls away) like the bar of the stem list, as wide as the window with the
-           grey page background, so that the cards do not show at its sides. It lies above the cards and below the header (z-50).
-           The 8 px below the filter block (pb-2, not a margin on the sticky bar, which would stick 8 px too low) and min-h-15 keep the text 24 px under the filter, and the first card 16 px under the text, as without the bar. -->
-      <div
+      <!-- The 8 px below the filter block (pb-2, not a margin on the sticky bar, which would stick 8 px too low) and the bar's min-h-15 keep the text 24 px
+           under the filter, and the first card 16 px under the text, as without the bar. -->
+      <ResultsBar
         v-if="totals"
-        ref="bar"
-        class="sticky top-0 z-20 bg-desk lg:top-[var(--header-height,0px)]"
-      >
-        <div class="page-column flex min-h-15 items-center">
-          <p class="text-lg font-bold">
-            {{ entriesText(totals.entries, entriesUnfiltered, hasFilter) }}
-          </p>
-        </div>
-      </div>
+        :text="entriesText(totals.entries, entriesUnfiltered, hasFilter)"
+        :chips="chips"
+        @open="openFilter"
+        @remove="removeFilter"
+      />
 
       <div class="page-column">
         <section
