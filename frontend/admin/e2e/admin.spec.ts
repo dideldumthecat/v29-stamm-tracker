@@ -1059,6 +1059,49 @@ test.describe('stem list', () => {
     }
   })
 
+  test('picks the days of "Geändert" with the date pickers; an old link and a reload keep them', async ({
+    page,
+  }) => {
+    await page.goto('/admin/staemme')
+    await signIn(page, 'K7QM4XHT9RDP')
+    await filterButton(page, 'Geändert').click()
+    const popup = page.getByRole('dialog', { name: 'Geändert' })
+    const from = popup.getByLabel('Von')
+    const to = popup.getByLabel('Bis')
+    await expect(from).toHaveAttribute('type', 'date')
+    await expect(to).toHaveAttribute('type', 'date')
+
+    await from.fill('2026-10-31')
+    await expect(page).toHaveURL(/f\.changed=2026-10-31~$/)
+    await expect(page.getByRole('button', { name: 'Geändert: ab 31.10.2026' })).toBeVisible()
+    await expect(tags(page)).toHaveText(['00104'])
+    await to.fill('2026-10-31')
+    await expect(page).toHaveURL(/f\.changed=2026-10-31~2026-10-31$/)
+    await expect(
+      page.getByRole('button', { name: 'Geändert: 31.10.2026–31.10.2026' }),
+    ).toBeVisible()
+
+    await page.reload()
+    await filterButton(page, 'Geändert').click()
+    await expect(from).toHaveValue('2026-10-31')
+    await expect(to).toHaveValue('2026-10-31')
+    await expect(
+      page.getByRole('button', { name: 'Geändert: 31.10.2026–31.10.2026' }),
+    ).toBeVisible()
+
+    // the field cleared again (a half-typed date is no value): no filter on this side, and without both no chip
+    await from.fill('')
+    await to.fill('')
+    await expect(page).not.toHaveURL(/f\./)
+    await expect(page.getByRole('button', { name: /^Geändert:/ })).toHaveCount(0)
+
+    // an old link still works
+    await page.goto('/admin/staemme?f.changed=2026-10-01~2026-12-31')
+    await expect(
+      page.getByRole('button', { name: 'Geändert: 01.10.2026–31.12.2026' }),
+    ).toBeVisible()
+  })
+
   test('keeps the drop-downs inside a narrow window', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 700 })
     await page.goto('/admin/staemme')

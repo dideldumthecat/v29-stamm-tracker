@@ -212,3 +212,65 @@ describe('FilterText', () => {
     expect(wrapper.emitted('change')).toEqual([[{ kind: 'none' }, false]])
   })
 })
+
+describe('FilterRange with days', () => {
+  const field = (wrapper: ReturnType<typeof mount>, label: string) =>
+    wrapper
+      .findAll('label')
+      .find((l) => l.text().startsWith(label))!
+      .get('input')
+  const set = async (input: ReturnType<typeof field>, value: string) => {
+    input.element.value = value
+    await input.trigger('input')
+    await input.trigger('change')
+  }
+
+  it('has a date picker for each end and shows the day as in the URL, "JJJJ-MM-TT"', () => {
+    const wrapper = mount(FilterRange, {
+      props: { type: 'date', filter: { kind: 'range', from: '2026-10-31', to: '' } },
+    })
+    expect(wrapper.findAll('input[type=date]')).toHaveLength(2)
+    expect(field(wrapper, 'Von').element.value).toBe('2026-10-31')
+    expect(field(wrapper, 'Bis').element.value).toBe('')
+  })
+
+  it('passes a picked day on in the form of the URL, keeping the other end', async () => {
+    const wrapper = mount(FilterRange, {
+      props: { type: 'date', filter: { kind: 'range', from: '2026-10-31', to: '' } },
+    })
+    await set(field(wrapper, 'Bis'), '2026-11-03')
+    expect(wrapper.emitted('change')).toEqual([
+      [{ kind: 'range', from: '2026-10-31', to: '2026-11-03' }, false],
+    ])
+  })
+
+  it('takes a day that is not complete for no value: the end is cleared, and without the other one the filter is gone', async () => {
+    const wrapper = mount(FilterRange, {
+      props: { type: 'date', filter: { kind: 'range', from: '2026-10-31', to: '2026-11-03' } },
+    })
+    // a native field reports "" while a part of the date is missing
+    await set(field(wrapper, 'Von'), '')
+    expect(wrapper.emitted('change')![0]).toEqual([
+      { kind: 'range', from: '', to: '2026-11-03' },
+      false,
+    ])
+    const single = mount(FilterRange, {
+      props: { type: 'date', filter: { kind: 'range', from: '2026-10-31', to: '' } },
+    })
+    await set(field(single, 'Von'), '')
+    expect(single.emitted('change')![0]).toEqual([null, false])
+  })
+
+  it('leaves months as text fields "MM/JJJJ" and writes them in the form of the URL', async () => {
+    const wrapper = mount(FilterRange, {
+      props: { type: 'month', filter: { kind: 'range', from: '2026-10', to: '' } },
+    })
+    expect(wrapper.findAll('input[type=date]')).toHaveLength(0)
+    expect(field(wrapper, 'Von').element.value).toBe('10/2026')
+    await set(field(wrapper, 'Bis'), '3/2027')
+    expect(wrapper.emitted('change')![0]).toEqual([
+      { kind: 'range', from: '2026-10', to: '2027-03' },
+      false,
+    ])
+  })
+})
