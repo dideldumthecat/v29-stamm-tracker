@@ -648,9 +648,14 @@ test.describe('detail view', () => {
 
 test.describe('stem list', () => {
   const tags = (page: Page) => page.locator('tbody th')
-  // On a phone the emulated window cannot scroll sideways (see below), so a head button far to the right is out of reach for a click
-  const sortOn = (page: Page, name: string) =>
-    page.getByRole('button', { name }).dispatchEvent('click')
+  // On a phone the emulated window cannot scroll sideways (see below), so a head button far to the right is out of reach for a click.
+  // The filter bar has buttons of the same names, so these are the ones in the table head.
+  const headButton = (page: Page, name: string) =>
+    page.locator('thead').getByRole('button', { name, exact: true })
+  const sortOn = (page: Page, name: string) => headButton(page, name).dispatchEvent('click')
+  const bar = (page: Page) => page.locator('form').filter({ has: page.getByLabel('Kennung') })
+  const filterButton = (page: Page, name: string) =>
+    bar(page).getByRole('button', { name, exact: false }).filter({ hasText: name })
 
   test('opens from the navigation, sorts, filters by tag and keeps both through the detail view', async ({
     page,
@@ -725,6 +730,150 @@ test.describe('stem list', () => {
   const left = (locator: Locator) =>
     locator.evaluate((element) => element.getBoundingClientRect().left)
 
+  test('filters through the drop-downs of the columns: ticks, chips, back button, link, reset', async ({
+    page,
+  }) => {
+    await page.goto('/admin/staemme')
+    await signIn(page, 'K7QM4XHT9RDP')
+    await expect(tags(page)).toHaveCount(4)
+    const chips = page.getByRole('list', { name: 'Aktive Filter' })
+    await expect(chips).toHaveCount(0)
+
+    // one button per filterable column behind the field "Kennung", "Filter zurücksetzen" last
+    const holzart = filterButton(page, 'Holzart')
+    await expect(bar(page).getByRole('button').last()).toHaveText('Filter zurücksetzen')
+    await expect(bar(page).getByRole('button', { name: 'Stamm' })).toHaveCount(0)
+
+    await holzart.click()
+    const popup = page.getByRole('dialog', { name: 'Holzart' })
+    await popup.getByLabel('Traubeneiche').check()
+    await expect(page).toHaveURL(/\?f\.[0-9a-f-]+=/)
+    await expect(page.getByText('1 von 4 Stämmen')).toBeVisible()
+    await expect(tags(page)).toHaveText(['01500'])
+    await expect(chips.getByRole('button', { name: 'Holzart: Traubeneiche' })).toBeVisible()
+    await expect(holzart).toHaveText(/Holzart\s*1/)
+
+    await popup.getByLabel('Nicht erfasst').check()
+    await expect(tags(page)).toHaveText(['00007', '01500', 'ohne Kennung'])
+    await expect(
+      chips.getByRole('button', { name: 'Holzart: Traubeneiche, Nicht erfasst' }),
+    ).toBeVisible()
+    await expect(holzart).toHaveText(/Holzart\s*2/)
+
+    // Escape closes and returns the focus; the back button goes back one filter at a time
+    await page.keyboard.press('Escape')
+    await expect(popup).toBeHidden()
+    await expect(holzart).toBeFocused()
+    await page.goBack()
+    await expect(tags(page)).toHaveText(['01500'])
+    await page.goForward()
+    await expect(tags(page)).toHaveCount(3)
+
+    // together with the Kennung (and), and the whole view comes back from the link
+    await page.getByRole('textbox', { name: 'Kennung' }).fill('1-200')
+    await expect(tags(page)).toHaveText(['00007'])
+    await expect(chips.getByRole('button')).toHaveCount(4)
+    const link = page.url()
+    const fresh = await page.context().newPage()
+    await fakeApi(fresh)
+    await fresh.goto(link)
+    await signIn(fresh, 'K7QM4XHT9RDP')
+    await expect(fresh.locator('tbody th')).toHaveText(['00007'])
+    await expect(
+      fresh.getByRole('button', { name: 'Holzart: Traubeneiche, Nicht erfasst' }),
+    ).toBeVisible()
+    await expect(fresh.getByRole('button', { name: 'Kennung: 1-200' })).toBeVisible()
+    await fresh.close()
+
+    // a chip opens its filter, the cross removes only this filter
+    await chips.getByRole('button', { name: 'Holzart: Traubeneiche, Nicht erfasst' }).click()
+    await expect(popup).toBeVisible()
+    await popup.getByLabel('Traubeneiche').uncheck()
+    await expect(chips.getByRole('button', { name: 'Holzart: Nicht erfasst' })).toBeVisible()
+    await page.keyboard.press('Escape')
+    await page.getByRole('button', { name: 'Filter Holzart entfernen' }).click()
+    await expect(page).not.toHaveURL(/f\./)
+    await expect(page).toHaveURL(/tags=1-200/)
+    // no chip follows, so the focus goes to the button of the filter
+    await expect(holzart).toBeFocused()
+
+    // reset clears the Kennung and all filters
+    await holzart.click()
+    await popup.getByLabel('Stieleiche').check()
+    await page.keyboard.press('Escape')
+    await page.getByRole('button', { name: 'Filter zurücksetzen' }).click()
+    await expect(page).toHaveURL(/\/admin\/staemme$/)
+    await expect(tags(page)).toHaveCount(4)
+    await expect(page.getByRole('textbox', { name: 'Kennung' })).toHaveValue('')
+  })
+
+  test('searches a text while typing, takes a range and opens the filters by keyboard', async ({
+    page,
+  }) => {
+    await page.goto('/admin/staemme')
+    await signIn(page, 'K7QM4XHT9RDP')
+
+    await filterButton(page, 'Notiz').focus()
+    await page.keyboard.press('Enter')
+    const popup = page.getByRole('dialog', { name: 'Notiz' })
+    await expect(popup).toBeVisible()
+    await popup.getByRole('textbox', { name: 'Suchtext' }).fill('drehwuchs')
+    await expect(page).toHaveURL(/contains:drehwuchs/)
+    await expect(page.getByRole('button', { name: 'Notiz: enthält drehwuchs' })).toBeVisible()
+    await expect(tags(page)).toHaveText(['00104'])
+    await page.keyboard.press('Escape')
+    await expect(filterButton(page, 'Notiz')).toBeFocused()
+
+    await filterButton(page, 'Holzfeuchte').click()
+    const range = page.getByRole('dialog', { name: 'Holzfeuchte' })
+    await range.getByLabel('Von').fill('40')
+    await range.getByLabel('Von').press('Enter')
+    await expect(page.getByRole('button', { name: 'Holzfeuchte: ab 40 %' })).toBeVisible()
+    await expect(page).toHaveURL(/=40~(&|$)/)
+    await range.getByLabel('Von').fill('90')
+    await range.getByLabel('Von').press('Enter')
+    await expect(page.getByText('Keine Ergebnisse weit und breit gefunden.')).toBeVisible()
+  })
+
+  test('keeps the drop-downs inside a narrow window', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 700 })
+    await page.goto('/admin/staemme')
+    await signIn(page, 'K7QM4XHT9RDP')
+    for (const name of ['Holzart', 'Geändert']) {
+      await filterButton(page, name).click()
+      const box = (await page.getByRole('dialog', { name }).boundingBox())!
+      expect(box.x).toBeGreaterThanOrEqual(0)
+      expect(box.x + box.width).toBeLessThanOrEqual(390)
+      await page.keyboard.press('Escape')
+    }
+  })
+
+  test('keeps the chips in view while scrolling, and no focused element under the bar when it has two lines', async ({
+    page,
+    isMobile,
+  }) => {
+    // eslint-disable-next-line playwright/no-skipped-test
+    test.skip(isMobile, 'the emulated phone widens the window to the table, the bar never wraps')
+    await openLong(page, { width: 640, height: 700 })
+    // enough filters for a second line of chips
+    const id = (name: string) => snapshotFixture.attributes.find((a) => a.name === name)!.id
+    await page.goto(
+      `/admin/staemme?tags=1-1999&f.${id('Holzart')}=none&f.${id('Gesägt')}=yes,no,none&f.${id('Notiz')}=none`,
+    )
+    const bar = page.locator('main > div.sticky').nth(1)
+    await expect(page.getByRole('list', { name: 'Aktive Filter' })).toBeVisible()
+    expect((await bar.boundingBox())!.height).toBeGreaterThan(80)
+    await page.evaluate(() => window.scrollTo(0, 900))
+    await expect(page.getByRole('list', { name: 'Aktive Filter' })).toBeInViewport()
+    await expect(bar).toBeInViewport()
+
+    // a link in the table, focused by keyboard, lies below the bar even though it has two lines
+    await tags(page).nth(30).getByRole('link').focus()
+    const link = (await tags(page).nth(30).getByRole('link').boundingBox())!
+    const barBox = (await bar.boundingBox())!
+    expect(link.y).toBeGreaterThanOrEqual(barBox.y + barBox.height)
+  })
+
   for (const [width, height] of [
     [1280, 700],
     [400, 800],
@@ -738,7 +887,7 @@ test.describe('stem list', () => {
       // the bar sticks below the header from lg on, and to the top of the window below it (the header scrolls away)
       const stuck = await bar.evaluate((element) => parseFloat(getComputedStyle(element).top))
 
-      for (const y of [600, 1500, 2500]) {
+      for (const y of [900, 1500, 2500]) {
         await page.evaluate((to) => window.scrollTo(0, to), y)
         await expect(head).toBeInViewport()
         expect(await top(bar)).toBe(stuck)
@@ -826,15 +975,15 @@ test.describe('stem list', () => {
 
       // a head button far to the right is not left under the stem column
       await page.evaluate(() => window.scrollTo(0, 0))
-      await page.getByRole('button', { name: 'Geändert' }).focus()
-      const button = (await page.getByRole('button', { name: 'Geändert' }).boundingBox())!
+      await headButton(page, 'Geändert').focus()
+      const button = (await headButton(page, 'Geändert').boundingBox())!
       expect(button.x).toBeGreaterThanOrEqual((await head.boundingBox())!.width)
       expect(await page.evaluate(() => window.scrollY)).toBe(0)
 
       // and one in a head that is stuck while the page is scrolled down
       await page.evaluate(() => window.scrollTo(0, 1500))
-      await page.getByRole('button', { name: 'Balken' }).focus()
-      await expect(page.getByRole('button', { name: 'Balken' })).toBeInViewport()
+      await headButton(page, 'Balken').focus()
+      await expect(headButton(page, 'Balken')).toBeInViewport()
       expect(await page.evaluate(() => window.scrollY)).toBe(1500)
     })
   })

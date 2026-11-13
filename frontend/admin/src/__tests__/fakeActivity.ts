@@ -1,5 +1,5 @@
 import type { ActivityEntry, ActivityResponse } from '@v29/shared/contract'
-import { isReadableTags } from '../activity'
+import { isReadableTags } from '../listFilters'
 import fixture from '@v29/shared/fixtures/activity-response.json' with { type: 'json' }
 
 /** The 31 October as the server answered it (the backend tests expect exactly this file). */

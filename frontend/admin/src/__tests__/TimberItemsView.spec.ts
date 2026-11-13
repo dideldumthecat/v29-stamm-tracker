@@ -7,6 +7,8 @@ import { createAdminRouter } from '@/router'
 import App from '../App.vue'
 import { formatRecorded } from '@/detail'
 import { fakeApi } from './fakeApi'
+import { snapshotFixture } from './fakeSnapshot'
+import { chipTexts, filterButton, popup, pressEscape, stubBrowser } from './popup'
 
 // formatRecorded is called for the cells of dates and numbers: counting its calls counts the cells that are worked out
 vi.mock('@/detail', async (importOriginal) => {
@@ -47,6 +49,7 @@ enableAutoUnmount(afterEach)
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-11-09T12:00:00Z') })
   user.value = null
+  stubBrowser()
 })
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -109,7 +112,9 @@ describe('stem list', () => {
     expect(router.currentRoute.value.query).toEqual({ sort: expect.any(String) })
     expect(rowTags(wrapper)).toEqual(['01500', '00104', '00007', 'ohne Kennung'])
     expect(header(wrapper, 'Holzfeuchte').attributes('aria-sort')).toBe('ascending')
-    expect(header(wrapper, 'Holzfeuchte').find('svg.lucide-arrow-up-narrow-wide').exists()).toBe(true)
+    expect(header(wrapper, 'Holzfeuchte').find('svg.lucide-arrow-up-narrow-wide').exists()).toBe(
+      true,
+    )
 
     await header(wrapper, 'Holzfeuchte').get('button').trigger('click')
     await flushPromises()
@@ -117,7 +122,9 @@ describe('stem list', () => {
     // not recorded stays last when descending
     expect(rowTags(wrapper)).toEqual(['00104', '01500', '00007', 'ohne Kennung'])
     expect(header(wrapper, 'Holzfeuchte').attributes('aria-sort')).toBe('descending')
-    expect(header(wrapper, 'Holzfeuchte').find('svg.lucide-arrow-down-wide-narrow').exists()).toBe(true)
+    expect(header(wrapper, 'Holzfeuchte').find('svg.lucide-arrow-down-wide-narrow').exists()).toBe(
+      true,
+    )
     // every column has an icon: the sorted one the bar icon, all others the faint double arrow
     expect(wrapper.findAll('thead svg')).toHaveLength(wrapper.findAll('thead th').length)
     expect(wrapper.findAll('thead svg.lucide-chevrons-up-down')).toHaveLength(
@@ -305,5 +312,190 @@ describe('arrows for scrolling the page sideways', () => {
 
     await arrow(wrapper, 'rechts').trigger('click')
     expect(window.scrollBy).toHaveBeenCalledWith({ left: 300, behavior: 'auto' })
+  })
+})
+
+describe('filter bar and chips', () => {
+  const attributeId = (name: string) => snapshotFixture.attributes.find((a) => a.name === name)!.id
+  const openPopup = async (id: string) => {
+    if (popup()) {
+      pressEscape()
+      await flushPromises()
+    }
+    filterButton(id).click()
+    await flushPromises()
+  }
+  /** The checkbox or radio with this label in the open pop-up. */
+  const control = (label: string) =>
+    [...popup()!.querySelectorAll('label')]
+      .find((candidate) => candidate.textContent!.trim() === label)!
+      .querySelector('input')!
+  const tick = async (label: string) => {
+    control(label).click()
+    await flushPromises()
+  }
+  const chip = (id: string) => document.querySelector<HTMLElement>(`[data-chip="${id}"]`)!
+  const cross = (name: string) =>
+    document.querySelector<HTMLElement>(`button[aria-label="Filter ${name} entfernen"]`)!
+  const badge = (id: string) => filterButton(id).querySelector('span')?.textContent
+
+  it('puts a button behind the field "Kennung" for every column but "Stamm", in column order, and "Filter zurücksetzen" last', async () => {
+    const { wrapper } = await open()
+    const bar = wrapper.get('form')
+    expect(
+      bar
+        .findAll('label, button')
+        .map((element) => squeezed(element.text()))
+        .filter(Boolean),
+    ).toEqual([
+      'Kennung',
+      'Holzart',
+      'Fälldatum',
+      'Lieferdatum',
+      'Lagerplatz',
+      'Gesägt',
+      'Holzfeuchte',
+      'Notiz',
+      'Fotos',
+      'Balken',
+      'Geändert',
+      'Filter zurücksetzen',
+    ])
+    expect(filterButton(attributeId('Holzart')).getAttribute('aria-expanded')).toBe('false')
+    // the bar does not stick: the bar of the hits and the head do
+    expect(bar.element.closest('.sticky.top-0')).toBeNull()
+  })
+
+  it('filters at once by ticking: the URL, the table, the badge, the chip and the count follow', async () => {
+    const { wrapper, router } = await open()
+    const id = attributeId('Holzart')
+    expect(chipTexts()).toEqual([])
+
+    await openPopup(id)
+    expect(popup()!.getAttribute('aria-label')).toBe('Holzart')
+    await tick('Traubeneiche')
+    expect(router.currentRoute.value.query).toEqual({ [`f.${id}`]: expect.any(String) })
+    expect(rowTags(wrapper)).toEqual(['01500'])
+    expect(chipTexts()).toEqual(['Holzart: Traubeneiche'])
+    expect(badge(id)).toBe('1')
+    expect(filterButton(id).className).toContain('border-ink')
+    expect(wrapper.get('main p.text-lg').text()).toBe('1 von 4 Stämmen')
+
+    // "Nicht erfasst" apart under a line; any of the ticks
+    await tick('Nicht erfasst')
+    expect(rowTags(wrapper)).toEqual(['00007', '01500', 'ohne Kennung'])
+    expect(chipTexts()).toEqual(['Holzart: Traubeneiche, Nicht erfasst'])
+    expect(badge(id)).toBe('2')
+
+    await tick('Stieleiche')
+    expect(chipTexts()).toEqual(['Holzart: 3 ausgewählt'])
+    expect(badge(id)).toBe('3')
+  })
+
+  it('takes a range of a number with the unit and puts it into the chip; the filters work together with "und" and the Kennung', async () => {
+    const { wrapper, router } = await open('/staemme?tags=1-1999')
+    const id = attributeId('Holzfeuchte')
+    const unit = snapshotFixture.attributes.find((a) => a.name === 'Holzfeuchte')!.unit!
+    await openPopup(id)
+    expect(popup()!.textContent).toContain(unit)
+    const [from, to] = [
+      ...popup()!.querySelectorAll<HTMLInputElement>('input[inputmode="decimal"]'),
+    ]
+    // leaving a field applies at once (typing alone waits 500 ms, as in the field "Kennung")
+    for (const [field, value] of [
+      [from, '35'],
+      [to, '45'],
+    ] as const) {
+      field.value = value
+      field.dispatchEvent(new Event('input'))
+      field.dispatchEvent(new Event('change'))
+      await flushPromises()
+    }
+    expect(router.currentRoute.value.query[`f.${id}`]).toBe('35~45')
+    expect(chipTexts()).toEqual(['Kennung: 1-1999', `Holzfeuchte: 35–45 ${unit}`])
+    expect(rowTags(wrapper)).toEqual(['00104'])
+    // no badge on a range
+    expect(badge(id)).toBeUndefined()
+  })
+
+  it('restores buttons, badges and chips from a link', async () => {
+    const id = attributeId('Fotos')
+    await open(`/staemme?tags=1-200&f.${id}=has`)
+    expect(chipTexts()).toEqual(['Kennung: 1-200', 'Fotos: mit Fotos'])
+    expect(filterButton(id).className).toContain('font-bold')
+    expect(filterButton(attributeId('Notiz')).className).not.toContain('font-bold')
+  })
+
+  it('removes only one filter with the cross of its chip and puts the focus on the next chip, without one on the button', async () => {
+    const id = attributeId('Fotos')
+    const { router } = await open(`/staemme?sort=beams&tags=1-200&f.${id}=has`)
+    cross('Kennung').click()
+    await flushPromises()
+    expect(router.currentRoute.value.query).toEqual({ sort: 'beams', [`f.${id}`]: 'has' })
+    expect(document.activeElement).toBe(chip(id))
+
+    cross('Fotos').click()
+    await flushPromises()
+    expect(router.currentRoute.value.query).toEqual({ sort: 'beams' })
+    expect(chipTexts()).toEqual([])
+    expect(document.activeElement).toBe(filterButton(id))
+  })
+
+  it('opens the pop-up of the filter from its chip and scrolls to the button; Escape brings the focus back', async () => {
+    const id = attributeId('Fotos')
+    const { wrapper } = await open(`/staemme?tags=1-200&f.${id}=has`)
+    chip(id).click()
+    await flushPromises()
+    expect(popup()!.getAttribute('aria-label')).toBe('Fotos')
+    expect(Element.prototype.scrollIntoView).toHaveBeenCalled()
+    expect(control('Mit Fotos').checked).toBe(true)
+
+    pressEscape()
+    await flushPromises()
+    expect(popup()).toBeNull()
+    expect(document.activeElement).toBe(filterButton(id))
+
+    chip('tags').click()
+    expect(document.activeElement).toBe(field(wrapper).element)
+  })
+
+  it('resets the filters and the "Kennung" but not the sort, and sets the focus into the field', async () => {
+    const id = attributeId('Fotos')
+    const { wrapper, router } = await open(`/staemme?sort=beams&tags=1-200&f.${id}=has`)
+    await resetButton(wrapper).trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.query).toEqual({ sort: 'beams' })
+    expect(chipTexts()).toEqual([])
+    expect(rowTags(wrapper)).toHaveLength(4)
+    expect(document.activeElement).toBe(field(wrapper).element)
+  })
+
+  it('shows "Waldesruh" without a chip for a filter it cannot read', async () => {
+    const id = attributeId('Fotos')
+    const { wrapper } = await open(`/staemme?f.${id}=maybe`)
+    expect(wrapper.get('h2').text()).toBe('Waldesruh')
+    expect(chipTexts()).toEqual([])
+    expect(resetButton(wrapper).attributes('disabled')).toBeUndefined()
+  })
+
+  it('ignores a filter of a column that does not exist', async () => {
+    const { wrapper } = await open('/staemme?f.gibtsnicht=has&f.tag=1')
+    expect(rowTags(wrapper)).toHaveLength(4)
+    expect(chipTexts()).toEqual([])
+  })
+
+  it('goes back through the filters step by step with the back button', async () => {
+    const { wrapper, router } = await open()
+    const id = attributeId('Holzart')
+    await openPopup(id)
+    await tick('Traubeneiche')
+    await tick('Nicht erfasst')
+    expect(rowTags(wrapper)).toHaveLength(3)
+    router.back()
+    await flushPromises()
+    expect(rowTags(wrapper)).toEqual(['01500'])
+    router.back()
+    await flushPromises()
+    expect(rowTags(wrapper)).toHaveLength(4)
   })
 })

@@ -17,6 +17,7 @@
   "dependencies": {
     "@lucide/vue": "^1.61.0",
     "@v29/shared": "*",
+    "reka-ui": "^2.11.0",
     "vue": "^3.5.42",
     "vue-router": "^5.3.1"
   },
