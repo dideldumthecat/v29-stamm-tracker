@@ -9,6 +9,7 @@ import {
   filterType,
   formatCount,
   matchesFilter,
+  offersNone,
   readFilter,
   tagFilter,
   type ColumnFilter,
@@ -37,6 +38,8 @@ export interface RawRow {
   item: TimberItem
   /** Number of beams cut from the stem. */
   beams: number
+  /** The tags of those beams ("104-A"): what the "Kennung" filter looks at for a beam tag. */
+  beamTags: string[]
   /** Latest own recording, otherwise the creation: same rule as the detail view. */
   changed: string
   /** The German calendar day of `changed`, "2026-10-31". */
@@ -99,9 +102,9 @@ export function withCells(rows: RawRow[], columns: Column[]): Row[] {
 }
 
 function rawRows(snapshot: Snapshot, kind: ItemKind): RawRow[] {
-  const beams = new Map<string, number>()
+  const beams = new Map<string, TimberItem[]>()
   for (const item of snapshot.timber_items) {
-    if (item.parent_id) beams.set(item.parent_id, (beams.get(item.parent_id) ?? 0) + 1)
+    if (item.parent_id) beams.set(item.parent_id, [...(beams.get(item.parent_id) ?? []), item])
   }
   return snapshot.timber_items
     .filter((item) => (item.parent_id === null) === (kind === 'stem'))
@@ -112,7 +115,8 @@ function rawRows(snapshot: Snapshot, kind: ItemKind): RawRow[] {
       const changed = last?.recorded_at ?? item.created_at
       return {
         item,
-        beams: beams.get(item.id) ?? 0,
+        beams: beams.get(item.id)?.length ?? 0,
+        beamTags: (beams.get(item.id) ?? []).flatMap((beam) => beam.tag_number ?? []),
         changed,
         changedDay: dayKey(changed),
         changedBy: snapshot.users.find((user) => user.id === userId)?.name,
@@ -204,7 +208,7 @@ export function columnFilters(
   return columns.flatMap((column) => {
     const type = filterType(column)
     const text = query.filters[column.id]
-    return type && text ? [{ column, filter: readFilter(type, text) }] : []
+    return type && text ? [{ column, filter: readFilter(type, text, offersNone(column)) }] : []
   })
 }
 

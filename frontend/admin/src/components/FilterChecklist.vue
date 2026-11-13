@@ -1,8 +1,15 @@
 <script setup lang="ts">
 import { NOT_RECORDED_PICK } from '@/listFilters'
 
-/** A list of ticks (choice, yes/no): any of the ticked values; "Nicht erfasst" apart under a line. Every tick is passed up at once. */
-const props = defineProps<{ options: { id: string; label: string }[]; picks: string[] }>()
+/**
+ * A list of ticks (choice, yes/no, people): any of the ticked values; "Nicht erfasst" apart under a line unless `withoutNone` says the
+ * values are always there. Every tick is passed up at once.
+ */
+const props = defineProps<{
+  options: { id: string; label: string }[]
+  picks: string[]
+  withoutNone?: boolean
+}>()
 const emit = defineEmits<{ change: [picks: string[]] }>()
 
 function toggle(id: string) {
@@ -27,7 +34,7 @@ const row = 'flex h-10 items-center gap-3 rounded-md px-2 hover:bg-well'
         {{ option.label }}
       </label>
     </li>
-    <li class="mt-1 border-t border-soft pt-1">
+    <li v-if="!withoutNone" class="mt-1 border-t border-soft pt-1">
       <label :class="row">
         <input
           type="checkbox"

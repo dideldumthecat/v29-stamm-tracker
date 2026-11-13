@@ -192,6 +192,7 @@ describe('sortRows', () => {
         values: { [notiz.id]: [{ ...row('104').item.values[notiz.id][0], value: text }] },
       },
       beams: 0,
+      beamTags: [],
       changed: '2026-10-31T10:00:00.000Z',
       changedDay: '2026-10-31',
       changedBy: undefined,

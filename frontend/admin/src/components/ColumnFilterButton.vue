@@ -5,7 +5,13 @@ import FilterButton from '@/components/FilterButton.vue'
 import FilterChecklist from '@/components/FilterChecklist.vue'
 import FilterRange from '@/components/FilterRange.vue'
 import FilterText from '@/components/FilterText.vue'
-import { filterType, pickOptions, type ColumnFilter, type FilterType } from '@/listFilters'
+import {
+  filterType,
+  offersNone,
+  pickOptions,
+  type ColumnFilter,
+  type FilterType,
+} from '@/listFilters'
 import type { Column, Row } from '@/stemlist'
 
 /**
@@ -45,7 +51,7 @@ const setPicks = (next: string[]) =>
       :type="type"
       :filter="filter"
       :unit="column.attribute?.unit ?? undefined"
-      :allow-none="type !== 'count'"
+      :allow-none="offersNone(column)"
       @change="(next, replace) => emit('change', next, replace)"
     />
     <FilterText
