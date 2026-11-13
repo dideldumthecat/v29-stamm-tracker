@@ -95,16 +95,17 @@ export interface ActivityItem {
 }
 
 export interface ActivityChange {
-  kind: 'created' | 'value' | 'photo' | 'tag' | 'voided' | 'restored'
+  kind: 'created' | 'value' | 'photo' | 'photo_removed' | 'tag' | 'voided' | 'restored'
   /**
    * Column "Merkmal", ready to show. By case: created → "Stamm" or "Balken" (a beam has a stem above it); tag → "Kennung";
    * value or photo → the attribute's name (inactive ones too); voided or restored → the name of what it affects, in the same words
    * ("Stamm"/"Balken" for the whole item, "Kennung", an attribute's name), "Ereignis" if that event cannot be found.
+   * photo_removed (a voided event that refers to the recording of one photo, e.g. after app:photo:move) → the name of the photo attribute.
    */
   name: string
   /**
    * Column "Wert", ready to show, without a count. By case: created → "angelegt"; tag → the number, "104"; value → the value as in the export;
-   * photo → "hinzugefügt"; voided → "storniert"; restored → "wiederhergestellt".
+   * photo → "hinzugefügt"; photo_removed → "entfernt"; voided → "storniert"; restored → "wiederhergestellt".
    */
   value: string
   recorded_at: Timestamp

@@ -146,7 +146,7 @@ const stemsAndBeams = (who: Who) =>
 
 /**
  * The bullet points of an entry, no tags, counted by `kind` and `name` of the changes. Distinct stems and beams are counted,
- * not events (photos are counted as photos). Order: created, attributes by first appearance, photos, tag changes, voided,
+ * not events (photos are counted as photos). Order: created, attributes by first appearance, photos, removed photos, tag changes, voided,
  * restored. Empty lines are left out.
  */
 export function summarize(entry: ActivityEntry): string[] {
@@ -155,6 +155,7 @@ export function summarize(entry: ActivityEntry): string[] {
   const voided = new Map<string, Who>()
   const restored = new Map<string, Who>()
   let photos = 0
+  let removedPhotos = 0
   let tags = 0
   const note = (map: Map<string, Who>, name: string, label: string) => {
     const who = map.get(name) ?? { stems: new Set<string>(), beams: new Set<string>() }
@@ -168,6 +169,7 @@ export function summarize(entry: ActivityEntry): string[] {
       if (change.kind === 'created') created[isBeam(item.label) ? 'beams' : 'stems'].add(item.label)
       else if (change.kind === 'value') note(values, change.name, item.label)
       else if (change.kind === 'photo') photos++
+      else if (change.kind === 'photo_removed') removedPhotos++
       // The tag of a new item is part of its creation.
       else if (change.kind === 'tag') tags += isNew ? 0 : 1
       else note(change.kind === 'voided' ? voided : restored, change.name, item.label)
@@ -187,6 +189,7 @@ export function summarize(entry: ActivityEntry): string[] {
     created.beams.size && `${plural(created.beams.size, 'Balken', 'Balken')} angelegt`,
     ...[...values].map(([name, who]) => `${name} – ${stemsAndBeams(who)}`),
     photos && plural(photos, 'Foto', 'Fotos'),
+    removedPhotos && `${plural(removedPhotos, 'Foto', 'Fotos')} entfernt`,
     tags && `${plural(tags, 'Kennung', 'Kennungen')} geändert`,
     ...lifecycle(voided, 'storniert'),
     ...lifecycle(restored, 'wiederhergestellt'),
@@ -197,7 +200,7 @@ export function summarize(entry: ActivityEntry): string[] {
 /**
  * The rows of the detail table for one stem or beam, in the order of the contract. Changes with the same name and value
  * become one row at the first of them, with a count before the value ("2 storniert"); set values stay one row each.
- * Photos always show their count ("1 hinzugefügt"), everything else from 2 on. The tag of a new item is left out: it is
+ * Photos (added and removed) always show their count ("1 hinzugefügt", "1 entfernt"), everything else from 2 on. The tag of a new item is left out: it is
  * part of its creation.
  */
 export function detailRows(item: ActivityItem) {
@@ -212,7 +215,10 @@ export function detailRows(item: ActivityItem) {
   }
   return [...rows.values()].map((row) => ({
     name: row.name,
-    value: row.kind === 'photo' || row.count > 1 ? `${row.count} ${row.value}` : row.value,
+    value:
+      row.kind === 'photo' || row.kind === 'photo_removed' || row.count > 1
+        ? `${row.count} ${row.value}`
+        : row.value,
   }))
 }
 

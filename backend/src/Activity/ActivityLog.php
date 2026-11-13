@@ -303,6 +303,10 @@ final class ActivityLog
         $verb = 'voided' === $event['type'] ? 'storniert' : 'wiederhergestellt';
         $target = $this->affected($event, $events);
         $what = $target ? $this->change($target, $events, $attributes, $labels) : null;
+        // Only the assignment of one photo is voided (app:photo:move), not all photos.
+        if ('voided' === $event['type'] && 'photo' === ($what['kind'] ?? null)) {
+            return ['kind' => 'photo_removed', 'name' => $what['name'], 'value' => 'entfernt'];
+        }
 
         return [
             'kind' => $event['type'],

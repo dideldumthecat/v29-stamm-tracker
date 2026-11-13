@@ -87,6 +87,27 @@ describe('summarize', () => {
     ])
   })
 
+  it('counts removed photos on their own line after the added ones, over the whole entry, apart from other voidings', () => {
+    const entry = entryWith(
+      item('55', [['photo_removed', 'Fotos', 'entfernt']]),
+      item('56', [
+        ['photo', 'Fotos', 'hinzugefügt'],
+        ['photo_removed', 'Fotos', 'entfernt'],
+        ['voided', 'Fotos', 'storniert'],
+        ['voided', 'Gesägt', 'storniert'],
+      ]),
+    )
+    expect(summarize(entry)).toEqual([
+      '1 Foto',
+      '2 Fotos entfernt',
+      'Fotos storniert – 1 Stamm',
+      'Gesägt storniert – 1 Stamm',
+    ])
+    expect(summarize(entryWith(item('55', [['photo_removed', 'Fotos', 'entfernt']])))).toEqual([
+      '1 Foto entfernt',
+    ])
+  })
+
   it('counts voidings and restorations per name: whole stems and beams short, attributes with their stems and beams', () => {
     const entry = entryWith(
       item('9', [
@@ -151,6 +172,23 @@ describe('detailRows', () => {
       { name: 'Gesägt', value: '2 storniert' },
       { name: 'Fotos', value: 'storniert' },
       { name: 'Gesägt', value: 'wiederhergestellt' },
+    ])
+    expect(
+      detailRows(
+        item('2', [
+          ['photo_removed', 'Fotos', 'entfernt'],
+          ['voided', 'Fotos', 'storniert'],
+          ['photo_removed', 'Fotos', 'entfernt'],
+          ['photo', 'Fotos', 'hinzugefügt'],
+        ]),
+      ),
+    ).toEqual([
+      { name: 'Fotos', value: '2 entfernt' },
+      { name: 'Fotos', value: 'storniert' },
+      { name: 'Fotos', value: '1 hinzugefügt' },
+    ])
+    expect(detailRows(item('3', [['photo_removed', 'Fotos', 'entfernt']]))).toEqual([
+      { name: 'Fotos', value: '1 entfernt' },
     ])
     expect(detailRows(item('1', [['photo', 'Fotos', 'hinzugefügt']]))).toEqual([
       { name: 'Fotos', value: '1 hinzugefügt' },
