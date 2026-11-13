@@ -15,12 +15,16 @@ import FormattedTag from '@v29/shared/FormattedTag.vue'
 import SawBladeIcon from '@v29/shared/SawBladeIcon.vue'
 
 import { ApiError, request } from '@/api/client'
+import ColumnFilterButton from '@/components/ColumnFilterButton.vue'
 import LoadFailure from '@/components/LoadFailure.vue'
+import ResultsBar from '@/components/ResultsBar.vue'
 import StatusCard from '@/components/StatusCard.vue'
+import { useFilterBar } from '@/filterBar'
+import { applyFilters, chipOf, filterType, writeFilter, type ColumnFilter } from '@/listFilters'
 import {
-  applyFilters,
   buildColumns,
   buildRows,
+  columnFilters,
   filtersFor,
   headingWords,
   readQuery,
@@ -53,29 +57,32 @@ async function load() {
 void load()
 
 // Everything is loaded once; sorting and filtering happen here. The URL is the only source of both.
-const columns = computed(() => buildColumns(snapshot.value?.attributes ?? []))
+const columns = computed(() => buildColumns(snapshot.value?.attributes ?? [], 'stem'))
 // The cells of all rows are worked out here, once per snapshot: filtering, sorting and drawing only use them
-const allRows = computed(() => (snapshot.value ? buildRows(snapshot.value, columns.value) : []))
+const allRows = computed(() =>
+  snapshot.value ? buildRows(snapshot.value, 'stem', columns.value) : [],
+)
 const query = computed(() => readQuery(route.query, columns.value))
-// null: the "Kennung" in the URL cannot be read
-const filters = computed(() => filtersFor(query.value))
+// null: a filter in the URL cannot be read
+const filters = computed(() => filtersFor(query.value, columns.value))
 const rows = computed(() => {
   if (!filters.value) return []
   const column = columns.value.find((candidate) => candidate.id === query.value.sort)!
   return sortRows(applyFilters(allRows.value, filters.value), column, query.value.dir)
 })
-const hasFilter = computed(() => query.value.tags !== '')
+const hasTags = computed(() => query.value.tags !== '')
+const hasFilter = computed(() => hasTags.value || Object.keys(query.value.filters).length > 0)
 const showTable = computed(() => status.value === 'ready' && rows.value.length > 0)
 
 function sortOn(columnId: string) {
   void router.push({ query: writeQuery(sortBy(query.value, columnId)) })
 }
 function setTags(tags: string, replace: boolean) {
-  // Whatever else is in the URL (sort, direction) stays as it is
+  // Whatever else is in the URL (sort, direction, filters) stays as it is
   const next = { ...route.query }
   if (tags) next.tags = tags
   else delete next.tags
-  void (replace ? router.replace({ query: next }) : router.push({ query: next }))
+  return replace ? router.replace({ query: next }) : router.push({ query: next })
 }
 
 // The page scrolls sideways when the table is wider than the window; the arrows in the bar do it by about 60 % of what is visible,
@@ -93,10 +100,8 @@ function scrollTable(direction: -1 | 1) {
 
 // The bar with the number of stems, the table head and the first column stay in view. Their sizes go into the scroll padding of the page
 // (main.css), so that a focused link or button does not end up behind them.
-const bar = useTemplateRef<HTMLElement>('bar')
 const head = useTemplateRef<HTMLElement>('head')
 const stemHead = computed(() => head.value?.querySelector('th') ?? null)
-useSizeVariable(bar, '--sticky-bar-height', 'height')
 useSizeVariable(head, '--table-head-height', 'height')
 useSizeVariable(stemHead, '--stem-column-width', 'width')
 
@@ -108,11 +113,39 @@ const { tagsInput, onTagsInput, applyTagsNow, clearTags, resetTagsInput } = useT
 })
 function resetFilter() {
   resetTagsInput()
-  void router.push({ query: writeQuery({ ...query.value, tags: '' }) })
+  void router.push({ query: writeQuery({ ...query.value, tags: '', filters: {} }) })
 }
 function resetFromBar() {
   resetFilter()
   tagsField.value?.focus()
+}
+
+// The filters of the columns: one button each in the filter bar, one chip each for the active ones (what cannot be read has none,
+// the page is empty then).
+const filterableColumns = computed(() => columns.value.filter((column) => filterType(column)))
+const filterStates = computed(() => columnFilters(query.value, columns.value))
+const filterOf = (columnId: string) =>
+  filterStates.value.find(({ column }) => column.id === columnId)?.filter ?? null
+const chips = computed(() => [
+  ...(hasTags.value ? [{ id: 'tags', name: 'Kennung', text: `Kennung: ${query.value.tags}` }] : []),
+  ...filterStates.value.flatMap(({ column, filter }) => (filter ? [chipOf(column, filter)] : [])),
+])
+function setColumnFilter(columnId: string, filter: ColumnFilter | null, replace: boolean) {
+  const filters = { ...query.value.filters }
+  if (filter) filters[columnId] = writeFilter(filter)
+  else delete filters[columnId]
+  const next = { query: writeQuery({ ...query.value, filters }) }
+  return replace ? router.replace(next) : router.push(next)
+}
+
+const { openId, setOpen, openFilter, focusAfterRemove } = useFilterBar(tagsField)
+async function removeFilter(id: string) {
+  const ids = chips.value.map((chip) => chip.id)
+  if (id === 'tags') {
+    resetTagsInput()
+    await setTags('', false)
+  } else await setColumnFilter(id, null, false)
+  focusAfterRemove(ids, id)
 }
 </script>
 
@@ -125,7 +158,7 @@ function resetFromBar() {
         <h1 class="text-3xl font-bold">Stämme</h1>
         <p class="mt-2 text-mute">Eine Spalte je Merkmal, Reihenfolge wie in der App.</p>
 
-        <form class="mt-6 flex flex-wrap items-end justify-between gap-x-4 gap-y-3" @submit.prevent>
+        <form class="mt-6 flex flex-wrap items-end gap-x-3 gap-y-3" @submit.prevent>
           <div class="flex max-w-sm min-w-48 flex-1 flex-col text-sm text-mute">
             <label for="stems-tags">Kennung</label>
             <span class="relative flex">
@@ -138,7 +171,7 @@ function resetFromBar() {
                 autocomplete="off"
                 placeholder="z. B. 104 oder 100-120"
                 class="mt-1 h-11 w-full rounded-lg border-2 px-3 pr-11 text-base text-ink placeholder:text-dim focus:bg-paper"
-                :class="hasFilter ? 'border-ink bg-paper' : 'border-dim bg-transparent'"
+                :class="hasTags ? 'border-ink bg-paper' : 'border-dim bg-transparent'"
                 @input="onTagsInput"
                 @keydown.enter="applyTagsNow"
                 @change="applyTagsNow"
@@ -156,18 +189,25 @@ function resetFromBar() {
               </button>
             </span>
           </div>
-          <!-- A group, so that the filters of the other columns can join it -->
-          <div class="flex items-center gap-2">
-            <button
-              type="button"
-              class="flex h-11 items-center gap-2 rounded-lg px-2 text-base whitespace-nowrap text-ink underline enabled:active:bg-ink enabled:active:text-paper disabled:text-dim disabled:no-underline"
-              :disabled="!hasFilter"
-              @click="resetFromBar"
-            >
-              <XIcon :size="18" aria-hidden="true" />
-              Filter zurücksetzen
-            </button>
-          </div>
+          <ColumnFilterButton
+            v-for="column in filterableColumns"
+            :key="column.id"
+            :column="column"
+            :filter="filterOf(column.id)"
+            :rows="allRows"
+            :open="openId === column.id"
+            @update:open="setOpen(column.id, $event)"
+            @change="(filter, replace) => setColumnFilter(column.id, filter, replace)"
+          />
+          <button
+            type="button"
+            class="flex h-11 items-center gap-2 rounded-lg px-2 text-base whitespace-nowrap text-ink underline enabled:active:bg-ink enabled:active:text-paper disabled:text-dim disabled:no-underline"
+            :disabled="!hasFilter"
+            @click="resetFromBar"
+          >
+            <XIcon :size="18" aria-hidden="true" />
+            Filter zurücksetzen
+          </button>
         </form>
 
         <LoadFailure v-if="status === 'error'" :failure="failure" @retry="load" />
@@ -213,15 +253,14 @@ function resetFromBar() {
     </div>
 
     <template v-if="showTable">
-      <!-- Sticky below the header (from lg on, below it the header scrolls away) and above the table and its fixed column (z-20), below the header (z-50).
-           Its padding (8 px) is taken from the gaps around it, so that the page looks as before at the top. min-h-15 = 44 px + padding,
-           so that the row does not grow when the arrows appear. -->
-      <div
-        ref="bar"
-        class="sticky top-0 left-0 z-20 mt-4 w-[100cqw] bg-desk lg:top-[var(--header-height,0px)]"
+      <ResultsBar
+        class="mt-4"
+        :text="stemsText(rows.length, allRows.length, hasFilter)"
+        :chips="chips"
+        @open="openFilter"
+        @remove="removeFilter"
       >
-        <div class="page-column flex min-h-15 items-center justify-between gap-4 py-2">
-          <p class="text-lg font-bold">{{ stemsText(rows.length, allRows.length, hasFilter) }}</p>
+        <template #end>
           <!-- Only for a table that does not fit; an arrow is disabled where there is nothing more to see -->
           <div v-if="canScrollLeft || canScrollRight" class="flex gap-2">
             <button
@@ -243,8 +282,8 @@ function resetFromBar() {
               <ChevronRightIcon :size="22" aria-hidden="true" />
             </button>
           </div>
-        </div>
-      </div>
+        </template>
+      </ResultsBar>
 
       <!-- The card around the table is as wide as its content, but at least as wide as the content of the page column, and centered in the window
            (auto margins). Wider than the window, it starts at the left edge, the page scrolls sideways and it ends flush with the right edge.

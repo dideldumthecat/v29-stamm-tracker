@@ -1,6 +1,6 @@
 import { onBeforeUnmount, ref, watch, type Ref } from 'vue'
 
-import { isReadableTags } from '@/activity'
+import { isReadableTags } from '@/listFilters'
 
 // "Kennung" searches while typing. The field keeps its own text (the URL would round it, and the field must not be
 // re-rendered under the typing hand); the URL stays the only source of the filter and the field follows it.
@@ -9,13 +9,16 @@ const AUTO_SEARCH_DELAY = 500
 /**
  * The behaviour of the "Kennung" field of every list: `current` is the filter in the URL, `apply` writes a new one
  * (as `router.replace` if `replace` is set, otherwise as `router.push`), `field` is the input element.
+ * `readable` says which input is complete enough to search while typing; the text fields of the filters in the
+ * pop-ups (`FilterField`) use this too, with their own rule.
  */
 export function useTagsField(options: {
   current: () => string
   apply: (tags: string, replace: boolean) => void
   field: Ref<HTMLInputElement | null>
+  readable?: (text: string) => boolean
 }) {
-  const { current, apply, field } = options
+  const { current, apply, field, readable = isReadableTags } = options
   const tagsInput = ref(current())
   let timer: ReturnType<typeof setTimeout> | undefined
   function cancelTagsTimer() {
@@ -28,7 +31,7 @@ export function useTagsField(options: {
     if (!text) return apply('', false)
     // Only complete input is sent on its own; "100-" waits for Enter or leaving the field. A pause is a replace,
     // so that searching does not fill the browser history; the first filter after "none" is a step of its own.
-    if (!isReadableTags(text)) return
+    if (!readable(text)) return
     timer = setTimeout(() => {
       timer = undefined
       apply(text, current() !== '')

@@ -1,13 +1,24 @@
 import type { LocationQueryRaw } from 'vue-router'
 import { bySortOrder } from '@v29/shared/attributes'
-import type { Attribute, Snapshot, TimberItem } from '@v29/shared/contract'
+import type { Attribute, ItemKind, Snapshot, TimberItem } from '@v29/shared/contract'
 
-import { countText, formatCount, formatDayMonthUnlessThisYear, parseTagRanges } from '@/activity'
+import { dayKey, formatDayMonthUnlessThisYear } from '@/activity'
 import { formatRecorded, latestOwnRecord } from '@/detail'
+import {
+  countText,
+  filterType,
+  formatCount,
+  matchesFilter,
+  readFilter,
+  tagFilter,
+  type ColumnFilter,
+  type RowFilter,
+} from '@/listFilters'
 
 /**
- * Pure logic of the stem list: columns from the attributes, rows from the snapshot, cell values, sorting, filters and
- * the URL. Nothing here knows an attribute by name or key: columns and cells follow type and definition.
+ * Pure logic of the list of stems (and, with `kind` "beam", of beams): columns from the attributes, rows from the snapshot, cell values,
+ * sorting and the URL. Nothing here knows an attribute by name or key: columns and cells follow type and definition. The filters
+ * and their texts are in `listFilters.ts`.
  */
 
 /** `id` is what `sort` in the URL holds: "tag", "beams", "changed" or the id of the attribute. */
@@ -28,6 +39,8 @@ export interface RawRow {
   beams: number
   /** Latest own recording, otherwise the creation: same rule as the detail view. */
   changed: string
+  /** The German calendar day of `changed`, "2026-10-31". */
+  changedDay: string
   /** Name of the person behind `changed`; undefined if the snapshot does not know them. */
   changedBy: string | undefined
 }
@@ -37,12 +50,21 @@ export interface Row extends RawRow {
   cells: Record<string, Cell>
 }
 
-/** Stem, one column per active attribute of stems (V29 order), beams, last change. */
-export function buildColumns(attributes: Attribute[]): Column[] {
+/**
+ * Tag, one column per active attribute of the kind (V29 order), for stems the number of beams, last change.
+ * The first column is called "Stamm" or "Balken" like the kind; a stem list shows no column for beams of beams.
+ */
+export function buildColumns(attributes: Attribute[], kind: ItemKind): Column[] {
   return [
-    { id: 'tag', kind: 'tag', label: 'Stamm', align: 'left', wraps: false },
+    {
+      id: 'tag',
+      kind: 'tag',
+      label: kind === 'stem' ? 'Stamm' : 'Balken',
+      align: 'left',
+      wraps: false,
+    },
     ...attributes
-      .filter((attribute) => attribute.active && attribute.applies_to.includes('stem'))
+      .filter((attribute) => attribute.active && attribute.applies_to.includes(kind))
       .sort(bySortOrder)
       .map((attribute): Column => ({
         id: attribute.id,
@@ -52,17 +74,20 @@ export function buildColumns(attributes: Attribute[]): Column[] {
         align: attribute.type === 'number' || attribute.type === 'photo' ? 'right' : 'left',
         wraps: attribute.type === 'text' || attribute.type === 'choice',
       })),
-    { id: 'beams', kind: 'beams', label: 'Balken', align: 'right', wraps: false },
+    ...(kind === 'stem'
+      ? [{ id: 'beams', kind: 'beams', label: 'Balken', align: 'right', wraps: false } as Column]
+      : []),
     { id: 'changed', kind: 'changed', label: 'Geändert', align: 'left', wraps: false },
   ]
 }
 
-/** One row per stem, with its cells; beams are no rows, they only count. */
+/** One row per stem (or per beam), with its cells; in a list of stems the beams are no rows, they only count. */
 export function buildRows(
   snapshot: Snapshot,
-  columns: Column[] = buildColumns(snapshot.attributes),
+  kind: ItemKind,
+  columns: Column[] = buildColumns(snapshot.attributes, kind),
 ): Row[] {
-  return withCells(rawRows(snapshot), columns)
+  return withCells(rawRows(snapshot, kind), columns)
 }
 
 /** The rows with the value of every cell. */
@@ -73,21 +98,23 @@ export function withCells(rows: RawRow[], columns: Column[]): Row[] {
   }))
 }
 
-function rawRows(snapshot: Snapshot): RawRow[] {
+function rawRows(snapshot: Snapshot, kind: ItemKind): RawRow[] {
   const beams = new Map<string, number>()
   for (const item of snapshot.timber_items) {
     if (item.parent_id) beams.set(item.parent_id, (beams.get(item.parent_id) ?? 0) + 1)
   }
   return snapshot.timber_items
-    .filter((item) => item.parent_id === null)
+    .filter((item) => (item.parent_id === null) === (kind === 'stem'))
     .map((item) => {
       // Like the detail view: the person of the latest own recording, without one the person who created the stem
       const last = latestOwnRecord(item, undefined, snapshot.attributes)
       const userId = last?.user_id ?? item.created_by
+      const changed = last?.recorded_at ?? item.created_at
       return {
         item,
         beams: beams.get(item.id) ?? 0,
-        changed: last?.recorded_at ?? item.created_at,
+        changed,
+        changedDay: dayKey(changed),
         changedBy: snapshot.users.find((user) => user.id === userId)?.name,
       }
     })
@@ -169,30 +196,29 @@ export function sortRows(rows: Row[], column: Column, dir: 'asc' | 'desc'): Row[
   })
 }
 
-/** A filter keeps the rows it returns true for; all filters of a list must hold (step 2 adds one per column). */
-export type RowFilter = (row: Row) => boolean
-
-export const applyFilters = (rows: Row[], filters: RowFilter[]) =>
-  rows.filter((row) => filters.every((filter) => filter(row)))
-
-/** The filter of the "Kennung" field; null if the text is not readable. */
-export function tagFilter(text: string): RowFilter | null {
-  const ranges = parseTagRanges(text)
-  if (!ranges) return null
-  return ({ item }) => {
-    if (item.tag_number === null) return false
-    const number = Number.parseInt(item.tag_number)
-    return ranges.some(([from, to]) => number >= from && number <= to)
-  }
+/** The column filters of the URL in column order; `filter` is null for one that cannot be read. */
+export function columnFilters(
+  query: ListQuery,
+  columns: Column[],
+): { column: Column; filter: ColumnFilter | null }[] {
+  return columns.flatMap((column) => {
+    const type = filterType(column)
+    const text = query.filters[column.id]
+    return type && text ? [{ column, filter: readFilter(type, text) }] : []
+  })
 }
 
-/** The filters the URL asks for; null if one of them cannot be read. */
-export function filtersFor(query: ListQuery): RowFilter[] | null {
+/** The filters the URL asks for (the "Kennung" and the columns); null if one of them cannot be read. */
+export function filtersFor(query: ListQuery, columns: Column[]): RowFilter[] | null {
   const filters: RowFilter[] = []
   if (query.tags) {
     const filter = tagFilter(query.tags)
     if (!filter) return null
     filters.push(filter)
+  }
+  for (const { column, filter } of columnFilters(query, columns)) {
+    if (!filter) return null
+    filters.push((row) => matchesFilter(row, column, filter))
   }
   return filters
 }
@@ -201,28 +227,39 @@ export function filtersFor(query: ListQuery): RowFilter[] | null {
 export const stemsText = (shown: number, total: number, filtered: boolean) =>
   countText(shown, total, filtered, ['Stamm', 'Stämme', 'Stämmen'])
 
-/** The state of the list as the URL holds it: `tags` and `sort` (a column id) with `dir`. */
+/**
+ * The state of the list as the URL holds it: `tags`, the column filters as written by `writeFilter` (`f.<column id>`, here by column id)
+ * and `sort` (a column id) with `dir`.
+ */
 export interface ListQuery {
   tags: string
+  filters: Record<string, string>
   sort: string
   dir: 'asc' | 'desc'
 }
 
-/** Reads the URL; a `sort` that is no column is ignored. */
+/** Reads the URL; a `sort` or filter of a column that does not exist (any more) is ignored. */
 export function readQuery(query: LocationQueryRaw, columns: Column[]): ListQuery {
   const first = (name: string) => String([query[name]].flat()[0] ?? '')
   const sort = first('sort')
+  const filters: Record<string, string> = {}
+  for (const column of columns) {
+    const text = first(`f.${column.id}`).trim()
+    if (text && filterType(column)) filters[column.id] = text
+  }
   return {
     tags: first('tags').trim(),
+    filters,
     sort: columns.some((column) => column.id === sort) ? sort : 'tag',
     dir: first('dir') === 'desc' ? 'desc' : 'asc',
   }
 }
 
 /** The URL of a state: what is the default (all stems, by tag, ascending) is left out. */
-export function writeQuery({ tags, sort, dir }: ListQuery): LocationQueryRaw {
+export function writeQuery({ tags, filters, sort, dir }: ListQuery): LocationQueryRaw {
   const query: LocationQueryRaw = {}
   if (tags) query.tags = tags
+  for (const [id, text] of Object.entries(filters)) query[`f.${id}`] = text
   if (sort !== 'tag') query.sort = sort
   if (dir === 'desc') query.dir = 'desc'
   return query

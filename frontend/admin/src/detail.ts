@@ -8,7 +8,8 @@ import type {
 import { bySortOrder, formatValue, isInheritedValue } from '@v29/shared/attributes'
 import { formatTag } from '@v29/shared/tag'
 
-import { MAX_TAG_NUMBER, formatDayMonthUnlessThisYear, sameDay, yearOf } from '@/activity'
+import { formatDayMonthUnlessThisYear, sameDay, yearOf } from '@/activity'
+import { MAX_TAG_NUMBER } from '@/listFilters'
 
 /** "00104" → "104", "104-c" → "104-C"; null if it is no tag within the plaque range. */
 export function normalizeTag(param: string): string | null {
@@ -95,11 +96,7 @@ export function splitValues(
       // A series lists every recording, newest first; anything else holds just its current value.
       // A beam does not show the stem's notes (text series), only its own.
       const hidden = inherited && attribute.type === 'text' && attribute.is_series
-      const shown = hidden
-        ? []
-        : attribute.is_series
-          ? [...records].reverse()
-          : records.slice(-1)
+      const shown = hidden ? [] : attribute.is_series ? [...records].reverse() : records.slice(-1)
       rows.push({
         id: attribute.id,
         name: attribute.name,

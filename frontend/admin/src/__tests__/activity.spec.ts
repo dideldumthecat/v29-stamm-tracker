@@ -3,11 +3,11 @@ import type { ActivityEntry, ActivityItem } from '@v29/shared/contract'
 
 import {
   completeDays,
+  describePeriod,
   detailRows,
   entriesText,
   formatRecordedTime,
   groupByDay,
-  isReadableTags,
   summarize,
 } from '@/activity'
 import { activityFixture } from './fakeActivity'
@@ -249,27 +249,6 @@ describe('recorded times against the arrival day', () => {
     expect(formatRecordedTime('2026-11-07T22:30:00Z', '2026-11-07T23:30:00.000Z')).toBe(
       '07.11. 23:30',
     )
-  })
-})
-
-describe('isReadableTags', () => {
-  it('accepts what the server reads: numbers, ranges, lists, "all", blanks and zeros around', () => {
-    for (const text of [
-      '104',
-      ' 104 ',
-      '0104',
-      '100-130',
-      '100 - 130',
-      '1-10,15,20-25',
-      '1999',
-      'all',
-    ])
-      expect({ text, ok: isReadableTags(text) }).toEqual({ text, ok: true })
-  })
-
-  it('refuses what is incomplete or out of range', () => {
-    for (const text of ['', '100-', '-5', 'abc', '0', '2000', '130-100', '1,,2', '1-10,', '10 5'])
-      expect({ text, ok: isReadableTags(text) }).toEqual({ text, ok: false })
   })
 })
 

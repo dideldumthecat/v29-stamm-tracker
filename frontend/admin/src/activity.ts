@@ -1,8 +1,9 @@
 import type { ActivityEntry, ActivityItem } from '@v29/shared/contract'
 
+import { countText, plural } from '@/listFilters'
+
 // All times are shown in German time, whatever the browser's time zone is.
 const TIME_ZONE = 'Europe/Berlin'
-const number = new Intl.NumberFormat('de-DE')
 const timeFormat = new Intl.DateTimeFormat('de-DE', {
   timeZone: TIME_ZONE,
   hour: '2-digit',
@@ -41,6 +42,9 @@ export function formatDayMonth(timestamp: string): string {
   const { day, month } = dayParts(timestamp)
   return `${day}.${month}.`
 }
+
+/** The German calendar day of a timestamp as "2026-10-31": what the day filters compare with. */
+export const dayKey = (timestamp: string) => dayParts(timestamp).key
 
 /** The German calendar year of a timestamp. */
 export const yearOf = (timestamp: string) => Number(dayParts(timestamp).year)
@@ -103,26 +107,7 @@ export function groupByDay(entries: ActivityEntry[]): Day[] {
  */
 export const completeDays = (days: Day[], hasMore: boolean) => (hasMore ? days.slice(0, -1) : days)
 
-export const formatCount = (n: number) => number.format(n)
-
-export const plural = (n: number, one: string, many: string) =>
-  `${formatCount(n)} ${n === 1 ? one : many}`
-
 export const eventsText = (n: number) => plural(n, 'Ereignis', 'Ereignisse')
-
-/**
- * "130 Stämme"; with a filter "34 von 130 Stämmen". The count after "von" is in the dative (`manyAfterVon`), which
- * differs from the plural for "Stämme" and "Einträge". Without a filter, `total` is the count.
- */
-export const countText = (
-  shown: number,
-  total: number,
-  filtered: boolean,
-  [one, many, manyAfterVon]: [string, string, string],
-) =>
-  filtered
-    ? `${formatCount(shown)} von ${plural(total, one, manyAfterVon)}`
-    : plural(total, one, many)
 
 /** "248 Einträge", with a filter "12 von 248 Einträgen". */
 export const entriesText = (shown: number, total: number, filtered: boolean) =>
@@ -221,26 +206,3 @@ export function detailRows(item: ActivityItem) {
         : row.value,
   }))
 }
-
-export const MAX_TAG_NUMBER = 1999
-
-/**
- * The ranges of a "Kennung" filter as the server reads it, the same rule as `StemSelection::parseRange` in the backend
- * ("all", or parts like 104 and 100-120 joined by commas, numbers 1 to 1999, blanks around parts ignored); null if it is not readable.
- */
-export function parseTagRanges(text: string): [number, number][] | null {
-  if (text.trim() === 'all') return [[1, MAX_TAG_NUMBER]]
-  const ranges: [number, number][] = []
-  for (const part of text.split(',')) {
-    const match = /^\s*0*(\d+)\s*(?:-\s*0*(\d+)\s*)?$/.exec(part)
-    if (!match) return null
-    const from = Number(match[1])
-    const to = Number(match[2] ?? match[1])
-    if (from < 1 || from > to || to > MAX_TAG_NUMBER) return null
-    ranges.push([from, to])
-  }
-  return ranges
-}
-
-/** Whether the server would read this "Kennung" filter. Used to search while typing only for input that is complete. */
-export const isReadableTags = (text: string) => parseTagRanges(text) !== null

@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Attribute } from '@v29/shared/contract'
 
+import { applyFilters, tagFilter } from '@/listFilters'
 import {
-  applyFilters,
   buildColumns,
   buildRows,
   cellOf,
@@ -13,7 +13,6 @@ import {
   sortBy,
   sortRows,
   stemsText,
-  tagFilter,
   withCells,
   writeQuery,
   type Column,
@@ -27,8 +26,8 @@ beforeEach(() => vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-11-09T
 afterEach(() => vi.useRealTimers())
 
 const { attributes } = snapshotFixture
-const columns = buildColumns(attributes)
-const rows = buildRows(snapshotFixture)
+const columns = buildColumns(attributes, 'stem')
+const rows = buildRows(snapshotFixture, 'stem')
 const column = (label: string) => columns.find((candidate) => candidate.label === label)!
 const row = (tag: string | null) => rows.find((candidate) => candidate.item.tag_number === tag)!
 const tags = (list: Row[]) => list.map((candidate) => candidate.item.tag_number)
@@ -61,7 +60,7 @@ describe('buildColumns', () => {
       sort_order: 5,
       options: [],
     }
-    const labels = buildColumns([...attributes, extra]).map((candidate) => candidate.label)
+    const labels = buildColumns([...attributes, extra], 'stem').map((candidate) => candidate.label)
     expect(labels).not.toContain('Sortierklasse')
     expect(labels).not.toContain('Entlastungsschnitt')
     expect(labels[1]).toBe('Etwas Neues')
@@ -132,7 +131,7 @@ describe('"Geändert" cell', () => {
   })
 
   it('has only the date for a person the snapshot does not know, and still sorts by date', () => {
-    const unknown = buildRows({ ...snapshotFixture, users: [] })
+    const unknown = buildRows({ ...snapshotFixture, users: [] }, 'stem')
     expect(unknown.map((candidate) => cellOf(candidate, column('Geändert')).by)).toEqual([
       undefined,
       undefined,
@@ -194,6 +193,7 @@ describe('sortRows', () => {
       },
       beams: 0,
       changed: '2026-10-31T10:00:00.000Z',
+      changedDay: '2026-10-31',
       changedBy: undefined,
     })
     const list = withCells([make('Zebra', '1'), make('Äpfel', '2'), make('apfel', '3')], columns)
@@ -214,8 +214,9 @@ describe('sortRows', () => {
 })
 
 describe('filters', () => {
-  const filtered = (text: string) => tags(applyFilters(rows, filtersFor({ ...query, tags: text })!))
-  const query = { tags: '', sort: 'tag', dir: 'asc' as const }
+  const filtered = (text: string) =>
+    tags(applyFilters(rows, filtersFor({ ...query, tags: text }, columns)!))
+  const query = { tags: '', filters: {}, sort: 'tag', dir: 'asc' as const }
 
   it('matches a number, a range and several parts; stems without a tag never', () => {
     expect(filtered('104')).toEqual(['104'])
@@ -226,10 +227,10 @@ describe('filters', () => {
   })
 
   it('has no filter without text and refuses text it cannot read', () => {
-    expect(filtersFor(query)).toEqual([])
+    expect(filtersFor(query, columns)).toEqual([])
     expect(tagFilter('abc')).toBeNull()
-    expect(filtersFor({ ...query, tags: '100-' })).toBeNull()
-    expect(filtersFor({ ...query, tags: '2000' })).toBeNull()
+    expect(filtersFor({ ...query, tags: '100-' }, columns)).toBeNull()
+    expect(filtersFor({ ...query, tags: '2000' }, columns)).toBeNull()
   })
 
   it('keeps only rows that pass every filter', () => {
@@ -254,14 +255,16 @@ describe('URL', () => {
   const holzart = column('Holzart').id
 
   it('reads tags, sort and direction, and ignores a sort that is no column', () => {
-    expect(readQuery({}, columnIds)).toEqual({ tags: '', sort: 'tag', dir: 'asc' })
+    expect(readQuery({}, columnIds)).toEqual({ tags: '', filters: {}, sort: 'tag', dir: 'asc' })
     expect(readQuery({ tags: ' 100-120 ', sort: holzart, dir: 'desc' }, columnIds)).toEqual({
       tags: '100-120',
+      filters: {},
       sort: holzart,
       dir: 'desc',
     })
     expect(readQuery({ sort: 'x', dir: 'up', tags: null }, columnIds)).toEqual({
       tags: '',
+      filters: {},
       sort: 'tag',
       dir: 'asc',
     })
@@ -269,26 +272,27 @@ describe('URL', () => {
   })
 
   it('writes only what is not the default, and reads back what it wrote', () => {
-    expect(writeQuery({ tags: '', sort: 'tag', dir: 'asc' })).toEqual({})
-    expect(writeQuery({ tags: '104', sort: 'beams', dir: 'desc' })).toEqual({
+    expect(writeQuery({ tags: '', filters: {}, sort: 'tag', dir: 'asc' })).toEqual({})
+    expect(writeQuery({ tags: '104', filters: {}, sort: 'beams', dir: 'desc' })).toEqual({
       tags: '104',
       sort: 'beams',
       dir: 'desc',
     })
     for (const state of [
-      { tags: '1-10,15', sort: holzart, dir: 'asc' as const },
-      { tags: '', sort: 'tag', dir: 'desc' as const },
+      { tags: '1-10,15', filters: {}, sort: holzart, dir: 'asc' as const },
+      { tags: '', filters: {}, sort: 'tag', dir: 'desc' as const },
     ]) {
       expect(readQuery(writeQuery(state), columnIds)).toEqual(state)
     }
   })
 
   it('flips the direction on the same column, starts ascending on another', () => {
-    const state = { tags: '104', sort: 'tag', dir: 'asc' as const }
+    const state = { tags: '104', filters: {}, sort: 'tag', dir: 'asc' as const }
     expect(sortBy(state, 'tag')).toEqual({ ...state, dir: 'desc' })
     expect(sortBy({ ...state, dir: 'desc' }, 'tag').dir).toBe('asc')
     expect(sortBy({ ...state, dir: 'desc' }, 'beams')).toEqual({
       tags: '104',
+      filters: {},
       sort: 'beams',
       dir: 'asc',
     })
