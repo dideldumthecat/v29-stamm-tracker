@@ -116,9 +116,10 @@ function resetFilter() {
   resetTagsInput()
   void router.push({ query: writeQuery({ ...query.value, tags: '', filters: {} }) })
 }
+// The focus goes to the field, but the page stays where it is (the button is in the bar, the field far above after scrolling)
 function resetFromBar() {
   resetFilter()
-  tagsField.value?.focus()
+  tagsField.value?.focus({ preventScroll: true })
 }
 
 // The filters of the columns: one button each in the filter bar, one chip each for the active ones (what cannot be read has none,
@@ -202,18 +203,6 @@ async function removeFilter(id: string) {
               @change="(filter, replace) => setColumnFilter(column.id, filter, replace)"
             />
           </div>
-          <!-- On a row of its own at the right edge of the column -->
-          <div class="mt-3 flex justify-end">
-            <button
-              type="button"
-              class="flex h-11 items-center gap-2 rounded-lg px-2 text-base whitespace-nowrap text-ink underline enabled:active:bg-ink enabled:active:text-paper disabled:text-dim disabled:no-underline"
-              :disabled="!hasFilter"
-              @click="resetFromBar"
-            >
-              <XIcon :size="18" aria-hidden="true" />
-              Filter zurücksetzen
-            </button>
-          </div>
         </form>
       </div>
     </div>
@@ -224,7 +213,9 @@ async function removeFilter(id: string) {
       class="mt-4"
       :text="stemsText(rows.length, allRows.length, hasFilter)"
       :chips="chips"
+      :can-reset="hasFilter"
       @open="openFilter"
+      @reset="resetFromBar"
       @remove="removeFilter"
     >
       <template #end>
@@ -285,14 +276,6 @@ async function removeFilter(id: string) {
             <TreesIcon :size="96" :stroke-width="1.5" class="text-ink" aria-hidden="true" />
           </template>
           <template #text> Keine Ergebnisse weit und breit gefunden. </template>
-          <button
-            v-if="hasFilter"
-            type="button"
-            class="mt-2 h-11 rounded-lg border-2 border-ink px-4 font-bold"
-            @click="resetFilter"
-          >
-            Filter zurücksetzen
-          </button>
         </StatusCard>
       </div>
     </div>

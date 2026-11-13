@@ -4,6 +4,7 @@ import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
 import ColumnFilterButton from '@/components/ColumnFilterButton.vue'
 import FilterButton from '@/components/FilterButton.vue'
 import FilterChips from '@/components/FilterChips.vue'
+import FilterRange from '@/components/FilterRange.vue'
 import FilterText from '@/components/FilterText.vue'
 import ResultsBar from '@/components/ResultsBar.vue'
 import { buildColumns, buildRows } from '@/stemlist'
@@ -49,26 +50,44 @@ describe('FilterChips', () => {
 })
 
 describe('ResultsBar', () => {
-  it('has the count first, then the chips, and the slot at the right; it passes the events of the chips on', async () => {
+  it('has the count, the chips, the button and the slot in a row; it passes the events on', async () => {
     const wrapper = mount(ResultsBar, {
-      props: { text: '12 von 130 Stämmen', chips },
+      props: { text: '12 von 130 Stämmen', chips, canReset: true },
       slots: { end: '<button>Pfeile</button>' },
     })
-    const [text, ...rest] = wrapper.get('.page-column').element.firstElementChild!.children
+    const [text, middle, actions] = wrapper.get('.page-column').element.children
     expect(text.textContent).toBe('12 von 130 Stämmen')
-    expect(rest[0].getAttribute('aria-label')).toBe('Aktive Filter')
-    expect(wrapper.get('.page-column').element.lastElementChild!.textContent).toBe('Pfeile')
-    // it wraps instead of cutting chips off
-    expect(wrapper.get('.page-column > div').classes()).toContain('flex-wrap')
+    expect(middle.querySelector('ul')!.getAttribute('aria-label')).toBe('Aktive Filter')
+    // the button, then the arrows, at the right
+    expect([...actions.querySelectorAll('button')].map((b) => b.textContent!.trim())).toEqual([
+      'Filter zurücksetzen',
+      'Pfeile',
+    ])
+    // the chips wrap: two lines of 26 px with a 4 px gap fit into the 60 px of the bar
+    expect(wrapper.get('ul').classes()).toEqual(expect.arrayContaining(['flex-wrap', 'gap-y-1']))
+    expect(wrapper.get('.page-column').classes()).toEqual(
+      expect.arrayContaining(['min-h-15', 'py-0.5']),
+    )
 
     await wrapper.get('[data-chip="a"]').trigger('click')
     await wrapper.get('button[aria-label="Filter Kennung entfernen"]').trigger('click')
+    await wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Filter zurücksetzen')!
+      .trigger('click')
     expect(wrapper.emitted('open')).toEqual([['a']])
     expect(wrapper.emitted('remove')).toEqual([['tags']])
+    expect(wrapper.emitted('reset')).toHaveLength(1)
+  })
+
+  it('has no button without a filter, not even a greyed-out one', () => {
+    const wrapper = mount(ResultsBar, { props: { text: '4 Stämme', chips: [], canReset: false } })
+    expect(wrapper.text()).not.toContain('Filter zurücksetzen')
+    expect(wrapper.find('button').exists()).toBe(false)
   })
 
   it('leaves out the count when there is no text yet (an answer 400 on the first page)', () => {
-    const wrapper = mount(ResultsBar, { props: { text: '', chips } })
+    const wrapper = mount(ResultsBar, { props: { text: '', chips, canReset: false } })
     expect(wrapper.find('p').exists()).toBe(false)
     expect(wrapper.findAll('li')).toHaveLength(2)
   })

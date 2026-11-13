@@ -47,11 +47,9 @@ const typeTags = (wrapper: Wrapper, text: string) => {
   tagsField(wrapper).element.value = text
   return tagsField(wrapper).trigger('input')
 }
+// "Filter zurücksetzen" is in the results bar, and only there while a filter is set; undefined otherwise
 const resetLink = (wrapper: Wrapper) =>
-  wrapper
-    .get('form')
-    .findAll('button')
-    .find((b) => b.text() === 'Filter zurücksetzen')!
+  wrapper.findAll('button').find((b) => b.text() === 'Filter zurücksetzen')!
 // The filters "Zeitraum" and "Person" live in pop-ups. setValue also sends "change", which applies at once.
 const openPopup = async (id: string) => {
   // A person first leaves the open one: the click outside closes it before the click on the next button
@@ -435,22 +433,18 @@ describe('activity page', () => {
   })
 
   describe('without entries', () => {
-    // the one on the card, not the link in the filter bar
-    const resetButton = (wrapper: Wrapper) =>
-      wrapper
-        .get('[role=status]')
-        .findAll('button')
-        .find((b) => b.text() === 'Filter zurücksetzen')
-
-    it('shows "Waldesruh" and, with a filter, the button that clears it', async () => {
+    it('shows "Waldesruh" and, with a filter, the button of the bar that clears it, and only that one', async () => {
       const { api, router, wrapper } = await open('/aktivitaet?tags=999&from=2026-10-31')
       expect(wrapper.get('h2').text()).toBe('Waldesruh')
       expect(wrapper.text()).toContain('Keine Ergebnisse weit und breit gefunden.')
       expect(wrapper.find('svg[aria-hidden=true]').exists()).toBe(true)
-      expect(wrapper.text()).not.toContain('0 Einträge')
       expect(wrapper.text()).not.toContain('Ältere laden')
+      expect(
+        wrapper.findAll('button').filter((b) => b.text() === 'Filter zurücksetzen'),
+      ).toHaveLength(1)
+      expect(wrapper.get('[role=status]').find('button').exists()).toBe(false)
 
-      await resetButton(wrapper)!.trigger('click')
+      await resetLink(wrapper).trigger('click')
       await flushPromises()
 
       expect(router.currentRoute.value.query).toEqual({})
@@ -463,7 +457,7 @@ describe('activity page', () => {
       // a page size of 0 makes the fake answer "no entries" without any filter
       const { wrapper } = await open('/aktivitaet', { pageSize: 0 })
       expect(wrapper.text()).toContain('Waldesruh')
-      expect(resetButton(wrapper)).toBeUndefined()
+      expect(resetLink(wrapper)).toBeUndefined()
     })
   })
 
@@ -509,15 +503,17 @@ describe('activity page', () => {
     expect(wrapper.text()).toContain('6 Einträge')
   })
 
-  describe('the link "Filter zurücksetzen" in the filter bar', () => {
-    it('is always shown, but disabled without a filter in the URL', async () => {
+  describe('the button "Filter zurücksetzen" in the results bar', () => {
+    it('is only there while a filter is set in the URL, in the bar and not in the filter bar', async () => {
       const { wrapper } = await open()
-      expect(resetLink(wrapper).attributes('disabled')).toBeDefined()
+      expect(resetLink(wrapper)).toBeUndefined()
 
-      for (const filter of ['from=2026-10-31', 'to=2026-11-03', 'user=abc', 'tags=128']) {
+      for (const filter of ['from=2026-10-31', 'to=2026-11-03', 'tags=128']) {
         const { wrapper: filtered } = await open(`/aktivitaet?${filter}`)
-        expect(resetLink(filtered).attributes('disabled')).toBeUndefined()
         expect(resetLink(filtered).attributes('type')).toBe('button')
+        expect(resetLink(filtered).attributes('disabled')).toBeUndefined()
+        expect(filtered.get('form').text()).not.toContain('Filter zurücksetzen')
+        expect(resetLink(filtered).element.closest('main > div.sticky')).not.toBeNull()
       }
     })
 
@@ -755,14 +751,6 @@ describe('activity page', () => {
     expect(wrapper.text()).toContain('104-A')
     expect(wrapper.findAll('article a').map((link) => link.text())).toEqual(['00104-A'])
     expect(tagsField(wrapper).attributes('placeholder')).toBe('z. B. 104, 100-120 oder 104-A')
-  })
-
-  it('puts "Filter zurücksetzen" on a row of its own at the right edge of the filters', async () => {
-    const { wrapper } = await open()
-    const filters = wrapper.get('form > div')
-    expect(filters.element.contains(resetLink(wrapper).element)).toBe(false)
-    expect(resetLink(wrapper).element.parentElement!.className).toContain('justify-end')
-    expect(filters.findAll('button[data-filter]')).toHaveLength(2)
   })
 
   it('shows a rotating saw blade on a white card while loading, the filters stay', async () => {

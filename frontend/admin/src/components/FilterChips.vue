@@ -12,7 +12,11 @@ defineEmits<{ open: [id: string]; remove: [id: string] }>()
 </script>
 
 <template>
-  <ul v-if="chips.length" class="flex flex-wrap items-center gap-2" aria-label="Aktive Filter">
+  <ul
+    v-if="chips.length"
+    class="flex flex-wrap items-center gap-x-2 gap-y-1"
+    aria-label="Aktive Filter"
+  >
     <li
       v-for="chip in chips"
       :key="chip.id"

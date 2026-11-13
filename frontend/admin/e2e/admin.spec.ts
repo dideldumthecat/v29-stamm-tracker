@@ -337,7 +337,10 @@ test.describe('activity', () => {
     await expect(page.getByText('Keine Ergebnisse weit und breit gefunden.')).toBeVisible()
     await expect(page.getByRole('alert')).toHaveCount(0)
 
-    await page.getByRole('status').getByRole('button', { name: 'Filter zurücksetzen' }).click()
+    // the bar stays above it with the one button
+    await expect(page.getByRole('button', { name: 'Filter zurücksetzen' })).toHaveCount(1)
+    await expect(page.getByRole('status').getByRole('button')).toHaveCount(0)
+    await page.getByRole('button', { name: 'Filter zurücksetzen' }).click()
     await expect(page).not.toHaveURL(/tags=/)
     await expect(page.getByText('6 Einträge', { exact: true })).toBeVisible()
   })
@@ -456,19 +459,6 @@ test.describe('activity', () => {
     ).toBeVisible()
   })
 
-  test('puts "Filter zurücksetzen" on a row of its own at the right edge of the column', async ({
-    page,
-  }) => {
-    const link = page.getByRole('button', { name: 'Filter zurücksetzen' })
-    const filters = page.getByRole('button', { name: 'Zeitraum', exact: true })
-    const linkBox = (await link.boundingBox())!
-    const filterBox = (await filters.boundingBox())!
-    expect(linkBox.y).toBeGreaterThanOrEqual(filterBox.y + filterBox.height)
-    const form = (await page.locator('form').boundingBox())!
-    // right edge of the column: the text ends 8 px (inner padding of the link) before it at most
-    expect(form.x + form.width - (linkBox.x + linkBox.width)).toBeLessThanOrEqual(1)
-  })
-
   test('keeps the filter in the URL through a reload and the back button', async ({ page }) => {
     await page.getByLabel('Kennung', { exact: true }).fill('128')
     await page.getByLabel('Kennung', { exact: true }).press('Enter')
@@ -550,33 +540,36 @@ test.describe('activity', () => {
     await expect(page.getByRole('heading', { name: 'Waldesruh' })).toBeVisible()
     await expect(page.getByText('Keine Ergebnisse weit und breit gefunden.')).toBeVisible()
 
-    await page.getByRole('status').getByRole('button', { name: 'Filter zurücksetzen' }).click()
+    await page.getByRole('button', { name: 'Filter zurücksetzen' }).click()
     await expect(page).not.toHaveURL(/tags=/)
     await expect(page.getByText('6 Einträge', { exact: true })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Waldesruh' })).toHaveCount(0)
   })
 
-  test('the link in the filter bar resets all filters and is disabled without one', async ({
+  test('has "Filter zurücksetzen" at the right end of the results bar only while a filter is set', async ({
     page,
   }) => {
     const link = page.getByRole('button', { name: 'Filter zurücksetzen' })
-    const period = page.getByRole('button', { name: 'Zeitraum', exact: true })
-    const box = (await period.boundingBox())!
-    await expect(link).toBeVisible()
-    await expect(link).toBeDisabled()
+    await expect(link).toHaveCount(0)
 
     await page.getByLabel('Kennung', { exact: true }).fill('128')
     await page.getByLabel('Kennung', { exact: true }).press('Enter')
     await expect(page.getByText('1 von 6 Einträgen', { exact: true })).toBeVisible()
     await expect(link).toBeVisible()
-    expect(await period.boundingBox()).toEqual(box)
-    expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(44)
+    const bar = (await page.locator('main > div.sticky').boundingBox())!
+    const box = (await link.boundingBox())!
+    expect(box.height).toBeGreaterThanOrEqual(44)
+    // at the right edge of the column, in the bar
+    expect(box.y).toBeGreaterThanOrEqual(bar.y)
+    expect(box.y + box.height).toBeLessThanOrEqual(bar.y + bar.height)
+    expect(bar.x + bar.width - (box.x + box.width)).toBeGreaterThan(0)
+    await expect(page.locator('form').getByText('Filter zurücksetzen')).toHaveCount(0)
 
     await link.click()
     await expect(page).not.toHaveURL(/tags=/)
     await expect(page.getByText('6 Einträge', { exact: true })).toBeVisible()
     await expect(page.getByLabel('Kennung', { exact: true })).toBeFocused()
-    await expect(link).toBeDisabled()
+    await expect(link).toHaveCount(0)
   })
 
   test('keeps the text column narrow', async ({ page }) => {
@@ -854,9 +847,9 @@ test.describe('stem list', () => {
     const chips = page.getByRole('list', { name: 'Aktive Filter' })
     await expect(chips).toHaveCount(0)
 
-    // one button per filterable column behind the field "Kennung", "Filter zurücksetzen" last
+    // one button per filterable column behind the field "Kennung"; "Filter zurücksetzen" is not there without a filter
     const holzart = filterButton(page, 'Holzart')
-    await expect(bar(page).getByRole('button').last()).toHaveText('Filter zurücksetzen')
+    await expect(page.getByRole('button', { name: 'Filter zurücksetzen' })).toHaveCount(0)
     await expect(bar(page).getByRole('button', { name: 'Stamm' })).toHaveCount(0)
 
     await holzart.click()
@@ -986,16 +979,84 @@ test.describe('stem list', () => {
     await expect(popup.getByText('Nicht erfasst')).toHaveCount(0)
   })
 
-  test('puts "Filter zurücksetzen" on a row of its own at the right edge of the column', async ({
+  test('has "Filter zurücksetzen" in the results bar left of the arrows, clears everything and does not scroll the page', async ({
     page,
+    isMobile,
   }) => {
+    // eslint-disable-next-line playwright/no-skipped-test
+    test.skip(isMobile, 'a phone pans instead of scrolling the window, the arrows are not there')
+    await openLong(page, { width: 900, height: 700 })
+    const link = page.getByRole('button', { name: 'Filter zurücksetzen' })
+    await expect(link).toHaveCount(0)
+
+    // only stems come back that sort after the ones shown, so nothing above moves
+    await page.goto('/admin/staemme?tags=1-1999')
+    await expect(link).toBeVisible()
+    const arrows = (await page
+      .getByRole('button', { name: 'Tabelle nach rechts scrollen' })
+      .boundingBox())!
+    const box = (await link.boundingBox())!
+    expect(box.x + box.width).toBeLessThanOrEqual(arrows.x)
+    expect(Math.abs(box.y + box.height / 2 - (arrows.y + arrows.height / 2))).toBeLessThan(2)
+
+    // scrolled down, the button is in view; a click clears all filters and the page stays where it is
+    await page.evaluate(() => window.scrollTo(0, 800))
+    await expect(link).toBeInViewport()
+    await link.click()
+    await expect(page).toHaveURL(/\/admin\/staemme$/)
+    await expect(page.getByRole('textbox', { name: 'Kennung' })).toBeFocused()
+    expect(await page.evaluate(() => window.scrollY)).toBe(800)
+    await expect(link).toHaveCount(0)
+  })
+
+  test('keeps the results bar as low as with one chip while the chips fill two lines, and grows with the third', async ({
+    page,
+    isMobile,
+  }) => {
+    // eslint-disable-next-line playwright/no-skipped-test
+    test.skip(isMobile, 'the emulated phone widens the window to the table, the bar never wraps')
+    await page.setViewportSize({ width: 1280, height: 800 })
     await page.goto('/admin/staemme')
     await signIn(page, 'K7QM4XHT9RDP')
-    const link = (await page.getByRole('button', { name: 'Filter zurücksetzen' }).boundingBox())!
-    const last = (await filterButton(page, 'Geändert').boundingBox())!
-    expect(link.y).toBeGreaterThanOrEqual(last.y + last.height)
-    const form = (await bar(page).boundingBox())!
-    expect(form.x + form.width - (link.x + link.width)).toBeLessThanOrEqual(1)
+    const id = (name: string) => snapshotFixture.attributes.find((a) => a.name === name)!.id
+    const filters = [
+      'tags=1-1999',
+      `f.${id('Holzart')}=none`,
+      `f.${id('Fälldatum')}=2026-01~2026-12`,
+      `f.${id('Lieferdatum')}=2026-01-01~2026-12-31`,
+      `f.${id('Lagerplatz')}=none`,
+      `f.${id('Gesägt')}=yes`,
+      `f.${id('Holzfeuchte')}=10~90`,
+      `f.${id('Notiz')}=has`,
+      `f.${id('Fotos')}=has`,
+      `f.beams=0~9`,
+      'f.changed=2026-01-01~',
+    ]
+    const bar = page.locator('main > div.sticky').nth(1)
+    const heights: number[] = []
+    const lines: number[] = []
+    for (const count of [1, 6, 8, 11]) {
+      await page.goto(`/admin/staemme?${filters.slice(0, count).join('&')}`)
+      await expect(page.getByRole('list', { name: 'Aktive Filter' })).toBeVisible()
+      heights.push((await bar.boundingBox())!.height)
+      lines.push((await page.getByRole('list', { name: 'Aktive Filter' }).boundingBox())!.height)
+    }
+    // one chip: 60 px; two lines of chips: the same, the arrows and the button stay in the middle; more lines: the bar grows
+    expect(heights[0]).toBe(60)
+    expect(lines.filter((height) => height > 30 && height < 60).length).toBeGreaterThan(0)
+    expect(heights.filter((_, index) => lines[index] < 60).every((height) => height === 60)).toBe(
+      true,
+    )
+    expect(heights.filter((_, index) => lines[index] >= 60).every((height) => height > 60)).toBe(
+      true,
+    )
+    // text, button and chips are centered vertically in the bar
+    const barBox = (await bar.boundingBox())!
+    const text = (await bar.getByText(/von 4 Stämmen/).boundingBox())!
+    const link = (await bar.getByRole('button', { name: 'Filter zurücksetzen' }).boundingBox())!
+    for (const box of [text, link]) {
+      expect(Math.abs(box.y + box.height / 2 - (barBox.y + barBox.height / 2))).toBeLessThan(2)
+    }
   })
 
   test('keeps the drop-downs inside a narrow window', async ({ page }) => {
