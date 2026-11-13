@@ -330,6 +330,42 @@ class ActivityTest extends WebTestCase
         self::assertSame(['entries' => 0, 'events' => 0, 'photos' => 0, 'users' => 0], $this->activity('?tags=300')['totals']);
     }
 
+    public function testTagFilterWithABeamTagFindsOnlyThatBeam(): void
+    {
+        $this->stem($this->bruno, '104', '2026-10-31 10:00:00.000100', '2026-10-31 09:00:00');
+        $this->beam($this->bruno, '104', '104-A', '2026-10-31 10:00:00.000500', '2026-10-31 09:00:00');
+        $this->beam($this->bruno, '104', '104-B', '2026-10-31 10:00:00.000700', '2026-10-31 09:00:00');
+        $this->stem($this->ada, '110', '2026-10-31 12:00:00.000100', '2026-10-31 09:00:00');
+        $this->project();
+
+        $labels = fn (string $query) => array_merge(...array_map(
+            static fn (array $entry) => array_column($entry['items'], 'label'),
+            $this->activity($query)['entries'],
+        ));
+
+        // the spellings of a beam tag: hyphen or not, any case, leading zeros
+        foreach (['104-A', '104-a', '104A', '104a', '0104-A', ' 104 - A '] as $spelling) {
+            self::assertSame(['104-A'], $labels('?tags='.rawurlencode($spelling)), $spelling);
+        }
+        // a number still finds the stem and all its beams
+        self::assertSame(['104', '104-A', '104-B'], $labels('?tags=104'));
+        // mixed with numbers and ranges, the beam of a stem that is not otherwise selected stands alone
+        self::assertSame(['110', '104-A'], $labels('?tags=110,104-A'));
+        self::assertSame(['110', '104', '104-A', '104-B'], $labels('?tags=100-120,104-A'));
+        self::assertSame(['110', '104-A', '104-B'], $labels('?tags=104-A,104-b,110'));
+        self::assertSame(['entries' => 1, 'events' => 2, 'photos' => 0, 'users' => 1], $this->activity('?tags=104-A')['totals']);
+        self::assertSame([], $this->activity('?tags=104-C')['entries']);
+        self::assertSame(2, $this->activity('?tags=104-C')['entries_unfiltered']);
+    }
+
+    public function testTagFilterRefusesBeamTagsItCannotRead(): void
+    {
+        foreach (['?tags=100-120A', '?tags=104-AB', '?tags=0-A', '?tags=2000-A', '?tags=104-A,', '?tags=all,104-A', '?tags=A'] as $query) {
+            $this->activity($query);
+            self::assertResponseStatusCodeSame(400, $query);
+        }
+    }
+
     public function testTagFilterAlsoFindsAVoidedStem(): void
     {
         $this->stem($this->ada, '1999', '2026-10-31 15:00:00.000100');
@@ -404,6 +440,24 @@ class ActivityTest extends WebTestCase
         self::assertSame($this->ada->id->toRfc4122(), $response['users'][0]['id']);
     }
 
+    public function testFiltersByAnyOfSeveralPeople(): void
+    {
+        $chef = $this->em->getRepository(User::class)->findOneBy(['name' => 'Chef']);
+        $this->sawn($this->ada, '1', '2026-10-31 10:00:00.000100', '2026-10-31 09:00:00');
+        $this->sawn($this->bruno, '2', '2026-10-31 11:00:00.000100', '2026-10-31 09:00:00');
+        $this->sawn($chef, '3', '2026-10-31 12:00:00.000100', '2026-10-31 09:00:00');
+        $this->project();
+        $ids = [$this->ada->id->toRfc4122(), $this->bruno->id->toRfc4122()];
+        $who = fn (string $query) => array_column(array_column($this->activity($query)['entries'], 'user'), 'name');
+
+        self::assertSame(['Bruno', 'Ada'], $who('?user='.implode(',', $ids)));
+        // the same person twice, blanks around, and a single id as before
+        self::assertSame(['Bruno', 'Ada'], $who('?user='.rawurlencode($ids[0].' , '.$ids[1].','.$ids[0])));
+        self::assertSame(['Ada'], $who('?user='.$ids[0]));
+        self::assertSame(['entries' => 2, 'events' => 2, 'photos' => 0, 'users' => 2], $this->activity('?user='.implode(',', $ids))['totals']);
+        self::assertSame(3, $this->activity('?user='.implode(',', $ids))['entries_unfiltered']);
+    }
+
     public function testEntriesUnfilteredCountsEveryEntryWhateverTheFilter(): void
     {
         $this->sawn($this->ada, '1', '2026-10-30 10:00:00.000100', '2026-10-30 09:00:00');
@@ -449,7 +503,7 @@ class ActivityTest extends WebTestCase
 
     public function testMalformedFiltersAreRefused(): void
     {
-        foreach (['?from=31.10.2026', '?to=2026-02-30', '?user=x', '?tags=abc', '?tags=0'] as $query) {
+        foreach (['?from=31.10.2026', '?to=2026-02-30', '?user=x', '?user=00000000-0000-7000-8000-000000000001,x', '?user=00000000-0000-7000-8000-000000000001,', '?tags=abc', '?tags=0'] as $query) {
             $this->activity($query);
             self::assertResponseStatusCodeSame(400, $query);
         }

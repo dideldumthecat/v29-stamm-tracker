@@ -53,8 +53,10 @@ export interface AdminMeResponse {
 
 // --- GET /api/admin/activity -------------------------------------------------
 // Who recorded what and when, newest first. Query (all optional): from=YYYY-MM-DD, to=YYYY-MM-DD (days in German time,
-// both inclusive), user=<uuid>, tags=104 or 100-120 or 1-10,15 (like --range of the console commands; a stem also matches its beams),
-// before=<next_cursor of the previous page>. A malformed filter is a 400.
+// both inclusive), user=<uuid> or several, separated by commas (an entry matches if it is from any of them),
+// tags=parts separated by commas: a number (104) or a range (100-120) as for --range of the console commands, which also matches the
+// beams of the stems, or a beam tag (104-A, also 104a or 104A, any case, leading zeros allowed), which matches only that beam,
+// e.g. 100-120,104-A, before=<next_cursor of the previous page>. A malformed filter is a 400.
 // An entry is a run of events from one person whose arrival times are less than a second apart (one sync, or
 // one console command), never split across pages. With a tag filter an entry keeps only the matching items;
 // event_count counts those. entries_unfiltered counts without from, to, user and tags. Fixture: fixtures/activity-response.json.

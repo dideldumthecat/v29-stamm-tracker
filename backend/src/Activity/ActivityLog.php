@@ -10,7 +10,6 @@ use App\Entity\AttributeType;
 use App\Report\ValueText;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -38,7 +37,9 @@ final class ActivityLog
     /**
      * @param string|null $from   first day (German time), inclusive
      * @param string|null $to     last day (German time), inclusive
-     * @param string|null $tags   a range as for the console commands, e.g. 104 or 100-120; stems also match their beams
+     * @param string|null $user   one user id or several, separated by commas
+     * @param string|null $tags   parts separated by commas: a number (104) or a range (100-120) as for the console commands, which also
+     *                            match the beams of the stems; a beam tag (104-A, 104a, 104A) matches only that beam
      * @param string|null $before cursor of the last entry of the previous page
      *
      * @return array<string, mixed> see ActivityPage in frontend/shared/contract.ts
@@ -63,12 +64,16 @@ final class ActivityLog
             $params[$name] = $date->modify($shift)->setTimezone(new \DateTimeZone('UTC'))->format(self::DB_FORMAT);
         }
         if (null !== $user) {
-            if (!Uuid::isValid($user)) {
-                throw new \InvalidArgumentException('user must be a UUID.');
+            $ids = [];
+            foreach (explode(',', $user) as $id) {
+                if (!Uuid::isValid($id = trim($id))) {
+                    throw new \InvalidArgumentException('user must be one or more UUIDs separated by commas.');
+                }
+                $ids[Uuid::fromString($id)->toRfc4122()] = Uuid::fromString($id)->toBinary();
             }
-            $where[] = 'user_id = :user';
-            $params['user'] = Uuid::fromString($user);
-            $types['user'] = UuidType::NAME;
+            $where[] = 'user_id IN (:users)';
+            $params['users'] = array_values($ids);
+            $types['users'] = ArrayParameterType::BINARY;
         }
         if (null !== $tags && null !== ($itemIds = $this->itemIds($tags))) {
             if ([] === $itemIds) {
@@ -153,27 +158,41 @@ final class ActivityLog
     }
 
     /**
-     * @return list<string>|null the ids (binary) of the stems in the range and everything below them; null for "all"
+     * @return list<string>|null the ids (binary) of what the tags name; null for "all"
      */
     private function itemIds(string $tags): ?array
     {
-        $numbers = $this->selection->parseRange($tags);
-        if (false === $numbers) {
-            throw new \InvalidArgumentException($this->selection->notARange($tags));
+        // A beam tag is read here; numbers and ranges are left to the rule of the console commands, so that it exists once.
+        $beams = [];
+        $numbers = [];
+        foreach (explode(',', $tags) as $part) {
+            if (preg_match('/^\s*0*(\d+)\s*-?\s*([A-Za-z])\s*$/', $part, $m) && (int) $m[1] >= 1 && (int) $m[1] <= StemSelection::MAX_TAG_NUMBER) {
+                $beams[] = ((int) $m[1]).'-'.strtoupper($m[2]);
+            } else {
+                $numbers[] = $part;
+            }
         }
-        if (null === $numbers) {
+        $stems = [] === $numbers ? [] : $this->selection->parseRange(implode(',', $numbers));
+        // "all" stands alone: null from parseRange next to beam tags is as unreadable as a part that is not a range
+        if (false === $stems || (null === $stems && [] !== $beams)) {
+            throw new \InvalidArgumentException(\sprintf('"%s" is not a tag filter. Use all, 104, 100-120, 104-A or several parts separated by commas (numbers 1 to %d).', $tags, StemSelection::MAX_TAG_NUMBER));
+        }
+        if (null === $stems) {
             return null;
         }
-        // Voided stems are included on purpose: their events are part of the history.
+        // Voided stems and beams are included on purpose: their events are part of the history.
         $connection = $this->em->getConnection();
-        $level = $connection->fetchFirstColumn('SELECT id FROM timber_items WHERE parent_id IS NULL AND tag_number IN (?)', [array_map('strval', $numbers)], [ArrayParameterType::STRING]);
+        $level = [] === $stems ? [] : $connection->fetchFirstColumn('SELECT id FROM timber_items WHERE parent_id IS NULL AND tag_number IN (?)', [array_map('strval', $stems)], [ArrayParameterType::STRING]);
         $all = $level;
         while ($level) {
             $level = $connection->fetchFirstColumn('SELECT id FROM timber_items WHERE parent_id IN (?)', [$level], [ArrayParameterType::BINARY]);
             array_push($all, ...$level);
         }
+        if ($beams) {
+            array_push($all, ...$connection->fetchFirstColumn('SELECT id FROM timber_items WHERE parent_id IS NOT NULL AND tag_number IN (?)', [array_values(array_unique($beams))], [ArrayParameterType::STRING]));
+        }
 
-        return $all;
+        return array_values(array_unique($all));
     }
 
     /**
