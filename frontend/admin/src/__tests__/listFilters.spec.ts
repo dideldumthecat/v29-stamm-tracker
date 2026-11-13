@@ -6,7 +6,11 @@ import {
   chipOf,
   countText,
   filterType,
+  describePicks,
   isReadableTags,
+  offersNone,
+  parseTags,
+  tagFilter,
   matchesFilter,
   pickOptions,
   readFilter,
@@ -372,6 +376,63 @@ describe('column filters', () => {
       tags(beamRows.filter((r) => matchesFilter(r, column, { kind: 'pick', picks: ['yes'] }))),
     ).toEqual(['5-A'])
   })
+
+  describe('tagFilter', () => {
+    // Stem 5 has the beams 5-A and 5-B (see the snapshot above)
+    const found = (text: string, list: Row[] = all) => tags(applyFilters(list, [tagFilter(text)!]))
+
+    it('finds the stem that has a beam of the tag, in any spelling, but not the other stems', () => {
+      expect(found('5-A')).toEqual(['5'])
+      expect(found('5b')).toEqual(['5'])
+      expect(found('0005-a')).toEqual(['5'])
+      expect(found('5-C')).toEqual([])
+      expect(found('4-A')).toEqual([])
+    })
+
+    it('mixes with numbers and ranges, and a number still finds the stem', () => {
+      expect(found('1,5-A')).toEqual(['1', '5'])
+      expect(found('3-4,5-B')).toEqual(['3', '4', '5'])
+      expect(found('5')).toEqual(['5'])
+    })
+
+    it('finds only the beam itself in a list of beams', () => {
+      const beams = buildRows(snapshot, 'beam', buildColumns(attrs, 'beam'))
+      expect(found('5-A', beams)).toEqual(['5-A'])
+      expect(found('5', beams)).toEqual(['5-A', '5-B'])
+      expect(found('5-C', beams)).toEqual([])
+    })
+
+    it('is null for what the server would refuse', () => {
+      expect(tagFilter('5-AB')).toBeNull()
+      expect(tagFilter('1-5A')).toBeNull()
+    })
+  })
+
+  describe('"Nicht erfasst" of "Geändert"', () => {
+    const cols = buildColumns(attrs, 'stem')
+    const column = (kind: string) => cols.find((c) => c.kind === kind)!
+
+    it('is offered for every column but the beams and "Geändert", which every item has', () => {
+      expect(cols.map((c) => [c.label, c.kind === 'tag' || offersNone(c)])).toEqual(
+        cols.map((c) => [c.label, !['beams', 'changed'].includes(c.kind)]),
+      )
+    })
+
+    it('makes an old link with it an unreadable filter', () => {
+      const state = readQuery({ 'f.changed': 'none' }, cols)
+      expect(columnFilters(state, cols)).toEqual([{ column: column('changed'), filter: null }])
+      expect(filtersFor(state, cols)).toBeNull()
+      expect(readFilter('date', 'none', false)).toBeNull()
+      // a range is still read, and other date filters keep "none"
+      expect(readFilter('date', '2026-10-01~', false)).toEqual({
+        kind: 'range',
+        from: '2026-10-01',
+        to: '',
+      })
+      expect(readFilter('date', 'none')).toEqual({ kind: 'none' })
+      expect(filtersFor(readQuery({ 'f.attr-date': 'none' }, cols), cols)).not.toBeNull()
+    })
+  })
 })
 
 describe('counting texts', () => {
@@ -383,8 +444,49 @@ describe('counting texts', () => {
   })
 })
 
+describe('parseTags', () => {
+  it('reads numbers, ranges and beam tags, mixed, with the spellings of a beam tag', () => {
+    expect(parseTags('104')).toEqual({ ranges: [[104, 104]], beams: [] })
+    expect(parseTags('100-120,104-A')).toEqual({ ranges: [[100, 120]], beams: ['104-A'] })
+    for (const spelling of ['104-A', '104-a', '104A', '104a', '0104-A', ' 104 - a ']) {
+      expect({ spelling, tags: parseTags(spelling) }).toEqual({
+        spelling,
+        tags: { ranges: [], beams: ['104-A'] },
+      })
+    }
+    expect(parseTags('7b, 3-9,1999z')).toEqual({ ranges: [[3, 9]], beams: ['7-B', '1999-Z'] })
+    expect(parseTags('all')).toEqual({ ranges: [[1, 1999]], beams: [] })
+  })
+
+  it('refuses ranges of beams, several letters, numbers out of range and "all" next to others', () => {
+    for (const text of [
+      '100-120A',
+      '104-AB',
+      '0-A',
+      '2000-A',
+      '104-A,',
+      'all,104-A',
+      'A',
+      '104--A',
+    ])
+      expect({ text, tags: parseTags(text) }).toEqual({ text, tags: null })
+  })
+})
+
+describe('describePicks', () => {
+  it('lists up to two, then counts', () => {
+    expect(describePicks(['Mara'], 1)).toBe('Mara')
+    expect(describePicks(['Mara', 'Sägewerk Muster'], 2)).toBe(
+      'Mara, Sägewerk Muster',
+    )
+    expect(describePicks(['a', 'b', 'c'], 3)).toBe('3 ausgewählt')
+    // more picks than names: the ones that are not offered any more count too
+    expect(describePicks(['a', 'b'], 3)).toBe('3 ausgewählt')
+  })
+})
+
 describe('isReadableTags', () => {
-  it('accepts what the server reads: numbers, ranges, lists, "all", blanks and zeros around', () => {
+  it('accepts what the server reads: numbers, ranges, beam tags, lists, "all", blanks and zeros around', () => {
     for (const text of [
       '104',
       ' 104 ',
@@ -394,6 +496,9 @@ describe('isReadableTags', () => {
       '1-10,15,20-25',
       '1999',
       'all',
+      '104-A',
+      '104a',
+      '100-120,104-A',
     ])
       expect({ text, ok: isReadableTags(text) }).toEqual({ text, ok: true })
   })

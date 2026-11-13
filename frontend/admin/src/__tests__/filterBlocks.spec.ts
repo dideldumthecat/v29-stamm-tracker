@@ -66,6 +66,12 @@ describe('ResultsBar', () => {
     expect(wrapper.emitted('open')).toEqual([['a']])
     expect(wrapper.emitted('remove')).toEqual([['tags']])
   })
+
+  it('leaves out the count when there is no text yet (an answer 400 on the first page)', () => {
+    const wrapper = mount(ResultsBar, { props: { text: '', chips } })
+    expect(wrapper.find('p').exists()).toBe(false)
+    expect(wrapper.findAll('li')).toHaveLength(2)
+  })
 })
 
 describe('FilterButton', () => {

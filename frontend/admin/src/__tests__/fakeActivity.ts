@@ -1,29 +1,29 @@
 import type { ActivityEntry, ActivityResponse } from '@v29/shared/contract'
-import { isReadableTags } from '../listFilters'
+import { parseTags } from '../listFilters'
 import fixture from '@v29/shared/fixtures/activity-response.json' with { type: 'json' }
 
 /** The 31 October as the server answered it (the backend tests expect exactly this file). */
 export const activityFixture = fixture as unknown as ActivityResponse
 
 /**
- * Answers GET /api/admin/activity from the fixture, as far as the tests need it: the filters user and tags
- * (numbers and ranges like 104 or 100-120; a stem's beams match too) and paging by `before`. Dates are not imitated.
+ * Answers GET /api/admin/activity from the fixture, as far as the tests need it: the filters user (one or several ids) and tags
+ * (numbers and ranges like 104 or 100-120, a stem's beams match too; a beam tag like 104-A matches only that beam) and paging by `before`.
+ * Dates are not imitated.
  * Returns null where the server answers 400: a tags filter it cannot read.
  * A page holds `pageSize` entries; the cursor is the index of the next one.
  */
 export function activityAnswer(query: URLSearchParams, pageSize = 50): ActivityResponse | null {
   const tag = query.get('tags')
-  let entries = activityFixture.entries.filter(
-    (entry) => !query.get('user') || entry.user.id === query.get('user'),
-  )
+  const people = query.get('user')?.split(',')
+  let entries = activityFixture.entries.filter((entry) => !people || people.includes(entry.user.id))
   if (tag) {
-    if (!isReadableTags(tag)) return null
-    const ranges = tag.split(',').map((part) => part.split('-').map(Number))
-    // "104-A" is a beam of stem 104
+    const tags = parseTags(tag)
+    if (!tags) return null
+    // "104-A" is a beam of stem 104: numbers and ranges match it with its stem, a beam tag only itself
     const matches = (label: string) =>
-      ranges.some(
-        ([from, to = from]) => Number.parseInt(label) >= from && Number.parseInt(label) <= to,
-      )
+      tags.ranges.some(
+        ([from, to]) => Number.parseInt(label) >= from && Number.parseInt(label) <= to,
+      ) || tags.beams.includes(label)
     entries = entries
       .map((entry) => keepMatching(entry, matches))
       .filter((entry) => entry.items.length)

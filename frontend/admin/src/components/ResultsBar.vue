@@ -26,7 +26,7 @@ useSizeVariable(bar, '--sticky-bar-height', 'height')
   >
     <div class="page-column flex min-h-15 items-center justify-between gap-4 py-2">
       <div class="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-2">
-        <p class="text-lg font-bold">{{ text }}</p>
+        <p v-if="text" class="text-lg font-bold">{{ text }}</p>
         <FilterChips
           :chips="chips"
           @open="$emit('open', $event)"

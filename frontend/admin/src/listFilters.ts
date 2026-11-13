@@ -32,26 +32,38 @@ export const countText = (
 
 export const MAX_TAG_NUMBER = 1999
 
+/** What a "Kennung" filter names: numbers and ranges (`ranges`, they also mean the beams of the stems) and single beams ("104-A"). */
+export interface Tags {
+  ranges: [number, number][]
+  beams: string[]
+}
+
 /**
- * The ranges of a "Kennung" filter as the server reads it, the same rule as `StemSelection::parseRange` in the backend
- * ("all", or parts like 104 and 100-120 joined by commas, numbers 1 to 1999, blanks around parts ignored); null if it is not readable.
+ * Reads a "Kennung" filter as the server reads it (`ActivityLog::itemIds`, numbers and ranges as `StemSelection::parseRange`): parts joined by commas,
+ * each a number (104), a range (100-120, numbers 1 to 1999) or a beam tag (a number and a letter, with or without hyphen, any case:
+ * 104-A, 104a; no ranges of beams), blanks and leading zeros ignored; "all" alone means every number. Null if it is not readable.
  */
-export function parseTagRanges(text: string): [number, number][] | null {
-  if (text.trim() === 'all') return [[1, MAX_TAG_NUMBER]]
-  const ranges: [number, number][] = []
+export function parseTags(text: string): Tags | null {
+  if (text.trim() === 'all') return { ranges: [[1, MAX_TAG_NUMBER]], beams: [] }
+  const tags: Tags = { ranges: [], beams: [] }
   for (const part of text.split(',')) {
+    const beam = /^\s*0*(\d+)\s*-?\s*([A-Za-z])\s*$/.exec(part)
+    if (beam && Number(beam[1]) >= 1 && Number(beam[1]) <= MAX_TAG_NUMBER) {
+      tags.beams.push(`${Number(beam[1])}-${beam[2].toUpperCase()}`)
+      continue
+    }
     const match = /^\s*0*(\d+)\s*(?:-\s*0*(\d+)\s*)?$/.exec(part)
     if (!match) return null
     const from = Number(match[1])
     const to = Number(match[2] ?? match[1])
     if (from < 1 || from > to || to > MAX_TAG_NUMBER) return null
-    ranges.push([from, to])
+    tags.ranges.push([from, to])
   }
-  return ranges
+  return tags
 }
 
 /** Whether the server would read this "Kennung" filter. Used to search while typing only for input that is complete. */
-export const isReadableTags = (text: string) => parseTagRanges(text) !== null
+export const isReadableTags = (text: string) => parseTags(text) !== null
 
 // --- Filters of the columns ---------------------------------------------------------------------------------------
 
@@ -68,6 +80,8 @@ export interface FilterRow {
   item: TimberItem
   /** Number of beams cut from the stem. */
   beams: number
+  /** The tags of those beams ("104-A"); empty for a beam. */
+  beamTags: string[]
   /** The German calendar day of the last change, "2026-10-31". */
   changedDay: string
   /** The value of every cell by column id; `text` null = not recorded. */
@@ -80,14 +94,20 @@ export type RowFilter = (row: FilterRow) => boolean
 export const applyFilters = <R extends FilterRow>(rows: R[], filters: RowFilter[]): R[] =>
   rows.filter((row) => filters.every((filter) => filter(row)))
 
-/** The filter of the "Kennung" field; null if the text is not readable. */
+/**
+ * The filter of the "Kennung" field; null if the text is not readable. A number or range finds the stems (or beams) of those numbers;
+ * a beam tag finds the beam itself and the stem that has a beam of that tag (beams of voided items are not in the snapshot).
+ */
 export function tagFilter(text: string): RowFilter | null {
-  const ranges = parseTagRanges(text)
-  if (!ranges) return null
-  return ({ item }) => {
+  const tags = parseTags(text)
+  if (!tags) return null
+  return ({ item, beamTags }) => {
     if (item.tag_number === null) return false
     const number = Number.parseInt(item.tag_number)
-    return ranges.some(([from, to]) => number >= from && number <= to)
+    return (
+      tags.ranges.some(([from, to]) => number >= from && number <= to) ||
+      tags.beams.some((beam) => beam === item.tag_number || beamTags.includes(beam))
+    )
   }
 }
 
@@ -164,8 +184,16 @@ export function boundText(type: FilterType, value: string): string {
   }
 }
 
-/** The filter a URL value stands for; null if it is not readable for this type. */
-export function readFilter(type: FilterType, text: string): ColumnFilter | null {
+/** Whether the filter of the column offers "Nicht erfasst" (all but a count, and "Geändert", which every item has). */
+export const offersNone = (column: FilterColumn) =>
+  column.kind !== 'beams' && column.kind !== 'changed'
+
+/** The filter a URL value stands for; null if it is not readable for this type. `allowNone`: whether "none" is a filter of the column (`offersNone`). */
+export function readFilter(
+  type: FilterType,
+  text: string,
+  allowNone: boolean = type !== 'count',
+): ColumnFilter | null {
   switch (type) {
     case 'choice':
     case 'boolean': {
@@ -178,7 +206,7 @@ export function readFilter(type: FilterType, text: string): ColumnFilter | null 
     case 'month':
     case 'date':
     case 'count': {
-      if (text === 'none') return type === 'count' ? null : { kind: 'none' }
+      if (text === 'none') return allowNone ? { kind: 'none' } : null
       const parts = text.split('~')
       if (parts.length !== 2 || !text.replace('~', '')) return null
       const [from, to] = parts.map((part) => (part ? readBound(type, part) : ''))
@@ -292,6 +320,10 @@ export interface FilterChip {
 /** From this many picks on, a chip no longer lists them. */
 const MAX_LISTED_PICKS = 2
 
+/** The picks of a chip: "03, 04", from three on "3 ausgewählt". `count` can be more than `labels` (picks that are no longer offered). */
+export const describePicks = (labels: string[], count: number) =>
+  count > MAX_LISTED_PICKS ? `${count} ausgewählt` : labels.join(', ')
+
 /** The chip of a column filter: "Polternummer: 03, 04", "Stammmittendurchmesser groß: 30–40 cm", "Gesägt: ja", "Notiz: enthält krumm". */
 export function chipOf(column: FilterColumn, filter: ColumnFilter): FilterChip {
   const type = filterType(column)!
@@ -311,16 +343,18 @@ function describeValue(column: FilterColumn, type: FilterType, filter: ColumnFil
     case 'contains':
       return `enthält ${filter.text}`
     case 'pick': {
-      if (filter.picks.length > MAX_LISTED_PICKS) return `${filter.picks.length} ausgewählt`
       // Every option of the attribute, not only the offered ones: a filter in the URL may name an inactive one
       const all =
         type === 'boolean'
           ? pickOptions(column, [])
           : [...column.attribute!.options].sort(bySortOrder)
-      return [
-        ...all.filter((option) => filter.picks.includes(option.id)).map((option) => option.label),
-        ...(filter.picks.includes(NOT_RECORDED_PICK) ? ['Nicht erfasst'] : []),
-      ].join(', ')
+      return describePicks(
+        [
+          ...all.filter((option) => filter.picks.includes(option.id)).map((option) => option.label),
+          ...(filter.picks.includes(NOT_RECORDED_PICK) ? ['Nicht erfasst'] : []),
+        ],
+        filter.picks.length,
+      )
     }
     case 'range': {
       const unit = column.attribute?.unit ? ` ${column.attribute.unit}` : ''
