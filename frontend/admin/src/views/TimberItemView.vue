@@ -160,11 +160,8 @@ watch(() => route.params.tag, load, { immediate: true })
               <FormattedTag :tag-number="stemNumber(tag!)" class="underline underline-offset-4"
             /></span>
           </RouterLink>
-          <!-- The same columns as the rows of KeyValueRows (2fr | 3fr, 16 px gap, one column below 640 px), so that the blocks line up
-               with the names and the values of the card "Merkmale" (from 900 px the header has the card's 24 px at the sides). -->
-          <dl
-            class="mt-9 grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-x-4 gap-y-3 max-sm:grid-cols-1"
-          >
+          <!-- Both blocks side by side at the left edge; when they do not fit, they stack. -->
+          <dl class="mt-9 flex flex-wrap gap-x-8 gap-y-3">
             <div>
               <dt class="text-caption wrap-anywhere text-mute">
                 Angelegt von {{ userName(item.created_by) }}
