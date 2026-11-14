@@ -6,6 +6,7 @@ import { user } from '@/auth'
 import { createAdminRouter } from '@/router'
 import App from '../App.vue'
 import { fakeApi } from './fakeApi'
+import { popup, pressEscape, stubBrowser } from './popup'
 import { stemPhotoDays, stemPhotos } from './fakeSnapshot'
 
 const CODE = 'K7QM-4XHT-9RDP'
@@ -77,7 +78,11 @@ describe('stem detail', () => {
       'Angelegt von Alex Beispiel 29.10.2026, 11:09',
       'Zuletzt geändert von Aaron Bauer 31.10.2026, 11:50',
     ])
-    expect(wrapper.findAll('h2').map((h2) => h2.text())).toEqual(['Balken', 'Merkmale'])
+    expect(wrapper.findAll('h2').map((h2) => h2.text())).toEqual([
+      'Balken',
+      'Kennzahlen',
+      'Merkmale',
+    ])
     expect(api.calls).toContain('GET /api/snapshot')
     expect(api.calls).toContain('GET /api/admin/activity?tags=104')
     expect(wrapper.text()).not.toContain('Aus Stamm')
@@ -256,6 +261,77 @@ describe('states', () => {
     await wrapper.get('[role=alert] button').trigger('click')
     await flushPromises()
     expect(squeezed(section(wrapper, 'Verlauf').get('summary').text())).toBe('Verlauf')
+  })
+})
+
+describe('key figures', () => {
+  beforeEach(stubBrowser)
+
+  const rows = (wrapper: VueWrapper) =>
+    section(wrapper, 'Kennzahlen')
+      .findAll('dl > div')
+      .map((row) => squeezed(row.text()))
+
+  it('comes after Balken (first without beams) and asks the server for the item', async () => {
+    const { wrapper, api } = await open('/staemme/104')
+
+    const headings = wrapper.findAll('h2').map((h2) => h2.text())
+    expect(headings.slice(0, 2)).toEqual(['Balken', 'Kennzahlen'])
+    expect(
+      api.calls.some((call) => /^GET \/api\/admin\/timber-items\/[^/]+\/key-figures$/.test(call)),
+    ).toBe(true)
+    expect(rows(wrapper)).toEqual([
+      'Rundholz0,502 m³aus 40 × 39 cm und 4,10 m',
+      'Schnittholz0,304 m³Summe der 4 Balken',
+      'Ausbeute60 % Schnittholz ÷ Rundholz',
+    ])
+
+    const beam = await open('/staemme/104-A')
+    expect(beam.wrapper.findAll('h2')[0]!.text()).toBe('Kennzahlen')
+  })
+
+  it('opens the formula under the info button, one at a time, and closes it with Escape', async () => {
+    const { wrapper } = await open('/staemme/104')
+    const info = (name: string) =>
+      section(wrapper, 'Kennzahlen').get(`button[aria-label="Formel für ${name} anzeigen"]`)
+
+    expect(info('Rundholz').attributes('aria-expanded')).toBe('false')
+    await info('Rundholz').trigger('click')
+    expect(info('Rundholz').attributes('aria-expanded')).toBe('true')
+    expect(squeezed(popup()!.textContent!)).toBe(
+      'So wird Rundholz berechnet' +
+        'Formelπ ÷ 4 × Durchmesser groß × Durchmesser klein × Länge' +
+        'Eingesetzt0,785 × 0,40 m × 0,39 m × 4,10 m' +
+        'Ergebnis0,502 m³' +
+        'Vorläufige Formel: Durchmesser mit Rinde, kein Abzug.',
+    )
+
+    await info('Schnittholz').trigger('click')
+    expect(document.querySelectorAll('[role=dialog]')).toHaveLength(1)
+    expect(popup()!.textContent).toContain('So wird Schnittholz berechnet')
+    expect(info('Rundholz').attributes('aria-expanded')).toBe('false')
+
+    pressEscape()
+    await flushPromises()
+    expect(popup()).toBeNull()
+  })
+
+  it('reports a failing request in its card only and tries again', async () => {
+    const { wrapper, api } = await open('/aktivitaet')
+    api.failKeyFigures()
+    await wrapper.vm.$router.push('/staemme/104')
+    await flushPromises()
+
+    expect(wrapper.get('h1').text()).toBe('00104')
+    expect(wrapper.get('[role=alert]').text()).toContain(
+      'Die Kennzahlen konnten nicht geladen werden.',
+    )
+    expect(section(wrapper, 'Verlauf').exists()).toBe(true)
+
+    api.failKeyFigures(false)
+    await wrapper.get('[role=alert] button').trigger('click')
+    await flushPromises()
+    expect(rows(wrapper)).toHaveLength(3)
   })
 })
 

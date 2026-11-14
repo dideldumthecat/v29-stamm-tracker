@@ -169,19 +169,23 @@ class TimberReportTest extends KernelTestCase
         self::assertNotContains('Durchmesser groß (cm)', $report->beams->headers);
     }
 
-    public function testDiameterZeroMeansNotMeasured(): void
+    public function testDiameterZeroMeansNotMeasuredAndOneDiameterCountsForBoth(): void
     {
         $this->attributes();
-        $stem = $this->item('7');
-        $this->record($stem, 'mid_diameter_max', 0);
-        $this->record($stem, 'mid_diameter_min', 31);
-        $this->record($stem, 'length', '4,10 m');
+        $one = $this->item('7');
+        $this->record($one, 'mid_diameter_max', 0);
+        $this->record($one, 'mid_diameter_min', 31);
+        $this->record($one, 'length', '4,10 m');
+        $none = $this->item('19');
+        $this->record($none, 'mid_diameter_max', 0);
+        $this->record($none, 'length', '4,10 m');
 
-        $row = $this->table($this->build()->stems)['00007'];
+        $rows = $this->table($this->build()->stems);
 
-        self::assertNull($row['Durchmesser groß (cm)']);
-        self::assertSame(31.0, $row['Durchmesser klein (cm)']);
-        self::assertNull($row['Rundholz (fm)']);
+        self::assertNull($rows['00007']['Durchmesser groß (cm)'], 'the column still shows what was recorded');
+        self::assertSame(31.0, $rows['00007']['Durchmesser klein (cm)']);
+        self::assertEqualsWithDelta(M_PI / 4 * 0.31 * 0.31 * 4.1, $rows['00007']['Rundholz (fm)'], 1e-9);
+        self::assertNull($rows['00019']['Rundholz (fm)']);
     }
 
     public function testABeamWithoutCrossSectionLeavesSawnVolumeAndYieldOfTheStemEmpty(): void

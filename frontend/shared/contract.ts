@@ -113,6 +113,32 @@ export interface ActivityChange {
   recorded_at: Timestamp
 }
 
+// --- GET /api/admin/timber-items/{id}/key-figures ----------------------------
+// Round wood, sawn timber and yield of a stem or beam, calculated on the server with the same formulas as the export.
+// Which figures: an unsawn stem → round_wood; a sawn stem (with beams or sawn whole) → round_wood, sawn_timber, yield;
+// a beam → sawn_timber (its own volume). Status: 404 if the item does not exist or is voided. Fixture: fixtures/key-figures-response.json.
+
+export interface KeyFiguresResponse {
+  figures: KeyFigure[]
+}
+
+export interface KeyFigure {
+  key: 'round_wood' | 'sawn_timber' | 'yield'
+  /** "Rundholz", "Schnittholz", "Ausbeute" */
+  label: string
+  /** m³, or the share 0–1 for the yield; null = not calculable. */
+  value: number | null
+  unit: 'm³' | '%'
+  /** The small line under the value, e.g. "aus 40 × 39 cm und 4,10 m"; with value null it says what is missing. */
+  source: string
+  /** "π ÷ 4 × Durchmesser groß × Durchmesser klein × Länge" (attribute names as in the database) */
+  formula: string
+  /** "0,785 × 0,40 m × 0,39 m × 4,10 m"; null if value is null. */
+  inserted: string | null
+  /** Remark under the result, e.g. "Vorläufige Formel: Durchmesser mit Rinde, kein Abzug." */
+  note: string | null
+}
+
 // --- GET /api/snapshot -------------------------------------------------------
 
 export interface Snapshot {

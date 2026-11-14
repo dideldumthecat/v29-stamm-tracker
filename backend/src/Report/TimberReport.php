@@ -8,11 +8,16 @@ use App\Entity\AttributeType;
 use App\Entity\TimberItem;
 use App\Entity\TimberItemState;
 use App\Entity\User;
+use App\KeyFigures\KeyFigures;
+use App\KeyFigures\MeasureReader;
+use App\KeyFigures\Measures;
+use App\KeyFigures\StemFigures;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * The key figures for V29: round wood per stem, sawn timber per beam, yield. Reads the projections, whose values
+ * The export for V29: stems, beams and the key figures (round wood, sawn timber, yield), which KeyFigures calculates;
+ * this class only lays them out in columns, sheets and notes. Reads the projections, whose values
  * are already effective (own, or inherited from the stem for inheritable attributes). Attributes are found by
  * key only; their display names, headings and notes come from the database.
  *
@@ -45,13 +50,15 @@ final class TimberReport
     private array $beamsOf = [];
     /** @var array<string, true> ids of attributes that at least one listed item has a value for */
     private array $used = [];
-    /** @var array<string, ?float> */
-    private array $sawnVolume = [];
+    /** @var array<string, Measures> by item id */
+    private array $measures = [];
+    /** @var array<string, StemFigures> by stem id */
+    private array $figures = [];
     /** @var array<string, string> */
     private array $warnings = [];
     private \DateTimeZone $berlin;
 
-    public function __construct(private readonly EntityManagerInterface $em)
+    public function __construct(private readonly EntityManagerInterface $em, private readonly KeyFigures $keyFigures)
     {
     }
 
@@ -61,13 +68,15 @@ final class TimberReport
     public function build(\DateTimeImmutable $now): Report
     {
         $this->berlin = new \DateTimeZone('Europe/Berlin');
-        $this->warnings = $this->sawnVolume = $this->pieces = $this->beamsOf = $this->used = [];
+        $this->warnings = $this->measures = $this->figures = $this->pieces = $this->beamsOf = $this->used = [];
         $this->load();
 
         $items = $this->em->getRepository(TimberItem::class)->findBy(['voidedAt' => null]);
         usort($items, fn (TimberItem $a, TimberItem $b) => $this->sortKey($a) <=> $this->sortKey($b));
         $stems = array_values(array_filter($items, static fn (TimberItem $item) => null === $item->parentId));
+        $reader = new MeasureReader($this->key, $this->options);
         foreach ($items as $item) {
+            $this->measures[$item->id->toRfc4122()] = $reader->read($item, $this->values[$item->id->toRfc4122()] ?? []);
             $this->tags[$item->id->toRfc4122()] = $item->tagNumber;
             foreach ($this->values[$item->id->toRfc4122()] ?? [] as $attributeId => $_) {
                 $this->used[$attributeId] = true;
@@ -76,10 +85,15 @@ final class TimberReport
                 $this->beamsOf[$item->parentId->toRfc4122()][] = $item;
             }
         }
+        foreach ($reader->unreadable() as $unreadable) {
+            $warning = \sprintf('Unreadable value left empty: %s, %s, "%s"', self::formatTag($unreadable['tag']) ?? $unreadable['item'], $unreadable['attribute'], $unreadable['text']);
+            $this->warnings[$warning] = $warning;
+        }
+        $this->figures = $this->keyFigures->ofStems(array_values($this->measures));
         $sawnPieces = [];
         foreach ($stems as $stem) {
             $id = $stem->id->toRfc4122();
-            $this->pieces[$id] = $this->beamsOf[$id] ?? ($this->isSawn($stem) ? [$stem] : []);
+            $this->pieces[$id] = $this->beamsOf[$id] ?? (null !== $this->figures[$id]->sawnTimber ? [$stem] : []);
             array_push($sawnPieces, ...$this->pieces[$id]);
         }
         usort($sawnPieces, fn (TimberItem $a, TimberItem $b) => $this->sortKey($a) <=> $this->sortKey($b));
@@ -153,19 +167,14 @@ final class TimberReport
         $columns = [['Stamm', null, 'Plakettennummer des Stamms', fn (TimberItem $stem) => self::formatTag($stem->tagNumber)]];
         foreach ($this->listedAttributes(['sawn_cross_section', 'notes', 'photos']) as $attribute) {
             $columns[] = match ($attribute->key) {
-                'sawn' => [$attribute->name, null, \sprintf('Abgeleitet, nicht der erfasste Wert: ja, wenn der Stamm Balken hat, einen „%s“ hat oder „%s“ = ja erfasst ist', $this->key['sawn_cross_section']->name, $attribute->name), fn (TimberItem $stem) => $this->isSawn($stem) ? 'ja' : 'nein'],
+                'sawn' => [$attribute->name, null, \sprintf('Abgeleitet, nicht der erfasste Wert: ja, wenn der Stamm Balken hat, einen „%s“ hat oder „%s“ = ja erfasst ist', $this->key['sawn_cross_section']->name, $attribute->name), fn (TimberItem $stem) => null !== $this->figures[$stem->id->toRfc4122()]->sawnTimber ? 'ja' : 'nein'],
                 default => $this->attributeColumn($attribute, false),
             };
         }
         $columns[] = ['Anzahl Balken', null, 'Zeilen dieses Stamms auf „Balken“: 0 = ungesägt, 1 = als Ganzes gesägt', fn (TimberItem $stem) => \count($this->pieces[$stem->id->toRfc4122()])];
-        $columns[] = ['Rundholz (fm)', '0.000', \sprintf('Festmeter Rundholz = π/4 × „%s“/100 × „%s“/100 × „%s“; leer, wenn ein Wert fehlt oder 0 ist (vorläufige Formel)', $this->key['mid_diameter_max']->name, $this->key['mid_diameter_min']->name, $this->key['length']->name), fn (TimberItem $stem) => $this->roundWood($stem)];
-        $columns[] = ['Schnittholz (m³)', '0.000', 'Summe des Schnittholzes aller Balken dieses Stamms; leer, wenn der Stamm ungesägt ist oder ein Balken kein Schnittholz hat', fn (TimberItem $stem) => $this->sawnTotal($stem)];
-        $columns[] = ['Ausbeute', '0 %', 'Schnittholz ÷ Rundholz: Anteil des Stamms, der im Balken landet; der Rest ist Verschnitt. Leer, wenn eins von beiden leer ist', function (TimberItem $stem) {
-            $round = $this->roundWood($stem);
-            $sawn = $this->sawnTotal($stem);
-
-            return null === $round || null === $sawn ? null : $sawn / $round;
-        }];
+        $columns[] = ['Rundholz (fm)', '0.000', \sprintf('Festmeter Rundholz = π/4 × „%s“/100 × „%s“/100 × „%s“; leer, wenn ein Wert fehlt oder 0 ist; ist nur ein Durchmesser erfasst (der andere leer oder 0), gilt er für beide, der Stamm wird als kreisrund gerechnet (vorläufige Formel)', $this->key['mid_diameter_max']->name, $this->key['mid_diameter_min']->name, $this->key['length']->name), fn (TimberItem $stem) => $this->figures[$stem->id->toRfc4122()]->roundWood->volume];
+        $columns[] = ['Schnittholz (m³)', '0.000', 'Summe des Schnittholzes aller Balken dieses Stamms; leer, wenn der Stamm ungesägt ist oder ein Balken kein Schnittholz hat', fn (TimberItem $stem) => $this->figures[$stem->id->toRfc4122()]->sawnTimber?->volume];
+        $columns[] = ['Ausbeute', '0 %', 'Schnittholz ÷ Rundholz: Anteil des Stamms, der im Balken landet; der Rest ist Verschnitt. Leer, wenn eins von beiden leer ist', fn (TimberItem $stem) => $this->figures[$stem->id->toRfc4122()]->yield];
 
         return [...$columns, ...$this->closingColumns('des Stamms selbst')];
     }
@@ -182,9 +191,9 @@ final class TimberReport
         }
         $cross = $this->key['sawn_cross_section'];
         $columns[] = [$cross->name, null, 'Erfasster Querschnitt als Text', fn (TimberItem $piece) => $this->text($cross, $this->records($piece, $cross)[0]['value'] ?? '') ?: null];
-        $columns[] = ['Breite (cm)', '0.0', \sprintf('Erste Zahl aus „%s“', $cross->name), fn (TimberItem $piece) => $this->crossSection($piece)[0] ?? null];
-        $columns[] = ['Höhe (cm)', '0.0', \sprintf('Zweite Zahl aus „%s“', $cross->name), fn (TimberItem $piece) => $this->crossSection($piece)[1] ?? null];
-        $columns[] = ['Schnittholz (m³)', '0.000', \sprintf('Kubikmeter Schnittholz = Breite/100 × Höhe/100 × „%s“; leer ohne Querschnitt', $this->key['length']->name), fn (TimberItem $piece) => $this->sawnVolume($piece)];
+        $columns[] = ['Breite (cm)', '0.0', \sprintf('Erste Zahl aus „%s“', $cross->name), fn (TimberItem $piece) => $this->measures[$piece->id->toRfc4122()]->width];
+        $columns[] = ['Höhe (cm)', '0.0', \sprintf('Zweite Zahl aus „%s“', $cross->name), fn (TimberItem $piece) => $this->measures[$piece->id->toRfc4122()]->height];
+        $columns[] = ['Schnittholz (m³)', '0.000', \sprintf('Kubikmeter Schnittholz = Breite/100 × Höhe/100 × „%s“; leer ohne Querschnitt', $this->key['length']->name), fn (TimberItem $piece) => $this->keyFigures->piece($this->measures[$piece->id->toRfc4122()])->volume];
 
         return [...$columns, ...$this->closingColumns('des Eintrags')];
     }
@@ -215,7 +224,7 @@ final class TimberReport
         return [
             'Rundholz immer auf „Stämme“ summieren, Schnittholz immer auf „Balken“. Beide Blätter zusammen zu summieren zählt doppelt.',
             '„Balken“ enthält jedes gesägte Stück, auch Stämme, die als Ganzes gesägt wurden (dort ist die Spalte „Balken“ gleich der Spalte „Stamm“). Ungesägte Stämme stehen nur auf „Stämme“.',
-            'Die Werte sind effektive Werte: der eigene Wert des Eintrags oder, bei vererbbaren Merkmalen, der Wert des Stamms. Durchmesser gibt es nur bei Stämmen. Eine leere Zelle heißt: nicht erfasst oder nicht berechenbar. Ein Durchmesser von 0 gilt als nicht gemessen.',
+            'Die Werte sind effektive Werte: der eigene Wert des Eintrags oder, bei vererbbaren Merkmalen, der Wert des Stamms. Durchmesser gibt es nur bei Stämmen. Eine leere Zelle heißt: nicht erfasst oder nicht berechenbar. Ein Durchmesser von 0 gilt als nicht gemessen. Ist nur ein Durchmesser erfasst (der andere leer oder 0), gilt er für beide: Der Stamm wird als kreisrund gerechnet.',
             \sprintf('„%s“ ist abgeleitet: ja, wenn der Stamm Balken hat oder einen „%s“ hat oder „%s“ = ja erfasst ist; sonst nein.', $sawn->name, $this->key['sawn_cross_section']->name, $sawn->name),
             'Die Formel für das Rundholz ist vorläufig, bis V29 sie bestätigt (mit oder ohne Rinde, Ellipse aus beiden Durchmessern oder Mittelwert).',
             '1 fm (Festmeter) = 1 m³ massives Holz. Ausbeute = Anteil des Stamms, der im Balken landet; der Rest ist Verschnitt.',
@@ -243,8 +252,9 @@ final class TimberReport
         $column = static fn (string $heading, ?string $format, string $meaning, \Closure $value) => [$heading, $format, $meaning, $value];
 
         return match ($attribute->key) {
-            'mid_diameter_max', 'mid_diameter_min' => $column($attribute->name.' (cm)', null, $meaning.'; 0 = nicht gemessen, dann leer', fn (TimberItem $item) => $this->measure($item, $attribute, 1)[0] ?? null ?: null),
-            'length' => $column($attribute->name.' (m)', '0.00', $meaning.'; als Zahl in Metern', fn (TimberItem $item) => $this->length($item)),
+            'mid_diameter_max' => $column($attribute->name.' (cm)', null, $meaning.'; 0 = nicht gemessen, dann leer', fn (TimberItem $item) => $this->measures[$item->id->toRfc4122()]->diameterMax ?: null),
+            'mid_diameter_min' => $column($attribute->name.' (cm)', null, $meaning.'; 0 = nicht gemessen, dann leer', fn (TimberItem $item) => $this->measures[$item->id->toRfc4122()]->diameterMin ?: null),
+            'length' => $column($attribute->name.' (m)', '0.00', $meaning.'; als Zahl in Metern', fn (TimberItem $item) => $this->measures[$item->id->toRfc4122()]->length),
             default => $column($attribute->name, AttributeType::Date === $attribute->type ? 'dd.mm.yyyy' : null, $meaning, fn (TimberItem $item) => $this->cell($attribute, $this->records($item, $attribute))),
         };
     }
@@ -271,81 +281,6 @@ final class TimberReport
     private function records(TimberItem $item, Attribute $attribute): array
     {
         return $this->values[$item->id->toRfc4122()][$attribute->id->toRfc4122()] ?? [];
-    }
-
-    /**
-     * The numbers in the displayed text ("4,10 m" → 4.1), exactly $count of them; otherwise a warning and null.
-     *
-     * @return ?list<float> null if nothing is recorded or the text is not readable
-     */
-    private function measure(TimberItem $item, Attribute $attribute, int $count): ?array
-    {
-        $records = $this->records($item, $attribute);
-        if ([] === $records) {
-            return null;
-        }
-        $text = $this->text($attribute, $records[0]['value']);
-        preg_match_all('/\d+(?:[.,]\d+)?/', $text, $match);
-        if (\count($found = $match[0]) !== $count) {
-            $warning = \sprintf('Unreadable value left empty: %s, %s, "%s"', self::formatTag($item->tagNumber) ?? $item->id->toRfc4122(), $attribute->name, $text);
-            $this->warnings[$warning] = $warning;
-
-            return null;
-        }
-
-        return array_map(static fn (string $number) => (float) str_replace(',', '.', $number), $found);
-    }
-
-    private function length(TimberItem $item): ?float
-    {
-        return $this->measure($item, $this->key['length'], 1)[0] ?? null;
-    }
-
-    /** @return ?array{0: float, 1: float} width and height in cm */
-    private function crossSection(TimberItem $item): ?array
-    {
-        return $this->measure($item, $this->key['sawn_cross_section'], 2);
-    }
-
-    private function isSawn(TimberItem $stem): bool
-    {
-        return isset($this->beamsOf[$stem->id->toRfc4122()])
-            || [] !== $this->records($stem, $this->key['sawn_cross_section'])
-            || (bool) ($this->records($stem, $this->key['sawn'])[0]['value'] ?? false);
-    }
-
-    private function roundWood(TimberItem $stem): ?float
-    {
-        $max = $this->measure($stem, $this->key['mid_diameter_max'], 1)[0] ?? null;
-        $min = $this->measure($stem, $this->key['mid_diameter_min'], 1)[0] ?? null;
-        $volume = self::product($max, $min, $this->length($stem));
-
-        return null === $volume ? null : $volume * M_PI / 4 / 10000;
-    }
-
-    private function sawnVolume(TimberItem $piece): ?float
-    {
-        $id = $piece->id->toRfc4122();
-        if (!\array_key_exists($id, $this->sawnVolume)) {
-            [$width, $height] = $this->crossSection($piece) ?? [null, null];
-            $volume = self::product($width, $height, $this->length($piece));
-            $this->sawnVolume[$id] = null === $volume ? null : $volume / 10000;
-        }
-
-        return $this->sawnVolume[$id];
-    }
-
-    private function sawnTotal(TimberItem $stem): ?float
-    {
-        $volumes = array_map($this->sawnVolume(...), $this->pieces[$stem->id->toRfc4122()]);
-
-        return [] === $volumes || \in_array(null, $volumes, true) ? null : array_sum($volumes);
-    }
-
-    /** Null unless every factor is known and above 0 (0 means not measured). */
-    private static function product(?float ...$factors): ?float
-    {
-        return array_any($factors, static fn (?float $factor) => null === $factor || $factor <= 0) ? null : array_product($factors);
     }
 
     /** Sorts "123" before "123-A" before "124"; items without a tag last. */
