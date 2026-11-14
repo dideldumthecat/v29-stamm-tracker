@@ -249,6 +249,8 @@ export function readQuery(query: LocationQueryRaw, columns: Column[]): ListQuery
   const filters: Record<string, string> = {}
   for (const column of columns) {
     const text = first(`f.${column.id}`).trim()
+    // An old link with a range of months ("2026-10~2026-11") sets no filter
+    if (filterType(column) === 'month' && text.includes('~')) continue
     if (text && filterType(column)) filters[column.id] = text
   }
   return {

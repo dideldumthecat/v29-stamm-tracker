@@ -184,10 +184,41 @@ describe('column filters', () => {
     expect(pass(column, { kind: 'none' })).toEqual(['3', '5'])
   })
 
-  it('month and date: from–to by time, one end may be missing, "not recorded" apart', () => {
-    expect(pass(col('month'), range('2026-10', '2026-11'))).toEqual(['1'])
-    expect(pass(col('month'), range('2026-11', ''))).toEqual(['2'])
-    expect(pass(col('month'), { kind: 'none' })).toEqual(['3', '4', '5'])
+  it('month: any of the ticked months, combined with "not recorded"', () => {
+    const column = col('month')
+    expect(pass(column, { kind: 'pick', picks: ['2026-10'] })).toEqual(['1'])
+    expect(pass(column, { kind: 'pick', picks: ['2026-10', '2026-12'] })).toEqual(['1', '2'])
+    expect(pass(column, { kind: 'pick', picks: ['2026-12', 'none'] })).toEqual(['2', '3', '4', '5'])
+    expect(pass(column, { kind: 'pick', picks: ['2020-01'] })).toEqual([])
+  })
+
+  it('offers the months of the rows, newest first, without doubles, the inherited ones of a beam too, and one of the URL that no row has', () => {
+    const month = (value: string) => ({ [id('month')]: [rec(value)] })
+    const items = [stem('1', month('2026-10')), stem('2', month('2026-12')), stem('3', month('2026-10'))]
+    const labels = (rows: Row[], picks: string[] = []) =>
+      pickOptions(col('month'), rows, picks).map((o) => [o.id, o.label])
+    const rows = buildRows({ ...snapshot, timber_items: items }, 'stem', cols)
+    expect(labels(rows)).toEqual([
+      ['2026-12', 'Dezember 2026'],
+      ['2026-10', 'Oktober 2026'],
+    ])
+    expect(labels(rows, ['2025-03', 'none'])).toEqual([
+      ['2026-12', 'Dezember 2026'],
+      ['2026-10', 'Oktober 2026'],
+      ['2025-03', 'März 2025'],
+    ])
+    // a beam has the month of its stem as its own, inherited value in the snapshot
+    const beamAttrs = attrs.map((a) => ({ ...a, applies_to: ['beam' as const] }))
+    const beams = buildRows(
+      { ...snapshot, attributes: beamAttrs, timber_items: [beam('1', 'A', month('2027-01'))] },
+      'beam',
+      buildColumns(beamAttrs, 'beam'),
+    )
+    expect(labels(beams)).toEqual([['2027-01', 'Januar 2027']])
+    expect(labels([])).toEqual([])
+  })
+
+  it('date: from–to by time, one end may be missing, "not recorded" apart', () => {
     expect(pass(col('date'), range('2026-10-31', '2026-11-15'))).toEqual(['1', '2'])
     expect(pass(col('date'), range('', '2026-10-30'))).toEqual([])
     expect(pass(col('date'), { kind: 'none' })).toEqual(['3', '4', '5'])
@@ -247,7 +278,7 @@ describe('column filters', () => {
       ['number', '30.5~40', range('30.5', '40')],
       ['number', '~40', range('', '40')],
       ['number', 'none', { kind: 'none' }],
-      ['month', '2026-10~', range('2026-10', '')],
+      ['month', '2026-10,none', { kind: 'pick', picks: ['2026-10', 'none'] }],
       ['date', '2026-10-01~2026-10-31', range('2026-10-01', '2026-10-31')],
       ['text', 'contains:krumm', { kind: 'contains', text: 'krumm' }],
       ['text', 'has', { kind: 'has' }],
@@ -263,7 +294,9 @@ describe('column filters', () => {
       ['number', 'abc~'],
       ['number', '~'],
       ['number', '1~2~3'],
-      ['month', '2026-13~'],
+      ['month', '2026-13'],
+      ['month', '2026-10~2026-11'],
+      ['month', '10/2026'],
       ['date', '2026-02-30~'],
       ['text', 'contains:'],
       ['text', 'x'],
@@ -290,6 +323,11 @@ describe('column filters', () => {
     })
     expect(readQuery(writeQuery(state), cols)).toEqual(state)
     expect(readQuery({ 'f.gibtsnicht': 'has', 'f.tag': 'x' }, cols).filters).toEqual({})
+    // an old link with a range of months sets no filter, and months are ticks like a choice
+    expect(readQuery({ [`f.${id('month')}`]: '2026-10~2026-11' }, cols).filters).toEqual({})
+    expect(readQuery({ [`f.${id('month')}`]: '2026-10,2026-11' }, cols).filters).toEqual({
+      [id('month')]: '2026-10,2026-11',
+    })
     // unreadable stays in the state, so that the list can say so
     const bad = readQuery({ [`f.${id('number')}`]: 'abc' }, cols)
     expect(columnFilters(bad, cols)).toEqual([{ column: col('number'), filter: null }])
@@ -331,7 +369,16 @@ describe('column filters', () => {
     expect(chip('number', range('30.5', ''))).toBe('Zufallsmerkmal number: ab 30,5 cm')
     expect(chip('number', range('', '40'))).toBe('Zufallsmerkmal number: bis 40 cm')
     expect(chip('number', { kind: 'none' })).toBe('Zufallsmerkmal number: Nicht erfasst')
-    expect(chip('month', range('2026-10', '2026-12'))).toBe('Zufallsmerkmal month: 10/2026–12/2026')
+    // months in words, newest first like the checklist, whatever the order of the picks
+    expect(chip('month', { kind: 'pick', picks: ['2026-10', '2026-11'] })).toBe(
+      'Zufallsmerkmal month: November 2026, Oktober 2026',
+    )
+    expect(chip('month', { kind: 'pick', picks: ['none', '2026-10'] })).toBe(
+      'Zufallsmerkmal month: Oktober 2026, Nicht erfasst',
+    )
+    expect(chip('month', { kind: 'pick', picks: ['2026-10', '2026-11', '2026-12'] })).toBe(
+      'Zufallsmerkmal month: 3 ausgewählt',
+    )
     expect(chip('date', range('2026-10-01', ''))).toBe('Zufallsmerkmal date: ab 01.10.2026')
     expect(chip('text', { kind: 'contains', text: 'krumm' })).toBe(
       'Zufallsmerkmal text: enthält krumm',

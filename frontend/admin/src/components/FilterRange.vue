@@ -5,12 +5,12 @@ import FilterField from '@/components/FilterField.vue'
 import { boundText, readBound, type ColumnFilter, type FilterType } from '@/listFilters'
 
 /**
- * From–to for a number, a month, a date or a count (both ends included, one may stay empty); with `allowNone` also "Nicht erfasst"
+ * From–to for a number, a date or a count (both ends included, one may stay empty); with `allowNone` also "Nicht erfasst"
  * as the alternative. The inputs act like the field "Kennung": a complete input after a pause of 500 ms, Enter and leaving at once.
  * Holds no filter state: `filter` is what the page says, every change goes up (`change`) and comes back as `filter`.
  */
 const props = defineProps<{
-  type: 'number' | 'month' | 'date' | 'count'
+  type: 'number' | 'date' | 'count'
   filter: ColumnFilter | null
   unit?: string
   allowNone?: boolean
@@ -54,7 +54,6 @@ const input = computed(
     ({
       number: { inputmode: 'decimal' },
       count: { inputmode: 'numeric' },
-      month: { inputmode: 'numeric', placeholder: 'MM/JJJJ' },
       date: { type: 'date' },
     })[props.type],
 )
@@ -73,7 +72,7 @@ const row = 'flex h-10 items-center gap-3 rounded-md px-2 hover:bg-well'
         :checked="mode === 'range'"
         @change="choose('range')"
       />
-      {{ type === 'month' || type === 'date' ? 'Zeitraum' : 'Bereich' }}
+      {{ type === 'date' ? 'Zeitraum' : 'Bereich' }}
     </label>
     <div class="flex flex-wrap items-end gap-x-3 gap-y-2 px-2 pb-2" :class="choosable && 'pl-10'">
       <label class="flex min-w-0 flex-1 flex-col text-sm text-mute" :class="dateWidth">
