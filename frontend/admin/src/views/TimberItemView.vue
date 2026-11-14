@@ -1,9 +1,15 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { ChevronDownIcon, CornerLeftUpIcon, TreesIcon, BugIcon } from '@lucide/vue'
+import { ChevronDownIcon, CornerLeftUpIcon, TreesIcon } from '@lucide/vue'
 import { beamSummary } from '@v29/shared/attributes'
-import type { ActivityEntry, ActivityResponse, Snapshot } from '@v29/shared/contract'
+import type {
+  ActivityEntry,
+  ActivityResponse,
+  KeyFigure,
+  KeyFiguresResponse,
+  Snapshot,
+} from '@v29/shared/contract'
 import BeamRowLabel from '@v29/shared/BeamRowLabel.vue'
 import FormattedTag from '@v29/shared/FormattedTag.vue'
 import SawBladeIcon from '@v29/shared/SawBladeIcon.vue'
@@ -11,7 +17,10 @@ import SawBladeIcon from '@v29/shared/SawBladeIcon.vue'
 import { formatDateTime, formatDayMonth, formatDayMonthTime, formatTime, yearOf } from '@/activity'
 import { ApiError, request } from '@/api/client'
 import BackLink from '@/components/BackLink.vue'
+import CardFailure from '@/components/CardFailure.vue'
+import CardLoading from '@/components/CardLoading.vue'
 import ItemPhotos from '@/components/ItemPhotos.vue'
+import KeyFigures from '@/components/KeyFigures.vue'
 import KeyValueRows from '@/components/KeyValueRows.vue'
 import LoadFailure from '@/components/LoadFailure.vue'
 import StatusCard from '@/components/StatusCard.vue'
@@ -38,6 +47,7 @@ async function load() {
   const mine = ++latest
   status.value = 'loading'
   historyEntries.value = null
+  keyFigures.value = null
   if (!tag.value) {
     status.value = 'missing'
     return
@@ -53,10 +63,29 @@ async function load() {
     status.value = 'error'
     return
   }
-  if (status.value === 'ready') void loadHistory(mine)
+  if (status.value === 'ready') {
+    void loadKeyFigures(mine)
+    void loadHistory(mine)
+  }
 }
 
-// The history is a card of its own: it loads after the page and fails on its own.
+// Key figures and history are cards of their own: they load after the page and fail on their own.
+const keyFigures = ref<KeyFigure[] | null>(null)
+const keyFiguresFailed = ref(false)
+async function loadKeyFigures(mine = latest) {
+  keyFiguresFailed.value = false
+  keyFigures.value = null
+  try {
+    const response = await request<KeyFiguresResponse>(
+      'GET',
+      `admin/timber-items/${item.value!.id}/key-figures`,
+    )
+    if (mine === latest) keyFigures.value = response.figures
+  } catch {
+    if (mine === latest) keyFiguresFailed.value = true
+  }
+}
+
 const historyEntries = ref<ActivityEntry[] | null>(null)
 const historyFailed = ref(false)
 async function loadHistory(mine = latest) {
@@ -138,7 +167,7 @@ watch(() => route.params.tag, load, { immediate: true })
 
     <template v-else>
       <!-- From 900 px on two columns (40/60): the photos stay in view (sticky, spanning both rows) while header and cards scroll on the right.
-           Below, one column in the order of the DOM: Kopf, Fotos, Balken, Merkmale, Verlauf.
+           Below, one column in the order of the DOM: Kopf, Fotos, Balken, Kennzahlen, Merkmale, Verlauf.
            The header exists once (one heading for screen readers), the grid only moves it. Its 24 px at the sides line the text up with the cards. -->
       <div class="grid items-start gap-6 min-[900px]:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
         <header
@@ -210,6 +239,18 @@ watch(() => route.params.tag, load, { immediate: true })
             </ul>
           </section>
 
+          <CardFailure
+            v-if="keyFiguresFailed"
+            message="Die Kennzahlen konnten nicht geladen werden."
+            @retry="loadKeyFigures()"
+          />
+          <CardLoading
+            v-else-if="keyFigures === null"
+            heading="Kennzahlen"
+            label="Kennzahlen werden geladen"
+          />
+          <KeyFigures v-else :figures="keyFigures" />
+
           <section :class="card" aria-labelledby="values-heading">
             <h2 id="values-heading" class="text-lg font-bold">Merkmale</h2>
             <dl class="mt-2 divide-y divide-soft">
@@ -236,25 +277,16 @@ watch(() => route.params.tag, load, { immediate: true })
             </dl>
           </section>
 
-          <div
+          <CardFailure
             v-if="historyFailed"
-            :class="[card, 'flex flex-col items-center gap-4 text-center']"
-            role="alert"
-          >
-            <BugIcon :size="40" :stroke-width="1.5" class="text-ink" aria-hidden="true" />
-            <p class="leading-message">Der Verlauf konnte nicht geladen werden.</p>
-            <button
-              type="button"
-              class="mt-2 h-11 rounded-lg border-2 border-ink px-4 font-bold"
-              @click="loadHistory()"
-            >
-              Erneut versuchen
-            </button>
-          </div>
-          <div v-else-if="historyEntries === null" :class="card" role="status">
-            <p class="text-lg font-bold">Verlauf</p>
-            <p class="text-caption text-mute">wird geladen …</p>
-          </div>
+            message="Der Verlauf konnte nicht geladen werden."
+            @retry="loadHistory()"
+          />
+          <CardLoading
+            v-else-if="historyEntries === null"
+            heading="Verlauf"
+            label="Verlauf wird geladen"
+          />
           <details v-else class="group card">
             <summary
               class="flex cursor-pointer list-none items-center justify-between gap-3 p-4 text-lg font-bold sm:p-6 [&::-webkit-details-marker]:hidden"

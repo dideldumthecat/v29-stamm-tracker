@@ -1,5 +1,7 @@
 import { test, expect, type Locator, type Page } from '@playwright/test'
 
+import keyFiguresFixture from '@v29/shared/fixtures/key-figures-response.json' with { type: 'json' }
+
 import { activityAnswer } from '../src/__tests__/fakeActivity'
 import { snapshotFixture, stemPhotos } from '../src/__tests__/fakeSnapshot'
 
@@ -36,6 +38,9 @@ async function fakeApi(page: Page) {
     }
     if (call === 'GET /api/snapshot') {
       return role ? route.fulfill({ json: snapshotFixture }) : route.fulfill({ status: 401 })
+    }
+    if (/^GET \/api\/admin\/timber-items\/[^/]+\/key-figures$/.test(call)) {
+      return role ? route.fulfill({ json: keyFiguresFixture }) : route.fulfill({ status: 401 })
     }
     if (call.startsWith('GET /api/photos/')) {
       // the second photo of the stem is not uploaded yet
@@ -655,7 +660,7 @@ test.describe('detail view', () => {
     await expect(dialog).toBeHidden()
   })
 
-  test('puts Fotos left (40 %), Balken, Merkmale and Verlauf right (60 %), one column below 900px', async ({
+  test('puts Fotos left (40 %), Balken, Kennzahlen, Merkmale and Verlauf right (60 %), one column below 900px', async ({
     page,
   }) => {
     const box = async (name: string) =>
@@ -668,15 +673,17 @@ test.describe('detail view', () => {
     await page.goto('/admin/staemme/104')
     await signIn(page, 'K7QM4XHT9RDP')
     await expect(page.locator('h1')).toHaveText('00104')
-    const [photos, beams, values, history] = [
+    const [photos, beams, figures, values, history] = [
       await box('Fotos'),
       await box('Balken'),
+      await box('Kennzahlen'),
       await box('Merkmale'),
       await box('Verlauf'),
     ]
     expect(beams.x).toBeGreaterThan(photos.x + 300)
-    for (const right of [values, history]) expect(right.x).toBe(beams.x)
-    expect(beams.y).toBeLessThan(values.y)
+    for (const right of [figures, values, history]) expect(right.x).toBe(beams.x)
+    expect(beams.y).toBeLessThan(figures.y)
+    expect(figures.y).toBeLessThan(values.y)
     expect(values.y).toBeLessThan(history.y)
     // 2fr | 3fr with a 24 px gap: the photo card takes 40 % of the width without the gap
     expect(photos.width / values.width).toBeCloseTo(2 / 3, 1)
@@ -685,13 +692,38 @@ test.describe('detail view', () => {
     const ys = [
       await box('Fotos'),
       await box('Balken'),
+      await box('Kennzahlen'),
       await box('Merkmale'),
       await box('Verlauf'),
     ]
-    expect(ys.map((heading) => heading.x)).toEqual(Array(4).fill(ys[0].x))
+    expect(ys.map((heading) => heading.x)).toEqual(Array(5).fill(ys[0].x))
     expect([...ys].map((heading) => heading.y)).toEqual(
       [...ys].map((heading) => heading.y).sort((a, b) => a - b),
     )
+  })
+
+  test('shows the key figures and opens and closes the formula of one', async ({ page }) => {
+    await page.goto('/admin/staemme/104')
+    await signIn(page, 'K7QM4XHT9RDP')
+    const card = page.locator('section', { has: page.getByRole('heading', { name: 'Kennzahlen' }) })
+    await expect(card).toContainText('0,502 m³')
+    await expect(card).toContainText('aus 40 × 39 cm und 4,10 m')
+    await expect(card).toContainText('60 %')
+
+    const info = card.getByRole('button', { name: 'Formel für Rundholz anzeigen' })
+    const formula = page.getByRole('dialog')
+    await expect(info).toHaveAttribute('aria-expanded', 'false')
+    await info.click()
+    await expect(info).toHaveAttribute('aria-expanded', 'true')
+    await expect(formula).toContainText('0,785 × 0,40 m × 0,39 m × 4,10 m')
+    await expect(formula).toContainText('Vorläufige Formel')
+
+    await page.keyboard.press('Escape')
+    await expect(formula).toBeHidden()
+    await info.click()
+    await expect(formula).toBeVisible()
+    await page.getByRole('heading', { name: 'Merkmale' }).click()
+    await expect(formula).toBeHidden()
   })
 
   test('keeps the photos in view while scrolling from 900px on, and does not stick below', async ({
@@ -1022,7 +1054,7 @@ test.describe('stem list', () => {
     const filters = [
       'tags=1-1999',
       `f.${id('Holzart')}=none`,
-      `f.${id('Fälldatum')}=2026-01~2026-12`,
+      `f.${id('Fälldatum')}=2026-10`,
       `f.${id('Lieferdatum')}=2026-01-01~2026-12-31`,
       `f.${id('Lagerplatz')}=none`,
       `f.${id('Gesägt')}=yes`,
