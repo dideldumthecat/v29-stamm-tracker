@@ -1,4 +1,4 @@
-import { bySortOrder, formatDate, formatMonth, formatNumber } from '@v29/shared/attributes'
+import { bySortOrder, formatDate, formatMonthLong, formatNumber } from '@v29/shared/attributes'
 import type { Attribute, AttributeType, TimberItem } from '@v29/shared/contract'
 
 /**
@@ -132,7 +132,7 @@ export function filterType(column: FilterColumn): FilterType | null {
 export const NOT_RECORDED_PICK = 'none'
 
 /**
- * What is set for one column. `pick`: choice or boolean, any of the picks; `range`: number, month, date, count, "from" and "to"
+ * What is set for one column. `pick`: choice, boolean or month, any of the picks (month: "2026-10"); `range`: number, date, count, "from" and "to"
  * included, one of them may be empty, in the form of the URL ("30.5", "2026-10", "2026-10-31"); `contains`: text, a part of a word;
  * `has`: text with a text, photo with photos; `none`: not recorded (photo: without photos).
  */
@@ -151,7 +151,7 @@ export function isDay(text: string): boolean {
   return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === text
 }
 
-/** One end of a range as typed or as in the URL, in the form of the URL; null if it is not readable. Month: typed "10/2026", in the URL "2026-10". */
+/** One end of a range as typed or as in the URL, in the form of the URL; null if it is not readable. */
 export function readBound(type: FilterType, text: string): string | null {
   switch (type) {
     case 'number':
@@ -160,25 +160,18 @@ export function readBound(type: FilterType, text: string): string | null {
       return /^\d+$/.test(text) ? String(Number(text)) : null
     case 'date':
       return isDay(text) ? text : null
-    case 'month': {
-      const typed = /^(0?[1-9]|1[0-2])\/(\d{4})$/.exec(text)
-      if (typed) return `${typed[2]}-${typed[1].padStart(2, '0')}`
-      return /^\d{4}-(?:0[1-9]|1[0-2])$/.test(text) ? text : null
-    }
     default:
       return null
   }
 }
 
-/** An end of a range as V29 writes it: decimal comma, "28.09.2026", "10/2026". */
+/** An end of a range as V29 writes it: decimal comma, "28.09.2026". */
 export function boundText(type: FilterType, value: string): string {
   switch (type) {
     case 'number':
       return formatNumber(Number(value))
     case 'date':
       return formatDate(value)
-    case 'month':
-      return formatMonth(value)
     default:
       return value
   }
@@ -187,6 +180,8 @@ export function boundText(type: FilterType, value: string): string {
 /** Whether the filter of the column offers "Nicht erfasst" (all but a count, and "Geändert", which every item has). */
 export const offersNone = (column: FilterColumn) =>
   column.kind !== 'beams' && column.kind !== 'changed'
+
+const MONTH = /^\d{4}-(?:0[1-9]|1[0-2])$/
 
 /** The filter a URL value stands for; null if it is not readable for this type. `allowNone`: whether "none" is a filter of the column (`offersNone`). */
 export function readFilter(
@@ -202,8 +197,13 @@ export function readFilter(
         type === 'choice' ? /^\S+$/.test(pick) : ['yes', 'no', NOT_RECORDED_PICK].includes(pick)
       return picks.every(known) ? { kind: 'pick', picks } : null
     }
+    case 'month': {
+      const picks = [...new Set(text.split(','))]
+      return picks.every((pick) => pick === NOT_RECORDED_PICK || MONTH.test(pick))
+        ? { kind: 'pick', picks }
+        : null
+    }
     case 'number':
-    case 'month':
     case 'date':
     case 'count': {
       if (text === 'none') return allowNone ? { kind: 'none' } : null
@@ -275,7 +275,7 @@ export function matchesFilter(row: FilterRow, column: FilterColumn, filter: Colu
           : column.kind === 'changed'
             ? row.changedDay
             : String(lastValue(row, attribute!))
-      // Numbers compare as numbers; days and months are written so that comparing the text is comparing the time
+      // Numbers compare as numbers; days are written so that comparing the text is comparing the time
       const numeric = filterType(column) === 'number' || filterType(column) === 'count'
       const at = (text: string) => (numeric ? Number(text) : text) as number
       return (
@@ -285,12 +285,26 @@ export function matchesFilter(row: FilterRow, column: FilterColumn, filter: Colu
   }
 }
 
-/** What a pick filter offers for the column: the options of the attribute in V29 order (inactive ones only if a row still has them), or "ja" and "nein". */
+/**
+ * What a pick filter offers for the column: the options of the attribute in V29 order (inactive ones only if a row still has them), "ja" and "nein",
+ * or for a month the months the rows have, newest first. `picks` keeps a month of the URL on offer that no row has (any more), so it can be unticked.
+ */
 export function pickOptions(
   column: FilterColumn,
   rows: FilterRow[],
+  picks: string[] = [],
 ): { id: string; label: string }[] {
   const attribute = column.attribute!
+  if (attribute.type === 'month') {
+    const months = new Set([
+      ...rows.flatMap((row) => lastValue(row, attribute) ?? []).map(String),
+      ...picks.filter((pick) => pick !== NOT_RECORDED_PICK),
+    ])
+    return [...months]
+      .sort()
+      .reverse()
+      .map((id) => ({ id, label: formatMonthLong(id) }))
+  }
   if (attribute.type === 'boolean') {
     return [
       { id: 'yes', label: 'ja' },
@@ -344,10 +358,13 @@ function describeValue(column: FilterColumn, type: FilterType, filter: ColumnFil
       return `enthält ${filter.text}`
     case 'pick': {
       // Every option of the attribute, not only the offered ones: a filter in the URL may name an inactive one
+      // (months: only the picked ones, newest first like the checklist)
       const all =
         type === 'boolean'
           ? pickOptions(column, [])
-          : [...column.attribute!.options].sort(bySortOrder)
+          : type === 'month'
+            ? pickOptions(column, [], filter.picks)
+            : [...column.attribute!.options].sort(bySortOrder)
       return describePicks(
         [
           ...all.filter((option) => filter.picks.includes(option.id)).map((option) => option.label),

@@ -17,6 +17,14 @@ export function formatMonth(calendarMonth: string): string {
   return calendarMonth.split('-').reverse().join('/')
 }
 
+/** Contract month "2026-10" → "Oktober 2026", for lists of months (tables and details stay with `formatMonth`). */
+export const formatMonthLong = (calendarMonth: string): string =>
+  new Date(`${calendarMonth}-01T00:00:00Z`).toLocaleDateString('de-DE', {
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  })
+
 /** Number as V29 writes it: decimal comma. */
 export function formatNumber(value: number): string {
   return String(value).replace('.', ',')

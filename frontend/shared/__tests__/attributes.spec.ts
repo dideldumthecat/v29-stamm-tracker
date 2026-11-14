@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { formatDate, formatMonth, isInheritedValue } from '../attributes'
+import { formatDate, formatMonth, formatMonthLong, isInheritedValue } from '../attributes'
 
 describe('formatDate', () => {
   it('writes the contract date the way V29 does', () => {
@@ -11,6 +11,13 @@ describe('formatDate', () => {
 describe('formatMonth', () => {
   it('writes the contract month the way V29 does', () => {
     expect(formatMonth('2026-10')).toBe('10/2026')
+  })
+})
+
+describe('formatMonthLong', () => {
+  it('writes the month in words with the year', () => {
+    expect(formatMonthLong('2026-10')).toBe('Oktober 2026')
+    expect(formatMonthLong('2027-03')).toBe('März 2027')
   })
 })
 

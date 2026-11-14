@@ -25,8 +25,12 @@ const open = defineModel<boolean>('open', { default: false })
 const type = computed(() => filterType(props.column) as FilterType)
 const textType = computed(() => (type.value === 'photo' ? 'photo' : 'text'))
 const picks = computed(() => (props.filter?.kind === 'pick' ? props.filter.picks : []))
+const checklist = computed(
+  () => type.value === 'choice' || type.value === 'boolean' || type.value === 'month',
+)
+// All rows of the list, not the filtered ones: an option does not vanish because of another filter
 const options = computed(() =>
-  type.value === 'choice' || type.value === 'boolean' ? pickOptions(props.column, props.rows) : [],
+  checklist.value ? pickOptions(props.column, props.rows, picks.value) : [],
 )
 const setPicks = (next: string[]) =>
   emit('change', next.length ? { kind: 'pick', picks: next } : null, false)
@@ -41,13 +45,13 @@ const setPicks = (next: string[]) =>
     :count="filter?.kind === 'pick' ? filter.picks.length : undefined"
   >
     <FilterChecklist
-      v-if="type === 'choice' || type === 'boolean'"
+      v-if="checklist"
       :options="options"
       :picks="picks"
       @change="setPicks"
     />
     <FilterRange
-      v-else-if="type === 'number' || type === 'month' || type === 'date' || type === 'count'"
+      v-else-if="type === 'number' || type === 'date' || type === 'count'"
       :type="type"
       :filter="filter"
       :unit="column.attribute?.unit ?? undefined"

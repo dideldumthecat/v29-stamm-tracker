@@ -185,6 +185,19 @@ describe('ColumnFilterButton', () => {
     ).toEqual(['30', '40'])
   })
 
+  it('offers the months of the list as ticks in words, "Nicht erfasst" under a line, and no text field', async () => {
+    const wrapper = await open('Fälldatum', { kind: 'pick', picks: ['2026-10'] })
+    expect(wrapper.get('button').text()).toBe('Fälldatum 1')
+    expect(labels()).toEqual(['Oktober 2026', 'Dezember 2025', 'Nicht erfasst'])
+    expect(popup()!.querySelectorAll('input[type=text], input:not([type=checkbox])')).toHaveLength(0)
+    expect(popup()!.querySelectorAll('input[type=checkbox]:checked')).toHaveLength(1)
+    popup()!.querySelectorAll<HTMLInputElement>('input')[2].click()
+    expect(wrapper.emitted('change')![0]).toEqual([
+      { kind: 'pick', picks: ['2026-10', 'none'] },
+      false,
+    ])
+  })
+
   it('offers a day range for a date, from–to for the beams without the alternative, and a text search', async () => {
     await open('Lieferdatum', null)
     expect(popup()!.querySelectorAll('input[type=date]')).toHaveLength(2)
@@ -259,18 +272,5 @@ describe('FilterRange with days', () => {
     })
     await set(field(single, 'Von'), '')
     expect(single.emitted('change')![0]).toEqual([null, false])
-  })
-
-  it('leaves months as text fields "MM/JJJJ" and writes them in the form of the URL', async () => {
-    const wrapper = mount(FilterRange, {
-      props: { type: 'month', filter: { kind: 'range', from: '2026-10', to: '' } },
-    })
-    expect(wrapper.findAll('input[type=date]')).toHaveLength(0)
-    expect(field(wrapper, 'Von').element.value).toBe('10/2026')
-    await set(field(wrapper, 'Bis'), '3/2027')
-    expect(wrapper.emitted('change')![0]).toEqual([
-      { kind: 'range', from: '2026-10', to: '2027-03' },
-      false,
-    ])
   })
 })
