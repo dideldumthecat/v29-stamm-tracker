@@ -42,7 +42,9 @@ const openKey = ref<string | null>(null)
               >&nbsp;%
             </span>
             <span v-else class="block text-ink tabular-nums">{{ formatFigure(figure) }}</span>
-            <span class="block text-caption wrap-anywhere text-mute">{{ figure.source }}</span>
+            <span class="mt-meta block text-caption wrap-anywhere text-mute">{{
+              figure.source
+            }}</span>
           </p>
           <PopoverRoot
             v-if="figure.value !== null"

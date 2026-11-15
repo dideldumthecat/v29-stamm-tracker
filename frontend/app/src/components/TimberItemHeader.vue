@@ -32,7 +32,7 @@ const emit = defineEmits<{ close: [] }>()
       <FormattedTag
         :tag-number="tagNumber"
         :zero-opacity="50"
-        class="-mr-[.05em] text-[40px] leading-none font-extrabold tracking-[.05em] tabular-nums"
+        class="-mr-(--tracking-tag) text-[40px] leading-none font-extrabold tracking-tag tabular-nums"
       />
     </h1>
     <SyncButton :pending-count="pendingCount" inverted />

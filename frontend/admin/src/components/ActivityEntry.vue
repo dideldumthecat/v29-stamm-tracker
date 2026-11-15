@@ -61,7 +61,7 @@ const hasNumber = (label: string) => /^\d/.test(label)
               :id="`${uid}-${index}`"
               class="flex flex-wrap items-baseline justify-between gap-x-3 border-b border-soft px-(--pad) py-2 leading-5"
             >
-              <span class="font-semibold tracking-[.05em] tabular-nums">
+              <span class="font-semibold tracking-tag tabular-nums">
                 <RouterLink
                   v-if="hasNumber(item.label)"
                   :to="{ name: 'timber-item', params: { tag: item.label } }"

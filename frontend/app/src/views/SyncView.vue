@@ -320,7 +320,9 @@ function onMainButton() {
               >Balken angelegt: <FormattedTag :tag-number="group.tagNumber!"
             /></b>
             <b v-else class="font-semibold wrap-anywhere">{{ describe(event, group.kind) }}</b>
-            <span class="text-caption text-mute">{{ formatShortDateTime(event.recorded_at) }}</span>
+            <span class="mt-meta text-caption text-mute">{{
+              formatShortDateTime(event.recorded_at)
+            }}</span>
           </div>
           <button
             type="button"
@@ -338,7 +340,9 @@ function onMainButton() {
           class="flex min-h-14 flex-col justify-center border-b border-line py-1.5"
         >
           <b class="font-semibold">{{ photoLabel(photo) }}</b>
-          <span class="text-caption text-mute">{{ formatShortDateTime(photo.taken_at) }}</span>
+          <span class="mt-meta text-caption text-mute">{{
+            formatShortDateTime(photo.taken_at)
+          }}</span>
         </div>
       </section>
     </div>

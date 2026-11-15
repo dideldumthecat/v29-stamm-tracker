@@ -361,7 +361,7 @@ async function removeFilter(id: string) {
                 <RouterLink
                   v-if="row.item.tag_number"
                   :to="{ name: 'timber-item', params: { tag: row.item.tag_number } }"
-                  class="scroll-ml-[calc(var(--stem-column-width,0px)*-1)] text-base font-extrabold tracking-[.05em] underline"
+                  class="scroll-ml-[calc(var(--stem-column-width,0px)*-1)] text-base font-extrabold tracking-tag underline"
                   ><FormattedTag :tag-number="row.item.tag_number"
                 /></RouterLink>
                 <span v-else class="font-normal text-mute">ohne Kennung</span>
@@ -392,7 +392,7 @@ async function removeFilter(id: string) {
                 </div>
                 <template v-else-if="column.kind === 'changed'">
                   {{ row.cells[column.id].text }}
-                  <div v-if="row.cells[column.id].by" class="text-caption text-mute">
+                  <div v-if="row.cells[column.id].by" class="mt-meta text-caption text-mute">
                     {{ row.cells[column.id].by }}
                   </div>
                 </template>
