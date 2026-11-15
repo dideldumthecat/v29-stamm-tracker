@@ -175,7 +175,7 @@ watch(() => route.params.tag, load, { immediate: true })
         >
           <BackLink class="mb-2 w-fit" />
           <p class="text-[22px] font-bold">{{ isBeam ? 'BALKEN' : 'STAMM' }}</p>
-          <h1 class="-mr-[.05em] text-5xl font-extrabold tracking-[.05em] tabular-nums">
+          <h1 class="-mr-(--tracking-tag) text-5xl font-extrabold tracking-tag tabular-nums">
             <FormattedTag :tag-number="tag!" />
           </h1>
           <RouterLink
@@ -270,7 +270,7 @@ watch(() => route.params.tag, load, { immediate: true })
                   >
                   <p v-for="(line, index) in row.lines" :key="index" class="leading-snug">
                     <span class="block whitespace-pre-line">{{ line.text }}</span>
-                    <span class="block text-caption text-mute">{{ line.source }}</span>
+                    <span class="mt-meta block text-caption text-mute">{{ line.source }}</span>
                   </p>
                 </dd>
               </div>
@@ -331,7 +331,7 @@ watch(() => route.params.tag, load, { immediate: true })
                         yearOf(row.point.recordedAt)
                       }}</span></span
                     >
-                    <span class="block text-caption text-mute">{{
+                    <span class="mt-meta block text-caption text-mute">{{
                       formatTime(row.point.recordedAt)
                     }}</span>
                   </time>
@@ -347,7 +347,10 @@ watch(() => route.params.tag, load, { immediate: true })
                     <p :id="`history-${index}`" class="leading-5 font-semibold">
                       {{ row.point.user }}
                     </p>
-                    <p v-if="row.point.transferredAt" class="text-caption text-mute tabular-nums">
+                    <p
+                      v-if="row.point.transferredAt"
+                      class="mt-meta text-caption text-mute tabular-nums"
+                    >
                       übertragen {{ formatDayMonthTime(row.point.transferredAt) }}
                     </p>
                     <!-- Each block is framed (faint border, no lines between the rows) so that the rows of one point read as a group; name and "übertragen" stay above it. The width (36 rem) makes up for the border and the inner padding, so that the longest attribute name fits on one line; the fixed 2 : 3 columns would otherwise put name and value further apart. -->

@@ -53,7 +53,7 @@ function onInput(event: Event) {
       <div
         v-for="record in entries"
         :key="record.event_id"
-        class="flex flex-col gap-1 border-b border-soft py-2"
+        class="flex flex-col gap-meta border-b border-soft py-2"
       >
         <p class="text-detail leading-copy wrap-anywhere whitespace-pre-line">
           {{ record.value }}
