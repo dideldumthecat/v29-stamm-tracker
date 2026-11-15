@@ -59,6 +59,8 @@ export default defineConfig(() => ({
         ],
       },
       workbox: {
+        // The default list lacks woff2: without it the font would be missing offline
+        globPatterns: ['**/*.{js,css,html,woff2}'],
         // SPA routing: unknown paths get index.html from the cache – except API and administration,
         // which are served by Symfony on the same origin
         navigateFallback: '/index.html',

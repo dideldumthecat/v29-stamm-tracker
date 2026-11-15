@@ -2,6 +2,22 @@
  * Design values shared by the capture app and the administration (Tailwind 4).
  * Imported after `@import 'tailwindcss'`; app-specific values stay in the app.
  */
+/*
+ * Roboto, self-hosted. Only the latin cut (covers ä ö ü ß „ “ × ÷ ³ –): `@fontsource-variable/roboto/wght.css`
+ * would pull in every script. Upright only, the code uses no italics. Characters outside it (π) fall back to the stack.
+ */
+@font-face {
+  font-family: 'Roboto Variable';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url('@fontsource-variable/roboto/files/roboto-latin-wght-normal.woff2')
+    format('woff2-variations');
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
 @theme {
   /* Only our own colors – the default palette (red-500 etc.) is switched off */
   --color-*: initial;
@@ -19,7 +35,7 @@
   --color-desk: #e4e4e2; /* area beside the app column (desktop) */
   --color-disabled: #cccccc;
 
-  --font-sans: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-sans: 'Roboto Variable', 'Helvetica Neue', Helvetica, Arial, sans-serif;
 
   /* Font sizes without a line height of their own: the line height stays inherited, as before */
   --text-caption: 13px; /* capture lines, hints, footers */
