@@ -23,6 +23,7 @@
     "vitest": "^4.1.12"
   },
   "dependencies": {
+    "@fontsource-variable/roboto": "^5.3.0",
     "@lucide/vue": "^1.61.0"
   }
 }
