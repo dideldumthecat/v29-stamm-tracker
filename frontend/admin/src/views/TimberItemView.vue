@@ -31,6 +31,7 @@ import {
   splitValues,
   stemNumber,
   timelineRows,
+  itemRoute,
 } from '@/detail'
 
 const route = useRoute()
@@ -180,7 +181,7 @@ watch(() => route.params.tag, load, { immediate: true })
           </h1>
           <RouterLink
             v-if="isBeam"
-            :to="{ name: 'timber-item', params: { tag: stemNumber(tag!) } }"
+            :to="itemRoute(stemNumber(tag!))"
             class="mt-2 -mb-2.5 flex h-11 w-fit items-center gap-2 font-semibold"
           >
             <CornerLeftUpIcon :size="20" aria-hidden="true" />
@@ -227,7 +228,7 @@ watch(() => route.params.tag, load, { immediate: true })
             <ul class="mt-2">
               <li v-for="beam in beams" :key="beam.id" class="border-line not-last:border-b">
                 <RouterLink
-                  :to="{ name: 'timber-item', params: { tag: beam.tag_number } }"
+                  :to="itemRoute(beam.tag_number)"
                   class="flex min-h-12 items-center gap-3 py-0.5"
                 >
                   <BeamRowLabel
@@ -370,10 +371,7 @@ watch(() => route.params.tag, load, { immediate: true })
                           Balken{{ ' ' }}
                           <RouterLink
                             v-if="normalizeTag(beam.label)"
-                            :to="{
-                              name: 'timber-item',
-                              params: { tag: normalizeTag(beam.label)! },
-                            }"
+                            :to="itemRoute(normalizeTag(beam.label)!)"
                             class="underline"
                             ><FormattedTag :tag-number="beam.label"
                           /></RouterLink>

@@ -20,6 +20,12 @@ export function normalizeTag(param: string): string | null {
   return match[2] ? `${number}-${match[2].toUpperCase()}` : String(number)
 }
 
+/** The detail route of a tag: stems (also those sawn whole) and beams have their own path, one component. */
+export const itemRoute = (tag: string) => ({
+  name: tag.includes('-') ? 'beam' : 'stem',
+  params: { tag },
+})
+
 /** The stem's number of a tag: "104-C" → "104". */
 export const stemNumber = (tag: string) => tag.split('-')[0]
 

@@ -5,6 +5,7 @@ import type { ActivityEntry } from '@v29/shared/contract'
 import FormattedTag from '@v29/shared/FormattedTag.vue'
 
 import KeyValueRows from '@/components/KeyValueRows.vue'
+import { itemRoute } from '@/detail'
 import { eventsText, formatRecordedTime, formatTime, summarize } from '@/activity'
 
 const props = defineProps<{ entry: ActivityEntry }>()
@@ -64,7 +65,7 @@ const hasNumber = (label: string) => /^\d/.test(label)
               <span class="font-semibold tracking-tag tabular-nums">
                 <RouterLink
                   v-if="hasNumber(item.label)"
-                  :to="{ name: 'timber-item', params: { tag: item.label } }"
+                  :to="itemRoute(item.label)"
                   class="underline"
                   ><FormattedTag :tag-number="item.label"
                 /></RouterLink>

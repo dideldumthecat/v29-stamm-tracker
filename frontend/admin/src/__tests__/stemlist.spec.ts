@@ -12,7 +12,7 @@ import {
   readQuery,
   sortBy,
   sortRows,
-  stemsText,
+  itemsText,
   withCells,
   writeQuery,
   type Column,
@@ -191,6 +191,7 @@ describe('sortRows', () => {
         tag_number: id,
         values: { [notiz.id]: [{ ...row('104').item.values[notiz.id][0], value: text }] },
       },
+      values: { [notiz.id]: [{ ...row('104').item.values[notiz.id][0], value: text }] },
       beams: 0,
       beamTags: [],
       changed: '2026-10-31T10:00:00.000Z',
@@ -241,13 +242,16 @@ describe('filters', () => {
   })
 })
 
-describe('stemsText', () => {
+describe('itemsText', () => {
   it('counts the stems, with a filter "von" all, with the singular', () => {
-    expect(stemsText(130, 130, false)).toBe('130 Stämme')
-    expect(stemsText(1, 1, false)).toBe('1 Stamm')
-    expect(stemsText(34, 130, true)).toBe('34 von 130 Stämmen')
-    expect(stemsText(1, 1, true)).toBe('1 von 1 Stamm')
-    expect(stemsText(1, 1300, true)).toBe('1 von 1.300 Stämmen')
+    expect(itemsText('stem', 130, 130, false)).toBe('130 Stämme')
+    expect(itemsText('stem', 1, 1, false)).toBe('1 Stamm')
+    expect(itemsText('stem', 34, 130, true)).toBe('34 von 130 Stämmen')
+    expect(itemsText('stem', 1, 1, true)).toBe('1 von 1 Stamm')
+    expect(itemsText('stem', 1, 1300, true)).toBe('1 von 1.300 Stämmen')
+    expect(itemsText('beam', 130, 130, false)).toBe('130 Balken')
+    expect(itemsText('beam', 1, 1, false)).toBe('1 Balken')
+    expect(itemsText('beam', 34, 130, true)).toBe('34 von 130 Balken')
   })
 })
 

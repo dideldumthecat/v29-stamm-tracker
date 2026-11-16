@@ -10,7 +10,7 @@ import {
   TreesIcon,
   XIcon,
 } from '@lucide/vue'
-import type { Snapshot } from '@v29/shared/contract'
+import type { ItemKind, Snapshot } from '@v29/shared/contract'
 import FormattedTag from '@v29/shared/FormattedTag.vue'
 import SawBladeIcon from '@v29/shared/SawBladeIcon.vue'
 
@@ -19,6 +19,7 @@ import ColumnFilterButton from '@/components/ColumnFilterButton.vue'
 import LoadFailure from '@/components/LoadFailure.vue'
 import ResultsBar from '@/components/ResultsBar.vue'
 import StatusCard from '@/components/StatusCard.vue'
+import { itemRoute } from '@/detail'
 import { useFilterBar } from '@/filterBar'
 import { applyFilters, chipOf, filterType, writeFilter, type ColumnFilter } from '@/listFilters'
 import {
@@ -30,12 +31,15 @@ import {
   readQuery,
   sortBy,
   sortRows,
-  stemsText,
+  itemsText,
   writeQuery,
 } from '@/stemlist'
 import { useScrollEdges } from '@/scrollEdges'
 import { useSizeVariable } from '@/sizeVariable'
 import { useTagsField } from '@/tagsField'
+
+// "stem": the list Rundholz, "beam": the list Schnittholz (beams and stems sawn whole). Both are this view; the router sets `kind`.
+const props = defineProps<{ kind: ItemKind }>()
 
 const route = useRoute()
 const router = useRouter()
@@ -57,10 +61,10 @@ async function load() {
 void load()
 
 // Everything is loaded once; sorting and filtering happen here. The URL is the only source of both.
-const columns = computed(() => buildColumns(snapshot.value?.attributes ?? [], 'stem'))
+const columns = computed(() => buildColumns(snapshot.value?.attributes ?? [], props.kind))
 // The cells of all rows are worked out here, once per snapshot: filtering, sorting and drawing only use them
 const allRows = computed(() =>
-  snapshot.value ? buildRows(snapshot.value, 'stem', columns.value) : [],
+  snapshot.value ? buildRows(snapshot.value, props.kind, columns.value) : [],
 )
 const query = computed(() => readQuery(route.query, columns.value))
 // null: a filter in the URL cannot be read
@@ -154,7 +158,7 @@ async function removeFilter(id: string) {
   <main data-wide class="py-8">
     <div class="sticky left-0 w-[100cqw]">
       <div class="page-column">
-        <h1 class="text-3xl font-bold">Stämme</h1>
+        <h1 class="text-3xl font-bold">{{ kind === 'stem' ? 'Rundholz' : 'Schnittholz' }}</h1>
         <p class="mt-2 text-mute">Eine Spalte je Merkmal, Reihenfolge wie in der App.</p>
 
         <form class="mt-6" @submit.prevent>
@@ -208,7 +212,7 @@ async function removeFilter(id: string) {
     <ResultsBar
       v-if="showBar"
       class="mt-4"
-      :text="stemsText(rows.length, allRows.length, hasFilter)"
+      :text="itemsText(kind, rows.length, allRows.length, hasFilter)"
       :chips="chips"
       :can-reset="hasFilter"
       @open="openFilter"
@@ -260,7 +264,9 @@ async function removeFilter(id: string) {
               aria-hidden="true"
             />
           </template>
-          <template #text>Stämme werden zurechtgesägt</template>
+          <template #text
+            >{{ kind === 'stem' ? 'Stämme' : 'Balken' }} werden zurechtgesägt</template
+          >
         </StatusCard>
 
         <StatusCard
@@ -357,7 +363,7 @@ async function removeFilter(id: string) {
               >
                 <RouterLink
                   v-if="row.item.tag_number"
-                  :to="{ name: 'timber-item', params: { tag: row.item.tag_number } }"
+                  :to="itemRoute(row.item.tag_number)"
                   class="scroll-ml-[calc(var(--stem-column-width,0px)*-1)] text-base font-extrabold tracking-tag underline"
                   ><FormattedTag :tag-number="row.item.tag_number"
                 /></RouterLink>

@@ -1,6 +1,12 @@
 import type { LocationQueryRaw } from 'vue-router'
-import { bySortOrder } from '@v29/shared/attributes'
-import type { Attribute, ItemKind, Snapshot, TimberItem } from '@v29/shared/contract'
+import { bySortOrder, isInheritedValue } from '@v29/shared/attributes'
+import type {
+  Attribute,
+  AttributeValueRecord,
+  ItemKind,
+  Snapshot,
+  TimberItem,
+} from '@v29/shared/contract'
 
 import { dayKey, formatDayMonthUnlessThisYear } from '@/activity'
 import { formatRecorded, latestOwnRecord } from '@/detail'
@@ -17,8 +23,11 @@ import {
   type RowFilter,
 } from '@/listFilters'
 
+/** Key of the attribute "Gesägt" (the same as `SAWN_KEY` in the app): a stem with "ja" and no beams is sawn whole and counts as a beam. */
+export const SAWN_KEY = 'sawn'
+
 /**
- * Pure logic of the list of stems (and, with `kind` "beam", of beams): columns from the attributes, rows from the snapshot, cell values,
+ * Pure logic of the list of stems (`kind` "stem", Rundholz) and of beams (`kind` "beam", Schnittholz): columns from the attributes, rows from the snapshot, cell values,
  * sorting and the URL. Nothing here knows an attribute by name or key: columns and cells follow type and definition. The filters
  * and their texts are in `listFilters.ts`.
  */
@@ -37,6 +46,11 @@ export interface Column {
 /** What a row is made of before its cells are worked out. */
 export interface RawRow {
   item: TimberItem
+  /**
+   * What the row shows and filters by: the effective values of the item (own or inherited, as the snapshot has them), except the notes
+   * (text series) it only inherits, which the detail view does not show either.
+   */
+  values: Record<string, AttributeValueRecord[]>
   /** Number of beams cut from the stem. */
   beams: number
   /** The tags of those beams ("104-A"): what the "Kennung" filter looks at for a beam tag. */
@@ -85,7 +99,7 @@ export function buildColumns(attributes: Attribute[], kind: ItemKind): Column[] 
   ]
 }
 
-/** One row per stem (or per beam), with its cells; in a list of stems the beams are no rows, they only count. */
+/** One row per stem (kind "stem") or per beam and stem sawn whole (kind "beam"), with its cells; in a list of stems the beams are no rows, they only count. */
 export function buildRows(
   snapshot: Snapshot,
   kind: ItemKind,
@@ -103,19 +117,37 @@ export function withCells(rows: RawRow[], columns: Column[]): Row[] {
 }
 
 function rawRows(snapshot: Snapshot, kind: ItemKind): RawRow[] {
+  const byId = new Map(snapshot.timber_items.map((item) => [item.id, item]))
   const beams = new Map<string, TimberItem[]>()
   for (const item of snapshot.timber_items) {
     if (item.parent_id) beams.set(item.parent_id, [...(beams.get(item.parent_id) ?? []), item])
   }
+  const sawn = snapshot.attributes.find((attribute) => attribute.key === SAWN_KEY)
+  // Beams, and stems that are sawn whole: no beams of their own and "Gesägt: ja" (a split stem is not a beam)
+  const isBeam = (item: TimberItem) =>
+    item.parent_id !== null ||
+    (!beams.has(item.id) && !!sawn && item.values[sawn.id]?.slice(-1)[0]?.value === true)
   return snapshot.timber_items
-    .filter((item) => (item.parent_id === null) === (kind === 'stem'))
+    .filter((item) => (kind === 'stem' ? item.parent_id === null : isBeam(item)))
     .map((item) => {
-      // Like the detail view: the person of the latest own recording, without one the person who created the stem
-      const last = latestOwnRecord(item, undefined, snapshot.attributes)
+      const parent = item.parent_id ? byId.get(item.parent_id) : undefined
+      // Like the detail view: the person of the latest own recording, without one the person who created the item
+      const last = latestOwnRecord(item, parent, snapshot.attributes)
       const userId = last?.user_id ?? item.created_by
       const changed = last?.recorded_at ?? item.created_at
+      const hidden = new Set(
+        snapshot.attributes
+          .filter(
+            (attribute) =>
+              attribute.type === 'text' &&
+              attribute.is_series &&
+              isInheritedValue(item, parent, attribute.id),
+          )
+          .map((attribute) => attribute.id),
+      )
       return {
         item,
+        values: Object.fromEntries(Object.entries(item.values).filter(([id]) => !hidden.has(id))),
         beams: beams.get(item.id)?.length ?? 0,
         beamTags: (beams.get(item.id) ?? []).flatMap((beam) => beam.tag_number ?? []),
         changed,
@@ -137,13 +169,20 @@ export interface Cell {
 
 const NOT_RECORDED: Cell = { text: null, key: null }
 
+/** What a tag is sorted by: the number, then the letter of a beam (104 < 104-A < 104-B < 105; no tag is not recorded). */
+const tagKey = (tag: string) => {
+  const [number, letter] = tag.split('-')
+  // 100 per number: room for the 26 letters
+  return Number(number) * 100 + (letter ? letter.charCodeAt(0) - 64 : 0)
+}
+
 /** The value of a cell: for a series the latest recording, a note with the number of older ones behind it. */
 export function cellOf(row: RawRow, column: Column): Cell {
   switch (column.kind) {
     case 'tag':
       return row.item.tag_number === null
         ? NOT_RECORDED
-        : { text: row.item.tag_number, key: Number.parseInt(row.item.tag_number) }
+        : { text: row.item.tag_number, key: tagKey(row.item.tag_number) }
     case 'beams':
       return { text: formatCount(row.beams), key: row.beams }
     case 'changed':
@@ -154,7 +193,7 @@ export function cellOf(row: RawRow, column: Column): Cell {
       }
   }
   const attribute = column.attribute!
-  const records = row.item.values[attribute.id] ?? []
+  const records = row.values[attribute.id] ?? []
   const last = records[records.length - 1]
   if (!last) return NOT_RECORDED
   switch (attribute.type) {
@@ -183,8 +222,8 @@ export function cellOf(row: RawRow, column: Column): Cell {
 /**
  * Sorts by one column. A value that is not recorded comes last in both directions – except in a text column, which is
  * sorted by whether there is a text (see `cellOf`): there "none" counts as the greatest, last ascending and first descending.
- * The cells are those of the rows, not worked out again. A tie (also between two values that are not recorded) is decided by the stem number, ascending in both directions
- * (stems without tag last, then the order of the snapshot).
+ * The cells are those of the rows, not worked out again. A tie (also between two values that are not recorded) is decided by the tag (number, then letter), ascending in both directions
+ * (items without tag last, then the order of the snapshot).
  */
 export function sortRows(rows: Row[], column: Column, dir: 'asc' | 'desc'): Row[] {
   const sign = dir === 'desc' ? -1 : 1
@@ -228,9 +267,14 @@ export function filtersFor(query: ListQuery, columns: Column[]): RowFilter[] | n
   return filters
 }
 
-/** "130 Stämme", with a filter "34 von 130 Stämmen". */
-export const stemsText = (shown: number, total: number, filtered: boolean) =>
-  countText(shown, total, filtered, ['Stamm', 'Stämme', 'Stämmen'])
+/** "130 Stämme", with a filter "34 von 130 Stämmen"; for beams "130 Balken", "34 von 130 Balken". */
+export const itemsText = (kind: ItemKind, shown: number, total: number, filtered: boolean) =>
+  countText(
+    shown,
+    total,
+    filtered,
+    kind === 'stem' ? ['Stamm', 'Stämme', 'Stämmen'] : ['Balken', 'Balken', 'Balken'],
+  )
 
 /**
  * The state of the list as the program holds it: `tags`, the column filters as written by `writeFilter` (by column id, a choice by option id)

@@ -63,7 +63,7 @@ afterEach(() => {
 
 describe('stem detail', () => {
   it('shows heading, subtitle and the cards, and asks the snapshot and the history anew', async () => {
-    const { wrapper, api } = await open('/staemme/00104')
+    const { wrapper, api } = await open('/stems/00104')
 
     expect(wrapper.get('h1').text()).toBe('00104')
     expect(wrapper.get('main header p').text()).toBe('STAMM')
@@ -89,7 +89,7 @@ describe('stem detail', () => {
   })
 
   it('lists the values with who and when, the notes as a row with their line breaks', async () => {
-    const { wrapper } = await open('/staemme/104')
+    const { wrapper } = await open('/stems/104')
     const values = section(wrapper, 'Merkmale')
 
     expect(valueRow(wrapper, 'Holzart')).toBe('HolzartStieleicheAlex Beispiel · 29.10.')
@@ -113,13 +113,13 @@ describe('stem detail', () => {
   })
 
   it('lists the beams as links with their short info', async () => {
-    const { wrapper } = await open('/staemme/104')
+    const { wrapper } = await open('/stems/104')
     const links = section(wrapper, 'Balken').findAll('a')
 
     expect(links.map((link) => link.attributes('href'))).toEqual([
-      '/staemme/104-A',
-      '/staemme/104-B',
-      '/staemme/104-C',
+      '/beams/104-A',
+      '/beams/104-B',
+      '/beams/104-C',
     ])
     expect(links.map((link) => squeezed(link.text()))).toEqual([
       '00104-Anoch keine eigenen Angaben',
@@ -130,7 +130,7 @@ describe('stem detail', () => {
 
   it('marks the year in the history and reads it with each date if the points are not in the current year', async () => {
     vi.setSystemTime(new Date('2027-01-05T12:00:00Z'))
-    const { wrapper } = await open('/staemme/104')
+    const { wrapper } = await open('/stems/104')
     const history = section(wrapper, 'Verlauf')
 
     const marks = history.findAll('li[aria-hidden="true"]')
@@ -143,7 +143,7 @@ describe('stem detail', () => {
   })
 
   it('shows the history as a closed timeline by device time, the stem without a heading, its beams with one', async () => {
-    const { wrapper } = await open('/staemme/104')
+    const { wrapper } = await open('/stems/104')
     const history = section(wrapper, 'Verlauf')
 
     expect(history.element.tagName).toBe('DETAILS')
@@ -167,14 +167,14 @@ describe('stem detail', () => {
     expect(lists[0].attributes('aria-labelledby')).toBe(point.get('p').attributes('id'))
     expect(point.findAll('p').map((p) => squeezed(p.text()))).toEqual(['Aaron Bauer'])
     expect(history.findAll('a').map((link) => link.attributes('href'))).toEqual([
-      '/staemme/104-A',
-      '/staemme/104-B',
-      '/staemme/104-C',
+      '/beams/104-A',
+      '/beams/104-B',
+      '/beams/104-C',
     ])
   })
 
   it('shows a placeholder that cannot be opened and a dash for the note where there is nothing', async () => {
-    const { wrapper } = await open('/staemme/104-B')
+    const { wrapper } = await open('/beams/104-B')
     const photos = section(wrapper, 'Fotos')
     expect(photos.get('[role=img]').attributes('aria-label')).toBe('Noch keine Fotos')
     expect(photos.findAll('button, img')).toHaveLength(0)
@@ -184,7 +184,7 @@ describe('stem detail', () => {
 
 describe('beam detail', () => {
   it('shows inherited values as such, links to the stem and has no beam card or foreign history', async () => {
-    const { wrapper } = await open('/staemme/104-c')
+    const { wrapper } = await open('/beams/104-c')
 
     expect(wrapper.get('h1').text()).toBe('00104-C')
     expect(wrapper.get('main header p').text()).toBe('BALKEN')
@@ -192,7 +192,7 @@ describe('beam detail', () => {
       .findAll('main header a')
       .find((link) => link.text().startsWith('Aus Stamm'))!
     expect(stem.text()).toBe('Aus Stamm 00104')
-    expect(stem.attributes('href')).toBe('/staemme/104')
+    expect(stem.attributes('href')).toBe('/stems/104')
     expect(wrapper.findAll('h2').map((h2) => h2.text())).not.toContain('Balken')
     expect(valueRow(wrapper, 'Holzart')).toBe('HolzartStieleicheVom Stamm geerbt')
     const history = section(wrapper, 'Verlauf')
@@ -202,30 +202,70 @@ describe('beam detail', () => {
   })
 })
 
+describe('route of the kind', () => {
+  it('sends a tag of the other kind to the right path, and the wrong path does not stay in the history', async () => {
+    const { wrapper, router } = await open('/activity')
+
+    await router.push('/beams/104')
+    await flushPromises()
+    expect(router.currentRoute.value.fullPath).toBe('/stems/104')
+    expect(router.currentRoute.value.name).toBe('stem')
+    expect(wrapper.get('h1').text()).toBe('00104')
+
+    await router.push('/stems/104-A?x=1')
+    await flushPromises()
+    expect(router.currentRoute.value.fullPath).toBe('/beams/104-A?x=1')
+    expect(router.currentRoute.value.name).toBe('beam')
+    expect(wrapper.get('h1').text()).toBe('00104-A')
+
+    // one step back each: first the stem (not /beams/104 or /stems/104-A), then the activity
+    router.back()
+    await vi.waitFor(() => expect(router.currentRoute.value.fullPath).toBe('/stems/104'))
+    router.back()
+    await vi.waitFor(() => expect(router.currentRoute.value.fullPath).toBe('/activity'))
+  })
+
+  it('replaces the entry of a pasted link instead of adding one', async () => {
+    const { router } = await open('/beams/104', 'replace')
+
+    expect(router.currentRoute.value.fullPath).toBe('/stems/104')
+    router.back()
+    await vi.waitFor(() => expect(router.currentRoute.value.name).toBe('login'))
+  })
+
+  it("leaves what is no tag alone, and takes a tag with zeros on its kind's path", async () => {
+    const { router } = await open('/stems/abc')
+    expect(router.currentRoute.value.fullPath).toBe('/stems/abc')
+    await router.push('/beams/00104')
+    await flushPromises()
+    expect(router.currentRoute.value.fullPath).toBe('/stems/104')
+  })
+})
+
 describe('states', () => {
   it('says so when there is no such stem, beam or tag', async () => {
-    const { wrapper } = await open('/staemme/999')
+    const { wrapper } = await open('/stems/999')
     expect(wrapper.get('[role=status] h2').text()).toBe('Waldesruh')
     expect(wrapper.get('[role=status]').text()).toContain('Stamm 999 gibt es nicht (mehr).')
     expect(wrapper.find('h1').exists()).toBe(false)
 
-    await wrapper.vm.$router.push('/staemme/104-Z')
+    await wrapper.vm.$router.push('/beams/104-Z')
     await flushPromises()
     expect(wrapper.text()).toContain('Balken 104-Z gibt es nicht (mehr).')
-    await wrapper.vm.$router.push('/staemme/abc')
+    await wrapper.vm.$router.push('/stems/abc')
     await flushPromises()
     expect(wrapper.text()).toContain('Stamm abc gibt es nicht (mehr).')
   })
 
   it('shows the saw blade while loading', async () => {
-    const { wrapper, router } = await open('/aktivitaet')
+    const { wrapper, router } = await open('/activity')
     const answer = globalThis.fetch
     let release!: () => void
     vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
       await new Promise<void>((resolve) => (release = resolve))
       return answer(url, init)
     })
-    void router.push('/staemme/104')
+    void router.push('/stems/104')
     await vi.waitFor(() => expect(wrapper.find('[role=status]').exists()).toBe(true))
 
     expect(wrapper.get('[role=status]').text()).toContain('Moment')
@@ -236,9 +276,9 @@ describe('states', () => {
   })
 
   it('offers to try again when the server fails', async () => {
-    const { wrapper, api } = await open('/aktivitaet')
+    const { wrapper, api } = await open('/activity')
     api.failSnapshot()
-    await wrapper.vm.$router.push('/staemme/104')
+    await wrapper.vm.$router.push('/stems/104')
     await flushPromises()
     expect(wrapper.get('[role=alert]').text()).toContain('Hier ist grad der Wurm drin')
 
@@ -249,9 +289,9 @@ describe('states', () => {
   })
 
   it('reports a failing history in its card only', async () => {
-    const { wrapper, api } = await open('/aktivitaet')
+    const { wrapper, api } = await open('/activity')
     api.failActivity()
-    await wrapper.vm.$router.push('/staemme/104')
+    await wrapper.vm.$router.push('/stems/104')
     await flushPromises()
     expect(wrapper.get('h1').text()).toBe('00104')
     expect(section(wrapper, 'Fotos').exists()).toBe(true)
@@ -273,7 +313,7 @@ describe('key figures', () => {
       .map((row) => squeezed(row.text()))
 
   it('comes after Balken (first without beams) and asks the server for the item', async () => {
-    const { wrapper, api } = await open('/staemme/104')
+    const { wrapper, api } = await open('/stems/104')
 
     const headings = wrapper.findAll('h2').map((h2) => h2.text())
     expect(headings.slice(0, 2)).toEqual(['Balken', 'Kennzahlen'])
@@ -286,12 +326,12 @@ describe('key figures', () => {
       'Ausbeute60 % Schnittholz ÷ Rundholz',
     ])
 
-    const beam = await open('/staemme/104-A')
+    const beam = await open('/beams/104-A')
     expect(beam.wrapper.findAll('h2')[0]!.text()).toBe('Kennzahlen')
   })
 
   it('opens the formula under the info button, one at a time, and closes it with Escape', async () => {
-    const { wrapper } = await open('/staemme/104')
+    const { wrapper } = await open('/stems/104')
     const info = (name: string) =>
       section(wrapper, 'Kennzahlen').get(`button[aria-label="Formel für ${name} anzeigen"]`)
 
@@ -317,9 +357,9 @@ describe('key figures', () => {
   })
 
   it('reports a failing request in its card only and tries again', async () => {
-    const { wrapper, api } = await open('/aktivitaet')
+    const { wrapper, api } = await open('/activity')
     api.failKeyFigures()
-    await wrapper.vm.$router.push('/staemme/104')
+    await wrapper.vm.$router.push('/stems/104')
     await flushPromises()
 
     expect(wrapper.get('h1').text()).toBe('00104')
@@ -338,29 +378,29 @@ describe('key figures', () => {
 describe('back', () => {
   // history.state.back does not exist in a memory history: stepping back is covered by the E2E test.
   it('links to the activity when the page was opened directly', async () => {
-    const { wrapper } = await open('/staemme/104', 'replace')
+    const { wrapper } = await open('/stems/104', 'replace')
     const back = wrapper.findAll('a').find((link) => link.text() === 'Zurück')!
-    expect(back.attributes('href')).toBe('/aktivitaet')
+    expect(back.attributes('href')).toBe('/activity')
   })
 })
 
 describe('link from the activity', () => {
   it('turns the tag of a detail card into a link', async () => {
-    const { wrapper, router } = await open('/aktivitaet?tags=104')
+    const { wrapper, router } = await open('/activity?tags=104')
     await wrapper.get('summary').trigger('click')
     const link = wrapper.findAll('article a').find((candidate) => candidate.text() === '00104-C')!
-    expect(link.attributes('href')).toBe('/staemme/104-C')
+    expect(link.attributes('href')).toBe('/beams/104-C')
 
     await link.trigger('click')
     await flushPromises()
-    expect(router.currentRoute.value.fullPath).toBe('/staemme/104-C')
+    expect(router.currentRoute.value.fullPath).toBe('/beams/104-C')
     expect(wrapper.get('h1').text()).toBe('00104-C')
   })
 })
 
 describe('photos', () => {
   it('shows the first photo large and all as thumbnails, the chosen one pressed', async () => {
-    const { wrapper } = await open('/staemme/104')
+    const { wrapper } = await open('/stems/104')
     const photos = section(wrapper, 'Fotos')
 
     expect(largePhoto(wrapper).get('img').attributes('src')).toBe(photoUrl(stemPhotos[0]))
@@ -374,7 +414,7 @@ describe('photos', () => {
   })
 
   it('names position and recording time of the chosen photo under the large one, also if it is not uploaded', async () => {
-    const { wrapper } = await open('/staemme/104')
+    const { wrapper } = await open('/stems/104')
     const photos = section(wrapper, 'Fotos')
     const line = () => photos.get('p.tabular-nums').text()
 
@@ -387,7 +427,7 @@ describe('photos', () => {
   })
 
   it('replaces a photo that is not uploaded yet with a placeholder that cannot be opened', async () => {
-    const { wrapper } = await open('/staemme/104')
+    const { wrapper } = await open('/stems/104')
     await section(wrapper, 'Fotos').findAll('button[aria-pressed]')[1].trigger('click')
     await largePhoto(wrapper).get('img').trigger('error')
 
@@ -398,7 +438,7 @@ describe('photos', () => {
   })
 
   it('opens the gallery at the chosen photo and names the download', async () => {
-    const { wrapper } = await open('/staemme/104')
+    const { wrapper } = await open('/stems/104')
     await section(wrapper, 'Fotos').findAll('button[aria-pressed]')[1].trigger('click')
     await largePhoto(wrapper).trigger('click')
 
@@ -414,7 +454,7 @@ describe('photos', () => {
   })
 
   it('moves between the photos by arrows, thumbnails and keys and starts at the fit again', async () => {
-    const { wrapper } = await open('/staemme/104')
+    const { wrapper } = await open('/stems/104')
     await largePhoto(wrapper).trigger('click')
     const dialog = wrapper.get('dialog')
     const title = () => squeezed(dialog.get('header p').text())
@@ -444,7 +484,7 @@ describe('photos', () => {
   })
 
   it('zooms by buttons, keys, wheel and double click; the percentage resets to the fit', async () => {
-    const { wrapper } = await open('/staemme/104')
+    const { wrapper } = await open('/stems/104')
     await largePhoto(wrapper).trigger('click')
     const dialog = wrapper.get('dialog')
     const zoom = () => dialog.get('button[aria-label^="Zoom"]').text()
@@ -476,14 +516,14 @@ describe('photos', () => {
   })
 
   it('closes with the button', async () => {
-    const { wrapper } = await open('/staemme/104')
+    const { wrapper } = await open('/stems/104')
     await largePhoto(wrapper).trigger('click')
     await wrapper.get('dialog button[aria-label="Schließen"]').trigger('click')
     expect(wrapper.find('dialog').exists()).toBe(false)
   })
 
   it('names the download of a beam with its tag', async () => {
-    const { wrapper } = await open('/staemme/104-A')
+    const { wrapper } = await open('/beams/104-A')
     await largePhoto(wrapper).trigger('click')
     expect(wrapper.get('dialog a[download]').attributes('download')).toBe('00104-A-1.jpg')
     expect(squeezed(wrapper.get('dialog header p').text())).toBe(

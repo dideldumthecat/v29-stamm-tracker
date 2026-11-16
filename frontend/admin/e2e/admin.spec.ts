@@ -61,7 +61,7 @@ async function signIn(page: Page, code: string) {
 test.beforeEach(async ({ page }) => fakeApi(page))
 
 for (const [path, landing, heading] of [
-  ['/admin/', '/admin/aktivitaet', 'Aktivität'],
+  ['/admin/', '/admin/activity', 'Aktivität'],
   ['/admin/x', '/admin/x', 'V29 Stamm-Tracker – Administration'],
 ]) {
   test(`${path} leads to the sign-in and, after signing in, back to the page`, async ({ page }) => {
@@ -85,7 +85,7 @@ test('the frame: active navigation item, credit, and one 1280px column from head
   await expect(page.getByRole('link', { name: 'Alexander Summa' })).toBeVisible()
   await signIn(page, 'K7QM4XHT9RDP')
 
-  await expect(page.getByRole('navigation').getByRole('link')).toHaveCount(2)
+  await expect(page.getByRole('navigation').getByRole('link')).toHaveCount(3)
   await expect(page.getByRole('link', { name: 'Aktivität' })).toHaveAttribute(
     'aria-current',
     'page',
@@ -167,7 +167,7 @@ test('signing out leads every page back to the sign-in', async ({ page }) => {
 
 test.describe('activity', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/admin/aktivitaet')
+    await page.goto('/admin/activity')
     await signIn(page, 'K7QM4XHT9RDP')
     await expect(page.locator('h1')).toHaveText('Aktivität')
   })
@@ -417,7 +417,7 @@ test.describe('activity', () => {
   test('keeps the bar above "Waldesruh" with 0 of N and the chips, and removing the chip brings the list back', async ({
     page,
   }) => {
-    await page.goto('/admin/aktivitaet?tags=999')
+    await page.goto('/admin/activity?tags=999')
     await expect(page.getByRole('heading', { name: 'Waldesruh' })).toBeVisible()
     const bar = page.locator('main > div.sticky')
     await expect(bar.getByText('0 von 6 Einträgen')).toBeVisible()
@@ -588,7 +588,7 @@ test.describe('activity', () => {
 for (const width of [1000, 390]) {
   test(`the open details do not scroll the page at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 800 })
-    await page.goto('/admin/aktivitaet')
+    await page.goto('/admin/activity')
     await signIn(page, 'K7QM4XHT9RDP')
     await page.getByText('Details anzeigen').nth(2).click()
     await expect(page.locator('details[open]')).toHaveCount(1)
@@ -603,31 +603,31 @@ test.describe('detail view', () => {
   test('opens from the activity with its filter and "Zurück" leads back to it', async ({
     page,
   }) => {
-    await page.goto('/admin/aktivitaet?tags=104')
+    await page.goto('/admin/activity?tags=104')
     await signIn(page, 'K7QM4XHT9RDP')
     await page.getByText('Details anzeigen').click()
     await page.getByRole('article').getByRole('link', { name: '00104-C' }).click()
 
-    await expect(page).toHaveURL(/\/admin\/staemme\/104-C$/)
+    await expect(page).toHaveURL(/\/admin\/beams\/104-C$/)
     await expect(page.locator('h1')).toHaveText('00104-C')
     await expect(page.getByRole('link', { name: 'Aus Stamm 00104' })).toBeVisible()
     await expect(page.getByText('Vom Stamm geerbt').first()).toBeVisible()
 
     await page.getByRole('button', { name: 'Zurück' }).click()
-    await expect(page).toHaveURL(/\/admin\/aktivitaet\?tags=104$/)
+    await expect(page).toHaveURL(/\/admin\/activity\?tags=104$/)
   })
 
   test('a pasted link has a "Zurück" link to the activity', async ({ page }) => {
-    await page.goto('/admin/staemme/00104')
+    await page.goto('/admin/stems/00104')
     await signIn(page, 'K7QM4XHT9RDP')
     await expect(page.locator('h1')).toHaveText('00104')
     await page.getByRole('link', { name: 'Zurück' }).click()
-    await expect(page).toHaveURL(/\/admin\/aktivitaet$/)
+    await expect(page).toHaveURL(/\/admin\/activity$/)
   })
 
   test('opens the gallery, zooms, moves the photo by dragging and closes it', async ({ page }) => {
     await page.setViewportSize({ width: 1200, height: 900 })
-    await page.goto('/admin/staemme/104')
+    await page.goto('/admin/stems/104')
     await signIn(page, 'K7QM4XHT9RDP')
     await page.getByRole('button', { name: 'Foto vergrößern' }).click()
 
@@ -670,7 +670,7 @@ test.describe('detail view', () => {
           : page.locator('section, details').filter({ hasText: new RegExp(`^\\s*${name}`) })
       ).boundingBox())!
     await page.setViewportSize({ width: 1200, height: 900 })
-    await page.goto('/admin/staemme/104')
+    await page.goto('/admin/stems/104')
     await signIn(page, 'K7QM4XHT9RDP')
     await expect(page.locator('h1')).toHaveText('00104')
     const [photos, beams, figures, values, history] = [
@@ -703,7 +703,7 @@ test.describe('detail view', () => {
   })
 
   test('shows the key figures and opens and closes the formula of one', async ({ page }) => {
-    await page.goto('/admin/staemme/104')
+    await page.goto('/admin/stems/104')
     await signIn(page, 'K7QM4XHT9RDP')
     const card = page.locator('section', { has: page.getByRole('heading', { name: 'Kennzahlen' }) })
     await expect(card).toContainText('0,502 m³')
@@ -731,7 +731,7 @@ test.describe('detail view', () => {
   }) => {
     const photos = page.locator('section[aria-label="Fotos"]')
     await page.setViewportSize({ width: 1200, height: 500 })
-    await page.goto('/admin/staemme/104')
+    await page.goto('/admin/stems/104')
     await signIn(page, 'K7QM4XHT9RDP')
     await expect(page.locator('h1')).toHaveText('00104')
     await page.locator('summary', { hasText: 'Verlauf' }).click()
@@ -748,7 +748,7 @@ test.describe('detail view', () => {
   })
 
   test('opens the history as a timeline by device time and turns the chevron', async ({ page }) => {
-    await page.goto('/admin/staemme/104')
+    await page.goto('/admin/stems/104')
     await signIn(page, 'K7QM4XHT9RDP')
     const details = page.locator('details', { hasText: 'Verlauf' })
     const summary = details.locator('summary')
@@ -773,7 +773,7 @@ test.describe('detail view', () => {
   for (const width of [1000, 390]) {
     test(`does not scroll the page sideways at ${width}px`, async ({ page }) => {
       await page.setViewportSize({ width, height: 800 })
-      await page.goto('/admin/staemme/104')
+      await page.goto('/admin/stems/104')
       await signIn(page, 'K7QM4XHT9RDP')
       await expect(page.locator('h1')).toHaveText('00104')
       await expect(page.locator('summary', { hasText: /^\s*Verlauf\s*$/ })).toBeVisible()
@@ -797,14 +797,53 @@ test.describe('stem list', () => {
   const filterButton = (page: Page, name: string) =>
     bar(page).getByRole('button', { name, exact: false }).filter({ hasText: name })
 
+  test('Schnittholz lists the beams, filters by tag, opens a beam and keeps its own URL; the path follows the kind', async ({
+    page,
+  }) => {
+    await page.goto('/admin/activity')
+    await signIn(page, 'K7QM4XHT9RDP')
+    const links = page.getByRole('navigation').getByRole('link')
+    await expect(links).toHaveText(['Rundholz', 'Schnittholz', 'Aktivität'])
+    await links.nth(1).click()
+    await expect(page).toHaveURL(/\/admin\/beams$/)
+    await expect(page.locator('h1')).toHaveText('Schnittholz')
+    await expect(page.getByText('3 Balken', { exact: true })).toBeVisible()
+    await expect(tags(page)).toHaveText(['00104-A', '00104-B', '00104-C'])
+    await expect(page.getByRole('columnheader', { name: 'Balken' })).toHaveAttribute(
+      'aria-sort',
+      'ascending',
+    )
+
+    await page.getByRole('textbox', { name: 'Kennung' }).fill('104-B')
+    await expect(page).toHaveURL(/\/admin\/beams\?tags=104-B$/)
+    await expect(tags(page)).toHaveText(['00104-B'])
+    await expect(page.getByText('1 von 3 Balken')).toBeVisible()
+
+    await page.getByRole('link', { name: '00104-B' }).click()
+    await expect(page).toHaveURL(/\/admin\/beams\/104-B$/)
+    await page.getByRole('button', { name: 'Zurück' }).click()
+    await expect(page).toHaveURL(/\/admin\/beams\?tags=104-B$/)
+
+    // Rundholz has its own filter state
+    await links.first().click()
+    await expect(page).toHaveURL(/\/admin\/stems$/)
+    await expect(page.getByText('4 Stämme', { exact: true })).toBeVisible()
+
+    // a tag on the path of the other kind goes to the right one
+    await page.goto('/admin/beams/104')
+    await expect(page).toHaveURL(/\/admin\/stems\/104$/)
+    await page.goto('/admin/stems/104-A')
+    await expect(page).toHaveURL(/\/admin\/beams\/104-A$/)
+  })
+
   test('opens from the navigation, sorts, filters by tag and keeps both through the detail view', async ({
     page,
   }) => {
-    await page.goto('/admin/aktivitaet')
+    await page.goto('/admin/activity')
     await signIn(page, 'K7QM4XHT9RDP')
-    await page.getByRole('navigation').getByRole('link', { name: 'Stämme' }).click()
-    await expect(page).toHaveURL(/\/admin\/staemme$/)
-    await expect(page.locator('h1')).toHaveText('Stämme')
+    await page.getByRole('navigation').getByRole('link', { name: 'Rundholz' }).click()
+    await expect(page).toHaveURL(/\/admin\/stems$/)
+    await expect(page.locator('h1')).toHaveText('Rundholz')
     await expect(page.getByText('4 Stämme', { exact: true })).toBeVisible()
     await expect(tags(page)).toHaveText(['00007', '00104', '01500', 'ohne Kennung'])
 
@@ -823,11 +862,11 @@ test.describe('stem list', () => {
     await expect(page.getByText('2 von 4 Stämmen')).toBeVisible()
 
     await page.getByRole('link', { name: '00104' }).click()
-    await expect(page).toHaveURL(/\/admin\/staemme\/104$/)
+    await expect(page).toHaveURL(/\/admin\/stems\/104$/)
     await expect(page.locator('h1')).toHaveText('00104')
 
     await page.getByRole('button', { name: 'Zurück' }).click()
-    await expect(page).toHaveURL(/\/admin\/staemme\?tags=1-200&sort=Balken&dir=desc$/)
+    await expect(page).toHaveURL(/\/admin\/stems\?tags=1-200&sort=Balken&dir=desc$/)
     await expect(page.getByRole('textbox', { name: 'Kennung' })).toHaveValue('1-200')
     await expect(page.getByText('2 von 4 Stämmen')).toBeVisible()
     await expect(tags(page).first()).toHaveText('00104')
@@ -836,7 +875,7 @@ test.describe('stem list', () => {
   test('sorts the notes by whether there is one: with a note first, then without', async ({
     page,
   }) => {
-    await page.goto('/admin/staemme')
+    await page.goto('/admin/stems')
     await signIn(page, 'K7QM4XHT9RDP')
     await sortOn(page, 'Notiz')
     await expect(tags(page)).toHaveText(['00104', 'ohne Kennung', '00007', '01500'])
@@ -847,9 +886,9 @@ test.describe('stem list', () => {
   test('writes filters and sort with their names, and the copied link opens the same list', async ({
     page,
   }) => {
-    await page.goto('/admin/staemme')
+    await page.goto('/admin/stems')
     await signIn(page, 'K7QM4XHT9RDP')
-    await page.goto('/admin/staemme?Lagerplatz=Polter Süd,Polter Nord&sort=Geändert&dir=desc')
+    await page.goto('/admin/stems?Lagerplatz=Polter Süd,Polter Nord&sort=Geändert&dir=desc')
     const chips = page.getByRole('list', { name: 'Aktive Filter' })
     await expect(chips).toHaveText(/Lagerplatz: Polter Nord, Polter Süd/)
     // any change rewrites the URL in the readable form
@@ -877,7 +916,7 @@ test.describe('stem list', () => {
         json: { ...snapshotFixture, timber_items: [...snapshotFixture.timber_items, ...stems] },
       }),
     )
-    await page.goto('/admin/staemme')
+    await page.goto('/admin/stems')
     await signIn(page, 'K7QM4XHT9RDP')
     await expect(tags(page)).toHaveCount(64)
   }
@@ -893,7 +932,7 @@ test.describe('stem list', () => {
   test('filters through the drop-downs of the columns: ticks, chips, back button, link, reset', async ({
     page,
   }) => {
-    await page.goto('/admin/staemme')
+    await page.goto('/admin/stems')
     await signIn(page, 'K7QM4XHT9RDP')
     await expect(tags(page)).toHaveCount(4)
     const chips = page.getByRole('list', { name: 'Aktive Filter' })
@@ -962,7 +1001,7 @@ test.describe('stem list', () => {
     await popup.getByLabel('Stieleiche').check()
     await page.keyboard.press('Escape')
     await page.getByRole('button', { name: 'Filter zurücksetzen' }).click()
-    await expect(page).toHaveURL(/\/admin\/staemme$/)
+    await expect(page).toHaveURL(/\/admin\/stems$/)
     await expect(tags(page)).toHaveCount(4)
     await expect(page.getByRole('textbox', { name: 'Kennung' })).toHaveValue('')
   })
@@ -970,7 +1009,7 @@ test.describe('stem list', () => {
   test('searches a text while typing, takes a range and opens the filters by keyboard', async ({
     page,
   }) => {
-    await page.goto('/admin/staemme')
+    await page.goto('/admin/stems')
     await signIn(page, 'K7QM4XHT9RDP')
 
     await filterButton(page, 'Notiz').focus()
@@ -998,7 +1037,7 @@ test.describe('stem list', () => {
   test('keeps the bar above "Waldesruh" with 0 of N and the chips, and removing the chip brings the table back', async ({
     page,
   }) => {
-    await page.goto('/admin/staemme?tags=300-400')
+    await page.goto('/admin/stems?tags=300-400')
     await signIn(page, 'K7QM4XHT9RDP')
     await expect(page.getByRole('heading', { name: 'Waldesruh' })).toBeVisible()
     const bar = page.locator('main > div.sticky').nth(1)
@@ -1016,7 +1055,7 @@ test.describe('stem list', () => {
   test('finds the stem of a beam tag, and offers no "Nicht erfasst" for "Geändert"', async ({
     page,
   }) => {
-    await page.goto('/admin/staemme')
+    await page.goto('/admin/stems')
     await signIn(page, 'K7QM4XHT9RDP')
     await page.getByRole('textbox', { name: 'Kennung' }).fill('104-a')
     await expect(tags(page)).toHaveText(['00104'])
@@ -1042,7 +1081,7 @@ test.describe('stem list', () => {
     await expect(link).toHaveCount(0)
 
     // only stems come back that sort after the ones shown, so nothing above moves
-    await page.goto('/admin/staemme?tags=1-1999')
+    await page.goto('/admin/stems?tags=1-1999')
     await expect(link).toBeVisible()
     const arrows = (await page
       .getByRole('button', { name: 'Tabelle nach rechts scrollen' })
@@ -1055,7 +1094,7 @@ test.describe('stem list', () => {
     await page.evaluate(() => window.scrollTo(0, 800))
     await expect(link).toBeInViewport()
     await link.click()
-    await expect(page).toHaveURL(/\/admin\/staemme$/)
+    await expect(page).toHaveURL(/\/admin\/stems$/)
     await expect(page.getByRole('textbox', { name: 'Kennung' })).toBeFocused()
     expect(await page.evaluate(() => window.scrollY)).toBe(800)
     await expect(link).toHaveCount(0)
@@ -1068,7 +1107,7 @@ test.describe('stem list', () => {
     // eslint-disable-next-line playwright/no-skipped-test
     test.skip(isMobile, 'the emulated phone widens the window to the table, the bar never wraps')
     await page.setViewportSize({ width: 1280, height: 800 })
-    await page.goto('/admin/staemme')
+    await page.goto('/admin/stems')
     await signIn(page, 'K7QM4XHT9RDP')
     const id = (name: string) => snapshotFixture.attributes.find((a) => a.name === name)!.id
     const filters = [
@@ -1088,7 +1127,7 @@ test.describe('stem list', () => {
     const heights: number[] = []
     const lines: number[] = []
     for (const count of [1, 6, 8, 11]) {
-      await page.goto(`/admin/staemme?${filters.slice(0, count).join('&')}`)
+      await page.goto(`/admin/stems?${filters.slice(0, count).join('&')}`)
       await expect(page.getByRole('list', { name: 'Aktive Filter' })).toBeVisible()
       heights.push((await bar.boundingBox())!.height)
       lines.push((await page.getByRole('list', { name: 'Aktive Filter' }).boundingBox())!.height)
@@ -1114,7 +1153,7 @@ test.describe('stem list', () => {
   test('picks the days of "Geändert" with the date pickers; an old link and a reload keep them', async ({
     page,
   }) => {
-    await page.goto('/admin/staemme')
+    await page.goto('/admin/stems')
     await signIn(page, 'K7QM4XHT9RDP')
     await filterButton(page, 'Geändert').click()
     const popup = page.getByRole('dialog', { name: 'Geändert' })
@@ -1148,7 +1187,7 @@ test.describe('stem list', () => {
     await expect(page.getByRole('button', { name: /^Geändert:/ })).toHaveCount(0)
 
     // an old link still works
-    await page.goto('/admin/staemme?f.changed=2026-10-01~2026-12-31')
+    await page.goto('/admin/stems?f.changed=2026-10-01~2026-12-31')
     await expect(
       page.getByRole('button', { name: 'Geändert: 01.10.2026–31.12.2026' }),
     ).toBeVisible()
@@ -1156,7 +1195,7 @@ test.describe('stem list', () => {
 
   test('keeps the drop-downs inside a narrow window', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 700 })
-    await page.goto('/admin/staemme')
+    await page.goto('/admin/stems')
     await signIn(page, 'K7QM4XHT9RDP')
     for (const name of ['Holzart', 'Geändert']) {
       await filterButton(page, name).click()
@@ -1177,7 +1216,7 @@ test.describe('stem list', () => {
     // enough filters for a second line of chips
     const id = (name: string) => snapshotFixture.attributes.find((a) => a.name === name)!.id
     await page.goto(
-      `/admin/staemme?tags=1-1999&f.${id('Holzart')}=none&f.${id('Gesägt')}=yes,no,none&f.${id('Notiz')}=none`,
+      `/admin/stems?tags=1-1999&f.${id('Holzart')}=none&f.${id('Gesägt')}=yes,no,none&f.${id('Notiz')}=none`,
     )
     const bar = page.locator('main > div.sticky').nth(1)
     await expect(page.getByRole('list', { name: 'Aktive Filter' })).toBeVisible()
@@ -1324,7 +1363,7 @@ test.describe('stem list', () => {
     await page.route('**/api/snapshot', (route) =>
       route.fulfill({ json: { ...snapshotFixture, attributes: [] } }),
     )
-    await page.goto('/admin/staemme')
+    await page.goto('/admin/stems')
     await signIn(page, 'K7QM4XHT9RDP')
     await expect(tags(page)).toHaveCount(4)
 
@@ -1341,7 +1380,7 @@ test.describe('stem list', () => {
     page,
   }) => {
     await page.setViewportSize({ width: 1400, height: 800 })
-    await page.goto('/admin/staemme')
+    await page.goto('/admin/stems')
     await signIn(page, 'K7QM4XHT9RDP')
     await expect(tags(page)).toHaveCount(4)
     const natural = (await cardBox(page)).width
@@ -1393,7 +1432,7 @@ test.describe('stem list', () => {
     // eslint-disable-next-line playwright/no-skipped-test
     test.skip(isMobile, 'a phone pans instead of scrolling the window')
     await page.setViewportSize({ width: 1100, height: 800 })
-    await page.goto('/admin/staemme')
+    await page.goto('/admin/stems')
     await signIn(page, 'K7QM4XHT9RDP')
     await expect(tags(page)).toHaveCount(4)
 
@@ -1411,7 +1450,7 @@ test.describe('stem list', () => {
     page,
   }) => {
     await page.setViewportSize({ width: 390, height: 800 })
-    await page.goto('/admin/staemme?tags=300-400')
+    await page.goto('/admin/stems?tags=300-400')
     await signIn(page, 'K7QM4XHT9RDP')
     await expect(page.getByRole('heading', { name: 'Waldesruh' })).toBeVisible()
     expect(await sideways(page)).toBe(0)

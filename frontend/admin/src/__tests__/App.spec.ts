@@ -61,7 +61,7 @@ describe('router guard', () => {
     const { router, wrapper } = await start('/login?redirect=//evil.example')
     await signIn(wrapper, ADMIN)
 
-    expect(router.currentRoute.value.fullPath).toBe('/aktivitaet')
+    expect(router.currentRoute.value.fullPath).toBe('/activity')
   })
 
   it('opens the activity for "/" and shows the placeholder for an unknown path', async () => {
@@ -178,7 +178,11 @@ describe('frame', () => {
     await signIn(wrapper, ADMIN)
     await router.push('/')
 
-    expect(wrapper.findAll('nav a').map((link) => link.text())).toEqual(['Stämme', 'Aktivität'])
+    expect(wrapper.findAll('nav a').map((link) => link.text())).toEqual([
+      'Rundholz',
+      'Schnittholz',
+      'Aktivität',
+    ])
     const current = wrapper.get('nav [aria-current=page]')
     expect(current.text()).toBe('Aktivität')
 

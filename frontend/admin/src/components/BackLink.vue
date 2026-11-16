@@ -14,7 +14,7 @@ const canGoBack = typeof previous === 'string' && !previous.startsWith('/login')
   <!-- Looks like the "Aus Stamm" link of a beam; the callers only place it. -->
   <component
     :is="canGoBack ? 'button' : RouterLink"
-    v-bind="canGoBack ? { type: 'button', onClick: () => router.back() } : { to: '/aktivitaet' }"
+    v-bind="canGoBack ? { type: 'button', onClick: () => router.back() } : { to: '/activity' }"
     class="flex h-11 items-center gap-2 font-semibold"
   >
     <ArrowLeftIcon :size="20" aria-hidden="true" />
