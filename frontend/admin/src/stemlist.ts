@@ -1,5 +1,5 @@
 import type { LocationQueryRaw } from 'vue-router'
-import { bySortOrder, isInheritedValue } from '@v29/shared/attributes'
+import { bySortOrder, isInheritedValue, SAWN_KEY } from '@v29/shared/attributes'
 import type {
   Attribute,
   AttributeValueRecord,
@@ -22,9 +22,6 @@ import {
   type ColumnFilter,
   type RowFilter,
 } from '@/listFilters'
-
-/** Key of the attribute "Gesägt" (the same as `SAWN_KEY` in the app): a stem with "ja" and no beams is sawn whole and counts as a beam. */
-export const SAWN_KEY = 'sawn'
 
 /**
  * Pure logic of the list of stems (`kind` "stem", Rundholz) and of beams (`kind` "beam", Schnittholz): columns from the attributes, rows from the snapshot, cell values,
