@@ -189,7 +189,9 @@ describe('ColumnFilterButton', () => {
     const wrapper = await open('Fälldatum', { kind: 'pick', picks: ['2026-10'] })
     expect(wrapper.get('button').text()).toBe('Fälldatum 1')
     expect(labels()).toEqual(['Oktober 2026', 'Dezember 2025', 'Nicht erfasst'])
-    expect(popup()!.querySelectorAll('input[type=text], input:not([type=checkbox])')).toHaveLength(0)
+    expect(popup()!.querySelectorAll('input[type=text], input:not([type=checkbox])')).toHaveLength(
+      0,
+    )
     expect(popup()!.querySelectorAll('input[type=checkbox]:checked')).toHaveLength(1)
     popup()!.querySelectorAll<HTMLInputElement>('input')[2].click()
     expect(wrapper.emitted('change')![0]).toEqual([
