@@ -51,27 +51,31 @@ const isLocked = computed(() => props.record !== undefined && (props.readonly ||
     <p v-if="description && descriptionAbove" class="text-sm leading-copy text-body">
       {{ description }}
     </p>
-    <div class="flex min-h-[52px] items-center gap-3 rounded-lg border-2 border-lockline pl-3">
-      <span class="min-w-0 flex-1 wrap-anywhere whitespace-pre-line"
-        ><span :class="{ 'line-through': lockedInactive }">{{ lockedText }}</span
-        ><InactiveHint v-if="lockedInactive" class="ml-2"
-      /></span>
-      <button
-        v-if="!readonly"
-        type="button"
-        class="mr-0.5 flex size-11 items-center justify-center rounded-md text-ink"
-        :aria-label="`${name} ändern`"
-        @click="isUnlocked = true"
-      >
-        <PencilIcon :size="22" aria-hidden="true" />
-      </button>
+    <div class="flex flex-col gap-meta *:max-w-full *:min-w-0">
+      <div class="flex flex-col gap-2.5 *:max-w-full *:min-w-0">
+        <div class="flex min-h-[52px] items-center gap-3 rounded-lg border-2 border-lockline pl-3">
+          <span class="min-w-0 flex-1 wrap-anywhere whitespace-pre-line"
+            ><span :class="{ 'line-through': lockedInactive }">{{ lockedText }}</span
+            ><InactiveHint v-if="lockedInactive" class="ml-2"
+          /></span>
+          <button
+            v-if="!readonly"
+            type="button"
+            class="mr-0.5 flex size-11 items-center justify-center rounded-md text-ink"
+            :aria-label="`${name} ändern`"
+            @click="isUnlocked = true"
+          >
+            <PencilIcon :size="22" aria-hidden="true" />
+          </button>
+        </div>
+        <p v-if="description && !descriptionAbove" class="text-sm leading-copy text-body">
+          {{ description }}
+        </p>
+      </div>
+      <span class="text-caption text-mute">{{
+        inherited ? 'Vom Stamm geerbt' : `${formatDateTime(record.recorded_at)} · ${recordedBy}`
+      }}</span>
     </div>
-    <p v-if="description && !descriptionAbove" class="text-sm leading-copy text-body">
-      {{ description }}
-    </p>
-    <span class="text-caption text-mute">{{
-      inherited ? 'Vom Stamm geerbt' : `${formatDateTime(record.recorded_at)} · ${recordedBy}`
-    }}</span>
   </section>
 
   <section
