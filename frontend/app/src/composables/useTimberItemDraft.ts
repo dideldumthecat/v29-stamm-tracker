@@ -9,14 +9,13 @@ import {
 } from '@/utils/attributeDraft'
 import { attachPhotos } from '@/utils/photo'
 import { plural } from '@/utils/plural'
-import { bySortOrder } from '@v29/shared/attributes'
+import { bySortOrder, SAWN_KEY } from '@v29/shared/attributes'
 import {
   fieldMode,
   isEditable,
   isHiddenByOthers,
   itemRoles,
   keepsField,
-  SAWN_KEY,
   splitChoiceOf,
   type FieldMode,
   type SplitChoice,

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { formatDate, formatMonth, formatMonthLong, isInheritedValue } from '../attributes'
+import { formatDate, formatMonth, formatMonthLong, isInheritedValue, SAWN_KEY } from '../attributes'
+import snapshot from '../fixtures/snapshot.json' with { type: 'json' }
 
 describe('formatDate', () => {
   it('writes the contract date the way V29 does', () => {
@@ -32,5 +33,11 @@ describe('isInheritedValue', () => {
     expect(isInheritedValue(beam, parent, 'b')).toBe(false)
     expect(isInheritedValue(beam, parent, 'c')).toBe(false)
     expect(isInheritedValue(beam, undefined, 'a')).toBe(false)
+  })
+})
+
+describe('SAWN_KEY', () => {
+  it('is the key of "Gesägt" in the shared snapshot', () => {
+    expect(snapshot.attributes.find((attribute) => attribute.key === SAWN_KEY)?.name).toBe('Gesägt')
   })
 })

@@ -2,10 +2,10 @@
  * Which attributes an item offers for input. App-only rules: the server accepts any event (applies_to is not enforced there).
  * Pure functions, so the rules can be tested without the store.
  */
+import { SAWN_KEY } from '@v29/shared/attributes'
 import type { Attribute, ItemKind, Snapshot } from '@v29/shared/contract'
 
 /** Keys of the attributes the rules refer to (never their names, which V29 may change). */
-export const SAWN_KEY = 'sawn'
 export const NOTES_KEY = 'notes'
 
 /**
