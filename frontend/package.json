@@ -17,7 +17,8 @@
     "test:e2e": "npm run test:e2e -w app -w admin --",
     "lint": "eslint . --fix --cache",
     "lint:check": "eslint .",
-    "format": "prettier --write app/src app/e2e admin/src admin/e2e shared"
+    "format": "prettier --write app/src app/e2e admin/src admin/e2e shared",
+    "format:check": "prettier --check app/src app/e2e admin/src admin/e2e shared"
   },
   "devDependencies": {
     "@tsconfig/node24": "^24.0.5",
