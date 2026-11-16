@@ -1,6 +1,9 @@
 # Attributes ("Merkmale") and their options, imported with: ddev console app:attributes:import <file> [--dry-run] (path relative to backend/)
-# Order in this file = order in the app. Attributes are matched by key if they have one (renaming is safe), else by name
-# (renaming creates a new attribute). Options are matched by label: renaming creates a new one.
+# The file owns only attributes with a key (system attributes); they are matched by key, so renaming is safe. The order is set only
+# when an attribute is created (new = at the end); later the administration orders them.
+# An attribute without a key belongs to the administration: it is created only if no attribute has its name, an existing one is
+# never touched again ("managed in the administration, skipped"). Options are matched by label: renaming creates a new one.
+# The options of the attribute with the key "source" are skipped.
 #
 # Keys per attribute (defaults in brackets):
 #   key [none] – stable identifier for code and console commands, set by the developer only for attributes code refers to:

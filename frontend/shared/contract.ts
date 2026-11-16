@@ -186,6 +186,65 @@ export interface AttributeOption {
   active: boolean
 }
 
+// --- /api/admin/attributes --------------------------------------------------
+// Maintenance of attributes in the administration (roles admin and superadmin, otherwise 403). The app gets changes through the snapshot as before.
+// An attribute with a key is a system attribute: maintained in attributes.yaml, PATCH answers 403; only its order can change.
+// Attributes are never deleted. Changes leave no events and do not appear in the activity list.
+
+/** GET /api/admin/attributes: every attribute in order, inactive ones and inactive options too. */
+export interface AdminAttributesResponse {
+  attributes: AdminAttribute[]
+}
+
+export interface AdminAttribute extends Attribute {
+  /** Has a key: read-only in the administration. */
+  is_system: boolean
+  /** At least one value was recorded, on a voided item too: type, is_series and is_inheritable can then no longer change. */
+  has_values: boolean
+}
+
+/**
+ * POST /api/admin/attributes (answers 201 with the AdminAttribute, appended to the order; name and type are required, the rest defaults to
+ * description '', unit null, is_series false, is_inheritable false, applies_to both kinds, hidden_when [], active true) and
+ * PATCH /api/admin/attributes/{id} (answers 200 with the AdminAttribute; fields left out stay as they are; 404 for an unknown id).
+ * Unknown fields (id, key, sort_order, is_system, has_values) are ignored, so a fetched attribute can be sent back changed.
+ */
+export interface AdminAttributeInput {
+  name: string
+  description: string
+  /** Not 'photo'. */
+  type: Exclude<AttributeType, 'photo'>
+  /** Only for type 'number'. */
+  unit: string | null
+  /** Only for number, text, date and month. */
+  is_series: boolean
+  is_inheritable: boolean
+  /** At least one. */
+  applies_to: ItemKind[]
+  /** Keys of yes/no attributes (so only system attributes). */
+  hidden_when: string[]
+  active: boolean
+  /**
+   * Type 'choice': the complete list in order, at least one active. With id = existing option, without = new.
+   * An existing option must not be left out (options are never deleted, only set to active: false).
+   */
+  options: { id?: Uuid; label: string; active: boolean }[]
+}
+
+/** PUT /api/admin/attributes/order: every attribute id once (system attributes too) in the new order; answers 200 with AdminAttributesResponse. */
+export interface AdminAttributeOrderRequest {
+  ids: Uuid[]
+}
+
+/**
+ * Status 422 when a rule is broken: German messages ready for display, all violations at once.
+ * field = the field of AdminAttributeInput ("name", "type", "unit", "applies_to", "hidden_when", "is_series", "is_inheritable", "options"),
+ * for one option "options.<index>.label" or "options.<index>.id"; "ids" for the order. Locked by has_values: type, is_series, is_inheritable.
+ */
+export interface AttributeErrorsResponse {
+  errors: { field: string; message: string }[]
+}
+
 export interface TimberItem {
   id: Uuid
   /** Set for beams: the timber item they were cut from. */
