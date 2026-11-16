@@ -36,12 +36,13 @@
   applies_to: [stem]
   hidden_when: []
 
+# Diameters belong to the stem alone: a beam has none, so they are not inherited.
 - name: Stammmittendurchmesser groß
   key: mid_diameter_max
   type: number
   unit: cm
   is_series: false
-  is_inheritable: true
+  is_inheritable: false
   applies_to: [stem]
   hidden_when: []
 
@@ -50,7 +51,7 @@
   type: number
   unit: cm
   is_series: false
-  is_inheritable: true
+  is_inheritable: false
   applies_to: [stem]
   hidden_when: []
 
