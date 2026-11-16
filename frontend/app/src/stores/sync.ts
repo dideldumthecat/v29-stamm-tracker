@@ -172,10 +172,10 @@ export function createSync({
         reportPhotoUpload(photo, started)
         persist({}, { remove: dropPhotos((candidate) => candidate.id === photo.id) })
         stats.uploaded++
-      } catch (error) {
-        if (!(error instanceof ApiError)) {
-          throw error
-        }
+      } catch (thrown) {
+        // A file that cannot be read (device storage in trouble) fails like an unreachable server:
+        // the values are through already and must not be reported as a failed sync.
+        const error = thrown instanceof ApiError ? thrown : new ApiError(0, String(thrown))
         reportPhotoUpload(photo, started, error, signal)
         if (signal?.aborted) {
           cancelled = true

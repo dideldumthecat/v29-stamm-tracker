@@ -11,6 +11,7 @@ import { useTimberItemStore, type Attribute, type TimberItem } from '@/stores/ti
 import type { SplitChoice } from '@/stores/itemRoles'
 import { formatRecordedLines } from '@/utils/attributeDraft'
 import { useToast } from '@/composables/useToast'
+import { record } from '@/diagnostics/record'
 import { useTimberItemDraft } from '@/composables/useTimberItemDraft'
 import { useKeepFieldPosition } from '@/composables/useKeepFieldPosition'
 import TimberItemHeader from '@/components/TimberItemHeader.vue'
@@ -220,6 +221,14 @@ function onKeepEditing() {
 }
 
 function onDiscard() {
+  const { values, photos, beams } = unsaved.value.counts
+  // Everything is in the message too: records with the same message are merged, keeping the first one's details.
+  void record(
+    'info',
+    'discard',
+    `Unsaved draft discarded (tag ${props.tagNumber}, ${values} values, ${photos} photos, ${beams} beams)`,
+    { tag: props.tagNumber, values, photos, beams },
+  )
   const target = pendingLeave.value
   pendingLeave.value = null
   isLeaveConfirmed = true

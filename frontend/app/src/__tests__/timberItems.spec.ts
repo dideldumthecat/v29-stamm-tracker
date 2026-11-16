@@ -437,12 +437,15 @@ describe('timber item store: reload safety while writing', () => {
     await vi.waitFor(() => expect(store.isSafeToReload).toBe(true))
   })
 
-  it('is safe again after a failed write', async () => {
+  it('stays unsafe after a failed write: the entry is only in memory, a reload would lose it', async () => {
     const store = useTimberItemStore()
     const finish = holdNextWrite()
     store.createTimberItem(7)
-    expect(store.isSafeToReload).toBe(false)
     finish(new Error('disk full'))
+    await vi.waitFor(() => expect(store.pendingWrites).toBe(0))
+    expect(store.isSafeToReload).toBe(false)
+    // The next write gets everything onto the device, and the reload is safe again.
+    store.createTimberItem(8)
     await vi.waitFor(() => expect(store.isSafeToReload).toBe(true))
   })
 

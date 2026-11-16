@@ -313,6 +313,8 @@ export function useTimberItemDraft(item: Ref<TimberItem | undefined>, tagNumber:
       fields: [...values, ...invalid],
       beams: [...draftBeams.value].sort((a, b) => a.localeCompare(b)),
       photos: photoCount > 0 ? formatPhotoCount(photoCount) : null,
+      // For the diagnostics, which must not get the values themselves.
+      counts: { values: changes.value.length, photos: photoCount, beams: draftBeams.value.length },
     }
   })
 
