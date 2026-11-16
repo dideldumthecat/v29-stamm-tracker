@@ -9,7 +9,9 @@ use App\Entity\EventType;
 use App\Entity\TimberItemEvent;
 use App\Entity\User;
 use App\Entity\UserRole;
+use App\Projection\TimberItemProjector;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Console\Command\Command;
@@ -382,5 +384,52 @@ class AttributesImportCommandTest extends KernelTestCase
         self::assertStringContainsString('unchanged  Polter', $display);
         self::assertStringNotContainsString('option not in file', $display);
         self::assertStringNotContainsString('new option', $this->import("- { name: Polter, key: source, type: choice, options: [Vier] }\n", true)->getDisplay());
+    }
+
+    public function testDiametersAreNotInheritedByBeams(): void
+    {
+        // As it was: inheritable, a beam shows the diameter of its stem
+        $old = "- { name: Stammmittendurchmesser groß, key: mid_diameter_max, type: number, unit: cm, is_inheritable: true, applies_to: [stem] }\n";
+        $this->import($old);
+        $diameter = $this->attributes()['Stammmittendurchmesser groß'];
+        $user = new User('Kerstin', UserRole::User, User::hashToken('t'));
+        $this->em->persist($user);
+        $at = new \DateTimeImmutable('2026-10-20 08:00:00 UTC');
+        [$stem, $beam] = [Uuid::v7(), Uuid::v7()];
+        foreach ([
+            [$stem, EventType::Created, ['parent_id' => null]],
+            [$stem, EventType::AttributeRecorded, ['attribute_id' => $diameter->id->toRfc4122(), 'value' => 34]],
+            [$beam, EventType::Created, ['parent_id' => $stem->toRfc4122()]],
+        ] as $i => [$item, $type, $data]) {
+            $when = $at->modify('+'.($i + 1).' seconds');
+            $this->em->persist(new TimberItemEvent(Uuid::v7(), $item, $type, $data, $when, $user, null, $when));
+        }
+        $this->em->flush();
+        self::getContainer()->get(TimberItemProjector::class)->rebuildAll();
+        $states = fn (): array => $this->em->getConnection()->fetchFirstColumn('SELECT timber_item_id FROM timber_item_state WHERE attribute_id = ?', [$diameter->id], [UuidType::NAME]);
+        self::assertCount(2, $states(), 'stem and beam hold the diameter');
+
+        // The import takes the change over for the existing system attribute and rebuilds the projections: the beam has no diameter any more
+        $display = $this->import(str_replace('is_inheritable: true', 'is_inheritable: false', $old))->getDisplay();
+
+        self::assertStringContainsString('updated    Stammmittendurchmesser groß (isInheritable)', $display);
+        self::assertStringContainsString('Rebuilt projections', $display);
+        self::assertFalse($this->attributes()['Stammmittendurchmesser groß']->isInheritable);
+        $holders = array_map(static fn (string $id) => Uuid::fromBinary($id)->toRfc4122(), $states());
+        self::assertSame([$stem->toRfc4122()], $holders, 'only the stem keeps the diameter');
+    }
+
+    public function testTheSystemFileKeepsTheDiametersOnTheStem(): void
+    {
+        $tester = $this->import(file_get_contents(__DIR__.'/../../data/attributes.yaml'), complete: false);
+
+        self::assertSame(Command::SUCCESS, $tester->getStatusCode(), $tester->getDisplay());
+        $byKey = array_column($this->em->getRepository(Attribute::class)->findAll(), null, 'key');
+        foreach (['mid_diameter_max', 'mid_diameter_min'] as $key) {
+            self::assertFalse($byKey[$key]->isInheritable, $key);
+            self::assertSame(['stem'], $byKey[$key]->appliesTo, $key);
+        }
+        // what a beam does inherit stays inheritable
+        self::assertTrue($byKey['length']->isInheritable);
     }
 }
