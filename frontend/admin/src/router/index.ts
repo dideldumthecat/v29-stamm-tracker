@@ -4,6 +4,7 @@ import { setUnauthorizedHandler } from '@/api/client'
 import { loadUser, user } from '@/auth'
 import { itemRoute, normalizeTag } from '@/detail'
 import ActivityView from '@/views/ActivityView.vue'
+import AttributesView from '@/views/AttributesView.vue'
 import LoginView from '@/views/LoginView.vue'
 import TimberItemsView from '@/views/TimberItemsView.vue'
 import TimberItemView from '@/views/TimberItemView.vue'
@@ -17,6 +18,7 @@ export function createAdminRouter(history: RouterHistory = createWebHistory('/ad
       { path: '/login', name: 'login', component: LoginView },
       { path: '/', redirect: { name: 'activity' } },
       { path: '/activity', name: 'activity', component: ActivityView },
+      { path: '/attributes', name: 'attributes', component: AttributesView },
       // One view for both lists; the router decides which. Another name makes another instance (App.vue keys the view by it).
       { path: '/stems', name: 'stems', component: TimberItemsView, props: { kind: 'stem' } },
       { path: '/beams', name: 'beams', component: TimberItemsView, props: { kind: 'beam' } },

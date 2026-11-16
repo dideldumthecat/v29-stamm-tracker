@@ -6,6 +6,8 @@ export class ApiError extends Error {
   constructor(
     /** The HTTP status; 0 = no connection. */
     readonly status: number,
+    /** The JSON body of a 422 (the rules of the attributes), otherwise undefined. */
+    readonly body?: unknown,
   ) {
     super(`API error ${status}`)
   }
@@ -35,7 +37,10 @@ export async function request<T = void>(
   }
   if (!response.ok) {
     if (!silent && (response.status === 401 || response.status === 403)) onUnauthorized?.()
-    throw new ApiError(response.status)
+    throw new ApiError(
+      response.status,
+      response.status === 422 ? await response.json().catch(() => undefined) : undefined,
+    )
   }
   return (response.status === 204 ? undefined : await response.json()) as T
 }
