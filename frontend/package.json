@@ -8,7 +8,8 @@
     "shared"
   ],
   "scripts": {
-    "dev": "npm run dev -w app --",
+    "dev": "run-p -l dev:app dev:admin",
+    "dev:app": "npm run dev -w app --",
     "dev:admin": "npm run dev -w admin --",
     "build": "npm run build -w app -w admin --",
     "tests": "npm run tests -w app -w admin -w shared --",
@@ -30,6 +31,7 @@
     "eslint-plugin-playwright": "^2.12.1",
     "eslint-plugin-vue": "^10.11.1",
     "jiti": "^2.7.0",
+    "npm-run-all2": "^9.0.3",
     "prettier": "^3.9.10",
     "prettier-plugin-tailwindcss": "^0.8.1",
     "typescript": "~6.0.0"
