@@ -163,7 +163,7 @@ describe('stem list', () => {
     const { wrapper, router } = await open('/staemme?sort=beams&tags=104')
     await resetButton(wrapper).trigger('click')
     await flushPromises()
-    expect(router.currentRoute.value.query).toEqual({ sort: 'beams' })
+    expect(router.currentRoute.value.query).toEqual({ sort: 'Balken' })
   })
 
   it('shows "Waldesruh" for an empty result, with the button of the bar to reset', async () => {
@@ -374,7 +374,7 @@ describe('filter bar and chips', () => {
     await openPopup(id)
     expect(popup()!.getAttribute('aria-label')).toBe('Holzart')
     await tick('Traubeneiche')
-    expect(router.currentRoute.value.query).toEqual({ [`f.${id}`]: expect.any(String) })
+    expect(router.currentRoute.value.query).toEqual({ Holzart: 'Traubeneiche' })
     expect(rowTags(wrapper)).toEqual(['01500'])
     expect(chipTexts()).toEqual(['Holzart: Traubeneiche'])
     expect(badge(id)).toBe('1')
@@ -411,7 +411,7 @@ describe('filter bar and chips', () => {
       field.dispatchEvent(new Event('change'))
       await flushPromises()
     }
-    expect(router.currentRoute.value.query[`f.${id}`]).toBe('35~45')
+    expect(router.currentRoute.value.query.Holzfeuchte).toBe('35~45')
     expect(chipTexts()).toEqual(['Kennung: 1-1999', `Holzfeuchte: 35–45 ${unit}`])
     expect(rowTags(wrapper)).toEqual(['00104'])
     // no badge on a range
@@ -431,12 +431,12 @@ describe('filter bar and chips', () => {
     const { router } = await open(`/staemme?sort=beams&tags=1-200&f.${id}=has`)
     cross('Kennung').click()
     await flushPromises()
-    expect(router.currentRoute.value.query).toEqual({ sort: 'beams', [`f.${id}`]: 'has' })
+    expect(router.currentRoute.value.query).toEqual({ sort: 'Balken', Fotos: 'has' })
     expect(document.activeElement).toBe(chip(id))
 
     cross('Fotos').click()
     await flushPromises()
-    expect(router.currentRoute.value.query).toEqual({ sort: 'beams' })
+    expect(router.currentRoute.value.query).toEqual({ sort: 'Balken' })
     expect(chipTexts()).toEqual([])
     expect(document.activeElement).toBe(filterButton(id))
   })
@@ -464,7 +464,7 @@ describe('filter bar and chips', () => {
     const { wrapper, router } = await open(`/staemme?sort=beams&tags=1-200&f.${id}=has`)
     await resetButton(wrapper).trigger('click')
     await flushPromises()
-    expect(router.currentRoute.value.query).toEqual({ sort: 'beams' })
+    expect(router.currentRoute.value.query).toEqual({ sort: 'Balken' })
     expect(chipTexts()).toEqual([])
     expect(rowTags(wrapper)).toHaveLength(4)
     expect(document.activeElement).toBe(field(wrapper).element)
@@ -525,7 +525,7 @@ describe('filter bar and chips', () => {
 
     cross('Kennung').click()
     await flushPromises()
-    expect(router.currentRoute.value.query).toEqual({ [`f.${id}`]: 'has' })
+    expect(router.currentRoute.value.query).toEqual({ Fotos: 'has' })
     expect(rowTags(wrapper)).toEqual(['00104'])
     expect(wrapper.get('main p.text-lg').text()).toBe('1 von 4 Stämmen')
   })
