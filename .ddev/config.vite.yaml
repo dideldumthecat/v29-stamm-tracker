@@ -1,5 +1,5 @@
 # Vite-Port nach außen freigeben, HTTPS kommt vom DDEV-Router.
-# Vite selbst wird manuell gestartet: ddev frontend run dev (App), ddev frontend run dev:admin (Administration)
+# Vite selbst wird manuell gestartet: ddev frontend run dev (App und Administration), einzeln dev:app bzw. dev:admin
 web_extra_exposed_ports:
   - name: vite
     container_port: 5173

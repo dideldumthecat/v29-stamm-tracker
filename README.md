@@ -77,7 +77,7 @@ ddev frontend install
 ddev console doctrine:migrations:migrate -n
 ddev console app:user:create "Name" --role=superadmin   # prints the invite code once; roles: user (default), admin, superadmin
 ddev console app:attributes:import data/attributes.yaml
-ddev frontend run dev          # capture app; the administration: ddev frontend run dev:admin
+ddev frontend run dev          # capture app (5173) and administration (5174); alone: dev:app, dev:admin
 ```
 
 - Administration: https://v29-stamm-tracker.ddev.site:5174/admin/
