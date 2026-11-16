@@ -63,7 +63,7 @@ async function fakeApi(page: Page) {
 
 async function signIn(page: Page, code: string) {
   await page.getByLabel('Einladungscode').fill(code)
-  await page.getByRole('button', { name: 'Anmelden' }).click()
+  await page.getByRole('button', { name: 'Anmelden', exact: true }).click()
 }
 
 test.beforeEach(async ({ page }) => fakeApi(page))
@@ -84,17 +84,23 @@ for (const [path, landing, heading] of [
   })
 }
 
+// the sticky bar with the count and the chips (ResultsBar)
+// A filter button and its pop-up are named after the filter, plus the number of ticks once it is active ("Person", "Person 2").
+const filterName = (name: string) => new RegExp(`^${name}( \\d+)?$`)
+
+const resultsBar = (page: Page) => page.getByRole('region', { name: 'Ergebnisse', exact: true })
+
 test('the frame: active navigation item, credit, and one 1280px column from header to footer', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1920, height: 900 })
   await page.goto('/admin/login')
   await expect(page.locator('header')).toHaveCount(0)
-  await expect(page.getByRole('link', { name: 'Alexander Summa' })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Alexander Summa', exact: true })).toBeVisible()
   await signIn(page, 'K7QM4XHT9RDP')
 
   await expect(page.getByRole('navigation').getByRole('link')).toHaveCount(3)
-  await expect(page.getByRole('link', { name: 'Aktivität' })).toHaveAttribute(
+  await expect(page.getByRole('link', { name: 'Aktivität', exact: true })).toHaveAttribute(
     'aria-current',
     'page',
   )
@@ -106,7 +112,7 @@ test('the frame: active navigation item, credit, and one 1280px column from head
   expect(await left(page.getByRole('banner').locator('svg'))).toBe(edge)
   expect(await left(page.getByRole('heading', { level: 1 }))).toBe(edge)
   await expect(page.getByRole('contentinfo')).toContainText('Built with')
-  await expect(page.getByRole('link', { name: 'Alexander Summa' })).toHaveAttribute(
+  await expect(page.getByRole('link', { name: 'Alexander Summa', exact: true })).toHaveAttribute(
     'href',
     'https://alexandersumma.de',
   )
@@ -140,7 +146,7 @@ test('formats the code while typing and refuses an incomplete one without asking
 
   await field.fill('k7qm 4xht')
   await expect(field).toHaveValue('K7QM-4XHT')
-  await page.getByRole('button', { name: 'Anmelden' }).click()
+  await page.getByRole('button', { name: 'Anmelden', exact: true }).click()
   await expect(page.getByRole('alert')).toHaveText('Kein Einladungscode erkannt')
   expect(asked).toBe(false)
 })
@@ -166,7 +172,7 @@ test('a code of the role user has no access, on any page', async ({ page }) => {
 test('signing out leads every page back to the sign-in', async ({ page }) => {
   await page.goto('/admin/')
   await signIn(page, 'K7QM4XHT9RDP')
-  await page.getByRole('button', { name: 'Abmelden' }).click()
+  await page.getByRole('button', { name: 'Abmelden', exact: true }).click()
   await expect(page).toHaveURL(/\/admin\/login$/)
 
   await page.goto('/admin/x')
@@ -182,14 +188,14 @@ test.describe('activity', () => {
 
   test('shows the 31 October as entries per day with the number of entries', async ({ page }) => {
     await expect(page.getByText('6 Einträge', { exact: true })).toBeVisible()
-    await expect(page.getByRole('heading', { name: 'Di, 03.11.2026' })).toBeVisible()
-    await expect(page.getByRole('heading', { name: 'Sa, 31.10.2026' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Di, 03.11.2026', exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Sa, 31.10.2026', exact: true })).toBeVisible()
     await expect(page.getByRole('article').filter({ hasText: 'Aaron Bauer' })).toBeVisible()
     await expect(page.getByText('11 Ereignisse')).toBeVisible()
     await expect(page.getByText('3 Balken angelegt')).toBeVisible()
     await expect(page.getByText('Gesägt – 1 Stamm')).toBeVisible()
     await expect(page.getByText('2 Stämme storniert')).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Details' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Details', exact: true })).toHaveCount(0)
   })
 
   test('opens the details with keyboard or click and turns the chevron', async ({ page }) => {
@@ -281,7 +287,7 @@ test.describe('activity', () => {
     page,
   }) => {
     const field = page.getByLabel('Kennung', { exact: true })
-    const clear = page.getByRole('button', { name: 'Kennung leeren' })
+    const clear = page.getByRole('button', { name: 'Kennung leeren', exact: true })
     await expect(clear).toHaveCount(0)
 
     await field.pressSequentially('128')
@@ -316,7 +322,7 @@ test.describe('activity', () => {
     await page.getByLabel('Kennung', { exact: true }).press('Enter')
 
     const card = page.getByRole('status')
-    await expect(card.getByRole('heading', { name: 'Moment' })).toBeVisible()
+    await expect(card.getByRole('heading', { name: 'Moment', exact: true })).toBeVisible()
     await expect(card.getByText('Ergebnis wird zurechtgesägt')).toBeVisible()
     await expect(card).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
     await expect(card).toHaveCSS('border-top-width', '0px')
@@ -346,14 +352,16 @@ test.describe('activity', () => {
   test('shows "Waldesruh" for a filter nobody understands', async ({ page }) => {
     await page.getByLabel('Kennung', { exact: true }).fill('abc')
     await page.getByLabel('Kennung', { exact: true }).press('Enter')
-    await expect(page.getByRole('heading', { name: 'Waldesruh' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Waldesruh', exact: true })).toBeVisible()
     await expect(page.getByText('Keine Ergebnisse weit und breit gefunden.')).toBeVisible()
     await expect(page.getByRole('alert')).toHaveCount(0)
 
     // the bar stays above it with the one button
-    await expect(page.getByRole('button', { name: 'Filter zurücksetzen' })).toHaveCount(1)
+    await expect(
+      page.getByRole('button', { name: 'Filter zurücksetzen', exact: true }),
+    ).toHaveCount(1)
     await expect(page.getByRole('status').getByRole('button')).toHaveCount(0)
-    await page.getByRole('button', { name: 'Filter zurücksetzen' }).click()
+    await page.getByRole('button', { name: 'Filter zurücksetzen', exact: true }).click()
     await expect(page).not.toHaveURL(/tags=/)
     await expect(page.getByText('6 Einträge', { exact: true })).toBeVisible()
   })
@@ -366,11 +374,11 @@ test.describe('activity', () => {
     await page.reload()
     // the first page ends inside the 31 October, which is therefore held back until it is complete
     await expect(page.getByRole('time')).toHaveCount(1)
-    await expect(page.getByRole('heading', { name: 'Sa, 31.10.2026' })).toHaveCount(0)
-    await page.getByRole('button', { name: 'Ältere laden' }).click()
+    await expect(page.getByRole('heading', { name: 'Sa, 31.10.2026', exact: true })).toHaveCount(0)
+    await page.getByRole('button', { name: 'Ältere laden', exact: true }).click()
     await expect(page.getByRole('time')).toHaveCount(6)
-    await expect(page.getByRole('heading', { name: 'Sa, 31.10.2026' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Ältere laden' })).toHaveCount(0)
+    await expect(page.getByRole('heading', { name: 'Sa, 31.10.2026', exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Ältere laden', exact: true })).toHaveCount(0)
   })
 
   for (const [width, height] of [
@@ -398,7 +406,7 @@ test.describe('activity', () => {
         })
       })
       await page.reload()
-      const bar = page.locator('main > div.sticky')
+      const bar = resultsBar(page)
       const top = (locator: Locator) =>
         locator.evaluate((element) => element.getBoundingClientRect().top)
       // below the header from lg on, at the top of the window below it (the header scrolls away)
@@ -414,7 +422,7 @@ test.describe('activity', () => {
 
       // a button focused by keyboard lies clear of the bar
       await page.evaluate(() => window.scrollTo(0, 0))
-      const more = page.getByRole('button', { name: 'Ältere laden' })
+      const more = page.getByRole('button', { name: 'Ältere laden', exact: true })
       await more.focus()
       await expect(more).toBeInViewport()
       const barBottom = (await bar.boundingBox())!.y + (await bar.boundingBox())!.height
@@ -426,37 +434,37 @@ test.describe('activity', () => {
     page,
   }) => {
     await page.goto('/admin/activity?tags=999')
-    await expect(page.getByRole('heading', { name: 'Waldesruh' })).toBeVisible()
-    const bar = page.locator('main > div.sticky')
+    await expect(page.getByRole('heading', { name: 'Waldesruh', exact: true })).toBeVisible()
+    const bar = resultsBar(page)
     await expect(bar.getByText('0 von 6 Einträgen')).toBeVisible()
-    await expect(bar.getByRole('button', { name: 'Kennung: 999' })).toBeVisible()
+    await expect(bar.getByRole('button', { name: 'Kennung: 999', exact: true })).toBeVisible()
     // the card does not slide under the bar
     expect(await bar.evaluate((e) => e.getBoundingClientRect().bottom)).toBeLessThanOrEqual(
       await page.getByRole('status').evaluate((e) => e.getBoundingClientRect().top),
     )
 
-    await bar.getByRole('button', { name: 'Filter Kennung entfernen' }).click()
-    await expect(page.getByRole('heading', { name: 'Waldesruh' })).toHaveCount(0)
+    await bar.getByRole('button', { name: 'Filter Kennung entfernen', exact: true }).click()
+    await expect(page.getByRole('heading', { name: 'Waldesruh', exact: true })).toHaveCount(0)
     await expect(page.getByText('6 Einträge', { exact: true })).toBeVisible()
   })
 
   test('filters by a beam tag and by two people at once', async ({ page }) => {
     await page.getByLabel('Kennung', { exact: true }).fill('104-a')
     await expect(page).toHaveURL(/tags=104-a/)
-    await expect(page.getByRole('button', { name: 'Kennung: 104-a' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Kennung: 104-a', exact: true })).toBeVisible()
     await expect(page.getByText('1 von 6 Einträgen', { exact: true })).toBeVisible()
-    await page.getByRole('button', { name: 'Filter Kennung entfernen' }).click()
+    await page.getByRole('button', { name: 'Filter Kennung entfernen', exact: true }).click()
     await expect(page.getByText('6 Einträge', { exact: true })).toBeVisible()
 
     await page.getByRole('button', { name: 'Person', exact: true }).click()
-    const people = page.getByRole('dialog', { name: 'Person' })
+    const people = page.getByRole('dialog', { name: filterName('Person'), exact: true })
     await expect(people.getByLabel('Alle')).toHaveCount(0)
     await people.getByLabel('Mara Vogel').check()
     await people.getByLabel('Aaron Bauer').check()
     await expect(page).toHaveURL(/user=[0-9a-f-]+,[0-9a-f-]+/)
     await expect(page.locator('[data-filter="user"]')).toHaveText(/Person\s*2/)
     await expect(
-      page.getByRole('button', { name: 'Person: Aaron Bauer, Mara Vogel' }),
+      page.getByRole('button', { name: 'Person: Aaron Bauer, Mara Vogel', exact: true }),
     ).toBeVisible()
     await expect(
       page.getByRole('article').filter({ hasText: 'Mara Vogel' }).first(),
@@ -468,7 +476,7 @@ test.describe('activity', () => {
 
     await page.reload()
     await expect(
-      page.getByRole('button', { name: 'Person: Aaron Bauer, Mara Vogel' }),
+      page.getByRole('button', { name: 'Person: Aaron Bauer, Mara Vogel', exact: true }),
     ).toBeVisible()
   })
 
@@ -476,14 +484,19 @@ test.describe('activity', () => {
     await page.getByLabel('Kennung', { exact: true }).fill('128')
     await page.getByLabel('Kennung', { exact: true }).press('Enter')
     await page.getByRole('button', { name: 'Person', exact: true }).click()
-    await page.getByRole('dialog', { name: 'Person' }).getByLabel('Mara Vogel').check()
+    await page
+      .getByRole('dialog', { name: filterName('Person'), exact: true })
+      .getByLabel('Mara Vogel')
+      .check()
     await expect(page).toHaveURL(/tags=128/)
     await expect(page).toHaveURL(/user=/)
     await expect(page.getByText('1 von 6 Einträgen', { exact: true })).toBeVisible()
 
     await page.reload()
     await expect(page.getByLabel('Kennung', { exact: true })).toHaveValue('128')
-    await expect(page.getByRole('button', { name: 'Person: Mara Vogel' })).toBeVisible()
+    await expect(
+      page.getByRole('button', { name: 'Person: Mara Vogel', exact: true }),
+    ).toBeVisible()
     await expect(page.getByRole('listitem').filter({ hasText: /^2 Fotos$/ })).toBeVisible()
     await expect(page.getByRole('article').filter({ hasText: 'Aaron Bauer' })).toHaveCount(0)
 
@@ -496,11 +509,11 @@ test.describe('activity', () => {
   test('filters by period and person in drop-downs and shows them as chips that open and remove them', async ({
     page,
   }) => {
-    const chips = page.getByRole('list', { name: 'Aktive Filter' })
+    const chips = page.getByRole('list', { name: 'Aktive Filter', exact: true })
     await expect(chips).toHaveCount(0)
 
     await page.getByRole('button', { name: 'Zeitraum', exact: true }).click()
-    const period = page.getByRole('dialog', { name: 'Zeitraum' })
+    const period = page.getByRole('dialog', { name: filterName('Zeitraum'), exact: true })
     await period.getByLabel('Von').fill('2026-10-31')
     await expect(page).toHaveURL(/from=2026-10-31/)
     await period.getByLabel('Bis').fill('2026-11-03')
@@ -510,24 +523,33 @@ test.describe('activity', () => {
     await expect(page.getByRole('button', { name: 'Zeitraum', exact: true })).toBeFocused()
 
     await page.getByRole('button', { name: 'Person', exact: true }).click()
-    await page.getByRole('dialog', { name: 'Person' }).getByLabel('Mara Vogel').check()
+    await page
+      .getByRole('dialog', { name: filterName('Person'), exact: true })
+      .getByLabel('Mara Vogel')
+      .check()
     await page.keyboard.press('Escape')
     await expect(page).toHaveURL(/user=/)
 
-    await expect(chips.getByRole('button', { name: 'Zeitraum: 31.10.–03.11.' })).toBeVisible()
-    await expect(chips.getByRole('button', { name: 'Person: Mara Vogel' })).toBeVisible()
+    await expect(
+      chips.getByRole('button', { name: 'Zeitraum: 31.10.–03.11.', exact: true }),
+    ).toBeVisible()
+    await expect(
+      chips.getByRole('button', { name: 'Person: Mara Vogel', exact: true }),
+    ).toBeVisible()
 
     // the chip opens its filter again
-    await chips.getByRole('button', { name: 'Zeitraum: 31.10.–03.11.' }).click()
+    await chips.getByRole('button', { name: 'Zeitraum: 31.10.–03.11.', exact: true }).click()
     await expect(period).toBeVisible()
     await expect(period.getByLabel('Von')).toHaveValue('2026-10-31')
     await page.keyboard.press('Escape')
 
     // the cross removes the period as a whole and leaves the person; the focus moves on to the next chip
-    await page.getByRole('button', { name: 'Filter Zeitraum entfernen' }).click()
+    await page.getByRole('button', { name: 'Filter Zeitraum entfernen', exact: true }).click()
     await expect(page).not.toHaveURL(/from=|to=/)
     await expect(page).toHaveURL(/user=/)
-    await expect(page.getByRole('button', { name: 'Person: Mara Vogel' })).toBeFocused()
+    await expect(
+      page.getByRole('button', { name: 'Person: Mara Vogel', exact: true }),
+    ).toBeFocused()
   })
 
   for (const width of [390, 1280]) {
@@ -535,7 +557,9 @@ test.describe('activity', () => {
       await page.setViewportSize({ width, height: 700 })
       for (const name of ['Zeitraum', 'Person']) {
         await page.getByRole('button', { name, exact: true }).click()
-        const box = (await page.getByRole('dialog', { name }).boundingBox())!
+        const box = (await page
+          .getByRole('dialog', { name: filterName(name), exact: true })
+          .boundingBox())!
         expect(box.x).toBeGreaterThanOrEqual(0)
         expect(box.x + box.width).toBeLessThanOrEqual(width)
         // right under its button
@@ -550,26 +574,26 @@ test.describe('activity', () => {
   test('shows "Waldesruh" for an empty result and clears the filter again', async ({ page }) => {
     await page.getByLabel('Kennung', { exact: true }).fill('999')
     await page.getByLabel('Kennung', { exact: true }).press('Enter')
-    await expect(page.getByRole('heading', { name: 'Waldesruh' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Waldesruh', exact: true })).toBeVisible()
     await expect(page.getByText('Keine Ergebnisse weit und breit gefunden.')).toBeVisible()
 
-    await page.getByRole('button', { name: 'Filter zurücksetzen' }).click()
+    await page.getByRole('button', { name: 'Filter zurücksetzen', exact: true }).click()
     await expect(page).not.toHaveURL(/tags=/)
     await expect(page.getByText('6 Einträge', { exact: true })).toBeVisible()
-    await expect(page.getByRole('heading', { name: 'Waldesruh' })).toHaveCount(0)
+    await expect(page.getByRole('heading', { name: 'Waldesruh', exact: true })).toHaveCount(0)
   })
 
   test('has "Filter zurücksetzen" at the right end of the results bar only while a filter is set', async ({
     page,
   }) => {
-    const link = page.getByRole('button', { name: 'Filter zurücksetzen' })
+    const link = page.getByRole('button', { name: 'Filter zurücksetzen', exact: true })
     await expect(link).toHaveCount(0)
 
     await page.getByLabel('Kennung', { exact: true }).fill('128')
     await page.getByLabel('Kennung', { exact: true }).press('Enter')
     await expect(page.getByText('1 von 6 Einträgen', { exact: true })).toBeVisible()
     await expect(link).toBeVisible()
-    const bar = (await page.locator('main > div.sticky').boundingBox())!
+    const bar = (await resultsBar(page).boundingBox())!
     const box = (await link.boundingBox())!
     expect(box.height).toBeGreaterThanOrEqual(44)
     // at the right edge of the column, in the bar
@@ -587,7 +611,8 @@ test.describe('activity', () => {
 
   test('keeps the text column narrow', async ({ page }) => {
     await page.setViewportSize({ width: 1920, height: 900 })
-    const text = page.locator('section').nth(1).locator('div.text-measure').first()
+    const text = // the newest entry of one person, its bullet points sit in the text column
+      page.getByRole('article').filter({ hasText: 'Alex Beispiel' }).first().getByRole('list')
 
     expect((await text.boundingBox())!.width).toBeLessThanOrEqual(760)
   })
@@ -598,7 +623,12 @@ for (const width of [1000, 390]) {
     await page.setViewportSize({ width, height: 800 })
     await page.goto('/admin/activity')
     await signIn(page, 'K7QM4XHT9RDP')
-    await page.getByText('Details anzeigen').nth(2).click()
+    // the entry with the most cards, so the widest content
+    await page
+      .getByRole('article')
+      .filter({ hasText: 'Sägewerk Muster' })
+      .getByText('Details anzeigen')
+      .click()
     await expect(page.locator('details[open]')).toHaveCount(1)
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
@@ -614,14 +644,14 @@ test.describe('detail view', () => {
     await page.goto('/admin/activity?tags=104')
     await signIn(page, 'K7QM4XHT9RDP')
     await page.getByText('Details anzeigen').click()
-    await page.getByRole('article').getByRole('link', { name: '00104-C' }).click()
+    await page.getByRole('article').getByRole('link', { name: '00104-C', exact: true }).click()
 
     await expect(page).toHaveURL(/\/admin\/beams\/104-C$/)
     await expect(page.locator('h1')).toHaveText('00104-C')
-    await expect(page.getByRole('link', { name: 'Aus Stamm 00104' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Aus Stamm 00104', exact: true })).toBeVisible()
     await expect(page.getByText('Vom Stamm geerbt').first()).toBeVisible()
 
-    await page.getByRole('button', { name: 'Zurück' }).click()
+    await page.getByRole('button', { name: 'Zurück', exact: true }).click()
     await expect(page).toHaveURL(/\/admin\/activity\?tags=104$/)
   })
 
@@ -629,7 +659,7 @@ test.describe('detail view', () => {
     await page.goto('/admin/stems/00104')
     await signIn(page, 'K7QM4XHT9RDP')
     await expect(page.locator('h1')).toHaveText('00104')
-    await page.getByRole('link', { name: 'Zurück' }).click()
+    await page.getByRole('link', { name: 'Zurück', exact: true }).click()
     await expect(page).toHaveURL(/\/admin\/activity$/)
   })
 
@@ -637,12 +667,12 @@ test.describe('detail view', () => {
     await page.setViewportSize({ width: 1200, height: 900 })
     await page.goto('/admin/stems/104')
     await signIn(page, 'K7QM4XHT9RDP')
-    await page.getByRole('button', { name: 'Foto vergrößern' }).click()
+    await page.getByRole('button', { name: 'Foto vergrößern', exact: true }).click()
 
     const dialog = page.getByRole('dialog')
     await expect(dialog).toBeVisible()
     await expect(dialog).toContainText('Stamm 00104 · Foto 1 von 2')
-    await expect(dialog.getByRole('link', { name: 'Herunterladen' })).toHaveAttribute(
+    await expect(dialog.getByRole('link', { name: 'Herunterladen', exact: true })).toHaveAttribute(
       'download',
       '00104-1.jpg',
     )
@@ -650,7 +680,9 @@ test.describe('detail view', () => {
     const photo = dialog.locator('img').first()
     const stage = dialog.locator('div.touch-none')
     await stage.dblclick()
-    await expect(dialog.getByRole('button', { name: /^Zoom 200 %/ })).toBeVisible()
+    await expect(
+      dialog.getByRole('button', { name: 'Zoom 200 %, auf Einpassen zurücksetzen', exact: true }),
+    ).toBeVisible()
     const before = (await photo.boundingBox())!
     await stage.dragTo(stage, {
       sourcePosition: { x: 600, y: 300 },
@@ -662,7 +694,9 @@ test.describe('detail view', () => {
     await page.keyboard.press('ArrowRight')
     await expect(dialog).toContainText('Foto 2 von 2')
     await expect(dialog.getByText('Foto noch nicht hochgeladen')).toBeVisible()
-    await expect(dialog.getByRole('button', { name: /^Zoom 100 %/ })).toBeVisible()
+    await expect(
+      dialog.getByRole('button', { name: 'Zoom 100 %, auf Einpassen zurücksetzen', exact: true }),
+    ).toBeVisible()
 
     await page.keyboard.press('Escape')
     await expect(dialog).toBeHidden()
@@ -713,12 +747,14 @@ test.describe('detail view', () => {
   test('shows the key figures and opens and closes the formula of one', async ({ page }) => {
     await page.goto('/admin/stems/104')
     await signIn(page, 'K7QM4XHT9RDP')
-    const card = page.locator('section', { has: page.getByRole('heading', { name: 'Kennzahlen' }) })
+    const card = page.locator('section', {
+      has: page.getByRole('heading', { name: 'Kennzahlen', exact: true }),
+    })
     await expect(card).toContainText('0,502 m³')
     await expect(card).toContainText('aus 40 × 39 cm und 4,10 m')
     await expect(card).toContainText('60 %')
 
-    const info = card.getByRole('button', { name: 'Formel für Rundholz anzeigen' })
+    const info = card.getByRole('button', { name: 'Formel für Rundholz anzeigen', exact: true })
     const formula = page.getByRole('dialog')
     await expect(info).toHaveAttribute('aria-expanded', 'false')
     await info.click()
@@ -730,7 +766,7 @@ test.describe('detail view', () => {
     await expect(formula).toBeHidden()
     await info.click()
     await expect(formula).toBeVisible()
-    await page.getByRole('heading', { name: 'Merkmale' }).click()
+    await page.getByRole('heading', { name: 'Merkmale', exact: true }).click()
     await expect(formula).toBeHidden()
   })
 
@@ -803,7 +839,9 @@ test.describe('stem list', () => {
   const sortOn = (page: Page, name: string) => headButton(page, name).dispatchEvent('click')
   const bar = (page: Page) => page.locator('form').filter({ has: page.getByLabel('Kennung') })
   const filterButton = (page: Page, name: string) =>
-    bar(page).getByRole('button', { name, exact: false }).filter({ hasText: name })
+    bar(page)
+      .getByRole('button', { name: filterName(name), exact: true })
+      .filter({ hasText: name })
 
   test('Schnittholz lists the beams, filters by tag, opens a beam and keeps its own URL; the path follows the kind', async ({
     page,
@@ -812,24 +850,24 @@ test.describe('stem list', () => {
     await signIn(page, 'K7QM4XHT9RDP')
     const links = page.getByRole('navigation').getByRole('link')
     await expect(links).toHaveText(['Rundholz', 'Schnittholz', 'Aktivität'])
-    await links.nth(1).click()
+    await links.filter({ hasText: 'Schnittholz' }).click()
     await expect(page).toHaveURL(/\/admin\/beams$/)
     await expect(page.locator('h1')).toHaveText('Schnittholz')
     await expect(page.getByText('3 Balken', { exact: true })).toBeVisible()
     await expect(tags(page)).toHaveText(['00104-A', '00104-B', '00104-C'])
-    await expect(page.getByRole('columnheader', { name: 'Balken' })).toHaveAttribute(
+    await expect(page.getByRole('columnheader', { name: 'Balken', exact: true })).toHaveAttribute(
       'aria-sort',
       'ascending',
     )
 
-    await page.getByRole('textbox', { name: 'Kennung' }).fill('104-B')
+    await page.getByRole('textbox', { name: 'Kennung', exact: true }).fill('104-B')
     await expect(page).toHaveURL(/\/admin\/beams\?tags=104-B$/)
     await expect(tags(page)).toHaveText(['00104-B'])
     await expect(page.getByText('1 von 3 Balken')).toBeVisible()
 
-    await page.getByRole('link', { name: '00104-B' }).click()
+    await page.getByRole('link', { name: '00104-B', exact: true }).click()
     await expect(page).toHaveURL(/\/admin\/beams\/104-B$/)
-    await page.getByRole('button', { name: 'Zurück' }).click()
+    await page.getByRole('button', { name: 'Zurück', exact: true }).click()
     await expect(page).toHaveURL(/\/admin\/beams\?tags=104-B$/)
 
     // Rundholz has its own filter state
@@ -849,7 +887,7 @@ test.describe('stem list', () => {
   }) => {
     await page.goto('/admin/activity')
     await signIn(page, 'K7QM4XHT9RDP')
-    await page.getByRole('navigation').getByRole('link', { name: 'Rundholz' }).click()
+    await page.getByRole('navigation').getByRole('link', { name: 'Rundholz', exact: true }).click()
     await expect(page).toHaveURL(/\/admin\/stems$/)
     await expect(page.locator('h1')).toHaveText('Rundholz')
     await expect(page.getByText('4 Stämme', { exact: true })).toBeVisible()
@@ -859,23 +897,23 @@ test.describe('stem list', () => {
     await expect(page).toHaveURL(/\?sort=Balken$/)
     await sortOn(page, 'Balken')
     await expect(page).toHaveURL(/\?sort=Balken&dir=desc$/)
-    await expect(page.getByRole('columnheader', { name: /Balken/ })).toHaveAttribute(
+    await expect(page.getByRole('columnheader', { name: 'Balken', exact: true })).toHaveAttribute(
       'aria-sort',
       'descending',
     )
     await expect(tags(page).first()).toHaveText('00104')
 
-    await page.getByRole('textbox', { name: 'Kennung' }).fill('1-200')
+    await page.getByRole('textbox', { name: 'Kennung', exact: true }).fill('1-200')
     await expect(page).toHaveURL(/tags=1-200/)
     await expect(page.getByText('2 von 4 Stämmen')).toBeVisible()
 
-    await page.getByRole('link', { name: '00104' }).click()
+    await page.getByRole('link', { name: '00104', exact: true }).click()
     await expect(page).toHaveURL(/\/admin\/stems\/104$/)
     await expect(page.locator('h1')).toHaveText('00104')
 
-    await page.getByRole('button', { name: 'Zurück' }).click()
+    await page.getByRole('button', { name: 'Zurück', exact: true }).click()
     await expect(page).toHaveURL(/\/admin\/stems\?tags=1-200&sort=Balken&dir=desc$/)
-    await expect(page.getByRole('textbox', { name: 'Kennung' })).toHaveValue('1-200')
+    await expect(page.getByRole('textbox', { name: 'Kennung', exact: true })).toHaveValue('1-200')
     await expect(page.getByText('2 von 4 Stämmen')).toBeVisible()
     await expect(tags(page).first()).toHaveText('00104')
   })
@@ -897,10 +935,10 @@ test.describe('stem list', () => {
     await page.goto('/admin/stems')
     await signIn(page, 'K7QM4XHT9RDP')
     await page.goto('/admin/stems?Lagerplatz=Polter Süd,Polter Nord&sort=Geändert&dir=desc')
-    const chips = page.getByRole('list', { name: 'Aktive Filter' })
+    const chips = page.getByRole('list', { name: 'Aktive Filter', exact: true })
     await expect(chips).toHaveText(/Lagerplatz: Polter Nord, Polter Süd/)
     // any change rewrites the URL in the readable form
-    await page.getByRole('textbox', { name: 'Kennung' }).fill('1-1999')
+    await page.getByRole('textbox', { name: 'Kennung', exact: true }).fill('1-1999')
     await expect(page).toHaveURL(/tags=1-1999/)
     const link = page.url()
     expect(new URL(link).searchParams.get('Lagerplatz')).toBe('Polter Süd,Polter Nord')
@@ -943,27 +981,31 @@ test.describe('stem list', () => {
     await page.goto('/admin/stems')
     await signIn(page, 'K7QM4XHT9RDP')
     await expect(tags(page)).toHaveCount(4)
-    const chips = page.getByRole('list', { name: 'Aktive Filter' })
+    const chips = page.getByRole('list', { name: 'Aktive Filter', exact: true })
     await expect(chips).toHaveCount(0)
 
     // one button per filterable column behind the field "Kennung"; "Filter zurücksetzen" is not there without a filter
     const holzart = filterButton(page, 'Holzart')
-    await expect(page.getByRole('button', { name: 'Filter zurücksetzen' })).toHaveCount(0)
-    await expect(bar(page).getByRole('button', { name: 'Stamm' })).toHaveCount(0)
+    await expect(
+      page.getByRole('button', { name: 'Filter zurücksetzen', exact: true }),
+    ).toHaveCount(0)
+    await expect(bar(page).getByRole('button', { name: 'Stamm', exact: true })).toHaveCount(0)
 
     await holzart.click()
-    const popup = page.getByRole('dialog', { name: 'Holzart' })
+    const popup = page.getByRole('dialog', { name: filterName('Holzart'), exact: true })
     await popup.getByLabel('Traubeneiche').check()
     await expect(page).toHaveURL(/\?Holzart=Traubeneiche$/)
     await expect(page.getByText('1 von 4 Stämmen')).toBeVisible()
     await expect(tags(page)).toHaveText(['01500'])
-    await expect(chips.getByRole('button', { name: 'Holzart: Traubeneiche' })).toBeVisible()
+    await expect(
+      chips.getByRole('button', { name: 'Holzart: Traubeneiche', exact: true }),
+    ).toBeVisible()
     await expect(holzart).toHaveText(/Holzart\s*1/)
 
     await popup.getByLabel('Nicht erfasst').check()
     await expect(tags(page)).toHaveText(['00007', '01500', 'ohne Kennung'])
     await expect(
-      chips.getByRole('button', { name: 'Holzart: Traubeneiche, Nicht erfasst' }),
+      chips.getByRole('button', { name: 'Holzart: Traubeneiche, Nicht erfasst', exact: true }),
     ).toBeVisible()
     await expect(holzart).toHaveText(/Holzart\s*2/)
 
@@ -977,7 +1019,7 @@ test.describe('stem list', () => {
     await expect(tags(page)).toHaveCount(3)
 
     // together with the Kennung (and), and the whole view comes back from the link
-    await page.getByRole('textbox', { name: 'Kennung' }).fill('1-200')
+    await page.getByRole('textbox', { name: 'Kennung', exact: true }).fill('1-200')
     await expect(tags(page)).toHaveText(['00007'])
     await expect(chips.getByRole('button')).toHaveCount(4)
     const link = page.url()
@@ -987,18 +1029,22 @@ test.describe('stem list', () => {
     await signIn(fresh, 'K7QM4XHT9RDP')
     await expect(fresh.locator('tbody th')).toHaveText(['00007'])
     await expect(
-      fresh.getByRole('button', { name: 'Holzart: Traubeneiche, Nicht erfasst' }),
+      fresh.getByRole('button', { name: 'Holzart: Traubeneiche, Nicht erfasst', exact: true }),
     ).toBeVisible()
-    await expect(fresh.getByRole('button', { name: 'Kennung: 1-200' })).toBeVisible()
+    await expect(fresh.getByRole('button', { name: 'Kennung: 1-200', exact: true })).toBeVisible()
     await fresh.close()
 
     // a chip opens its filter, the cross removes only this filter
-    await chips.getByRole('button', { name: 'Holzart: Traubeneiche, Nicht erfasst' }).click()
+    await chips
+      .getByRole('button', { name: 'Holzart: Traubeneiche, Nicht erfasst', exact: true })
+      .click()
     await expect(popup).toBeVisible()
     await popup.getByLabel('Traubeneiche').uncheck()
-    await expect(chips.getByRole('button', { name: 'Holzart: Nicht erfasst' })).toBeVisible()
+    await expect(
+      chips.getByRole('button', { name: 'Holzart: Nicht erfasst', exact: true }),
+    ).toBeVisible()
     await page.keyboard.press('Escape')
-    await page.getByRole('button', { name: 'Filter Holzart entfernen' }).click()
+    await page.getByRole('button', { name: 'Filter Holzart entfernen', exact: true }).click()
     await expect(page).not.toHaveURL(/Holzart/)
     await expect(page).toHaveURL(/tags=1-200/)
     // no chip follows, so the focus goes to the button of the filter
@@ -1008,10 +1054,10 @@ test.describe('stem list', () => {
     await holzart.click()
     await popup.getByLabel('Stieleiche').check()
     await page.keyboard.press('Escape')
-    await page.getByRole('button', { name: 'Filter zurücksetzen' }).click()
+    await page.getByRole('button', { name: 'Filter zurücksetzen', exact: true }).click()
     await expect(page).toHaveURL(/\/admin\/stems$/)
     await expect(tags(page)).toHaveCount(4)
-    await expect(page.getByRole('textbox', { name: 'Kennung' })).toHaveValue('')
+    await expect(page.getByRole('textbox', { name: 'Kennung', exact: true })).toHaveValue('')
   })
 
   test('searches a text while typing, takes a range and opens the filters by keyboard', async ({
@@ -1022,20 +1068,24 @@ test.describe('stem list', () => {
 
     await filterButton(page, 'Notiz').focus()
     await page.keyboard.press('Enter')
-    const popup = page.getByRole('dialog', { name: 'Notiz' })
+    const popup = page.getByRole('dialog', { name: filterName('Notiz'), exact: true })
     await expect(popup).toBeVisible()
-    await popup.getByRole('textbox', { name: 'Suchtext' }).fill('drehwuchs')
+    await popup.getByRole('textbox', { name: 'Suchtext', exact: true }).fill('drehwuchs')
     await expect(page).toHaveURL(/contains:drehwuchs/)
-    await expect(page.getByRole('button', { name: 'Notiz: enthält drehwuchs' })).toBeVisible()
+    await expect(
+      page.getByRole('button', { name: 'Notiz: enthält drehwuchs', exact: true }),
+    ).toBeVisible()
     await expect(tags(page)).toHaveText(['00104'])
     await page.keyboard.press('Escape')
     await expect(filterButton(page, 'Notiz')).toBeFocused()
 
     await filterButton(page, 'Holzfeuchte').click()
-    const range = page.getByRole('dialog', { name: 'Holzfeuchte' })
+    const range = page.getByRole('dialog', { name: filterName('Holzfeuchte'), exact: true })
     await range.getByLabel('Von').fill('40')
     await range.getByLabel('Von').press('Enter')
-    await expect(page.getByRole('button', { name: 'Holzfeuchte: ab 40 %' })).toBeVisible()
+    await expect(
+      page.getByRole('button', { name: 'Holzfeuchte: ab 40 %', exact: true }),
+    ).toBeVisible()
     await expect(page).toHaveURL(/=40~(&|$)/)
     await range.getByLabel('Von').fill('90')
     await range.getByLabel('Von').press('Enter')
@@ -1047,15 +1097,17 @@ test.describe('stem list', () => {
   }) => {
     await page.goto('/admin/stems?tags=300-400')
     await signIn(page, 'K7QM4XHT9RDP')
-    await expect(page.getByRole('heading', { name: 'Waldesruh' })).toBeVisible()
-    const bar = page.locator('main > div.sticky').nth(1)
+    await expect(page.getByRole('heading', { name: 'Waldesruh', exact: true })).toBeVisible()
+    const bar = resultsBar(page)
     await expect(bar.getByText('0 von 4 Stämmen')).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Tabelle nach rechts scrollen' })).toHaveCount(0)
+    await expect(
+      page.getByRole('button', { name: 'Tabelle nach rechts scrollen', exact: true }),
+    ).toHaveCount(0)
     expect(await bottom(bar)).toBeLessThanOrEqual(
-      await top(page.getByRole('heading', { name: 'Waldesruh' })),
+      await top(page.getByRole('heading', { name: 'Waldesruh', exact: true })),
     )
 
-    await bar.getByRole('button', { name: 'Filter Kennung entfernen' }).click()
+    await bar.getByRole('button', { name: 'Filter Kennung entfernen', exact: true }).click()
     await expect(tags(page)).toHaveCount(4)
     await expect(page.getByText('4 Stämme', { exact: true })).toBeVisible()
   })
@@ -1065,15 +1117,15 @@ test.describe('stem list', () => {
   }) => {
     await page.goto('/admin/stems')
     await signIn(page, 'K7QM4XHT9RDP')
-    await page.getByRole('textbox', { name: 'Kennung' }).fill('104-a')
+    await page.getByRole('textbox', { name: 'Kennung', exact: true }).fill('104-a')
     await expect(tags(page)).toHaveText(['00104'])
-    await expect(page.getByRole('button', { name: 'Kennung: 104-a' })).toBeVisible()
-    await page.getByRole('textbox', { name: 'Kennung' }).fill('104-d')
-    await expect(page.getByRole('heading', { name: 'Waldesruh' })).toBeVisible()
-    await page.getByRole('button', { name: 'Filter Kennung entfernen' }).click()
+    await expect(page.getByRole('button', { name: 'Kennung: 104-a', exact: true })).toBeVisible()
+    await page.getByRole('textbox', { name: 'Kennung', exact: true }).fill('104-d')
+    await expect(page.getByRole('heading', { name: 'Waldesruh', exact: true })).toBeVisible()
+    await page.getByRole('button', { name: 'Filter Kennung entfernen', exact: true }).click()
 
     await filterButton(page, 'Geändert').click()
-    const popup = page.getByRole('dialog', { name: 'Geändert' })
+    const popup = page.getByRole('dialog', { name: filterName('Geändert'), exact: true })
     await expect(popup.getByLabel('Von')).toBeVisible()
     await expect(popup.getByText('Nicht erfasst')).toHaveCount(0)
   })
@@ -1085,14 +1137,14 @@ test.describe('stem list', () => {
     // eslint-disable-next-line playwright/no-skipped-test
     test.skip(isMobile, 'a phone pans instead of scrolling the window, the arrows are not there')
     await openLong(page, { width: 900, height: 700 })
-    const link = page.getByRole('button', { name: 'Filter zurücksetzen' })
+    const link = page.getByRole('button', { name: 'Filter zurücksetzen', exact: true })
     await expect(link).toHaveCount(0)
 
     // only stems come back that sort after the ones shown, so nothing above moves
     await page.goto('/admin/stems?tags=1-1999')
     await expect(link).toBeVisible()
     const arrows = (await page
-      .getByRole('button', { name: 'Tabelle nach rechts scrollen' })
+      .getByRole('button', { name: 'Tabelle nach rechts scrollen', exact: true })
       .boundingBox())!
     const box = (await link.boundingBox())!
     expect(box.x + box.width).toBeLessThanOrEqual(arrows.x)
@@ -1103,7 +1155,7 @@ test.describe('stem list', () => {
     await expect(link).toBeInViewport()
     await link.click()
     await expect(page).toHaveURL(/\/admin\/stems$/)
-    await expect(page.getByRole('textbox', { name: 'Kennung' })).toBeFocused()
+    await expect(page.getByRole('textbox', { name: 'Kennung', exact: true })).toBeFocused()
     expect(await page.evaluate(() => window.scrollY)).toBe(800)
     await expect(link).toHaveCount(0)
   })
@@ -1131,14 +1183,17 @@ test.describe('stem list', () => {
       `f.beams=0~9`,
       'f.changed=2026-01-01~',
     ]
-    const bar = page.locator('main > div.sticky').nth(1)
+    const bar = resultsBar(page)
     const heights: number[] = []
     const lines: number[] = []
     for (const count of [1, 6, 8, 11]) {
       await page.goto(`/admin/stems?${filters.slice(0, count).join('&')}`)
-      await expect(page.getByRole('list', { name: 'Aktive Filter' })).toBeVisible()
+      await expect(page.getByRole('list', { name: 'Aktive Filter', exact: true })).toBeVisible()
       heights.push((await bar.boundingBox())!.height)
-      lines.push((await page.getByRole('list', { name: 'Aktive Filter' }).boundingBox())!.height)
+      lines.push(
+        (await page.getByRole('list', { name: 'Aktive Filter', exact: true }).boundingBox())!
+          .height,
+      )
     }
     // one chip: 60 px; two lines of chips: the same, the arrows and the button stay in the middle; more lines: the bar grows
     expect(heights[0]).toBe(60)
@@ -1152,7 +1207,9 @@ test.describe('stem list', () => {
     // text, button and chips are centered vertically in the bar
     const barBox = (await bar.boundingBox())!
     const text = (await bar.getByText(/von 4 Stämmen/).boundingBox())!
-    const link = (await bar.getByRole('button', { name: 'Filter zurücksetzen' }).boundingBox())!
+    const link = (await bar
+      .getByRole('button', { name: 'Filter zurücksetzen', exact: true })
+      .boundingBox())!
     for (const box of [text, link]) {
       expect(Math.abs(box.y + box.height / 2 - (barBox.y + barBox.height / 2))).toBeLessThan(2)
     }
@@ -1164,7 +1221,7 @@ test.describe('stem list', () => {
     await page.goto('/admin/stems')
     await signIn(page, 'K7QM4XHT9RDP')
     await filterButton(page, 'Geändert').click()
-    const popup = page.getByRole('dialog', { name: 'Geändert' })
+    const popup = page.getByRole('dialog', { name: filterName('Geändert'), exact: true })
     const from = popup.getByLabel('Von')
     const to = popup.getByLabel('Bis')
     await expect(from).toHaveAttribute('type', 'date')
@@ -1172,12 +1229,14 @@ test.describe('stem list', () => {
 
     await from.fill('2026-10-31')
     await expect(page).toHaveURL(/Ge%C3%A4ndert=2026-10-31~$/)
-    await expect(page.getByRole('button', { name: 'Geändert: ab 31.10.2026' })).toBeVisible()
+    await expect(
+      page.getByRole('button', { name: 'Geändert: ab 31.10.2026', exact: true }),
+    ).toBeVisible()
     await expect(tags(page)).toHaveText(['00104'])
     await to.fill('2026-10-31')
     await expect(page).toHaveURL(/Ge%C3%A4ndert=2026-10-31~2026-10-31$/)
     await expect(
-      page.getByRole('button', { name: 'Geändert: 31.10.2026–31.10.2026' }),
+      page.getByRole('button', { name: 'Geändert: 31.10.2026–31.10.2026', exact: true }),
     ).toBeVisible()
 
     await page.reload()
@@ -1185,19 +1244,19 @@ test.describe('stem list', () => {
     await expect(from).toHaveValue('2026-10-31')
     await expect(to).toHaveValue('2026-10-31')
     await expect(
-      page.getByRole('button', { name: 'Geändert: 31.10.2026–31.10.2026' }),
+      page.getByRole('button', { name: 'Geändert: 31.10.2026–31.10.2026', exact: true }),
     ).toBeVisible()
 
     // the field cleared again (a half-typed date is no value): no filter on this side, and without both no chip
     await from.fill('')
     await to.fill('')
     await expect(page).not.toHaveURL(/Ge%C3%A4ndert/)
-    await expect(page.getByRole('button', { name: /^Geändert:/ })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: /^Geändert:/, exact: true })).toHaveCount(0)
 
     // an old link still works
     await page.goto('/admin/stems?f.changed=2026-10-01~2026-12-31')
     await expect(
-      page.getByRole('button', { name: 'Geändert: 01.10.2026–31.12.2026' }),
+      page.getByRole('button', { name: 'Geändert: 01.10.2026–31.12.2026', exact: true }),
     ).toBeVisible()
   })
 
@@ -1207,7 +1266,9 @@ test.describe('stem list', () => {
     await signIn(page, 'K7QM4XHT9RDP')
     for (const name of ['Holzart', 'Geändert']) {
       await filterButton(page, name).click()
-      const box = (await page.getByRole('dialog', { name }).boundingBox())!
+      const box = (await page
+        .getByRole('dialog', { name: filterName(name), exact: true })
+        .boundingBox())!
       expect(box.x).toBeGreaterThanOrEqual(0)
       expect(box.x + box.width).toBeLessThanOrEqual(390)
       await page.keyboard.press('Escape')
@@ -1226,14 +1287,15 @@ test.describe('stem list', () => {
     await page.goto(
       `/admin/stems?tags=1-1999&f.${id('Holzart')}=none&f.${id('Gesägt')}=yes,no,none&f.${id('Notiz')}=none`,
     )
-    const bar = page.locator('main > div.sticky').nth(1)
-    await expect(page.getByRole('list', { name: 'Aktive Filter' })).toBeVisible()
+    const bar = resultsBar(page)
+    await expect(page.getByRole('list', { name: 'Aktive Filter', exact: true })).toBeVisible()
     expect((await bar.boundingBox())!.height).toBeGreaterThan(80)
     await page.evaluate(() => window.scrollTo(0, 900))
-    await expect(page.getByRole('list', { name: 'Aktive Filter' })).toBeInViewport()
+    await expect(page.getByRole('list', { name: 'Aktive Filter', exact: true })).toBeInViewport()
     await expect(bar).toBeInViewport()
 
     // a link in the table, focused by keyboard, lies below the bar even though it has two lines
+    // a row far down the list (the 31st): the order is the point, so it is found by position
     await tags(page).nth(30).getByRole('link').focus()
     const link = (await tags(page).nth(30).getByRole('link').boundingBox())!
     const barBox = (await bar.boundingBox())!
@@ -1248,8 +1310,8 @@ test.describe('stem list', () => {
       page,
     }) => {
       await openLong(page, { width, height })
-      const bar = page.locator('main > div.sticky').nth(1)
-      const head = page.getByRole('columnheader', { name: 'Stamm' })
+      const bar = resultsBar(page)
+      const head = page.getByRole('columnheader', { name: 'Stamm', exact: true })
       // the bar sticks below the header from lg on, and to the top of the window below it (the header scrolls away)
       const stuck = await bar.evaluate((element) => parseFloat(getComputedStyle(element).top))
 
@@ -1279,8 +1341,8 @@ test.describe('stem list', () => {
       const fixed = [
         page.locator('header'),
         page.getByRole('heading', { level: 1 }),
-        page.getByRole('textbox', { name: 'Kennung' }),
-        page.locator('main > div.sticky').nth(1),
+        page.getByRole('textbox', { name: 'Kennung', exact: true }),
+        resultsBar(page),
         page.getByRole('contentinfo').getByRole('link'),
       ]
       const placed = async () =>
@@ -1297,7 +1359,8 @@ test.describe('stem list', () => {
       expect(await placed()).toEqual(before)
 
       // the first column sticks to the edge of the window, in the head and in the rows
-      expect(await left(page.getByRole('columnheader', { name: 'Stamm' }))).toBe(0)
+      expect(await left(page.getByRole('columnheader', { name: 'Stamm', exact: true }))).toBe(0)
+      // the second row: any row of the list will do
       expect(await left(tags(page).nth(1))).toBe(0)
       await expect(tags(page).nth(1)).toBeInViewport()
 
@@ -1315,8 +1378,8 @@ test.describe('stem list', () => {
 
     test('the arrows scroll the page and are disabled at the ends', async ({ page }) => {
       await openLong(page, { width: 1024, height: 700 })
-      const next = page.getByRole('button', { name: 'Tabelle nach rechts scrollen' })
-      const back = page.getByRole('button', { name: 'Tabelle nach links scrollen' })
+      const next = page.getByRole('button', { name: 'Tabelle nach rechts scrollen', exact: true })
+      const back = page.getByRole('button', { name: 'Tabelle nach links scrollen', exact: true })
       await expect(back).toBeDisabled()
 
       await next.click()
@@ -1333,8 +1396,9 @@ test.describe('stem list', () => {
       page,
     }) => {
       await openLong(page, { width: 1024, height: 700 })
-      const head = page.getByRole('columnheader', { name: 'Stamm' })
+      const head = page.getByRole('columnheader', { name: 'Stamm', exact: true })
 
+      // a row far down the list (the 41st)
       await tags(page).nth(40).getByRole('link').focus()
       const row = await tags(page).nth(40).getByRole('link').boundingBox()
       expect(row!.y).toBeGreaterThan(await bottom(head))
@@ -1375,12 +1439,13 @@ test.describe('stem list', () => {
     await signIn(page, 'K7QM4XHT9RDP')
     await expect(tags(page)).toHaveCount(4)
 
-    const bar = page.locator('main > div.sticky').nth(1).locator('p')
+    const bar = resultsBar(page).getByText('4 Stämme', { exact: true })
     const box = await cardBox(page)
     expect(box.width).toBeCloseTo(1216, 0)
     expect(Math.abs(box.x - (await left(bar)))).toBeLessThan(1)
     expect(await sideways(page)).toBe(0)
-    await expect(page.getByRole('button', { name: /Tabelle nach/ })).toHaveCount(0)
+    for (const name of ['Tabelle nach links scrollen', 'Tabelle nach rechts scrollen'])
+      await expect(page.getByRole('button', { name, exact: true })).toHaveCount(0)
     expect(await radius(page, 'table >> xpath=..')).toBe('12px')
   })
 
@@ -1401,7 +1466,8 @@ test.describe('stem list', () => {
     expect(box.width).toBeLessThan(2400)
     expect(Math.abs(box.x - (2400 - box.x - box.width))).toBeLessThan(1)
     expect(await sideways(page)).toBe(0)
-    await expect(page.getByRole('button', { name: /Tabelle nach/ })).toHaveCount(0)
+    for (const name of ['Tabelle nach links scrollen', 'Tabelle nach rechts scrollen'])
+      await expect(page.getByRole('button', { name, exact: true })).toHaveCount(0)
 
     // a card around the table: radius, line and white ground; the table itself has neither border nor radius
     const card = page.locator('table >> xpath=..')
@@ -1416,7 +1482,7 @@ test.describe('stem list', () => {
   }) => {
     await openLong(page, { width: 2400, height: 700 })
     await page.evaluate(() => window.scrollTo(0, 1500))
-    const head = page.getByRole('columnheader', { name: 'Stamm' })
+    const head = page.getByRole('columnheader', { name: 'Stamm', exact: true })
     await expect(head).toBeInViewport()
 
     const beside = await head.evaluate((element) => {
@@ -1460,7 +1526,7 @@ test.describe('stem list', () => {
     await page.setViewportSize({ width: 390, height: 800 })
     await page.goto('/admin/stems?tags=300-400')
     await signIn(page, 'K7QM4XHT9RDP')
-    await expect(page.getByRole('heading', { name: 'Waldesruh' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Waldesruh', exact: true })).toBeVisible()
     expect(await sideways(page)).toBe(0)
   })
 
@@ -1470,10 +1536,11 @@ test.describe('stem list', () => {
     await openLong(page, { width: 390, height: 800 })
     expect(await sideways(page)).toBeGreaterThan(0)
     await page.evaluate(() => window.scrollTo(0, 800))
-    const bar = page.locator('main > div.sticky').nth(1)
+    const bar = resultsBar(page)
     expect(
       Math.abs(
-        (await top(page.getByRole('columnheader', { name: 'Stamm' }))) - (await bottom(bar)),
+        (await top(page.getByRole('columnheader', { name: 'Stamm', exact: true }))) -
+          (await bottom(bar)),
       ),
     ).toBeLessThan(1)
   })
@@ -1483,8 +1550,8 @@ test.describe('attributes', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/admin/activity')
     await signIn(page, 'K7QM4XHT9RDP')
-    await page.getByRole('button', { name: 'Verwaltung' }).click()
-    await page.getByRole('menuitem', { name: 'Merkmale' }).click()
+    await page.getByRole('button', { name: 'Verwaltung', exact: true }).click()
+    await page.getByRole('menuitem', { name: 'Merkmale', exact: true }).click()
     await expect(page).toHaveURL(/\/admin\/attributes$/)
   })
 
@@ -1492,12 +1559,14 @@ test.describe('attributes', () => {
     page,
   }) => {
     await expect(page.locator('h1')).toHaveText('Merkmale')
-    await expect(page.getByRole('button', { name: 'Verwaltung' })).toHaveCSS(
+    await expect(page.getByRole('button', { name: 'Verwaltung', exact: true })).toHaveCSS(
       'background-color',
       'rgb(255, 255, 255)',
     )
     await expect(page.getByText('8 Merkmale', { exact: true })).toBeVisible()
-    await expect(page.getByRole('heading', { name: 'Nichts ausgewählt' })).toBeVisible()
+    await expect(
+      page.getByRole('heading', { name: 'Nichts ausgewählt', exact: true }),
+    ).toBeVisible()
 
     await page.getByRole('button', { name: 'Balken', exact: true }).click()
     await expect(page).toHaveURL(/view=beam/)
@@ -1507,8 +1576,10 @@ test.describe('attributes', () => {
   test('selects a field, saves a change and keeps the selection', async ({ page }) => {
     await page.getByRole('button', { name: 'Lagerplatz', exact: true }).click()
     await expect(page).toHaveURL(/attribute=/)
-    await expect(page.getByRole('heading', { name: 'Lagerplatz', level: 2 })).toBeVisible()
-    const save = page.getByRole('button', { name: 'Speichern' })
+    await expect(
+      page.getByRole('heading', { name: 'Lagerplatz', level: 2, exact: true }),
+    ).toBeVisible()
+    const save = page.getByRole('button', { name: 'Speichern', exact: true })
     await expect(save).toBeDisabled()
 
     await page.getByLabel('Name', { exact: true }).fill('Ort')
@@ -1519,7 +1590,7 @@ test.describe('attributes', () => {
       'aria-current',
       'true',
     )
-    await expect(page.getByRole('heading', { name: 'Ort', level: 2 })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Ort', level: 2, exact: true })).toBeVisible()
     await expect(save).toBeDisabled()
   })
 
@@ -1528,61 +1599,85 @@ test.describe('attributes', () => {
     await page.getByLabel('Name', { exact: true }).fill('Ort')
 
     await page.getByRole('button', { name: 'Holzart', exact: true }).click()
-    const dialog = page.getByRole('alertdialog', { name: 'Änderungen verwerfen?' })
+    const dialog = page.getByRole('alertdialog', { name: 'Änderungen verwerfen?', exact: true })
     await expect(dialog).toBeVisible()
-    await dialog.getByRole('button', { name: 'Weiter bearbeiten' }).click()
+    await dialog.getByRole('button', { name: 'Weiter bearbeiten', exact: true }).click()
     await expect(page.getByLabel('Name', { exact: true })).toHaveValue('Ort')
 
     await page.getByRole('button', { name: 'Holzart', exact: true }).click()
-    await dialog.getByRole('button', { name: 'Verwerfen' }).click()
-    await expect(page.getByRole('heading', { name: 'Holzart', level: 2 })).toBeVisible()
+    await dialog.getByRole('button', { name: 'Verwerfen', exact: true }).click()
+    await expect(
+      page.getByRole('heading', { name: 'Holzart', level: 2, exact: true }),
+    ).toBeVisible()
   })
 
   test('shows a system attribute without controls', async ({ page }) => {
-    await page.getByRole('button', { name: 'Gesägt (Systemmerkmal)' }).click()
+    await page.getByRole('button', { name: 'Gesägt (Systemmerkmal)', exact: true }).click()
     await expect(page.getByText('Systemmerkmal: Ändern nur im Code möglich.')).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Speichern' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Speichern', exact: true })).toHaveCount(0)
   })
 
-  test('creates an attribute: type tiles, form with live preview, then it stays selected', async ({
-    page,
-  }) => {
-    await page.getByRole('button', { name: 'Merkmal hinzufügen' }).click()
-    await expect(page).toHaveURL(/attribute=new/)
-    await expect(page.getByRole('heading', { name: 'Neues Merkmal', level: 2 })).toBeVisible()
-    await expect(page.getByText('Unbenanntes Merkmal', { exact: true })).toBeVisible()
+  // "Merkmal hinzufügen" exists twice: dashed under the preview, and in the card "Nichts ausgewählt" in the settings column
+  const addButtons = {
+    'the button under the preview': (page: Page) =>
+      page
+        .locator('[aria-label="Vorschau"]')
+        .locator('xpath=../following-sibling::button')
+        .filter({ hasText: 'Merkmal hinzufügen' }),
+    'the button in the card "Nichts ausgewählt"': (page: Page) =>
+      page
+        .locator('[data-settings-column]')
+        .getByRole('button', { name: 'Merkmal hinzufügen', exact: true }),
+  }
 
-    await page.getByRole('button', { name: /^Datum/ }).click()
-    await page.getByLabel('Name', { exact: true }).fill('Eingang')
-    await page.getByLabel('Genauigkeit').selectOption('month')
-    await expect(page.getByRole('button', { name: 'Eingang', exact: true })).toContainText(
-      'MM / JJJJ',
-    )
+  for (const [way, addButton] of Object.entries(addButtons)) {
+    test(`creates an attribute with ${way}: type tiles, form with live preview, then it stays selected`, async ({
+      page,
+    }) => {
+      await addButton(page).click()
+      await expect(page).toHaveURL(/attribute=new/)
+      await expect(
+        page.getByRole('heading', { name: 'Neues Merkmal', level: 2, exact: true }),
+      ).toBeVisible()
+      await expect(page.getByText('Unbenanntes Merkmal', { exact: true })).toBeVisible()
 
-    await page.getByRole('button', { name: 'Anlegen' }).click()
-    await expect(page.getByText('9 Merkmale', { exact: true })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Eingang', exact: true })).toHaveAttribute(
-      'aria-current',
-      'true',
-    )
-    await expect(page.getByRole('button', { name: 'Speichern' })).toBeDisabled()
-  })
+      await page
+        .getByRole('button', {
+          name: 'Datum z. B. Lieferdatum, Fällzeitpunkt (nur Monat)',
+          exact: true,
+        })
+        .click()
+      await page.getByLabel('Name', { exact: true }).fill('Eingang')
+      await page.getByLabel('Genauigkeit').selectOption('month')
+      await expect(page.getByRole('button', { name: 'Eingang', exact: true })).toContainText(
+        'MM / JJJJ',
+      )
 
-  test('asks before the page is left with a draft', async ({ page }) => {
-    await page.getByRole('button', { name: 'Merkmal hinzufügen' }).click()
-    await page.getByRole('button', { name: /^Text/ }).click()
-    await page.getByLabel('Name', { exact: true }).fill('Bemerkung')
+      await page.getByRole('button', { name: 'Anlegen', exact: true }).click()
+      await expect(page.getByText('9 Merkmale', { exact: true })).toBeVisible()
+      await expect(page.getByRole('button', { name: 'Eingang', exact: true })).toHaveAttribute(
+        'aria-current',
+        'true',
+      )
+      await expect(page.getByRole('button', { name: 'Speichern', exact: true })).toBeDisabled()
+    })
 
-    await page.getByRole('link', { name: 'Aktivität' }).click()
-    const dialog = page.getByRole('alertdialog', { name: 'Änderungen verwerfen?' })
-    await expect(dialog).toBeVisible()
-    await dialog.getByRole('button', { name: 'Weiter bearbeiten' }).click()
-    await expect(page).toHaveURL(/\/admin\/attributes/)
+    test(`asks before the page is left with a draft started with ${way}`, async ({ page }) => {
+      await addButton(page).click()
+      await page.getByRole('button', { name: 'Text z. B. Bemerkung', exact: true }).click()
+      await page.getByLabel('Name', { exact: true }).fill('Bemerkung')
 
-    await page.getByRole('link', { name: 'Aktivität' }).click()
-    await dialog.getByRole('button', { name: 'Verwerfen' }).click()
-    await expect(page).toHaveURL(/\/admin\/activity/)
-  })
+      await page.getByRole('link', { name: 'Aktivität', exact: true }).click()
+      const dialog = page.getByRole('alertdialog', { name: 'Änderungen verwerfen?', exact: true })
+      await expect(dialog).toBeVisible()
+      await dialog.getByRole('button', { name: 'Weiter bearbeiten', exact: true }).click()
+      await expect(page).toHaveURL(/\/admin\/attributes/)
+
+      await page.getByRole('link', { name: 'Aktivität', exact: true }).click()
+      await dialog.getByRole('button', { name: 'Verwerfen', exact: true }).click()
+      await expect(page).toHaveURL(/\/admin\/activity/)
+    })
+  }
 
   test('sorts with the arrow keys and the order stays after a reload', async ({ page }) => {
     const names = () =>
@@ -1593,10 +1688,12 @@ test.describe('attributes', () => {
         .evaluateAll((buttons) => buttons.map((button) => button.getAttribute('aria-label')))
     expect((await names())[0]).toBe('Holzart')
 
-    await page.getByRole('button', { name: 'Holzart verschieben' }).focus()
+    await page.getByRole('button', { name: 'Holzart verschieben', exact: true }).focus()
     await page.keyboard.press('ArrowDown')
     await expect.poll(async () => (await names())[1]).toBe('Holzart')
-    await expect(page.getByRole('button', { name: 'Holzart verschieben' })).toBeFocused()
+    await expect(
+      page.getByRole('button', { name: 'Holzart verschieben', exact: true }),
+    ).toBeFocused()
 
     await page.reload()
     await expect.poll(async () => (await names())[1]).toBe('Holzart')
@@ -1605,8 +1702,8 @@ test.describe('attributes', () => {
   test('sorts by dragging the handle', async ({ page }) => {
     // tall enough that the handles are clear of the window edges, where the page would scroll on during a drag
     await page.setViewportSize({ width: 1280, height: 1600 })
-    const first = page.getByRole('button', { name: 'Holzart verschieben' })
-    const third = page.getByRole('button', { name: 'Lieferdatum verschieben' })
+    const first = page.getByRole('button', { name: 'Holzart verschieben', exact: true })
+    const third = page.getByRole('button', { name: 'Lieferdatum verschieben', exact: true })
     const from = (await first.boundingBox())!
     const to = (await third.boundingBox())!
 
@@ -1615,6 +1712,7 @@ test.describe('attributes', () => {
     await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2 + 20, { steps: 8 })
     await page.mouse.up()
 
+    // the position in the list is what the drag changes
     await expect(page.locator('[aria-label="Vorschau"] > li').nth(2)).toContainText('Holzart')
     await expect(page.locator('[aria-label="Vorschau"] > li').nth(0)).toContainText('Fälldatum')
   })

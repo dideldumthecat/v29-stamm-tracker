@@ -26,6 +26,8 @@ useSizeVariable(bar, '--sticky-bar-height', 'height')
 <template>
   <div
     ref="bar"
+    role="region"
+    aria-label="Ergebnisse"
     class="sticky top-0 left-0 z-20 w-[100cqw] bg-desk lg:top-[var(--header-height,0px)] [&_button]:scroll-mt-[calc((var(--sticky-bar-height,0px)+var(--table-head-height,0px)+8px)*-1)]"
   >
     <div
