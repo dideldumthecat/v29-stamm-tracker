@@ -1,4 +1,5 @@
 import { vi } from 'vitest'
+import type { Snapshot } from '@v29/shared/contract'
 
 import keyFiguresFixture from '@v29/shared/fixtures/key-figures-response.json' with { type: 'json' }
 
@@ -16,6 +17,7 @@ export function fakeApi(codes: Record<string, string>, { offline = false, pageSi
   let activityFails = false
   let snapshotFails = false
   let keyFiguresFail = false
+  let snapshot: Snapshot = snapshotFixture
   const calls: string[] = []
   vi.stubGlobal(
     'fetch',
@@ -50,7 +52,7 @@ export function fakeApi(codes: Record<string, string>, { offline = false, pageSi
       }
       if (call === 'GET /api/snapshot') {
         if (!role) return json(401)
-        return snapshotFails ? json(500) : json(200, snapshotFixture)
+        return snapshotFails ? json(500) : json(200, snapshot)
       }
       if (/^GET \/api\/admin\/timber-items\/[^/]+\/key-figures$/.test(call)) {
         if (!role) return json(401)
@@ -65,6 +67,7 @@ export function fakeApi(codes: Record<string, string>, { offline = false, pageSi
     failSignOut: () => (signOutFails = true),
     failActivity: (fails = true) => (activityFails = fails),
     failSnapshot: (fails = true) => (snapshotFails = fails),
+    setSnapshot: (next: Snapshot) => (snapshot = next),
     failKeyFigures: (fails = true) => (keyFiguresFail = fails),
   }
 }

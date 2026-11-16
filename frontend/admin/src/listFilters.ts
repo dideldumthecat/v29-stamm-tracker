@@ -1,5 +1,10 @@
 import { bySortOrder, formatDate, formatMonthLong, formatNumber } from '@v29/shared/attributes'
-import type { Attribute, AttributeType, TimberItem } from '@v29/shared/contract'
+import type {
+  Attribute,
+  AttributeType,
+  AttributeValueRecord,
+  TimberItem,
+} from '@v29/shared/contract'
 
 /**
  * Logic that the lists of stems, beams and the activity share: counting texts, the "Kennung" filter and the filters of the columns
@@ -78,6 +83,8 @@ export interface FilterColumn {
 /** What the filters need to know of a row; the rows of the lists (`Row`, stemlist.ts) have it. */
 export interface FilterRow {
   item: TimberItem
+  /** The values the row shows (`RawRow.values`): what filters look at. */
+  values: Record<string, AttributeValueRecord[]>
   /** Number of beams cut from the stem. */
   beams: number
   /** The tags of those beams ("104-A"); empty for a beam. */
@@ -241,7 +248,7 @@ export function writeFilter(filter: ColumnFilter): string {
 const recorded = (row: FilterRow, column: FilterColumn) => row.cells[column.id].text !== null
 
 const lastValue = (row: FilterRow, attribute: Attribute) =>
-  row.item.values[attribute.id]?.slice(-1)[0]?.value
+  row.values[attribute.id]?.slice(-1)[0]?.value
 
 /**
  * Whether a row passes the filter of a column. Only the item's own values count (the notes of the beams of a stem never do);
@@ -256,7 +263,7 @@ export function matchesFilter(row: FilterRow, column: FilterColumn, filter: Colu
       return recorded(row, column)
     case 'contains': {
       const needle = filter.text.toLowerCase()
-      return (row.item.values[attribute!.id] ?? []).some((record) =>
+      return (row.values[attribute!.id] ?? []).some((record) =>
         String(record.value).toLowerCase().includes(needle),
       )
     }

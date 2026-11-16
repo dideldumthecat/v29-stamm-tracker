@@ -18,7 +18,7 @@ vi.mock('@/detail', async (importOriginal) => {
 
 const CODE = 'K7QM-4XHT-9RDP'
 
-async function open(path = '/staemme', configure?: (api: ReturnType<typeof fakeApi>) => void) {
+async function open(path = '/stems', configure?: (api: ReturnType<typeof fakeApi>) => void) {
   const api = fakeApi({ [CODE]: 'admin' })
   const router = createAdminRouter(createMemoryHistory())
   await router.push('/login')
@@ -60,7 +60,7 @@ describe('stem list', () => {
   it('shows the title, the sentence, the number of stems and a column per attribute of stems', async () => {
     const { wrapper } = await open()
 
-    expect(wrapper.get('h1').text()).toBe('Stämme')
+    expect(wrapper.get('h1').text()).toBe('Rundholz')
     expect(wrapper.get('h1 + p').text()).toBe('Eine Spalte je Merkmal, Reihenfolge wie in der App.')
     expect(wrapper.get('main p.text-lg').text()).toBe('4 Stämme')
     expect(wrapper.findAll('thead th').map((th) => squeezed(th.text()))).toEqual([
@@ -79,7 +79,7 @@ describe('stem list', () => {
     expect(wrapper.text()).not.toContain('Sortierklasse')
     expect(header(wrapper, 'Stamm').attributes('aria-sort')).toBe('ascending')
     expect(header(wrapper, 'Holzart').attributes('aria-sort')).toBeUndefined()
-    expect(wrapper.get('nav a[aria-current="page"]').text()).toBe('Stämme')
+    expect(wrapper.get('nav a[aria-current="page"]').text()).toBe('Rundholz')
   })
 
   it('writes a row: tag as link, values, "–" for what is not recorded, beams and last change', async () => {
@@ -87,7 +87,7 @@ describe('stem list', () => {
 
     expect(rowTags(wrapper)).toEqual(['00007', '00104', '01500', 'ohne Kennung'])
     const stem = wrapper.findAll('tbody tr')[1]
-    expect(stem.get('a').attributes('href')).toBe('/staemme/104')
+    expect(stem.get('a').attributes('href')).toBe('/stems/104')
     expect(stem.findAll('td').map((td) => squeezed(td.text()))).toEqual([
       'Stieleiche',
       '10/2026',
@@ -133,12 +133,12 @@ describe('stem list', () => {
   })
 
   it('takes sort and filter from a link and ignores an unknown column', async () => {
-    const { wrapper } = await open('/staemme?sort=beams&dir=desc&tags=1-200')
+    const { wrapper } = await open('/stems?sort=beams&dir=desc&tags=1-200')
     expect(rowTags(wrapper)).toEqual(['00104', '00007'])
     expect(header(wrapper, 'Balken').attributes('aria-sort')).toBe('descending')
     expect(field(wrapper).element.value).toBe('1-200')
 
-    const { wrapper: other } = await open('/staemme?sort=gibtsnicht')
+    const { wrapper: other } = await open('/stems?sort=gibtsnicht')
     expect(header(other, 'Stamm').attributes('aria-sort')).toBe('ascending')
   })
 
@@ -160,14 +160,14 @@ describe('stem list', () => {
   })
 
   it('keeps the sort when the filter is reset', async () => {
-    const { wrapper, router } = await open('/staemme?sort=beams&tags=104')
+    const { wrapper, router } = await open('/stems?sort=beams&tags=104')
     await resetButton(wrapper).trigger('click')
     await flushPromises()
     expect(router.currentRoute.value.query).toEqual({ sort: 'Balken' })
   })
 
   it('shows "Waldesruh" for an empty result, with the button of the bar to reset', async () => {
-    const { wrapper, router } = await open('/staemme?tags=300-400')
+    const { wrapper, router } = await open('/stems?tags=300-400')
 
     expect(wrapper.get('h2').text()).toBe('Waldesruh')
     expect(wrapper.text()).toContain('Keine Ergebnisse weit und breit gefunden.')
@@ -180,7 +180,7 @@ describe('stem list', () => {
   })
 
   it('shows "Waldesruh" for a filter it cannot read', async () => {
-    const { wrapper } = await open('/staemme?tags=abc')
+    const { wrapper } = await open('/stems?tags=abc')
     expect(wrapper.get('h2').text()).toBe('Waldesruh')
     expect(wrapper.text()).toContain('Keine Ergebnisse weit und breit gefunden.')
   })
@@ -194,7 +194,7 @@ describe('stem list', () => {
     await wrapper.get('input').setValue(CODE)
     await wrapper.get('form').trigger('submit')
     await flushPromises()
-    await router.push('/staemme')
+    await router.push('/stems')
     expect(wrapper.get('[role="status"]').text()).toContain('Stämme werden zurechtgesägt')
     await flushPromises()
     expect(api.calls).toContain('GET /api/snapshot')
@@ -202,7 +202,7 @@ describe('stem list', () => {
   })
 
   it('shows an error with "Erneut versuchen"', async () => {
-    const { wrapper, api } = await open('/staemme', (api) => api.failSnapshot())
+    const { wrapper, api } = await open('/stems', (api) => api.failSnapshot())
     expect(wrapper.get('[role="alert"]').text()).toContain('Hier ist grad der Wurm drin')
 
     api.failSnapshot(false)
@@ -212,14 +212,14 @@ describe('stem list', () => {
   })
 
   it('opens the detail view, and the way back brings the list as it was', async () => {
-    const { wrapper, router } = await open('/staemme?sort=beams&dir=desc')
+    const { wrapper, router } = await open('/stems?sort=beams&dir=desc')
     await wrapper.get('tbody a').trigger('click')
     await flushPromises()
-    expect(router.currentRoute.value.name).toBe('timber-item')
+    expect(router.currentRoute.value.name).toBe('stem')
     expect(router.currentRoute.value.params.tag).toBe('104')
 
     router.back()
-    await vi.waitFor(() => expect(router.currentRoute.value.name).toBe('timber-items'))
+    await vi.waitFor(() => expect(router.currentRoute.value.name).toBe('stems'))
     await flushPromises()
     expect(router.currentRoute.value.query).toEqual({ sort: 'beams', dir: 'desc' })
     expect(rowTags(wrapper)[0]).toBe('00104')
@@ -393,7 +393,7 @@ describe('filter bar and chips', () => {
   })
 
   it('takes a range of a number with the unit and puts it into the chip; the filters work together with "und" and the Kennung', async () => {
-    const { wrapper, router } = await open('/staemme?tags=1-1999')
+    const { wrapper, router } = await open('/stems?tags=1-1999')
     const id = attributeId('Holzfeuchte')
     const unit = snapshotFixture.attributes.find((a) => a.name === 'Holzfeuchte')!.unit!
     await openPopup(id)
@@ -420,7 +420,7 @@ describe('filter bar and chips', () => {
 
   it('restores buttons, badges and chips from a link', async () => {
     const id = attributeId('Fotos')
-    await open(`/staemme?tags=1-200&f.${id}=has`)
+    await open(`/stems?tags=1-200&f.${id}=has`)
     expect(chipTexts()).toEqual(['Kennung: 1-200', 'Fotos: mit Fotos'])
     expect(filterButton(id).className).toContain('font-bold')
     expect(filterButton(attributeId('Notiz')).className).not.toContain('font-bold')
@@ -428,7 +428,7 @@ describe('filter bar and chips', () => {
 
   it('removes only one filter with the cross of its chip and puts the focus on the next chip, without one on the button', async () => {
     const id = attributeId('Fotos')
-    const { router } = await open(`/staemme?sort=beams&tags=1-200&f.${id}=has`)
+    const { router } = await open(`/stems?sort=beams&tags=1-200&f.${id}=has`)
     cross('Kennung').click()
     await flushPromises()
     expect(router.currentRoute.value.query).toEqual({ sort: 'Balken', Fotos: 'has' })
@@ -443,7 +443,7 @@ describe('filter bar and chips', () => {
 
   it('opens the pop-up of the filter from its chip and scrolls to the button; Escape brings the focus back', async () => {
     const id = attributeId('Fotos')
-    const { wrapper } = await open(`/staemme?tags=1-200&f.${id}=has`)
+    const { wrapper } = await open(`/stems?tags=1-200&f.${id}=has`)
     chip(id).click()
     await flushPromises()
     expect(popup()!.getAttribute('aria-label')).toBe('Fotos')
@@ -461,7 +461,7 @@ describe('filter bar and chips', () => {
 
   it('resets the filters and the "Kennung" but not the sort, and sets the focus into the field', async () => {
     const id = attributeId('Fotos')
-    const { wrapper, router } = await open(`/staemme?sort=beams&tags=1-200&f.${id}=has`)
+    const { wrapper, router } = await open(`/stems?sort=beams&tags=1-200&f.${id}=has`)
     await resetButton(wrapper).trigger('click')
     await flushPromises()
     expect(router.currentRoute.value.query).toEqual({ sort: 'Balken' })
@@ -472,7 +472,7 @@ describe('filter bar and chips', () => {
 
   it('sets the focus into the field without scrolling the page up to it', async () => {
     const focus = vi.spyOn(HTMLInputElement.prototype, 'focus')
-    const { wrapper } = await open('/staemme?tags=1-200')
+    const { wrapper } = await open('/stems?tags=1-200')
     await resetButton(wrapper).trigger('click')
     await flushPromises()
     expect(focus).toHaveBeenCalledWith({ preventScroll: true })
@@ -481,7 +481,7 @@ describe('filter bar and chips', () => {
 
   it('shows "Waldesruh" without a chip for a filter it cannot read', async () => {
     const id = attributeId('Fotos')
-    const { wrapper } = await open(`/staemme?f.${id}=maybe`)
+    const { wrapper } = await open(`/stems?f.${id}=maybe`)
     expect(wrapper.get('h2').text()).toBe('Waldesruh')
     expect(chipTexts()).toEqual([])
     // the one button is the one of the bar
@@ -489,7 +489,7 @@ describe('filter bar and chips', () => {
   })
 
   it('ignores a filter of a column that does not exist', async () => {
-    const { wrapper } = await open('/staemme?f.gibtsnicht=has&f.tag=1')
+    const { wrapper } = await open('/stems?f.gibtsnicht=has&f.tag=1')
     expect(rowTags(wrapper)).toHaveLength(4)
     expect(chipTexts()).toEqual([])
   })
@@ -511,7 +511,7 @@ describe('filter bar and chips', () => {
 
   it('stays above "Waldesruh" with "0 von N Stämmen" and the chips; removing a chip brings the table back', async () => {
     const id = attributeId('Fotos')
-    const { wrapper, router } = await open(`/staemme?tags=300-400&f.${id}=has`)
+    const { wrapper, router } = await open(`/stems?tags=300-400&f.${id}=has`)
     expect(wrapper.get('h2').text()).toBe('Waldesruh')
     const bar = wrapper.get('main p.text-lg')
     expect(bar.text()).toBe('0 von 4 Stämmen')
@@ -531,38 +531,38 @@ describe('filter bar and chips', () => {
   })
 
   it('has the chip of an unreadable Kennung', async () => {
-    const { wrapper } = await open('/staemme?tags=abc')
+    const { wrapper } = await open('/stems?tags=abc')
     expect(wrapper.get('h2').text()).toBe('Waldesruh')
     expect(chipTexts()).toEqual(['Kennung: abc'])
     expect(wrapper.get('main p.text-lg').text()).toBe('0 von 4 Stämmen')
   })
 
   it('has the bar but no chip for an unreadable column filter', async () => {
-    const { wrapper } = await open(`/staemme?f.${attributeId('Fotos')}=maybe`)
+    const { wrapper } = await open(`/stems?f.${attributeId('Fotos')}=maybe`)
     expect(wrapper.get('h2').text()).toBe('Waldesruh')
     expect(chipTexts()).toEqual([])
     expect(wrapper.get('main p.text-lg').text()).toBe('0 von 4 Stämmen')
   })
 
   it('takes a beam tag in the Kennung: it shows the stem that has such a beam', async () => {
-    const { wrapper } = await open('/staemme?tags=104-b')
+    const { wrapper } = await open('/stems?tags=104-b')
     expect(rowTags(wrapper)).toEqual(['00104'])
     expect(chipTexts()).toEqual(['Kennung: 104-b'])
     expect(field(wrapper).attributes('placeholder')).toBe('z. B. 104, 100-120 oder 104-A')
   })
 
   it('shows "Waldesruh" for a beam tag no stem has', async () => {
-    const { wrapper } = await open('/staemme?tags=104-D')
+    const { wrapper } = await open('/stems?tags=104-D')
     expect(wrapper.get('h2').text()).toBe('Waldesruh')
   })
 
   it('mixes numbers and beam tags', async () => {
-    const { wrapper } = await open('/staemme?tags=7,104A')
+    const { wrapper } = await open('/stems?tags=7,104A')
     expect(rowTags(wrapper)).toEqual(['00007', '00104'])
   })
 
   it('has no "Nicht erfasst" for "Geändert", and an old link with it is an unreadable filter', async () => {
-    const { wrapper } = await open('/staemme?f.changed=none')
+    const { wrapper } = await open('/stems?f.changed=none')
     expect(wrapper.get('h2').text()).toBe('Waldesruh')
     expect(chipTexts()).toEqual([])
     await openPopup('changed')
@@ -577,12 +577,107 @@ describe('filter bar and chips', () => {
     expect(resetButton(wrapper)).toBeUndefined()
     expect(wrapper.get('form').text()).not.toContain('Filter zurücksetzen')
 
-    const { wrapper: filtered } = await open('/staemme?tags=300-400')
+    const { wrapper: filtered } = await open('/stems?tags=300-400')
     // "Waldesruh" has no button of its own any more
     expect(resetButtons(filtered)).toHaveLength(1)
     expect(filtered.get('[role=status]').find('button').exists()).toBe(false)
     expect(filtered.get('form').text()).not.toContain('Filter zurücksetzen')
     const actions = resetButton(filtered).element.parentElement!
     expect(actions.className).toContain('justify-self-end')
+  })
+})
+
+describe('Schnittholz list', () => {
+  it('shows the beams with the beam attributes, "Balken" first, no count of beams and no column of the stem', async () => {
+    const { wrapper } = await open('/beams')
+
+    expect(wrapper.get('h1').text()).toBe('Schnittholz')
+    expect(wrapper.get('main p.text-lg').text()).toBe('3 Balken')
+    expect(wrapper.findAll('thead th').map((th) => squeezed(th.text()))).toEqual([
+      'Balken',
+      'Lieferdatum',
+      'Sortierklasse',
+      'Holzfeuchte',
+      'Notiz',
+      'Fotos',
+      'Geändert',
+    ])
+    expect(header(wrapper, 'Balken').attributes('aria-sort')).toBe('ascending')
+    expect(rowTags(wrapper)).toEqual(['00104-A', '00104-B', '00104-C'])
+    expect(wrapper.get('nav a[aria-current="page"]').text()).toBe('Schnittholz')
+    // a click on the tag opens the detail view of the beam
+    expect(wrapper.get('tbody a').attributes('href')).toBe('/beams/104-A')
+  })
+
+  it('filters by tag and keeps the state in its own URL, apart from Rundholz', async () => {
+    const { wrapper, router } = await open('/beams?tags=104-b&sort=Notiz')
+
+    expect(rowTags(wrapper)).toEqual(['00104-B'])
+    expect(wrapper.get('main p.text-lg').text()).toBe('1 von 3 Balken')
+    expect(field(wrapper).element.value).toBe('104-b')
+
+    await router.push('/stems')
+    await flushPromises()
+    expect(rowTags(wrapper)).toEqual(['00007', '00104', '01500', 'ohne Kennung'])
+    expect(field(wrapper).element.value).toBe('')
+  })
+
+  it('has the filters of the list for its columns', async () => {
+    const { wrapper } = await open('/beams')
+
+    const buttons = wrapper.findAll('form button').map((button) => squeezed(button.text()))
+    expect(buttons).toEqual(
+      expect.arrayContaining(['Lieferdatum', 'Sortierklasse', 'Holzfeuchte', 'Notiz', 'Fotos']),
+    )
+    expect(buttons).not.toContain('Holzart')
+  })
+
+  it('links every row to the detail route of its kind, a stem sawn whole too', async () => {
+    const stems = await open('/stems')
+    expect(stems.wrapper.findAll('tbody a').map((link) => link.attributes('href'))).toEqual([
+      '/stems/7',
+      '/stems/104',
+      '/stems/1500',
+    ])
+
+    const whole = {
+      ...snapshotFixture.timber_items.find((item) => item.tag_number === '7')!,
+      id: 'whole',
+      tag_number: '200',
+      values: {
+        [snapshotFixture.attributes.find((attribute) => attribute.key === 'sawn')!.id]: [
+          {
+            value: true,
+            recorded_at: '2026-10-21T08:00:00.000Z',
+            user_id: snapshotFixture.users[0].id,
+            event_id: 'e-whole',
+          },
+        ],
+      },
+    }
+    const { wrapper, router } = await open('/beams', (api) =>
+      api.setSnapshot({
+        ...snapshotFixture,
+        timber_items: [...snapshotFixture.timber_items, whole],
+      }),
+    )
+    expect(wrapper.findAll('tbody a').map((link) => link.attributes('href'))).toEqual([
+      '/beams/104-A',
+      '/beams/104-B',
+      '/beams/104-C',
+      '/stems/200',
+    ])
+
+    await wrapper.findAll('tbody a')[3].trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.fullPath).toBe('/stems/200')
+    expect(router.currentRoute.value.name).toBe('stem')
+  })
+
+  it('shows the message for no beams', async () => {
+    const { wrapper } = await open('/beams?tags=300-400')
+
+    expect(wrapper.get('[role="status"]').text()).toContain('Waldesruh')
+    expect(wrapper.get('main p.text-lg').text()).toBe('0 von 3 Balken')
   })
 })

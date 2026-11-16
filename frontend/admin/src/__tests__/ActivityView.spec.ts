@@ -12,7 +12,7 @@ import { chipTexts, filterButton, popup, pressEscape, stubBrowser } from './popu
 
 const CODE = 'K7QM-4XHT-9RDP'
 
-async function open(path = '/aktivitaet', options: Parameters<typeof fakeApi>[1] = {}) {
+async function open(path = '/activity', options: Parameters<typeof fakeApi>[1] = {}) {
   const api = fakeApi({ [CODE]: 'admin' }, options)
   const router = createAdminRouter(createMemoryHistory())
   await router.push('/login')
@@ -111,12 +111,12 @@ describe('activity page', () => {
     expect(style.getPropertyValue('--sticky-bar-height')).toBe('60px')
 
     // the bar stays with "Waldesruh" as long as a filter is set
-    await router.push('/aktivitaet?tags=999')
+    await router.push('/activity?tags=999')
     await flushPromises()
     expect(wrapper.text()).toContain('Waldesruh')
     expect(style.getPropertyValue('--sticky-bar-height')).toBe('60px')
 
-    await router.push('/aktivitaet')
+    await router.push('/activity')
     await flushPromises()
     expect(style.getPropertyValue('--sticky-bar-height')).toBe('60px')
     height.mockRestore()
@@ -260,7 +260,7 @@ describe('activity page', () => {
   })
 
   it('reads the filter from the URL, also after a reload', async () => {
-    const { api, wrapper } = await open('/aktivitaet?tags=1998')
+    const { api, wrapper } = await open('/activity?tags=1998')
 
     expect(api.calls[api.calls.length - 1]).toContain('tags=1998')
     expect(
@@ -273,7 +273,7 @@ describe('activity page', () => {
   })
 
   it('ignores filters an old link still carries and drops them with the next change', async () => {
-    const { api, router, wrapper } = await open('/aktivitaet?source=console&tags=1998')
+    const { api, router, wrapper } = await open('/activity?source=console&tags=1998')
 
     expect(api.calls[api.calls.length - 1]).not.toContain('source')
     expect(wrapper.text()).toContain('1 von 6 Einträgen')
@@ -304,7 +304,7 @@ describe('activity page', () => {
 
     it('holds back a day that continues on the next page and shows it complete after one click', async () => {
       // page 1 = 03.11. and the first 3 of 31.10.: the older day may be unfinished
-      const { api, wrapper } = await open('/aktivitaet', { pageSize: 4 })
+      const { api, wrapper } = await open('/activity', { pageSize: 4 })
       expect(headings(wrapper)).toEqual(['Di, 03.11.2026'])
       expect(shownEntries(wrapper)).toHaveLength(1)
       // the count is the total of the filter, not of what is shown
@@ -322,7 +322,7 @@ describe('activity page', () => {
 
     it('does not change the days already shown when older ones arrive', async () => {
       // pages of 1 entry: 03.11. is complete as soon as the first 31.10. entry shows up on page 2
-      const { wrapper } = await open('/aktivitaet', { pageSize: 1 })
+      const { wrapper } = await open('/activity', { pageSize: 1 })
       const first = wrapper.findAll('section')[0].element
       expect(headings(wrapper)).toEqual(['Di, 03.11.2026'])
 
@@ -336,7 +336,7 @@ describe('activity page', () => {
     })
 
     it('keeps the text of the bar with a filter when older entries are loaded', async () => {
-      const { wrapper } = await open('/aktivitaet?tags=1-200', { pageSize: 1 })
+      const { wrapper } = await open('/activity?tags=1-200', { pageSize: 1 })
       const text = () => wrapper.get('main > div.sticky p').text()
       const before = text()
       expect(before).toMatch(/^\d+ von 6 Einträgen$/)
@@ -349,7 +349,7 @@ describe('activity page', () => {
 
     it('loads a day larger than a page without another click', async () => {
       // 31.10. has 5 entries, pages hold 2: one click fetches pages until the day is complete
-      const { api, wrapper } = await open('/aktivitaet', { pageSize: 2 })
+      const { api, wrapper } = await open('/activity', { pageSize: 2 })
       expect(headings(wrapper)).toEqual(['Di, 03.11.2026'])
       expect(pages(api)).toBe(1)
 
@@ -363,7 +363,7 @@ describe('activity page', () => {
 
     it('keeps loading on the first load until one whole day can be shown', async () => {
       // user 4 has two entries on 31.10. only: page 1 cannot tell whether the day is finished
-      const { api, wrapper } = await open('/aktivitaet?user=00000000-0000-7000-8000-000000000004', {
+      const { api, wrapper } = await open('/activity?user=00000000-0000-7000-8000-000000000004', {
         pageSize: 1,
       })
       expect(api.calls.filter((call) => call.includes('user=')).length).toBe(2)
@@ -373,14 +373,14 @@ describe('activity page', () => {
     })
 
     it('shows the oldest day once everything is loaded, and no button', async () => {
-      const { wrapper } = await open('/aktivitaet', { pageSize: 50 })
+      const { wrapper } = await open('/activity', { pageSize: 50 })
       expect(headings(wrapper)).toEqual(['Di, 03.11.2026', 'Sa, 31.10.2026'])
       expect(shownEntries(wrapper)).toHaveLength(6)
       expect(button(wrapper)).toBeUndefined()
     })
 
     it('keeps what is shown, reports "Laden fehlgeschlagen." and carries on with the next click', async () => {
-      const { api, wrapper } = await open('/aktivitaet', { pageSize: 2 })
+      const { api, wrapper } = await open('/activity', { pageSize: 2 })
       expect(headings(wrapper)).toEqual(['Di, 03.11.2026'])
 
       api.failActivity()
@@ -402,7 +402,7 @@ describe('activity page', () => {
     })
 
     it('does not mix in pages of a filter that has been left', async () => {
-      const { wrapper } = await open('/aktivitaet', { pageSize: 2 })
+      const { wrapper } = await open('/activity', { pageSize: 2 })
       // hold the page of the old filter back, then change the filter
       let release!: (value: Response) => void
       const held = new Promise<Response>((resolve) => (release = resolve))
@@ -419,7 +419,7 @@ describe('activity page', () => {
     })
 
     it('puts the button and the failure message in the middle', async () => {
-      const { api, wrapper } = await open('/aktivitaet', { pageSize: 2 })
+      const { api, wrapper } = await open('/activity', { pageSize: 2 })
       api.failActivity()
       await button(wrapper)!.trigger('click')
       await flushPromises()
@@ -434,7 +434,7 @@ describe('activity page', () => {
 
   describe('without entries', () => {
     it('shows "Waldesruh" and, with a filter, the button of the bar that clears it, and only that one', async () => {
-      const { api, router, wrapper } = await open('/aktivitaet?tags=999&from=2026-10-31')
+      const { api, router, wrapper } = await open('/activity?tags=999&from=2026-10-31')
       expect(wrapper.get('h2').text()).toBe('Waldesruh')
       expect(wrapper.text()).toContain('Keine Ergebnisse weit und breit gefunden.')
       expect(wrapper.find('svg[aria-hidden=true]').exists()).toBe(true)
@@ -455,14 +455,14 @@ describe('activity page', () => {
 
     it('offers no button without a filter', async () => {
       // a page size of 0 makes the fake answer "no entries" without any filter
-      const { wrapper } = await open('/aktivitaet', { pageSize: 0 })
+      const { wrapper } = await open('/activity', { pageSize: 0 })
       expect(wrapper.text()).toContain('Waldesruh')
       expect(resetLink(wrapper)).toBeUndefined()
     })
   })
 
   it('reports an error and tries again', async () => {
-    const { api, wrapper } = await open('/aktivitaet?from=2026-10-31')
+    const { api, wrapper } = await open('/activity?from=2026-10-31')
     api.failActivity()
     await setTags(wrapper, '1998')
     expect(wrapper.get('[role=alert]').text()).toContain('Hier ist grad der Wurm drin')
@@ -479,14 +479,14 @@ describe('activity page', () => {
 
   it('keeps the last known count for an answer 400 and shows 0 of it', async () => {
     const { router, wrapper } = await open()
-    await router.push('/aktivitaet?tags=bad')
+    await router.push('/activity?tags=bad')
     await flushPromises()
     expect(wrapper.get('main > div.sticky p').text()).toBe('0 von 6 Einträgen')
     expect(chipTexts()).toEqual(['Kennung: bad'])
   })
 
   it('shows "Waldesruh" for a filter the server cannot read, with the button that clears it', async () => {
-    const { api, router, wrapper } = await open('/aktivitaet?tags=bad')
+    const { api, router, wrapper } = await open('/activity?tags=bad')
 
     expect(wrapper.find('[role=alert]').exists()).toBe(false)
     expect(wrapper.get('h2').text()).toBe('Waldesruh')
@@ -509,7 +509,7 @@ describe('activity page', () => {
       expect(resetLink(wrapper)).toBeUndefined()
 
       for (const filter of ['from=2026-10-31', 'to=2026-11-03', 'tags=128']) {
-        const { wrapper: filtered } = await open(`/aktivitaet?${filter}`)
+        const { wrapper: filtered } = await open(`/activity?${filter}`)
         expect(resetLink(filtered).attributes('type')).toBe('button')
         expect(resetLink(filtered).attributes('disabled')).toBeUndefined()
         expect(filtered.get('form').text()).not.toContain('Filter zurücksetzen')
@@ -518,7 +518,7 @@ describe('activity page', () => {
     })
 
     it('clears all filters, loads again, empties the Kennung field and focuses it', async () => {
-      const { api, router, wrapper } = await open('/aktivitaet?from=2026-10-31&tags=128')
+      const { api, router, wrapper } = await open('/activity?from=2026-10-31&tags=128')
       expect(tagsField(wrapper).element.value).toBe('128')
 
       await resetLink(wrapper).trigger('click')
@@ -534,7 +534,7 @@ describe('activity page', () => {
     it('drops a running search of the Kennung field', async () => {
       vi.useFakeTimers()
       try {
-        const { router, wrapper } = await open('/aktivitaet?from=2026-10-31')
+        const { router, wrapper } = await open('/activity?from=2026-10-31')
         await typeTags(wrapper, '128')
         await resetLink(wrapper).trigger('click')
         await vi.advanceTimersByTimeAsync(1000)
@@ -568,7 +568,7 @@ describe('activity page', () => {
 
   describe('the chips of the active filters', () => {
     const person = activityFixture.users[1]
-    const all = `/aktivitaet?tags=1998&from=2026-11-01&to=2026-11-03&user=${person.id}`
+    const all = `/activity?tags=1998&from=2026-11-01&to=2026-11-03&user=${person.id}`
     const chip = (id: string) => document.querySelector<HTMLElement>(`[data-chip="${id}"]`)!
     const remove = (name: string) =>
       document.querySelector<HTMLElement>(`button[aria-label="Filter ${name} entfernen"]`)!
@@ -594,7 +594,7 @@ describe('activity page', () => {
       ['from=2026-11-01', 'Zeitraum: ab 01.11.'],
       ['to=2026-11-03', 'Zeitraum: bis 03.11.'],
     ])('writes a period with one end as "ab" or "bis" (%s)', async (filter, text) => {
-      await open(`/aktivitaet?${filter}`)
+      await open(`/activity?${filter}`)
       expect(chipTexts()).toEqual([text])
     })
 
@@ -647,7 +647,7 @@ describe('activity page', () => {
     })
 
     it('stays above "Waldesruh" with the count 0 and the chips, and removing the chip brings the list back', async () => {
-      const { wrapper, router } = await open('/aktivitaet?tags=999')
+      const { wrapper, router } = await open('/activity?tags=999')
       expect(wrapper.get('h2').text()).toBe('Waldesruh')
       const bar = wrapper.get('main > div.sticky')
       expect(bar.get('p').text()).toBe('0 von 6 Einträgen')
@@ -688,7 +688,7 @@ describe('activity page', () => {
           totals: { entries: 0, events: 0, photos: 0, users: 0 },
         }),
       )
-      await router.push('/aktivitaet?x=1')
+      await router.push('/activity?x=1')
       await flushPromises()
       expect(empty.get('h2').text()).toBe('Waldesruh')
       expect(empty.find('main > div.sticky').exists()).toBe(false)
@@ -731,12 +731,12 @@ describe('activity page', () => {
 
   it('reads an old link with a single person and a link with two', async () => {
     const people = activityFixture.users
-    await open(`/aktivitaet?user=${people[2].id}`)
+    await open(`/activity?user=${people[2].id}`)
     expect(chipTexts()).toEqual([`Person: ${people[2].name}`])
     await openPopup('user')
     expect(popup()!.querySelectorAll('input:checked')).toHaveLength(1)
 
-    const { api: second } = await open(`/aktivitaet?user=${people[0].id},${people[3].id}`)
+    const { api: second } = await open(`/activity?user=${people[0].id},${people[3].id}`)
     expect(second.calls[second.calls.length - 1]).toContain(
       `user=${encodeURIComponent(`${people[0].id},${people[3].id}`)}`,
     )
@@ -856,7 +856,7 @@ describe('activity page', () => {
     })
 
     it('removes the filter at once when the field is emptied', async () => {
-      const { router, wrapper } = await open('/aktivitaet?tags=104')
+      const { router, wrapper } = await open('/activity?tags=104')
       fake()
 
       await typeTags(wrapper, '')
@@ -906,7 +906,7 @@ describe('activity page', () => {
     })
 
     it('shows the clear button only with text, and it empties field and filter and focuses the field', async () => {
-      const { router, wrapper } = await open('/aktivitaet?tags=104')
+      const { router, wrapper } = await open('/activity?tags=104')
       expect(clearButton(wrapper).exists()).toBe(true)
       const button = clearButton(wrapper)
       expect(button.attributes('type')).toBe('button')

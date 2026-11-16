@@ -8,9 +8,10 @@ import V29Logo from '@v29/shared/V29Logo.vue'
 import { signOut, user } from '@/auth'
 import { useSizeVariable } from '@/sizeVariable'
 
-// Only pages that exist, one line each, in the order of the design: Dashboard, Stämme, Balken, Merkmale, Nutzer, Aktivität.
+// Only pages that exist, one line each, in the order of the design: Dashboard, Rundholz, Schnittholz, Merkmale, Nutzer, Aktivität.
 const navigation = [
-  { label: 'Stämme', to: { name: 'timber-items' } },
+  { label: 'Rundholz', to: { name: 'stems' } },
+  { label: 'Schnittholz', to: { name: 'beams' } },
   { label: 'Aktivität', to: { name: 'activity' } },
 ]
 
@@ -83,7 +84,8 @@ async function onSignOut() {
       </div>
     </header>
     <div class="flex-1">
-      <RouterView />
+      <!-- The name as key: the two lists are one component, each starts fresh (own filters, own data) -->
+      <RouterView :key="String(route.name)" />
     </div>
     <footer class="sticky left-0 w-[100cqw]">
       <div class="page-column py-8 text-center text-caption text-mute">
