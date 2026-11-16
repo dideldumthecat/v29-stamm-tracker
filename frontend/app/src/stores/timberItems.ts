@@ -7,6 +7,7 @@ import { defineStore } from 'pinia'
 import type { AttributeValue, Event, TimberItem, Timestamp, Uuid } from '@v29/shared/contract'
 import { api, type User } from '@/api/client'
 import { load as loadStored, type StoredPhoto } from '@/persistence/database'
+import { record } from '@/diagnostics/record'
 import { sendDiagnostics, setDiagnosticsSignedIn } from '@/diagnostics/send'
 import {
   childrenOf as projectChildrenOf,
@@ -62,12 +63,24 @@ export const useTimberItemStore = defineStore('timberItems', () => {
   const isDraftOpen = ref(false)
   // The screen changes before the write is through, and a reload in between aborts it.
   const pendingWrites = ref(0)
+  const { persist, inOneTransaction, hasUnsaved } = createPersistence({
+    pendingWrites,
+    pendingCount,
+    wholeState: () => ({
+      parts: {
+        user: toRaw(currentUser.value),
+        snapshot: toRaw(snapshot.value),
+        events: toRaw(events.value),
+        lastSyncedAt: lastSyncedAt.value,
+      },
+      photos: toRaw(photos.value),
+    }),
+  })
   // The single definition of "a reload loses or interrupts nothing"; the automatic app update waits for it.
+  // Entries that are only in memory would be lost as well.
   const isSafeToReload = computed(
-    () => !isDraftOpen.value && !isSyncing.value && pendingWrites.value === 0,
+    () => !isDraftOpen.value && !isSyncing.value && pendingWrites.value === 0 && !hasUnsaved.value,
   )
-
-  const { persist, inOneTransaction } = createPersistence(pendingWrites)
 
   function emit<T extends Event['type']>(
     type: T,
@@ -261,20 +274,41 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     if (taken) {
       throw new Error(`Tag ${taken} is taken by a new beam, the removal cannot be discarded`)
     }
-    if (event.type !== 'created') {
-      discard((candidate) => candidate.id === eventId)
-      return
+    const itemIds =
+      event.type === 'created'
+        ? new Set([
+            event.timber_item_id,
+            ...events.value
+              .filter(
+                (candidate) =>
+                  candidate.type === 'created' && candidate.data.parent_id === event.timber_item_id,
+              )
+              .map((candidate) => candidate.timber_item_id),
+          ])
+        : undefined
+    const isDropped = (candidate: Event) =>
+      itemIds ? itemIds.has(candidate.timber_item_id) : candidate.id === eventId
+    // Counts only, never the values.
+    const dropped = events.value.filter((candidate) => isEntry(candidate) && isDropped(candidate))
+    const counts = {
+      values: dropped.filter(
+        (candidate) => candidate.type === 'attribute_recorded' && !isPhotoEvent(candidate),
+      ).length,
+      photos: dropped.filter(isPhotoEvent).length,
+      beams: dropped.filter(
+        (candidate) =>
+          candidate.type === 'created' && candidate.timber_item_id !== event.timber_item_id,
+      ).length,
     }
-    const itemIds = new Set([
-      event.timber_item_id,
-      ...events.value
-        .filter(
-          (candidate) =>
-            candidate.type === 'created' && candidate.data.parent_id === event.timber_item_id,
-        )
-        .map((candidate) => candidate.timber_item_id),
-    ])
-    discard((candidate) => itemIds.has(candidate.timber_item_id), itemIds)
+    const tag = findById(event.timber_item_id)?.tag_number
+    // Everything is in the message too: records with the same message are merged, keeping the first one's details.
+    void record(
+      'info',
+      'discard',
+      `Pending entry discarded on the sync screen (${event.type}, tag ${tag}, ${counts.values} values, ${counts.photos} photos, ${counts.beams} beams)`,
+      { tag, type: event.type, ...counts },
+    )
+    discard(isDropped, itemIds)
   }
 
   function assertRecordable(itemId: string, attributeId?: string) {
@@ -353,6 +387,7 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     isStopping: readonly(isStopping),
     isDraftOpen: readonly(isDraftOpen),
     isSafeToReload,
+    hasUnsaved,
     setDraftOpen,
     pendingWrites: readonly(pendingWrites),
     stopSync,

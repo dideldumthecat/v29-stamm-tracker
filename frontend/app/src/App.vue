@@ -2,6 +2,7 @@
 import { LoaderCircleIcon, RotateCwIcon } from '@lucide/vue'
 import { useRegisterSW } from 'virtual:pwa-register/vue'
 import AppToast from '@/components/AppToast.vue'
+import UnsavedNotice from '@/components/UnsavedNotice.vue'
 import {
   installWhenSafe,
   isInstalling,
@@ -27,12 +28,15 @@ installWhenSafe(needRefresh, updateServiceWorker)
        the start screen and the timber item screen use different ones. -->
   <div
     :inert="isInstalling || undefined"
-    class="mx-auto grid h-screen-safe max-w-[430px] grid-rows-[minmax(0,1fr)] overflow-hidden bg-paper min-[480px]:border-x min-[480px]:border-line"
+    class="mx-auto flex h-screen-safe max-w-[430px] flex-col overflow-hidden bg-paper min-[480px]:border-x min-[480px]:border-line"
   >
-    <!-- Keyed by path: parent → beam stays on the same route, but each item needs a fresh screen. -->
-    <RouterView v-slot="{ Component, route }">
-      <component :is="Component" :key="route.fullPath" />
-    </RouterView>
+    <UnsavedNotice />
+    <div class="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)]">
+      <!-- Keyed by path: parent → beam stays on the same route, but each item needs a fresh screen. -->
+      <RouterView v-slot="{ Component, route }">
+        <component :is="Component" :key="route.fullPath" />
+      </RouterView>
+    </div>
   </div>
   <AppToast />
   <!-- Covers the whole app (also the landscape hint) from the start of an update until the reload. The frame above is

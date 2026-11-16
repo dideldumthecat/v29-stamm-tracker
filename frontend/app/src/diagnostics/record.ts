@@ -2,14 +2,14 @@
  * The app's own report of what happened on the device: errors, failed requests, flow steps (see POST /api/diagnostics
  * in contract.ts). Entries wait in IndexedDB until send.ts has delivered them.
  *
- * Nothing in here may break the app: recording is fire-and-forget and swallows every failure, including an
- * unavailable device storage. What must never be recorded: attribute values, invite codes, photo contents, URLs with a
+ * Nothing in here may break the app: recording is fire-and-forget and swallows every failure; an entry that an
+ * unavailable device storage does not take is kept in memory (database.ts) and goes out with the next send. What must never be recorded: attribute values, invite codes, photo contents, URLs with a
  * query or hash. Callers pass counts, ids, statuses and the like.
  */
 import type { App } from 'vue'
 import type { DiagnosticEntry } from '@v29/shared/contract'
 import { APP_BUILD } from '@/config/constants'
-import { addDiagnostic } from '@/persistence/database'
+import { addDiagnostic, setReconnectedListener } from '@/persistence/database'
 
 type Level = DiagnosticEntry['level']
 export type Context = Record<string, string | number | boolean | null | undefined>
@@ -71,6 +71,10 @@ export async function record(
     // Logging must never be the problem.
   }
 }
+
+setReconnectedListener(
+  () => void record('info', 'device_storage', 'Connection to device storage restored'),
+)
 
 export function describeError(error: unknown): Context {
   return error instanceof Error
