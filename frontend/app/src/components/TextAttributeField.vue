@@ -55,7 +55,7 @@ function onInput(event: Event) {
         :key="record.event_id"
         class="flex flex-col gap-meta border-b border-soft py-2"
       >
-        <p class="text-detail leading-copy wrap-anywhere whitespace-pre-line">
+        <p class="wrap-anywhere whitespace-pre-line">
           {{ record.value }}
         </p>
         <span class="text-caption text-mute">{{
@@ -69,7 +69,7 @@ function onInput(event: Event) {
     <textarea
       v-if="!readonly"
       :id="textareaId"
-      class="min-h-[84px] w-full resize-y rounded-lg border-2 border-ink bg-paper px-3 py-2.5 leading-copy"
+      class="min-h-[84px] w-full resize-y rounded-lg border-2 border-ink bg-paper px-3 py-2.5"
       rows="3"
       placeholder="Beobachtung, Auffälligkeit …"
       :value="draft ?? (attribute.is_series ? '' : currentText)"
