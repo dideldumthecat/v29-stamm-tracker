@@ -90,7 +90,7 @@ class AttributesImportCommandTest extends KernelTestCase
 
         $display = $this->import($yaml)->getDisplay();
 
-        self::assertSame(10, substr_count($display, 'unchanged  '));
+        self::assertSame(10, substr_count($display, 'unchanged  ') + substr_count($display, 'skipped    '));
         self::assertStringNotContainsString('created', $display);
         self::assertStringNotContainsString('updated', $display);
         self::assertSame($before, $this->em->getConnection()->fetchAllAssociative('SELECT * FROM attributes a LEFT JOIN attribute_options o ON o.attribute_id = a.id ORDER BY a.id, o.id'));
@@ -98,11 +98,11 @@ class AttributesImportCommandTest extends KernelTestCase
 
     public function testUpdatesInPlaceKeepsIdsAndListsWhatIsNotInFile(): void
     {
-        $this->import("- { name: Holzart, type: choice, options: [Traubeneiche, Stieleiche] }\n- { name: Notiz, type: text }\n");
+        $this->import("- { name: Holzart, key: species, type: choice, options: [Traubeneiche, Stieleiche] }\n- { name: Notiz, type: text }\n");
         $species = $this->attributes()['Holzart'];
         $oakId = $this->options($species)['Traubeneiche']->id;
 
-        $display = $this->import("- { name: Holzart, type: choice, description: Neu, options: [Roteiche, { label: Traubeneiche, active: false }] }\n")->getDisplay();
+        $display = $this->import("- { name: Holzart, key: species, type: choice, description: Neu, options: [Roteiche, { label: Traubeneiche, active: false }] }\n")->getDisplay();
 
         $updated = $this->attributes()['Holzart'];
         self::assertEquals($species->id, $updated->id);
@@ -118,14 +118,14 @@ class AttributesImportCommandTest extends KernelTestCase
         self::assertStringContainsString('not in file  Notiz', $display);
         self::assertArrayHasKey('Notiz', $this->attributes());
 
-        self::assertStringContainsString('unchanged  Holzart', $this->import("- { name: Holzart, type: choice, description: Neu, options: [Roteiche, { label: Traubeneiche, active: false }] }\n")->getDisplay());
+        self::assertStringContainsString('unchanged  Holzart', $this->import("- { name: Holzart, key: species, type: choice, description: Neu, options: [Roteiche, { label: Traubeneiche, active: false }] }\n")->getDisplay());
     }
 
     public function testDryRunWritesNothing(): void
     {
-        $this->import("- { name: Notiz, type: text }\n");
+        $this->import("- { name: Notiz, key: notes, type: text }\n");
 
-        $display = $this->import("- { name: Notiz, type: text, description: Neu }\n- { name: Holzart, type: choice, options: [A] }\n", true)->getDisplay();
+        $display = $this->import("- { name: Notiz, key: notes, type: text, description: Neu }\n- { name: Holzart, type: choice, options: [A] }\n", true)->getDisplay();
 
         self::assertStringContainsString('updated    Notiz', $display);
         self::assertStringContainsString('created    Holzart', $display);
@@ -184,15 +184,15 @@ class AttributesImportCommandTest extends KernelTestCase
 
     public function testAppliesToIsStoredAndAChangeShowsInTheDryRun(): void
     {
-        $this->import("- { name: Querschnitt, type: text, applies_to: [beam, stem] }\n");
+        $this->import("- { name: Querschnitt, key: cross_section, type: text, applies_to: [beam, stem] }\n");
         self::assertSame(['stem', 'beam'], $this->attributes()['Querschnitt']->appliesTo);
-        self::assertStringContainsString('unchanged  Querschnitt', $this->import("- { name: Querschnitt, type: text, applies_to: [stem, beam] }\n")->getDisplay());
+        self::assertStringContainsString('unchanged  Querschnitt', $this->import("- { name: Querschnitt, key: cross_section, type: text, applies_to: [stem, beam] }\n")->getDisplay());
 
-        $display = $this->import("- { name: Querschnitt, type: text, applies_to: [beam] }\n", true)->getDisplay();
+        $display = $this->import("- { name: Querschnitt, key: cross_section, type: text, applies_to: [beam] }\n", true)->getDisplay();
         self::assertStringContainsString('updated    Querschnitt (appliesTo)', $display);
         self::assertSame(['stem', 'beam'], $this->attributes()['Querschnitt']->appliesTo);
 
-        $this->import("- { name: Querschnitt, type: text, applies_to: [beam] }\n");
+        $this->import("- { name: Querschnitt, key: cross_section, type: text, applies_to: [beam] }\n");
         self::assertSame(['beam'], $this->attributes()['Querschnitt']->appliesTo);
     }
 
@@ -238,20 +238,20 @@ class AttributesImportCommandTest extends KernelTestCase
 
     public function testRefusesTypeChangeOnceValuesWereRecorded(): void
     {
-        $this->import("- { name: Notiz, type: text }\n- { name: Länge, type: text }\n");
+        $this->import("- { name: Notiz, key: notes, type: text }\n- { name: Länge, key: length, type: text }\n");
         $user = new User('Kerstin', UserRole::User, User::hashToken('t'));
         $this->em->persist($user);
         $this->em->persist(new TimberItemEvent(Uuid::v7(), Uuid::v7(), EventType::AttributeRecorded,
             ['attribute_id' => $this->attributes()['Notiz']->id->toRfc4122(), 'value' => 'x'], new \DateTimeImmutable(), $user));
         $this->em->flush();
 
-        $tester = $this->import("- { name: Notiz, type: number }\n- { name: Länge, type: number, unit: m }\n");
+        $tester = $this->import("- { name: Notiz, key: notes, type: number }\n- { name: Länge, key: length, type: number, unit: m }\n");
 
         self::assertSame(Command::FAILURE, $tester->getStatusCode());
         self::assertStringContainsString('"Notiz": type cannot change', $tester->getDisplay());
         self::assertSame(AttributeType::Text, $this->attributes()['Länge']->type);
 
-        self::assertSame(Command::SUCCESS, $this->import("- { name: Länge, type: number, unit: m }\n")->getStatusCode());
+        self::assertSame(Command::SUCCESS, $this->import("- { name: Länge, key: length, type: number, unit: m }\n")->getStatusCode());
         self::assertSame(AttributeType::Number, $this->attributes()['Länge']->type);
     }
 
@@ -334,5 +334,53 @@ class AttributesImportCommandTest extends KernelTestCase
             self::assertStringContainsString("\"$name\": key must be lowercase", $display);
         }
         self::assertSame([], $this->attributes());
+    }
+
+    public function testOrderIsSetOnlyOnCreationAndNewAttributesGoToTheEnd(): void
+    {
+        $this->import("- { name: A, key: a, type: text }\n- { name: B, key: b, type: text }\n");
+        $a = $this->attributes()['A'];
+        $a->sortOrder = 50;
+        $this->em->flush();
+
+        $this->import("- { name: B, key: b, type: text }\n- { name: A, key: a, type: text }\n- { name: C, key: c, type: text }\n- { name: D, type: text }\n");
+
+        $attributes = $this->attributes();
+        self::assertSame([50, 20, 60, 70], [$attributes['A']->sortOrder, $attributes['B']->sortOrder, $attributes['C']->sortOrder, $attributes['D']->sortOrder]);
+    }
+
+    public function testAnAttributeWithoutKeyIsCreatedOnceAndThenLeftAlone(): void
+    {
+        $this->import("- { name: Notiz, type: text }\n");
+        $notiz = $this->attributes()['Notiz'];
+        $notiz->description = 'Von V29';
+        $notiz->active = false;
+        $this->em->flush();
+
+        $display = $this->import("- { name: Notiz, type: number, description: Neu, is_series: true }\n- { name: Neu, type: text }\n")->getDisplay();
+
+        $notiz = $this->attributes()['Notiz'];
+        self::assertSame([AttributeType::Text, 'Von V29', false, false], [$notiz->type, $notiz->description, $notiz->active, $notiz->isSeries]);
+        self::assertStringContainsString('skipped    Notiz (managed in the administration, skipped)', $display);
+        self::assertStringContainsString('created    Neu', $display);
+        self::assertStringNotContainsString('updated', $display);
+        self::assertStringContainsString('skipped    Notiz', $this->import("- { name: Notiz, type: text }\n", true)->getDisplay());
+    }
+
+    public function testOptionsOfTheSourceAttributeAreSkipped(): void
+    {
+        $yaml = "- { name: Polter, key: source, type: choice, options: [Eins, Zwei] }\n";
+        $this->import($yaml);
+        $polter = $this->attributes()['Polter'];
+        self::assertSame([], $this->options($polter));
+        $this->em->persist(new AttributeOption($polter, 'Drei', 10));
+        $this->em->flush();
+
+        $display = $this->import($yaml)->getDisplay();
+
+        self::assertSame(['Drei'], array_keys($this->options($this->attributes()['Polter'])));
+        self::assertStringContainsString('unchanged  Polter', $display);
+        self::assertStringNotContainsString('option not in file', $display);
+        self::assertStringNotContainsString('new option', $this->import("- { name: Polter, key: source, type: choice, options: [Vier] }\n", true)->getDisplay());
     }
 }

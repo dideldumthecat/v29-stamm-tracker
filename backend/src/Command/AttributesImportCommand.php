@@ -19,10 +19,17 @@ use Symfony\Component\Yaml\Yaml;
 /**
  * Attributes are matched by key if the entry has one (so a changed name renames), else by name; options by label.
  * Never recreated: events reference their ids. Nothing is ever deleted; what is missing from the file stays as it is.
+ *
+ * The file owns attributes with a key (system attributes), except their order: that is set on creation (new = at the end) and
+ * never again, the administration orders them. An attribute without a key belongs to the administration: it is only created
+ * if no attribute has its name, an existing one is left alone. The options of the attribute with the key "source" are skipped.
  */
 #[AsCommand(name: 'app:attributes:import', description: 'Create or update attributes and their options from a YAML file, see data/attributes.example.yaml')]
 class AttributesImportCommand
 {
+    /** Its options will be maintained elsewhere (the pile side). */
+    private const string OPTIONS_OWNER_KEY = 'source';
+
     private const array KEYS = ['key', 'name', 'description', 'type', 'unit', 'is_series', 'is_inheritable', 'applies_to', 'hidden_when', 'active', 'options'];
 
     public function __construct(
@@ -51,27 +58,33 @@ class AttributesImportCommand
         }
         $existing = $this->em->getRepository(Attribute::class)->findAll();
         $matches = $this->match($attributes, $existing, $errors);
-        foreach ($attributes as $name => $a) {
+        $skipped = array_filter($attributes, static fn (array $a, string $name) => isset($matches[$name]) && null === $matches[$name]->key && null === $a['key'], ARRAY_FILTER_USE_BOTH);
+        foreach (array_diff_key($attributes, $skipped) as $name => $a) {
             $current = $matches[$name] ?? null;
             if ($current && $current->type !== $a['type'] && $this->hasEvents($current)) {
                 $errors[] = \sprintf('"%s": type cannot change from %s to %s, values have already been recorded.', $name, $current->type->value, $a['type']->value);
             }
         }
-        $this->checkHiddenWhen($attributes, $existing, $matches, $errors);
+        $this->checkHiddenWhen(array_diff_key($attributes, $skipped), $existing, $matches, $errors);
         if ($errors) {
             $io->error(['Nothing imported.', ...$errors]);
 
             return Command::FAILURE;
         }
 
-        $run = function () use ($io, $attributes, $existing, $matches, $dryRun): void {
+        $run = function () use ($io, $attributes, $existing, $matches, $skipped, $dryRun): void {
             $rebuild = false;
+            $sortOrder = max([0, ...array_map(static fn (Attribute $e) => $e->sortOrder, $existing)]);
             foreach ($attributes as $name => $a) {
+                if (isset($skipped[$name])) {
+                    $io->writeln("skipped    $name (managed in the administration, skipped)");
+                    continue;
+                }
                 $attribute = $matches[$name] ?? null;
                 if (!$attribute) {
-                    $attribute = new Attribute($name, $a['type'], $a['description'], $a['unit'], $a['is_series'], $a['is_inheritable'], $a['sort_order'], $a['active'], key: $a['key'], appliesTo: $a['applies_to'], hiddenWhen: $a['hidden_when']);
+                    $attribute = new Attribute($name, $a['type'], $a['description'], $a['unit'], $a['is_series'], $a['is_inheritable'], $sortOrder += 10, $a['active'], key: $a['key'], appliesTo: $a['applies_to'], hiddenWhen: $a['hidden_when']);
                     $this->persist($attribute, $dryRun);
-                    foreach ($a['options'] as $label => $o) {
+                    foreach (self::OPTIONS_OWNER_KEY === $a['key'] ? [] : $a['options'] as $label => $o) {
                         $this->persist(new AttributeOption($attribute, $label, $o['sort_order'], $o['active']), $dryRun);
                     }
                     $io->writeln("created    $name");
@@ -85,7 +98,7 @@ class AttributesImportCommand
                 $changes = $this->apply($attribute, [
                     'name' => $name,
                     'type' => $a['type'], 'description' => $a['description'], 'unit' => $a['unit'], 'isSeries' => $a['is_series'],
-                    'isInheritable' => $a['is_inheritable'], 'appliesTo' => $a['applies_to'], 'hiddenWhen' => $a['hidden_when'], 'sortOrder' => $a['sort_order'], 'active' => $a['active'],
+                    'isInheritable' => $a['is_inheritable'], 'appliesTo' => $a['applies_to'], 'hiddenWhen' => $a['hidden_when'], 'active' => $a['active'],
                 ], $dryRun);
                 $changes = array_values(array_diff($changes, ['name']));
                 if ($a['key'] && null === $attribute->key) {
@@ -98,10 +111,11 @@ class AttributesImportCommand
                 $rebuild = $rebuild || array_intersect($changes, ['isSeries', 'isInheritable']);
 
                 $options = [];
+                $fileOptions = self::OPTIONS_OWNER_KEY === $attribute->key || self::OPTIONS_OWNER_KEY === $a['key'] ? null : $a['options'];
                 foreach ($this->em->getRepository(AttributeOption::class)->findBy(['attribute' => $attribute]) as $option) {
                     $options[$option->label] = $option;
                 }
-                foreach ($a['options'] as $label => $o) {
+                foreach ($fileOptions ?? [] as $label => $o) {
                     if (!isset($options[$label])) {
                         $this->persist(new AttributeOption($attribute, $label, $o['sort_order'], $o['active']), $dryRun);
                         $changes[] = "new option $label";
@@ -114,7 +128,7 @@ class AttributesImportCommand
                 } elseif (!$renamed) {
                     $io->writeln("unchanged  $name");
                 }
-                foreach (array_diff_key($options, $a['options']) as $label => $option) {
+                foreach (null === $fileOptions ? [] : array_diff_key($options, $fileOptions) as $label => $option) {
                     $io->writeln("           option not in file: $label");
                 }
             }
@@ -353,7 +367,6 @@ class AttributesImportCommand
                     'applies_to' => array_values(array_intersect(Attribute::KINDS, $appliesTo ?? [])),
                     'hidden_when' => $hiddenWhen,
                     'active' => $entry['active'] ?? true,
-                    'sort_order' => 10 * ($i + 1),
                     'options' => $options,
                 ];
             }
