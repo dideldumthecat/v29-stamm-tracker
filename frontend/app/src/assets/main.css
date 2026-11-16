@@ -17,6 +17,9 @@
   /* Shared height of all screen headers, so switching screens doesn't jump */
   --spacing-header: 90px;
 
+  /* Gap between content and its stamp (date · person): as under a locked value; the administration keeps the tighter value from shared/theme.css */
+  --spacing-meta: 10px;
+
   /* Progress bar without a known end: a bar that runs across */
   --animate-indeterminate: indeterminate 1.4s ease-in-out infinite;
   @keyframes indeterminate {

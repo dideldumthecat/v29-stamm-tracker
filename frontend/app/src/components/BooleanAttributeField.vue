@@ -42,39 +42,44 @@ function toggle() {
     v-if="isLocked"
     class="flex flex-col gap-2.5 border-t border-line bg-locked py-section px-gutter text-mute *:max-w-full *:min-w-0"
   >
-    <div
-      class="flex min-h-row items-center gap-3 rounded-lg border-2 border-lockline pl-3.5 text-label font-bold"
-    >
-      <!-- Ticked: filled box. Unticked: empty box and "Nein", so "No" is not mistaken for "not recorded". -->
-      <span
-        v-if="current?.value"
-        class="flex size-[30px] items-center justify-center rounded-md bg-dim text-paper"
-      >
-        <CheckIcon :size="20" :stroke-width="3" aria-hidden="true" />
-      </span>
-      <span v-else class="size-[30px] rounded-md border-2 border-lockline"></span>
-      <span class="min-w-0 flex-1">
-        <span :class="{ 'line-through': !attribute.active }">{{ attribute.name }}</span
-        >{{ current?.value ? '' : ': Nein' }} <InactiveHint v-if="!attribute.active" class="block"
-      /></span>
-      <button
-        v-if="!readonly"
-        type="button"
-        class="mr-0.5 flex size-11 items-center justify-center rounded-md text-ink"
-        :aria-label="`${attribute.name} ändern`"
-        @click="isUnlocked = true"
-      >
-        <PencilIcon :size="22" aria-hidden="true" />
-      </button>
+    <div class="flex flex-col gap-meta *:max-w-full *:min-w-0">
+      <div class="flex flex-col gap-2.5 *:max-w-full *:min-w-0">
+        <div
+          class="flex min-h-row items-center gap-3 rounded-lg border-2 border-lockline pl-3.5 text-label font-bold"
+        >
+          <!-- Ticked: filled box. Unticked: empty box and "Nein", so "No" is not mistaken for "not recorded". -->
+          <span
+            v-if="current?.value"
+            class="flex size-[30px] items-center justify-center rounded-md bg-dim text-paper"
+          >
+            <CheckIcon :size="20" :stroke-width="3" aria-hidden="true" />
+          </span>
+          <span v-else class="size-[30px] rounded-md border-2 border-lockline"></span>
+          <span class="min-w-0 flex-1">
+            <span :class="{ 'line-through': !attribute.active }">{{ attribute.name }}</span
+            >{{ current?.value ? '' : ': Nein' }}
+            <InactiveHint v-if="!attribute.active" class="block"
+          /></span>
+          <button
+            v-if="!readonly"
+            type="button"
+            class="mr-0.5 flex size-11 items-center justify-center rounded-md text-ink"
+            :aria-label="`${attribute.name} ändern`"
+            @click="isUnlocked = true"
+          >
+            <PencilIcon :size="22" aria-hidden="true" />
+          </button>
+        </div>
+        <p v-if="attribute.description" class="text-sm leading-copy text-body">
+          {{ attribute.description }}
+        </p>
+      </div>
+      <span v-if="current" class="text-caption text-mute">{{
+        inherited
+          ? 'Vom Stamm geerbt'
+          : `${formatDateTime(current.recorded_at)} · ${userName(current.user_id)}`
+      }}</span>
     </div>
-    <p v-if="attribute.description" class="text-sm leading-copy text-body">
-      {{ attribute.description }}
-    </p>
-    <span v-if="current" class="text-caption text-mute">{{
-      inherited
-        ? 'Vom Stamm geerbt'
-        : `${formatDateTime(current.recorded_at)} · ${userName(current.user_id)}`
-    }}</span>
   </section>
 
   <section
