@@ -11,7 +11,7 @@ test('stamm screen has no horizontal scroll and equal date/choice fields', async
   await page.setViewportSize({ width: 375, height: 800 })
   await page.goto('/timber-item/85')
   const date = page.locator('input[type="date"]')
-  const choice = page.locator('select').first()
+  const choice = page.getByLabel('Holzart', { exact: true })
   await expect(date).toBeVisible()
 
   const noOverflow = await page
@@ -29,7 +29,7 @@ test('stamm screen has no horizontal scroll and equal date/choice fields', async
 // "Gesägt" and the answer "Mehrere Balken" in its dialog: one way to beams; puts A and B into the draft.
 async function splitIntoBeams(page: Page) {
   await page.getByRole('button', { name: 'Gesägt', exact: true }).click()
-  await page.getByRole('button', { name: 'Ja, mehrere Balken' }).click()
+  await page.getByRole('button', { name: 'Ja, mehrere Balken', exact: true }).click()
 }
 
 // Flow: create a stem, record inheritable values, split it, see them inherited, override the one a beam may hold itself.
@@ -43,7 +43,7 @@ test('beam inherits a stem value and can override it', async ({ page }) => {
   const holzart = page.getByLabel('Holzart')
   await holzart.selectOption({ label: 'Traubeneiche' })
   await page.locator('input[type="date"]').fill('2026-09-08')
-  await page.getByRole('button', { name: 'Stamm anlegen & schließen' }).click()
+  await page.getByRole('button', { name: 'Stamm anlegen & schließen', exact: true }).click()
   // Saving closes the stem: back on the start screen, the toast is still visible.
   await expect(page.getByText('Stamm 01777 gespeichert')).toBeVisible()
   await expect(page.locator('h1')).toHaveText('V29 Stamm-Tracker')
@@ -62,14 +62,14 @@ test('beam inherits a stem value and can override it', async ({ page }) => {
   await page.locator('a[href="/timber-item/1777-A"]').click()
   await expect(page.locator('h1')).toContainText('BALKEN')
   await expect(page.locator('h1')).toContainText('01777-A')
-  const holzartField = page.locator('section', { hasText: 'Holzart' }).first()
+  const holzartField = page.locator('section', { hasText: 'Holzart' })
   await expect(holzartField).toContainText('Traubeneiche')
   await expect(holzartField).toContainText('Vom Stamm geerbt')
   // Holzart belongs to the stem: shown, not overridable. Lieferdatum is for stems and beams.
-  await expect(page.getByRole('button', { name: 'Holzart ändern' })).toHaveCount(0)
-  await page.getByRole('button', { name: 'Lieferdatum ändern' }).click()
+  await expect(page.getByRole('button', { name: 'Holzart ändern', exact: true })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Lieferdatum ändern', exact: true }).click()
   await page.locator('input[type="date"]').fill('2026-09-10')
-  await page.getByRole('button', { name: 'Speichern & schließen' }).click()
+  await page.getByRole('button', { name: 'Speichern & schließen', exact: true }).click()
 
   // Saving closes the beam: back on its stem, which lists the beam and is read-only now.
   await expect(page.getByText('Balken 01777-A gespeichert')).toBeVisible()
@@ -77,10 +77,10 @@ test('beam inherits a stem value and can override it', async ({ page }) => {
   await expect(page.getByRole('link', { name: /01777-A/ })).toContainText('10.09.2026')
   await expect(page.getByText('Aufgeteilter Stamm')).toBeVisible()
   // Holzart belongs to the stem alone and stays open; Lieferdatum is recorded on the beams now.
-  await expect(page.getByRole('button', { name: 'Holzart ändern' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Lieferdatum ändern' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Holzart ändern', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Lieferdatum ändern', exact: true })).toHaveCount(0)
   await expect(page.getByRole('button', { name: /Speichern/ })).toHaveCount(0)
-  await page.getByRole('button', { name: 'Zurück zum Start' }).click()
+  await page.getByRole('button', { name: 'Zurück zum Start', exact: true }).click()
   await expect(page.locator('h1')).toHaveText('V29 Stamm-Tracker')
 })
 
@@ -90,15 +90,17 @@ test('beam letters run to Z, are reused after removal, and stop after 26', async
   await page.goto('/timber-item/1888')
   await splitIntoBeams(page)
   // A draft beam goes without a question.
-  await page.getByRole('button', { name: 'Balken 1888-A entfernen' }).click()
-  await expect(page.getByRole('button', { name: 'Balken 1888-A entfernen' })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Balken 1888-A entfernen', exact: true }).click()
+  await expect(
+    page.getByRole('button', { name: 'Balken 1888-A entfernen', exact: true }),
+  ).toHaveCount(0)
 
   // B is there; A and C to Y follow.
   for (let count = 0; count < 24; count++) {
     await page.getByRole('button', { name: /^Balken \d+-[A-Z] hinzufügen$/ }).click()
   }
-  await page.getByRole('button', { name: 'Balken 01888-Z hinzufügen' }).click()
-  await expect(page.getByRole('button', { name: 'Balken hinzufügen' })).toBeDisabled()
+  await page.getByRole('button', { name: 'Balken 01888-Z hinzufügen', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Balken hinzufügen', exact: true })).toBeDisabled()
   await expect(page.getByText('Höchstens 26 Balken je Stamm')).toBeVisible()
 })
 
@@ -116,23 +118,27 @@ test('"Gesägt" asks in a dialog whether the stem was split; "Nicht aufgeteilt" 
   await page.mouse.click(20, 20)
   await expect(dialog).toBeVisible()
   // "Abbrechen" takes the tick back.
-  await dialog.getByRole('button', { name: 'Abbrechen' }).click()
+  await dialog.getByRole('button', { name: 'Abbrechen', exact: true }).click()
   await expect(dialog).toHaveCount(0)
   await expect(sawn).toHaveAttribute('aria-pressed', 'false')
 
   await sawn.click()
-  await dialog.getByRole('button', { name: 'Nein, nicht aufgeteilt' }).click()
+  await dialog.getByRole('button', { name: 'Nein, nicht aufgeteilt', exact: true }).click()
   await expect(dialog).toHaveCount(0)
   await expect(sawn).toHaveAttribute('aria-pressed', 'true')
   await expect(page.getByText('Nein, nicht aufgeteilt')).toHaveCount(0)
-  await expect(page.getByRole('button', { name: 'Balken A und B hinzufügen' })).toBeVisible()
+  await expect(
+    page.getByRole('button', { name: 'Balken A und B hinzufügen', exact: true }),
+  ).toBeVisible()
   await page.getByLabel('Sortierklasse').selectOption({ label: 'A' })
-  await page.getByRole('button', { name: 'Stamm anlegen & schließen' }).click()
+  await page.getByRole('button', { name: 'Stamm anlegen & schließen', exact: true }).click()
   await expect(page.getByText('Stamm 01446 gespeichert')).toBeVisible()
 
   // Opened again: no dialog, the stem counts as not split.
   await openStem(page, '1446')
-  await expect(page.getByRole('button', { name: 'Sortierklasse ändern' })).toBeVisible()
+  await expect(
+    page.getByRole('button', { name: 'Sortierklasse ändern', exact: true }),
+  ).toBeVisible()
   await expect(dialog).toHaveCount(0)
 })
 
@@ -145,8 +151,8 @@ test('"Mehrere Balken" locks the stem and saves it with the beams A and B; the b
   await expect(page.getByText('nicht gespeichert')).toHaveCount(2)
   // Locked from the answer on: left are the attributes of the stem alone, "Gesägt" and the notes.
   await expect(page.getByText('Aufgeteilter Stamm')).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Fotos' })).toHaveCount(0)
-  await expect(page.getByRole('button', { name: 'Foto aufnehmen' })).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'Fotos', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Foto aufnehmen', exact: true })).toHaveCount(0)
   await expect(page.locator('input[type="date"]')).toHaveCount(0)
   await expect(page.locator('textarea')).toHaveCount(1)
   await page.getByLabel('Holzart').selectOption({ label: 'Traubeneiche' })
@@ -155,7 +161,7 @@ test('"Mehrere Balken" locks the stem and saves it with the beams A and B; the b
   await page.getByRole('button', { name: 'Gesägt', exact: true }).click()
   await expect(page.getByRole('dialog')).toContainText('Balken verwerfen?')
   await expect(page.getByRole('dialog')).toContainText('01444-A, 01444-B')
-  await page.getByRole('button', { name: 'Abbrechen' }).click()
+  await page.getByRole('button', { name: 'Abbrechen', exact: true }).click()
   await expect(page.getByText('nicht gespeichert')).toHaveCount(2)
 
   await page.getByRole('button', { name: 'Stamm anlegen', exact: true }).click()
@@ -166,16 +172,16 @@ test('"Mehrere Balken" locks the stem and saves it with the beams A and B; the b
   await expect(page.locator('a[href="/timber-item/1444-B"]')).toBeVisible()
 
   await page.locator('a[href="/timber-item/1444-B"]').click()
-  const gesaegt = page.locator('section', { hasText: 'Gesägt' }).first()
+  const gesaegt = page.locator('section', { hasText: 'Gesägt' })
   await expect(gesaegt).toContainText('Vom Stamm geerbt')
-  const holzart = page.locator('section', { hasText: 'Holzart' }).first()
+  const holzart = page.locator('section', { hasText: 'Holzart' })
   await expect(holzart).toContainText('Traubeneiche')
   await expect(holzart).toContainText('Vom Stamm geerbt')
 
   // Sent in one go: stem and beams, 1 + 1 + 1 entries.
   await page.goto('/sync')
   await expect(page.locator('h1')).toHaveText('Synchronisierung (5)')
-  await page.getByRole('button', { name: 'Jetzt synchronisieren' }).click()
+  await page.getByRole('button', { name: 'Jetzt synchronisieren', exact: true }).click()
   await expect(page.getByText('5 Einträge übertragen')).toBeVisible()
 })
 
@@ -185,20 +191,22 @@ test('removes a synced beam, the sync sends the removal, and its letter is free 
   page,
 }) => {
   await page.goto('/timber-item/789')
-  await page.getByRole('button', { name: 'Balken 789-B entfernen' }).click()
+  await page.getByRole('button', { name: 'Balken 789-B entfernen', exact: true }).click()
   await expect(page.getByRole('dialog')).toContainText('auch auf dem Server entfernt')
   await page.getByRole('button', { name: 'Balken entfernen', exact: true }).click()
   await expect(page.locator('a[href="/timber-item/789-B"]')).toHaveCount(0)
 
   await page.goto('/sync')
   await expect(page.getByText('Balken 00789-B entfernen')).toBeVisible()
-  await page.getByRole('button', { name: 'Jetzt synchronisieren' }).click()
+  await page.getByRole('button', { name: 'Jetzt synchronisieren', exact: true }).click()
   await expect(page.getByText('1 Eintrag übertragen')).toBeVisible()
 
   await page.goto('/timber-item/789')
   await expect(page.locator('a[href="/timber-item/789-A"]')).toBeVisible()
   await expect(page.locator('a[href="/timber-item/789-B"]')).toHaveCount(0)
-  await expect(page.getByRole('button', { name: 'Balken 00789-B hinzufügen' })).toBeVisible()
+  await expect(
+    page.getByRole('button', { name: 'Balken 00789-B hinzufügen', exact: true }),
+  ).toBeVisible()
 })
 
 // The screen changes before the write to the device is through; a reload (`goto`) in between would lose the change.
@@ -222,33 +230,34 @@ const writesDone = (page: Page) =>
 // A new beam took the letter of the removed one: bringing the old beam back would give two beams B.
 test('cannot discard the removal of a beam whose letter a new beam took', async ({ page }) => {
   await page.goto('/timber-item/789')
-  await page.getByRole('button', { name: 'Balken 789-B entfernen' }).click()
+  await page.getByRole('button', { name: 'Balken 789-B entfernen', exact: true }).click()
   await page.getByRole('button', { name: 'Balken entfernen', exact: true }).click()
-  await page.getByRole('button', { name: 'Balken 00789-B hinzufügen' }).click()
+  await page.getByRole('button', { name: 'Balken 00789-B hinzufügen', exact: true }).click()
   await page.getByRole('button', { name: 'Speichern', exact: true }).click()
   await expect(page.locator('a[href="/timber-item/789-B"]')).toBeVisible()
 
   await writesDone(page)
   await page.goto('/sync')
   await expect(page.locator('h1')).toHaveText('Synchronisierung (2)')
-  await page.getByRole('button', { name: 'Eintrag verwerfen' }).first().click()
+  // the first of the two entries in the list
+  await page.getByRole('button', { name: 'Eintrag verwerfen', exact: true }).first().click()
   const dialog = page.getByRole('dialog')
   await expect(dialog).toContainText(
     'Der Buchstabe B ist inzwischen an einen neuen Balken vergeben.',
   )
   await expect(dialog.getByRole('button')).toHaveText(['Verstanden'])
-  await dialog.getByRole('button', { name: 'Verstanden' }).click()
+  await dialog.getByRole('button', { name: 'Verstanden', exact: true }).click()
   await expect(page.locator('h1')).toHaveText('Synchronisierung (2)')
 
   // Once the new beam is gone, the removal can be discarded and the old beam is back.
   await writesDone(page)
   await page.goto('/timber-item/789')
-  await page.getByRole('button', { name: 'Balken 789-B entfernen' }).click()
+  await page.getByRole('button', { name: 'Balken 789-B entfernen', exact: true }).click()
   await page.getByRole('button', { name: 'Balken entfernen', exact: true }).click()
   await writesDone(page)
   await page.goto('/sync')
   await expect(page.locator('h1')).toHaveText('Synchronisierung (1)')
-  await page.getByRole('button', { name: 'Eintrag verwerfen' }).click()
+  await page.getByRole('button', { name: 'Eintrag verwerfen', exact: true }).click()
   await expect(page.getByRole('dialog')).toContainText(
     'Der Balken ist danach wieder da. Der Buchstabe B ist dann wieder belegt.',
   )
@@ -265,9 +274,9 @@ test('saves a further beam on a split stem; it is queued and removing it asks', 
   page,
 }) => {
   await page.goto('/timber-item/789')
-  await expect(page.getByRole('button', { name: 'Zurück zum Start' })).toBeVisible()
-  await page.getByRole('button', { name: 'Balken 00789-C hinzufügen' }).click()
-  await expect(page.getByRole('button', { name: 'Zurück zum Start' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Zurück zum Start', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Balken 00789-C hinzufügen', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Zurück zum Start', exact: true })).toHaveCount(0)
   await page.getByRole('button', { name: 'Speichern', exact: true }).click()
   await expect(page.getByText('Stamm 00789 gespeichert')).toBeVisible()
   await expect(page.locator('a[href="/timber-item/789-C"]')).toBeVisible()
@@ -277,7 +286,7 @@ test('saves a further beam on a split stem; it is queued and removing it asks', 
   await expect(page.getByText('Balken angelegt: 00789-C')).toBeVisible()
 
   await page.goto('/timber-item/789')
-  await page.getByRole('button', { name: 'Balken 789-C entfernen' }).click()
+  await page.getByRole('button', { name: 'Balken 789-C entfernen', exact: true }).click()
   await expect(page.getByRole('dialog')).toContainText('Balken 00789-C entfernen?')
 })
 
@@ -303,7 +312,7 @@ test('save labels fit on one line at 320 px', async ({ page }) => {
 test('invalid input keeps the item open and shows the error', async ({ page }) => {
   await page.goto('/timber-item/43')
   await page.locator('input[inputmode="decimal"]').fill('34abc')
-  await page.getByRole('button', { name: 'Stamm anlegen & schließen' }).click()
+  await page.getByRole('button', { name: 'Stamm anlegen & schließen', exact: true }).click()
   await expect(page.getByRole('alert')).toBeVisible()
   await expect(page.locator('h1')).toContainText('STAMM')
 })
@@ -315,7 +324,7 @@ test('start page in the browser asks to install the app first', async ({ page })
   await page.goto('/')
   await page.evaluate(SIGNED_OUT)
   await page.reload()
-  await expect(page.getByRole('heading', { name: 'Willkommen' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Willkommen', exact: true })).toBeVisible()
   await expect(page.getByText('Bitte zuerst die App installieren')).toBeVisible()
 })
 
@@ -327,7 +336,7 @@ test('signs in with a typed code', async ({ page }) => {
   const field = page.getByLabel('Einladungscode')
   await field.pressSequentially('k7qm4xht9rdpxx')
   await expect(field).toHaveValue('K7QM-4XHT-9RDP')
-  await page.getByRole('button', { name: 'Anmelden' }).click()
+  await page.getByRole('button', { name: 'Anmelden', exact: true }).click()
   await expect(page.locator('header').getByText('Alex Beispiel', { exact: true })).toBeVisible()
   await expect(page.getByText('Stand der Daten:')).toBeVisible()
   await expect(page.getByRole('button', { name: '1', exact: true })).toBeVisible()
@@ -336,50 +345,50 @@ test('signs in with a typed code', async ({ page }) => {
 test('a 401 on sync keeps the queue and syncs after signing in again', async ({ page }) => {
   await page.goto('/timber-item/1555')
   await page.getByLabel('Holzart').selectOption({ label: 'Traubeneiche' })
-  await page.getByRole('button', { name: 'Stamm anlegen & schließen' }).click()
+  await page.getByRole('button', { name: 'Stamm anlegen & schließen', exact: true }).click()
   await page.evaluate(SIGNED_OUT)
 
   await page.goto('/sync')
-  await page.getByRole('button', { name: 'Jetzt synchronisieren' }).click()
+  await page.getByRole('button', { name: 'Jetzt synchronisieren', exact: true }).click()
   await expect(page.getByRole('alert')).toContainText('nicht (mehr) angemeldet')
   await expect(page.getByRole('alert')).toContainText('2 Einträge bleiben')
   // The queue survives a reload, not just the open page.
   await page.reload()
   await expect(page.locator('h1')).toHaveText('Synchronisierung (2)')
-  await page.getByRole('button', { name: 'Jetzt synchronisieren' }).click()
+  await page.getByRole('button', { name: 'Jetzt synchronisieren', exact: true }).click()
 
   await page.getByLabel('Einladungscode').fill('K7QM-4XHT-9RDP')
-  await page.getByRole('button', { name: 'Anmelden' }).click()
+  await page.getByRole('button', { name: 'Anmelden', exact: true }).click()
   await expect(page.getByText('2 Einträge übertragen')).toBeVisible()
 })
 
 test('sync without pending changes offers to refresh the data', async ({ page }) => {
   await page.goto('/sync')
   await expect(
-    page.getByRole('heading', { name: 'Keine Änderungen auf diesem Gerät' }),
+    page.getByRole('heading', { name: 'Keine Änderungen auf diesem Gerät', exact: true }),
   ).toBeVisible()
-  await page.getByRole('button', { name: 'Daten aktualisieren' }).click()
-  await expect(page.getByRole('heading', { name: 'Synchronisiert' })).toBeVisible()
+  await page.getByRole('button', { name: 'Daten aktualisieren', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Synchronisiert', exact: true })).toBeVisible()
 })
 
 // Flow: an unsynced stem is discarded on the sync screen; cancelling the confirmation keeps it.
 test('discards a new stem on the sync screen after confirming', async ({ page }) => {
   await page.goto('/timber-item/1666')
-  await page.getByRole('button', { name: 'Stamm anlegen & schließen' }).click()
+  await page.getByRole('button', { name: 'Stamm anlegen & schließen', exact: true }).click()
   await expect(page.getByText('Stamm 01666 gespeichert')).toBeVisible()
 
   await page.goto('/sync')
   await expect(page.locator('h1')).toHaveText('Synchronisierung (1)')
-  await page.getByRole('button', { name: 'Eintrag verwerfen' }).click()
+  await page.getByRole('button', { name: 'Eintrag verwerfen', exact: true }).click()
   await expect(page.getByRole('dialog')).toContainText('Stamm 01666 mit allen Angaben verwerfen?')
-  await page.getByRole('button', { name: 'Abbrechen' }).click()
+  await page.getByRole('button', { name: 'Abbrechen', exact: true }).click()
   await expect(page.locator('h1')).toHaveText('Synchronisierung (1)')
 
-  await page.getByRole('button', { name: 'Eintrag verwerfen' }).click()
+  await page.getByRole('button', { name: 'Eintrag verwerfen', exact: true }).click()
   await page.getByRole('button', { name: 'Verwerfen', exact: true }).click()
   await expect(page.locator('h1')).toHaveText('Synchronisierung')
   await expect(
-    page.getByRole('heading', { name: 'Keine Änderungen auf diesem Gerät' }),
+    page.getByRole('heading', { name: 'Keine Änderungen auf diesem Gerät', exact: true }),
   ).toBeVisible()
 })
 
@@ -393,12 +402,16 @@ test('opening the app refreshes the data without tapping and keeps pending entri
 
   await page.goto('/timber-item/1888')
   await page.getByLabel('Holzart').selectOption({ label: 'Traubeneiche' })
-  await page.getByRole('button', { name: 'Stamm anlegen & schließen' }).click()
-  await expect(page.getByRole('link', { name: 'Synchronisieren, 2 offene Einträge' })).toBeVisible()
+  await page.getByRole('button', { name: 'Stamm anlegen & schließen', exact: true }).click()
+  await expect(
+    page.getByRole('link', { name: 'Synchronisieren, 2 offene Einträge', exact: true }),
+  ).toBeVisible()
 
   await page.reload()
   await expect(page.getByText('Stand der Daten:')).not.toContainText('noch nie')
-  await expect(page.getByRole('link', { name: 'Synchronisieren, 2 offene Einträge' })).toBeVisible()
+  await expect(
+    page.getByRole('link', { name: 'Synchronisieren, 2 offene Einträge', exact: true }),
+  ).toBeVisible()
 })
 
 // iOS cannot lock the orientation, so landscape on a phone shows an overlay over the (still mounted) app.
@@ -437,7 +450,7 @@ const PHOTO = 'e2e/fixtures/photo.jpg'
 
 async function takePhoto(page: Page) {
   const chooser = page.waitForEvent('filechooser')
-  await page.getByRole('button', { name: 'Foto aufnehmen' }).click()
+  await page.getByRole('button', { name: 'Foto aufnehmen', exact: true }).click()
   await (await chooser).setFiles(PHOTO)
 }
 
@@ -484,7 +497,7 @@ test('a photo on an unknown stem creates nothing when discarded', async ({ page 
   await takePhoto(page)
   await expect(preview(page)).toHaveCount(1)
   // The wide first-photo button is replaced by the tile grid; the stem does not exist yet.
-  await expect(page.getByRole('button', { name: 'Foto aufnehmen' })).toHaveCount(1)
+  await expect(page.getByRole('button', { name: 'Foto aufnehmen', exact: true })).toHaveCount(1)
   await expect(page.getByText('Noch nicht erfasst')).toBeVisible()
 
   await close(page)
@@ -531,7 +544,7 @@ test('leaving an existing stem with a photo asks first; "Weiter bearbeiten" keep
   await close(page)
   await expect(page.getByRole('dialog')).toContainText('Noch nicht gespeichert für Stamm')
   await expect(page.getByRole('dialog').getByRole('listitem')).toHaveText(['1 Foto'])
-  await page.getByRole('button', { name: 'Weiter bearbeiten' }).click()
+  await page.getByRole('button', { name: 'Weiter bearbeiten', exact: true }).click()
   await expect(preview(page)).toHaveCount(1)
 
   await close(page)
@@ -554,7 +567,7 @@ test('a photo and a field change are saved together and survive a reload', async
     'Holzart: Traubeneiche',
     '1 Foto',
   ])
-  await page.getByRole('button', { name: 'Weiter bearbeiten' }).click()
+  await page.getByRole('button', { name: 'Weiter bearbeiten', exact: true }).click()
 
   await saveDraft(page)
   await expect(syncLink(page, 2)).toBeVisible()
@@ -565,7 +578,7 @@ test('a photo and a field change are saved together and survive a reload', async
   await page.reload()
   await openStem(page, '456')
   await expect(preview(page)).toHaveCount(1)
-  await expect(page.getByRole('button', { name: 'Holzart ändern' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Holzart ändern', exact: true })).toBeVisible()
 })
 
 test('removing a draft photo asks first', async ({ page }) => {
@@ -573,12 +586,15 @@ test('removing a draft photo asks first', async ({ page }) => {
   await takePhoto(page)
   await expect(preview(page)).toHaveCount(1)
 
-  await page.getByRole('button', { name: 'Foto entfernen' }).click()
-  await page.getByRole('button', { name: 'Abbrechen' }).click()
+  await page.getByRole('button', { name: 'Foto entfernen', exact: true }).click()
+  await page.getByRole('button', { name: 'Abbrechen', exact: true }).click()
   await expect(preview(page)).toHaveCount(1)
 
-  await page.getByRole('button', { name: 'Foto entfernen' }).click()
-  await page.getByRole('dialog').getByRole('button', { name: 'Foto entfernen' }).click()
+  await page.getByRole('button', { name: 'Foto entfernen', exact: true }).click()
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: 'Foto entfernen', exact: true })
+    .click()
   await expect(preview(page)).toHaveCount(0)
 })
 
@@ -589,8 +605,11 @@ test('removing a saved, not yet uploaded photo asks first', async ({ page }) => 
   await openStem(page, '123')
   await expect(preview(page)).toHaveCount(1)
 
-  await page.getByRole('button', { name: 'Foto entfernen' }).click()
-  await page.getByRole('dialog').getByRole('button', { name: 'Foto entfernen' }).click()
+  await page.getByRole('button', { name: 'Foto entfernen', exact: true }).click()
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: 'Foto entfernen', exact: true })
+    .click()
   await expect(preview(page)).toHaveCount(0)
   await close(page)
   await expect(syncLink(page, 0)).toBeVisible()
@@ -600,16 +619,17 @@ test('the photo section switches layout with the first photo and fits a narrow p
   page,
 }) => {
   await page.goto('/timber-item/123')
-  const camera = page.getByRole('button', { name: 'Foto aufnehmen' })
-  const gallery = page.getByRole('button', { name: 'Aus Galerie' })
-  const stack = page.getByRole('img', { name: '1 Foto hochgeladen' })
+  const camera = page.getByRole('button', { name: 'Foto aufnehmen', exact: true })
+  const gallery = page.getByRole('button', { name: 'Aus Galerie', exact: true })
+  const stack = page.getByRole('img', { name: '1 Foto hochgeladen', exact: true })
+  // the layout is the point here: the cell around the stack has no name of its own
   const cell = stack.locator('..')
   const box = async (locator: Locator) => (await locator.boundingBox())!
 
   for (const width of [320, 390]) {
     await page.setViewportSize({ width, height: 640 })
     // Stem 123 holds one uploaded photo: stack and both buttons in one row.
-    await expect(page.getByRole('heading', { name: 'Fotos (1)' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Fotos (1)', exact: true })).toBeVisible()
     const [cellBox, front, buttons] = [await box(cell), await box(stack), await box(camera)]
     // The whole stack stays inside its cell: gap to the buttons is the grid gap (8px), edges are flush.
     expect(buttons.x - (cellBox.x + cellBox.width)).toBeCloseTo(8, 0)
@@ -629,7 +649,7 @@ test('the photo section switches layout with the first photo and fits a narrow p
   }
 
   await takePhoto(page)
-  await expect(page.getByRole('heading', { name: 'Fotos (2)' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Fotos (2)', exact: true })).toBeVisible()
   // Now the buttons sit below the stack and the preview, which line up on both edges.
   const [cellBox, front, previewBox, buttons] = [
     await box(cell),
@@ -646,7 +666,7 @@ test('the photo section switches layout with the first photo and fits a narrow p
 test('uploads photos after the data and leaves the count tile', async ({ page }) => {
   await page.goto('/timber-item/123')
   // Stem 123 holds one uploaded photo already: a grey tile with the count.
-  const count = page.getByRole('img', { name: '1 Foto hochgeladen' })
+  const count = page.getByRole('img', { name: '1 Foto hochgeladen', exact: true })
   await expect(count).toHaveText('1')
   await takePhoto(page)
   await expect(preview(page)).toHaveCount(1)
@@ -657,12 +677,12 @@ test('uploads photos after the data and leaves the count tile', async ({ page })
   await expect(page.locator('h1')).toHaveText('Synchronisierung (1)')
   await expect(page.getByText(/^Foto \(\d+ KB\)$/)).toBeVisible()
   await expect(page.getByText(/^1 Foto · \d+ KB$/)).toBeVisible()
-  await page.getByRole('button', { name: 'Jetzt synchronisieren' }).click()
+  await page.getByRole('button', { name: 'Jetzt synchronisieren', exact: true }).click()
   await expect(page.getByRole('progressbar')).toBeVisible()
   await expect(page.getByText('Foto 1 von 1')).toBeVisible()
   await expect(page.getByText('1 Foto hochgeladen, aktueller Stand geladen.')).toBeVisible()
 
-  await page.getByRole('button', { name: 'Zurück zum Start' }).click()
+  await page.getByRole('button', { name: 'Zurück zum Start', exact: true }).click()
   await openStem(page, '123')
   await expect(preview(page)).toHaveCount(0)
   await expect(count).toHaveText('1')
@@ -681,16 +701,16 @@ test('stopping the photos keeps them; the next sync uploads them', async ({ page
   await saveDraft(page)
 
   await syncLink(page, 2).click()
-  await page.getByRole('button', { name: 'Jetzt synchronisieren' }).click()
+  await page.getByRole('button', { name: 'Jetzt synchronisieren', exact: true }).click()
   await expect(page.getByText('Foto 1 von 2')).toBeVisible()
-  await page.getByRole('button', { name: 'Synchronisierung anhalten' }).click()
+  await page.getByRole('button', { name: 'Synchronisierung anhalten', exact: true }).click()
   await expect(page.getByRole('status')).toContainText(
     'Angehalten. 2 Fotos bleiben auf diesem Gerät.',
   )
   await expect(page.locator('h1')).toHaveText('Synchronisierung (2)')
 
   await page.evaluate(RELEASE_PHOTOS)
-  await page.getByRole('button', { name: 'Jetzt synchronisieren' }).click()
+  await page.getByRole('button', { name: 'Jetzt synchronisieren', exact: true }).click()
   await expect(page.getByText('Angehalten.')).toBeHidden()
   await expect(page.getByText('2 Fotos hochgeladen, aktueller Stand geladen.')).toBeVisible()
 })
@@ -705,21 +725,25 @@ test('a sync started on an earlier visit of the sync page can be stopped after c
   await saveDraft(page)
 
   await syncLink(page, 2).click()
-  await page.getByRole('button', { name: 'Jetzt synchronisieren' }).click()
+  await page.getByRole('button', { name: 'Jetzt synchronisieren', exact: true }).click()
   await expect(page.getByText('Foto 1 von 2')).toBeVisible()
-  await page.getByRole('button', { name: 'Schließen' }).click()
+  await page.getByRole('button', { name: 'Schließen', exact: true }).click()
   // The sync runs on: the button says so.
-  await page.getByRole('link', { name: 'Synchronisierung läuft, 2 offene Einträge' }).click()
+  await page
+    .getByRole('link', { name: 'Synchronisierung läuft, 2 offene Einträge', exact: true })
+    .click()
   await expect(page.getByText('Foto 1 von 2')).toBeVisible()
-  await page.getByRole('button', { name: 'Synchronisierung anhalten' }).click()
+  await page.getByRole('button', { name: 'Synchronisierung anhalten', exact: true }).click()
   await expect(page.getByRole('status')).toContainText('Angehalten.')
-  await expect(page.getByRole('button', { name: 'Jetzt synchronisieren' })).toBeVisible()
+  await expect(
+    page.getByRole('button', { name: 'Jetzt synchronisieren', exact: true }),
+  ).toBeVisible()
 })
 
 // Photos from the library: the same chooser, several files at once.
 async function pickPhotos(page: Page, files: string[]) {
   const chooser = page.waitForEvent('filechooser')
-  await page.getByRole('button', { name: 'Aus Galerie' }).click()
+  await page.getByRole('button', { name: 'Aus Galerie', exact: true }).click()
   await (await chooser).setFiles(files)
 }
 
@@ -732,17 +756,17 @@ test('three photos from the library stay in the draft until saving, then upload 
   await close(page)
   await expect(page.getByRole('dialog')).toContainText('Änderungen verwerfen?')
   await expect(page.getByRole('dialog').getByRole('listitem')).toHaveText(['3 Fotos'])
-  await page.getByRole('button', { name: 'Weiter bearbeiten' }).click()
+  await page.getByRole('button', { name: 'Weiter bearbeiten', exact: true }).click()
   await saveDraft(page)
 
   await syncLink(page, 3).click()
-  await page.getByRole('button', { name: 'Jetzt synchronisieren' }).click()
+  await page.getByRole('button', { name: 'Jetzt synchronisieren', exact: true }).click()
   await expect(page.getByText('3 Fotos hochgeladen, aktueller Stand geladen.')).toBeVisible()
 
-  await page.getByRole('button', { name: 'Zurück zum Start' }).click()
+  await page.getByRole('button', { name: 'Zurück zum Start', exact: true }).click()
   await openStem(page, '123')
   await expect(preview(page)).toHaveCount(0)
-  await expect(page.getByRole('img', { name: '1 Foto hochgeladen' })).toHaveText('1')
+  await expect(page.getByRole('img', { name: '1 Foto hochgeladen', exact: true })).toHaveText('1')
 })
 
 test('an unreadable file is skipped, the others join the draft of the new stem', async ({
@@ -750,7 +774,7 @@ test('an unreadable file is skipped, the others join the draft of the new stem',
   browserName,
 }) => {
   await page.goto('/timber-item/1445')
-  await expect(page.getByRole('button', { name: 'Foto aufnehmen' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Foto aufnehmen', exact: true })).toBeVisible()
   await pickPhotos(page, [PHOTO, 'e2e/fixtures/broken.jpg', 'e2e/fixtures/photo-2.jpg'])
   await expect(preview(page)).toHaveCount(2)
   await expect(page.getByText('1 Foto konnte nicht gelesen werden')).toBeVisible()
@@ -767,9 +791,9 @@ test('an unreadable file is skipped, the others join the draft of the new stem',
 test('a split stem offers neither camera nor library', async ({ page }) => {
   await page.goto('/timber-item/789')
   await expect(page.getByText('Aufgeteilter Stamm')).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Foto aufnehmen' })).toHaveCount(0)
-  await expect(page.getByRole('button', { name: 'Aus Galerie' })).toHaveCount(0)
-  await expect(page.getByRole('heading', { name: 'Fotos' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Foto aufnehmen', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Aus Galerie', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'Fotos', exact: true })).toHaveCount(0)
 })
 
 // Open on a stem with saved beams: the notes and what only stems take (Lagerplatz), and the server takes both.
@@ -778,15 +802,15 @@ test('a split stem still takes a note and a stem attribute, and the sync sends t
   page,
 }) => {
   await page.goto('/timber-item/789')
-  await expect(page.getByRole('button', { name: 'Holzart ändern' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Lieferdatum ändern' })).toHaveCount(0)
-  await expect(page.getByRole('button', { name: 'Gesägt ändern' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Holzart ändern', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Lieferdatum ändern', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Gesägt ändern', exact: true })).toHaveCount(0)
   await page.getByLabel('Lagerplatz').selectOption({ index: 1 })
   await page.locator('textarea').fill('Kern faul')
-  await page.getByRole('button', { name: 'Speichern & schließen' }).click()
+  await page.getByRole('button', { name: 'Speichern & schließen', exact: true }).click()
   await expect(page.getByText('Stamm 00789 gespeichert')).toBeVisible()
   await syncLink(page, 2).click()
-  await page.getByRole('button', { name: 'Jetzt synchronisieren' }).click()
+  await page.getByRole('button', { name: 'Jetzt synchronisieren', exact: true }).click()
   await expect(page.getByText('2 Einträge übertragen')).toBeVisible()
 })
 
@@ -794,7 +818,7 @@ test('a split stem still takes a note and a stem attribute, and the sync sends t
 test('a failed request is reported to the server by itself', async ({ page }) => {
   await page.goto('/sync')
   await page.evaluate(SIGNED_OUT)
-  await page.getByRole('button', { name: 'Daten aktualisieren' }).click()
+  await page.getByRole('button', { name: 'Daten aktualisieren', exact: true }).click()
   await expect(page.getByRole('alert')).toContainText('nicht (mehr) angemeldet')
 
   const reported = () =>
