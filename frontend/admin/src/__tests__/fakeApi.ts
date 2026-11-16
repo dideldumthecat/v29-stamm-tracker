@@ -4,11 +4,12 @@ import type { Snapshot } from '@v29/shared/contract'
 import keyFiguresFixture from '@v29/shared/fixtures/key-figures-response.json' with { type: 'json' }
 
 import { activityAnswer } from './fakeActivity'
+import { createFakeAttributes } from './fakeAttributes'
 import { snapshotFixture } from './fakeSnapshot'
 
 /**
  * A stand-in for fetch that behaves like the session endpoints, the activity list (see fakeActivity.ts) and the key figures
- * (always the fixture of the worked example, whatever the item).
+ * (always the fixture of the worked example, whatever the item), and the attributes (see fakeAttributes.ts).
  * `codes` maps an invite code to the role of its user; an unknown code is 401. `offline` makes every request fail.
  */
 export function fakeApi(codes: Record<string, string>, { offline = false, pageSize = 50 } = {}) {
@@ -18,6 +19,8 @@ export function fakeApi(codes: Record<string, string>, { offline = false, pageSi
   let snapshotFails = false
   let keyFiguresFail = false
   let snapshot: Snapshot = snapshotFixture
+  const attributes = createFakeAttributes()
+  let attributesFail = false
   const calls: string[] = []
   vi.stubGlobal(
     'fetch',
@@ -58,6 +61,13 @@ export function fakeApi(codes: Record<string, string>, { offline = false, pageSi
         if (!role) return json(401)
         return keyFiguresFail ? json(500) : json(200, keyFiguresFixture)
       }
+      if (url.startsWith('/api/admin/attributes')) {
+        if (!role) return json(401)
+        if (attributesFail) return json(500)
+        const body = init.body ? JSON.parse(init.body as string) : undefined
+        const answer = attributes.handle(init.method!, url, body)
+        if (answer) return json(answer.status, answer.json)
+      }
       return json(404)
     }),
   )
@@ -69,5 +79,7 @@ export function fakeApi(codes: Record<string, string>, { offline = false, pageSi
     failSnapshot: (fails = true) => (snapshotFails = fails),
     setSnapshot: (next: Snapshot) => (snapshot = next),
     failKeyFigures: (fails = true) => (keyFiguresFail = fails),
+    failAttributes: (fails = true) => (attributesFail = fails),
+    attributes,
   }
 }

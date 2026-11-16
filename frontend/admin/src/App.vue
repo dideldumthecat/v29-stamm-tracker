@@ -6,6 +6,7 @@ import AuthorCredit from '@v29/shared/AuthorCredit.vue'
 import V29Logo from '@v29/shared/V29Logo.vue'
 
 import { signOut, user } from '@/auth'
+import AdminMenu from '@/components/AdminMenu.vue'
 import { useSizeVariable } from '@/sizeVariable'
 
 // Only pages that exist, one line each, in the order of the design: Dashboard, Rundholz, Schnittholz, Merkmale, Nutzer, Aktivität.
@@ -72,15 +73,19 @@ async function onSignOut() {
           </RouterLink>
         </nav>
         <p v-if="error" class="text-sm font-semibold" role="alert">Abmelden fehlgeschlagen.</p>
-        <button
-          type="button"
-          class="-mr-2.5 flex size-11 items-center justify-center rounded-lg"
-          aria-label="Abmelden"
-          title="Abmelden"
-          @click="onSignOut"
-        >
-          <LogOutIcon aria-hidden="true" />
-        </button>
+        <!-- Gear and "Abmelden" side by side, 44 px each; the pair is pulled out by the padding of the buttons so that the icons end at the column edge -->
+        <div class="-mr-2.5 flex">
+          <AdminMenu />
+          <button
+            type="button"
+            class="flex size-11 items-center justify-center rounded-lg"
+            aria-label="Abmelden"
+            title="Abmelden"
+            @click="onSignOut"
+          >
+            <LogOutIcon aria-hidden="true" />
+          </button>
+        </div>
       </div>
     </header>
     <div class="flex-1">

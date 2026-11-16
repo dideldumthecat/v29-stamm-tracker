@@ -8,7 +8,7 @@ import { useSizeVariable } from '@/sizeVariable'
 
 /**
  * The bar with the number of hits, the chips of the active filters behind it, "Filter zurücksetzen" (only with a filter) and a slot at
- * the right (the arrows of the stem list). It sticks below the header (from lg on, below it the header scrolls away) over the whole
+ * the right (the arrows of the stem list) and a slot `status` for a short message beside the count (the chips' place; the attributes use it). It sticks below the header (from lg on, below it the header scrolls away) over the whole
  * width of the window with the grey page background, above the content (z-20) and below the header (z-50). The chips take the width
  * between the count and the button and wrap: two lines of 26 px chips with a 4 px gap fit into min-h-15 (60 px) with 2 px padding, the bar
  * grows from the third line on. Below 640 px the button and the slot move under the chips, at the right. Its height goes into the scroll
@@ -38,6 +38,7 @@ useSizeVariable(bar, '--sticky-bar-height', 'height')
           @open="$emit('open', $event)"
           @remove="$emit('remove', $event)"
         />
+        <slot name="status" />
       </div>
       <div class="col-span-2 flex items-center gap-4 justify-self-end sm:col-span-1 sm:col-start-3">
         <button

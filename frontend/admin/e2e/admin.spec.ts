@@ -3,6 +3,7 @@ import { test, expect, type Locator, type Page } from '@playwright/test'
 import keyFiguresFixture from '@v29/shared/fixtures/key-figures-response.json' with { type: 'json' }
 
 import { activityAnswer } from '../src/__tests__/fakeActivity'
+import { createFakeAttributes } from '../src/__tests__/fakeAttributes'
 import { snapshotFixture, stemPhotos } from '../src/__tests__/fakeSnapshot'
 
 /**
@@ -13,9 +14,11 @@ import { snapshotFixture, stemPhotos } from '../src/__tests__/fakeSnapshot'
 async function fakeApi(page: Page) {
   const codes: Record<string, string> = { 'K7QM-4XHT-9RDP': 'admin', 'W3ZV-8NBC-2F6G': 'user' }
   let role: string | null = null
+  const attributes = createFakeAttributes()
   await page.route('**/api/**', async (route) => {
     const request = route.request()
-    const call = `${request.method()} ${new URL(request.url()).pathname}`
+    const path = new URL(request.url()).pathname
+    const call = `${request.method()} ${path}`
     if (call === 'POST /api/session') {
       const granted = codes[request.postDataJSON().token]
       if (!granted) return route.fulfill({ status: 401 })
@@ -41,6 +44,11 @@ async function fakeApi(page: Page) {
     }
     if (/^GET \/api\/admin\/timber-items\/[^/]+\/key-figures$/.test(call)) {
       return role ? route.fulfill({ json: keyFiguresFixture }) : route.fulfill({ status: 401 })
+    }
+    if (path.startsWith('/api/admin/attributes')) {
+      if (!role) return route.fulfill({ status: 401 })
+      const answer = attributes.handle(request.method(), path, request.postDataJSON())
+      return route.fulfill({ status: answer?.status ?? 404, json: answer?.json })
     }
     if (call.startsWith('GET /api/photos/')) {
       // the second photo of the stem is not uploaded yet
@@ -1468,5 +1476,154 @@ test.describe('stem list', () => {
         (await top(page.getByRole('columnheader', { name: 'Stamm' }))) - (await bottom(bar)),
       ),
     ).toBeLessThan(1)
+  })
+})
+
+test.describe('attributes', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/admin/activity')
+    await signIn(page, 'K7QM4XHT9RDP')
+    await page.getByRole('button', { name: 'Verwaltung' }).click()
+    await page.getByRole('menuitem', { name: 'Merkmale' }).click()
+    await expect(page).toHaveURL(/\/admin\/attributes$/)
+  })
+
+  test('opens from the gear, which is white there, and shows the preview with its count', async ({
+    page,
+  }) => {
+    await expect(page.locator('h1')).toHaveText('Merkmale')
+    await expect(page.getByRole('button', { name: 'Verwaltung' })).toHaveCSS(
+      'background-color',
+      'rgb(255, 255, 255)',
+    )
+    await expect(page.getByText('8 Merkmale', { exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Nichts ausgewählt' })).toBeVisible()
+
+    await page.getByRole('button', { name: 'Balken', exact: true }).click()
+    await expect(page).toHaveURL(/view=beam/)
+    await expect(page.getByText('8 Merkmale', { exact: true })).toBeVisible()
+  })
+
+  test('selects a field, saves a change and keeps the selection', async ({ page }) => {
+    await page.getByRole('button', { name: 'Lagerplatz', exact: true }).click()
+    await expect(page).toHaveURL(/attribute=/)
+    await expect(page.getByRole('heading', { name: 'Lagerplatz', level: 2 })).toBeVisible()
+    const save = page.getByRole('button', { name: 'Speichern' })
+    await expect(save).toBeDisabled()
+
+    await page.getByLabel('Name', { exact: true }).fill('Ort')
+    await expect(save).toBeEnabled()
+    await save.click()
+
+    await expect(page.getByRole('button', { name: 'Ort', exact: true })).toHaveAttribute(
+      'aria-current',
+      'true',
+    )
+    await expect(page.getByRole('heading', { name: 'Ort', level: 2 })).toBeVisible()
+    await expect(save).toBeDisabled()
+  })
+
+  test('asks before unsaved changes are lost, with its own dialog', async ({ page }) => {
+    await page.getByRole('button', { name: 'Lagerplatz', exact: true }).click()
+    await page.getByLabel('Name', { exact: true }).fill('Ort')
+
+    await page.getByRole('button', { name: 'Holzart', exact: true }).click()
+    const dialog = page.getByRole('alertdialog', { name: 'Änderungen verwerfen?' })
+    await expect(dialog).toBeVisible()
+    await dialog.getByRole('button', { name: 'Weiter bearbeiten' }).click()
+    await expect(page.getByLabel('Name', { exact: true })).toHaveValue('Ort')
+
+    await page.getByRole('button', { name: 'Holzart', exact: true }).click()
+    await dialog.getByRole('button', { name: 'Verwerfen' }).click()
+    await expect(page.getByRole('heading', { name: 'Holzart', level: 2 })).toBeVisible()
+  })
+
+  test('shows a system attribute without controls', async ({ page }) => {
+    await page.getByRole('button', { name: 'Gesägt (Systemmerkmal)' }).click()
+    await expect(page.getByText('Systemmerkmal: Ändern nur im Code möglich.')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Speichern' })).toHaveCount(0)
+  })
+
+  test('creates an attribute: type tiles, form with live preview, then it stays selected', async ({
+    page,
+  }) => {
+    await page.getByRole('button', { name: 'Merkmal hinzufügen' }).click()
+    await expect(page).toHaveURL(/attribute=new/)
+    await expect(page.getByRole('heading', { name: 'Neues Merkmal', level: 2 })).toBeVisible()
+    await expect(page.getByText('Unbenanntes Merkmal', { exact: true })).toBeVisible()
+
+    await page.getByRole('button', { name: /^Datum/ }).click()
+    await page.getByLabel('Name', { exact: true }).fill('Eingang')
+    await page.getByLabel('Genauigkeit').selectOption('month')
+    await expect(page.getByRole('button', { name: 'Eingang', exact: true })).toContainText(
+      'MM / JJJJ',
+    )
+
+    await page.getByRole('button', { name: 'Anlegen' }).click()
+    await expect(page.getByText('9 Merkmale', { exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Eingang', exact: true })).toHaveAttribute(
+      'aria-current',
+      'true',
+    )
+    await expect(page.getByRole('button', { name: 'Speichern' })).toBeDisabled()
+  })
+
+  test('asks before the page is left with a draft', async ({ page }) => {
+    await page.getByRole('button', { name: 'Merkmal hinzufügen' }).click()
+    await page.getByRole('button', { name: /^Text/ }).click()
+    await page.getByLabel('Name', { exact: true }).fill('Bemerkung')
+
+    await page.getByRole('link', { name: 'Aktivität' }).click()
+    const dialog = page.getByRole('alertdialog', { name: 'Änderungen verwerfen?' })
+    await expect(dialog).toBeVisible()
+    await dialog.getByRole('button', { name: 'Weiter bearbeiten' }).click()
+    await expect(page).toHaveURL(/\/admin\/attributes/)
+
+    await page.getByRole('link', { name: 'Aktivität' }).click()
+    await dialog.getByRole('button', { name: 'Verwerfen' }).click()
+    await expect(page).toHaveURL(/\/admin\/activity/)
+  })
+
+  test('sorts with the arrow keys and the order stays after a reload', async ({ page }) => {
+    const names = () =>
+      page
+        .locator(
+          '[aria-label="Vorschau"] button[aria-current], [aria-label="Vorschau"] li > div > button:first-child',
+        )
+        .evaluateAll((buttons) => buttons.map((button) => button.getAttribute('aria-label')))
+    expect((await names())[0]).toBe('Holzart')
+
+    await page.getByRole('button', { name: 'Holzart verschieben' }).focus()
+    await page.keyboard.press('ArrowDown')
+    await expect.poll(async () => (await names())[1]).toBe('Holzart')
+    await expect(page.getByRole('button', { name: 'Holzart verschieben' })).toBeFocused()
+
+    await page.reload()
+    await expect.poll(async () => (await names())[1]).toBe('Holzart')
+  })
+
+  test('sorts by dragging the handle', async ({ page }) => {
+    // tall enough that the handles are clear of the window edges, where the page would scroll on during a drag
+    await page.setViewportSize({ width: 1280, height: 1600 })
+    const first = page.getByRole('button', { name: 'Holzart verschieben' })
+    const third = page.getByRole('button', { name: 'Lieferdatum verschieben' })
+    const from = (await first.boundingBox())!
+    const to = (await third.boundingBox())!
+
+    await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2 + 20, { steps: 8 })
+    await page.mouse.up()
+
+    await expect(page.locator('[aria-label="Vorschau"] > li').nth(2)).toContainText('Holzart')
+    await expect(page.locator('[aria-label="Vorschau"] > li').nth(0)).toContainText('Fälldatum')
+  })
+
+  test('stays free of sideways scrolling', async ({ page }) => {
+    await page.getByRole('button', { name: 'Lagerplatz', exact: true }).click()
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    )
+    expect(overflow).toBe(0)
   })
 })
