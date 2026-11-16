@@ -19,7 +19,7 @@ import {
   splitChoiceOf,
   type FieldMode,
   type SplitChoice,
-} from '@/stores/itemRoles'
+} from '@v29/shared/itemRoles'
 import { useToast } from '@/composables/useToast'
 
 /**
@@ -45,7 +45,7 @@ export function useTimberItemDraft(item: Ref<TimberItem | undefined>, tagNumber:
   // Incremented after saving to remount the fields: resets their local "unlocked" state.
   const formKey = ref(0)
 
-  // --- Roles and the split choice (see stores/itemRoles.ts) -----------------
+  // --- Roles and the split choice (see shared/itemRoles.ts) -----------------
   const isBeam = computed(() => item.value?.parent_id != null)
   const hasSavedBeams = computed(() => item.value?.has_children ?? false)
   const sawnId = computed(

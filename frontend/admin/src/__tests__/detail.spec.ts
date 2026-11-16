@@ -62,10 +62,53 @@ describe('splitValues', () => {
       'Lieferdatum',
       'Lagerplatz',
       'Gesägt',
-      'Sortierklasse',
       'Holzfeuchte',
       'Notiz',
     ])
+  })
+
+  describe('rows by kind', () => {
+    const names = (item: typeof stem, parent?: typeof stem, list = attributes) =>
+      splitValues(item, parent, list, users).rows.map((row) => row.name)
+    const idOf = (name: string) => attributes.find((a) => a.name === name)!.id
+    const wholeSawn = (sawn: boolean) => {
+      const item = structuredClone(stem)
+      item.has_children = false
+      item.values[idOf('Gesägt')][0].value = sawn
+      return item
+    }
+
+    it('leaves out what applies to the other kind: no stem attributes without value on a beam, no beam attributes on a stem', () => {
+      const beam = names(
+        items.find((i) => i.tag_number === '104-B')!,
+        stem,
+      )
+      expect(beam).not.toContain('Lagerplatz')
+      expect(beam).toContain('Sortierklasse')
+      expect(names(stem)).not.toContain('Sortierklasse')
+      expect(names(items.find((i) => i.tag_number === '7')!)).not.toContain('Sortierklasse')
+    })
+
+    it('gives a stem sawn whole the beam attributes as well', () => {
+      expect(names(wholeSawn(true))).toContain('Sortierklasse')
+      expect(names(wholeSawn(false))).not.toContain('Sortierklasse')
+    })
+
+    it('keeps a row with a value although the attribute does not apply (old data)', () => {
+      const item = structuredClone(stem)
+      item.values[idOf('Sortierklasse')] = beamC.values[idOf('Sortierklasse')]
+      expect(names(item)).toContain('Sortierklasse')
+    })
+
+    it('shows an inactive attribute only with a value', () => {
+      const inactive = attributes.map((a) =>
+        a.name === 'Lagerplatz' ? { ...a, active: false } : a,
+      )
+      expect(names(stem, undefined, inactive)).not.toContain('Lagerplatz')
+      const item = structuredClone(stem)
+      item.values[idOf('Lagerplatz')] = [{ ...stem.values[idOf('Holzart')][0] }]
+      expect(names(item, undefined, inactive)).toContain('Lagerplatz')
+    })
   })
 
   it('writes values with who and when, booleans as ja/nein, a series newest first, nothing recorded as empty', () => {

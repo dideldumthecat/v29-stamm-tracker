@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import type { AttributeType, ItemKind } from '@v29/shared/contract'
+import type { AttributeType, ItemKind } from '../contract'
 import {
   fieldMode,
   isEditable as isEditableWith,
@@ -7,7 +7,7 @@ import {
   itemRoles,
   keepsField,
   splitChoiceOf,
-} from '@/stores/itemRoles'
+} from '../itemRoles'
 
 const stem = { isBeam: false, sawn: false, hasBeams: false, choice: null }
 

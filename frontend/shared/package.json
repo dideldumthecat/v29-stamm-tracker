@@ -12,6 +12,7 @@
     "./invite": "./invite.ts",
     "./tag": "./tag.ts",
     "./attributes": "./attributes.ts",
+    "./itemRoles": "./itemRoles.ts",
     "./FormattedTag.vue": "./FormattedTag.vue",
     "./BeamRowLabel.vue": "./BeamRowLabel.vue",
     "./AuthorCredit.vue": "./AuthorCredit.vue",

@@ -8,7 +8,7 @@ import {
 } from 'vue-router'
 import { Trash2Icon } from '@lucide/vue'
 import { useTimberItemStore, type Attribute, type TimberItem } from '@/stores/timberItems'
-import type { SplitChoice } from '@/stores/itemRoles'
+import type { SplitChoice } from '@v29/shared/itemRoles'
 import { formatRecordedLines } from '@/utils/attributeDraft'
 import { useToast } from '@/composables/useToast'
 import { record } from '@/diagnostics/record'

@@ -3,9 +3,11 @@ import type {
   ActivityItem,
   Attribute,
   AttributeValueRecord,
+  ItemKind,
   TimberItem,
 } from '@v29/shared/contract'
-import { bySortOrder, formatValue, isInheritedValue } from '@v29/shared/attributes'
+import { bySortOrder, formatValue, isInheritedValue, SAWN_KEY } from '@v29/shared/attributes'
+import { itemRoles, splitChoiceOf } from '@v29/shared/itemRoles'
 import { formatTag } from '@v29/shared/tag'
 
 import { formatDayMonthUnlessThisYear, sameDay, yearOf } from '@/activity'
@@ -69,10 +71,30 @@ export interface ItemParts {
   lastChangedBy: string | undefined
 }
 
+/** The kinds a saved item counts as, by the rule of the app: a stem without beams that is "Gesägt: ja" was sawn whole and is a beam as well. */
+function kindsOf(item: TimberItem, attributes: Attribute[]): ItemKind[] {
+  const sawnId = attributes.find((attribute) => attribute.key === SAWN_KEY)?.id
+  const sawn = !!sawnId && item.values[sawnId]?.slice(-1)[0]?.value === true
+  const choice = splitChoiceOf({
+    sawn,
+    recordedSawn: sawn,
+    hasSavedBeams: item.has_children,
+    draftBeamCount: 0,
+    picked: null,
+  })
+  return itemRoles({
+    isBeam: item.parent_id !== null,
+    sawn,
+    hasBeams: item.has_children,
+    choice,
+  }).kinds
+}
+
 /**
  * Splits an item's values (as the snapshot delivers them, inherited ones included) into photos and value rows.
  * Photos come from own values only; the rows show inherited values as such, except text series (notes): a beam shows
- * only its own. Attribute names are never assumed: photos are told apart by type, notes by "text series".
+ * only its own. A row appears if the item has a value or the attribute applies to its kind (`applies_to`; an inactive attribute
+ * only with a value). Attribute names are never assumed: photos are told apart by type, notes by "text series".
  */
 export function splitValues(
   item: TimberItem,
@@ -92,13 +114,17 @@ export function splitValues(
   const photos: AttributeValueRecord[] = []
   const rows: ValueRow[] = []
   const sorted = [...attributes].sort(bySortOrder)
+  const kinds = kindsOf(item, attributes)
   const last = latestOwnRecord(item, parent, sorted)
   for (const attribute of sorted) {
     const records = item.values[attribute.id] ?? []
     const inherited = isInheritedValue(item, parent, attribute.id)
     if (attribute.type === 'photo') {
       if (!inherited) photos.push(...records)
-    } else if (attribute.active || records.length) {
+    } else if (
+      records.length ||
+      (attribute.active && attribute.applies_to.some((kind) => kinds.includes(kind)))
+    ) {
       // A series lists every recording, newest first; anything else holds just its current value.
       // A beam does not show the stem's notes (text series), only its own.
       const hidden = inherited && attribute.type === 'text' && attribute.is_series
