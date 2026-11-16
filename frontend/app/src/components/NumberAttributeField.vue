@@ -94,7 +94,7 @@ function remove(index: number) {
       <div
         v-for="entry in newValues"
         :key="entry.index"
-        class="flex min-h-10 items-center justify-between gap-2.5 border-b border-soft py-1 text-detail"
+        class="flex min-h-10 items-center justify-between gap-2.5 border-b border-soft py-1"
       >
         <strong>{{ withUnit(entry.value) }}</strong>
         <span class="flex items-center gap-2 text-right text-caption text-mute">
@@ -115,7 +115,7 @@ function remove(index: number) {
       <div
         v-for="record in oldValues"
         :key="record.event_id"
-        class="flex min-h-10 items-center justify-between gap-2.5 border-b border-soft py-1 text-detail"
+        class="flex min-h-10 items-center justify-between gap-2.5 border-b border-soft py-1"
       >
         <strong>{{ withUnit(record.value) }}</strong>
         <span class="text-right text-caption text-mute">{{
