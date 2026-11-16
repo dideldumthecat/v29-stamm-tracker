@@ -1,9 +1,9 @@
 /**
- * Which attributes an item offers for input. App-only rules: the server accepts any event (applies_to is not enforced there).
- * Pure functions, so the rules can be tested without the store.
+ * Which attributes an item takes: the rules of the capture app (input) and the administration (detail view). The server accepts any
+ * event (applies_to is not enforced there). Pure functions, so the rules can be tested without the store.
  */
-import { SAWN_KEY } from '@v29/shared/attributes'
-import type { Attribute, ItemKind, Snapshot } from '@v29/shared/contract'
+import { SAWN_KEY } from './attributes'
+import type { Attribute, ItemKind, Snapshot } from './contract'
 
 /** Keys of the attributes the rules refer to (never their names, which V29 may change). */
 export const NOTES_KEY = 'notes'

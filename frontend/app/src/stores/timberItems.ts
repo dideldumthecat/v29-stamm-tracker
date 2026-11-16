@@ -17,7 +17,7 @@ import {
   removedBeams as projectRemovedBeams,
   withInherited as projectWithInherited,
 } from './projection'
-import { isOpenOnSplitStem, withAttributeDefaults } from './itemRoles'
+import { isOpenOnSplitStem, withAttributeDefaults } from '@v29/shared/itemRoles'
 import { createPersistence } from './persistence'
 import { createSync, type SyncProgress } from './sync'
 
@@ -316,7 +316,7 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     if (!item) {
       throw new Error(`Unknown timber item ${itemId}`)
     }
-    // App-only rule: the server still accepts late events from other devices (see stores/itemRoles.ts).
+    // App-only rule: the server still accepts late events from other devices (see shared/itemRoles.ts).
     const attribute = attributes.value.find((candidate) => candidate.id === attributeId)
     if (item.has_children && !(attribute && isOpenOnSplitStem(attribute, true))) {
       throw new Error(`Timber item ${itemId} is split into beams and read-only`)
