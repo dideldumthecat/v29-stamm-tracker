@@ -44,12 +44,7 @@ const setPicks = (next: string[]) =>
     :active="!!filter"
     :count="filter?.kind === 'pick' ? filter.picks.length : undefined"
   >
-    <FilterChecklist
-      v-if="checklist"
-      :options="options"
-      :picks="picks"
-      @change="setPicks"
-    />
+    <FilterChecklist v-if="checklist" :options="options" :picks="picks" @change="setPicks" />
     <FilterRange
       v-else-if="type === 'number' || type === 'date' || type === 'count'"
       :type="type"
