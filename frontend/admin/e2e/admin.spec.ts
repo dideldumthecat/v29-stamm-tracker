@@ -809,9 +809,9 @@ test.describe('stem list', () => {
     await expect(tags(page)).toHaveText(['00007', '00104', '01500', 'ohne Kennung'])
 
     await sortOn(page, 'Balken')
-    await expect(page).toHaveURL(/\?sort=beams$/)
+    await expect(page).toHaveURL(/\?sort=Balken$/)
     await sortOn(page, 'Balken')
-    await expect(page).toHaveURL(/\?sort=beams&dir=desc$/)
+    await expect(page).toHaveURL(/\?sort=Balken&dir=desc$/)
     await expect(page.getByRole('columnheader', { name: /Balken/ })).toHaveAttribute(
       'aria-sort',
       'descending',
@@ -827,7 +827,7 @@ test.describe('stem list', () => {
     await expect(page.locator('h1')).toHaveText('00104')
 
     await page.getByRole('button', { name: 'Zurück' }).click()
-    await expect(page).toHaveURL(/\/admin\/staemme\?sort=beams&dir=desc&tags=1-200$/)
+    await expect(page).toHaveURL(/\/admin\/staemme\?tags=1-200&sort=Balken&dir=desc$/)
     await expect(page.getByRole('textbox', { name: 'Kennung' })).toHaveValue('1-200')
     await expect(page.getByText('2 von 4 Stämmen')).toBeVisible()
     await expect(tags(page).first()).toHaveText('00104')
@@ -842,6 +842,26 @@ test.describe('stem list', () => {
     await expect(tags(page)).toHaveText(['00104', 'ohne Kennung', '00007', '01500'])
     await sortOn(page, 'Notiz')
     await expect(tags(page)).toHaveText(['00007', '01500', '00104', 'ohne Kennung'])
+  })
+
+  test('writes filters and sort with their names, and the copied link opens the same list', async ({
+    page,
+  }) => {
+    await page.goto('/admin/staemme')
+    await signIn(page, 'K7QM4XHT9RDP')
+    await page.goto('/admin/staemme?Lagerplatz=Polter Süd,Polter Nord&sort=Geändert&dir=desc')
+    const chips = page.getByRole('list', { name: 'Aktive Filter' })
+    await expect(chips).toHaveText(/Lagerplatz: Polter Nord, Polter Süd/)
+    // any change rewrites the URL in the readable form
+    await page.getByRole('textbox', { name: 'Kennung' }).fill('1-1999')
+    await expect(page).toHaveURL(/tags=1-1999/)
+    const link = page.url()
+    expect(new URL(link).searchParams.get('Lagerplatz')).toBe('Polter Süd,Polter Nord')
+    expect(new URL(link).searchParams.get('sort')).toBe('Geändert')
+
+    // a fresh load of the copied link (the fake API belongs to this page, a second tab would have none)
+    await page.goto(link)
+    await expect(chips).toHaveText('Kennung: 1-1999Lagerplatz: Polter Nord, Polter Süd')
   })
 
   // Many stems, so that the page has to scroll down
@@ -887,7 +907,7 @@ test.describe('stem list', () => {
     await holzart.click()
     const popup = page.getByRole('dialog', { name: 'Holzart' })
     await popup.getByLabel('Traubeneiche').check()
-    await expect(page).toHaveURL(/\?f\.[0-9a-f-]+=/)
+    await expect(page).toHaveURL(/\?Holzart=Traubeneiche$/)
     await expect(page.getByText('1 von 4 Stämmen')).toBeVisible()
     await expect(tags(page)).toHaveText(['01500'])
     await expect(chips.getByRole('button', { name: 'Holzart: Traubeneiche' })).toBeVisible()
@@ -932,7 +952,7 @@ test.describe('stem list', () => {
     await expect(chips.getByRole('button', { name: 'Holzart: Nicht erfasst' })).toBeVisible()
     await page.keyboard.press('Escape')
     await page.getByRole('button', { name: 'Filter Holzart entfernen' }).click()
-    await expect(page).not.toHaveURL(/f\./)
+    await expect(page).not.toHaveURL(/Holzart/)
     await expect(page).toHaveURL(/tags=1-200/)
     // no chip follows, so the focus goes to the button of the filter
     await expect(holzart).toBeFocused()
@@ -1104,11 +1124,11 @@ test.describe('stem list', () => {
     await expect(to).toHaveAttribute('type', 'date')
 
     await from.fill('2026-10-31')
-    await expect(page).toHaveURL(/f\.changed=2026-10-31~$/)
+    await expect(page).toHaveURL(/Ge%C3%A4ndert=2026-10-31~$/)
     await expect(page.getByRole('button', { name: 'Geändert: ab 31.10.2026' })).toBeVisible()
     await expect(tags(page)).toHaveText(['00104'])
     await to.fill('2026-10-31')
-    await expect(page).toHaveURL(/f\.changed=2026-10-31~2026-10-31$/)
+    await expect(page).toHaveURL(/Ge%C3%A4ndert=2026-10-31~2026-10-31$/)
     await expect(
       page.getByRole('button', { name: 'Geändert: 31.10.2026–31.10.2026' }),
     ).toBeVisible()
@@ -1124,7 +1144,7 @@ test.describe('stem list', () => {
     // the field cleared again (a half-typed date is no value): no filter on this side, and without both no chip
     await from.fill('')
     await to.fill('')
-    await expect(page).not.toHaveURL(/f\./)
+    await expect(page).not.toHaveURL(/Ge%C3%A4ndert/)
     await expect(page.getByRole('button', { name: /^Geändert:/ })).toHaveCount(0)
 
     // an old link still works

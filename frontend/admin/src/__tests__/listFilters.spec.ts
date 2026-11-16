@@ -194,7 +194,11 @@ describe('column filters', () => {
 
   it('offers the months of the rows, newest first, without doubles, the inherited ones of a beam too, and one of the URL that no row has', () => {
     const month = (value: string) => ({ [id('month')]: [rec(value)] })
-    const items = [stem('1', month('2026-10')), stem('2', month('2026-12')), stem('3', month('2026-10'))]
+    const items = [
+      stem('1', month('2026-10')),
+      stem('2', month('2026-12')),
+      stem('3', month('2026-10')),
+    ]
     const labels = (rows: Row[], picks: string[] = []) =>
       pickOptions(col('month'), rows, picks).map((o) => [o.id, o.label])
     const rows = buildRows({ ...snapshot, timber_items: items }, 'stem', cols)
@@ -317,11 +321,11 @@ describe('column filters', () => {
       sort: 'tag',
       dir: 'asc' as const,
     }
-    expect(writeQuery(state)).toEqual({
-      [`f.${id('number')}`]: '30~40',
-      [`f.${id('photo')}`]: 'has',
+    expect(writeQuery(state, cols)).toEqual({
+      [col('number').label]: '30~40',
+      [col('photo').label]: 'has',
     })
-    expect(readQuery(writeQuery(state), cols)).toEqual(state)
+    expect(readQuery(writeQuery(state, cols), cols)).toEqual(state)
     expect(readQuery({ 'f.gibtsnicht': 'has', 'f.tag': 'x' }, cols).filters).toEqual({})
     // an old link with a range of months sets no filter, and months are ticks like a choice
     expect(readQuery({ [`f.${id('month')}`]: '2026-10~2026-11' }, cols).filters).toEqual({})

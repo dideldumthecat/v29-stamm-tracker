@@ -9,6 +9,7 @@ import {
   filterType,
   formatCount,
   matchesFilter,
+  NOT_RECORDED_PICK,
   offersNone,
   readFilter,
   tagFilter,
@@ -232,8 +233,8 @@ export const stemsText = (shown: number, total: number, filtered: boolean) =>
   countText(shown, total, filtered, ['Stamm', 'Stämme', 'Stämmen'])
 
 /**
- * The state of the list as the URL holds it: `tags`, the column filters as written by `writeFilter` (`f.<column id>`, here by column id)
- * and `sort` (a column id) with `dir`.
+ * The state of the list as the program holds it: `tags`, the column filters as written by `writeFilter` (by column id, a choice by option id)
+ * and `sort` (a column id) with `dir`. The URL holds the same with names instead of ids (see `urlNames`).
  */
 export interface ListQuery {
   tags: string
@@ -242,31 +243,114 @@ export interface ListQuery {
   dir: 'asc' | 'desc'
 }
 
-/** Reads the URL; a `sort` or filter of a column that does not exist (any more) is ignored. */
+// --- URL names ----------------------------------------------------------------------------------------------------
+// The URL says `Holzart=Eiche,Kiefer&sort=Länge`. A name that would be ambiguous (see below) is replaced by the id, which always works
+// (and is what older links hold). Why the id and not an escape or a suffix: it is already unique, needs no second rule to read, and an
+// ambiguous name is a rare case that nobody reads in a link anyway. Why all of the clashing names and not all but the first: the link
+// must not change its meaning when V29 reorders attributes.
+
+const trimmed = (label: string) => label.normalize('NFC').trim()
+
+/** Words of the URL that are not names of columns: the parameters and the ids of the fixed columns (an old `sort=beams`). */
+const URL_WORDS = ['tags', 'sort', 'dir']
+
+/**
+ * The URL name of every column by column id. Fixed columns ("Balken", "Geändert") keep their heading; an attribute gets its name unless it is
+ * empty, a parameter of the URL (`tags`, `sort`, `dir`), the heading or id of a fixed column or the name of another attribute.
+ */
+export function urlNames(columns: Column[]): Record<string, string> {
+  const fixed = columns.filter((column) => column.kind !== 'attribute')
+  const taken = new Set([
+    ...URL_WORDS,
+    ...fixed.flatMap((column) => [column.id, trimmed(column.label)]),
+  ])
+  const count = new Map<string, number>()
+  for (const column of columns)
+    count.set(trimmed(column.label), (count.get(trimmed(column.label)) ?? 0) + 1)
+  return Object.fromEntries(
+    columns.map((column) => {
+      const name = trimmed(column.label)
+      const usable =
+        column.kind !== 'attribute' || (name && !taken.has(name) && count.get(name) === 1)
+      return [column.id, usable ? name : column.id]
+    }),
+  )
+}
+
+/**
+ * The URL name of every option of a choice attribute by option id: the label, unless it is empty, holds a comma (the separator), is "none"
+ * (the word for "Nicht erfasst") or is the label of another option; then the id.
+ */
+function optionNames(attribute: Attribute): Record<string, string> {
+  const count = new Map<string, number>()
+  for (const { label } of attribute.options)
+    count.set(trimmed(label), (count.get(trimmed(label)) ?? 0) + 1)
+  return Object.fromEntries(
+    attribute.options.map(({ id, label }) => {
+      const name = trimmed(label)
+      const usable =
+        name && !name.includes(',') && name !== NOT_RECORDED_PICK && count.get(name) === 1
+      return [id, usable ? name : id]
+    }),
+  )
+}
+
+/** The picks of a choice filter with `translate` applied to every option, "none" and what is unknown left alone; null drops the pick. */
+const mapPicks = (text: string, translate: (pick: string) => string | null) =>
+  text
+    .split(',')
+    .flatMap((pick) => (pick === NOT_RECORDED_PICK ? pick : (translate(pick) ?? [])))
+    .join(',')
+
+/** Reads the URL; a `sort`, filter or option that does not exist (any more) is ignored. Names and ids (old links) both work. */
 export function readQuery(query: LocationQueryRaw, columns: Column[]): ListQuery {
   const first = (name: string) => String([query[name]].flat()[0] ?? '')
-  const sort = first('sort')
+  const names = urlNames(columns)
+  const sort = first('sort').trim()
   const filters: Record<string, string> = {}
   for (const column of columns) {
-    const text = first(`f.${column.id}`).trim()
+    const type = filterType(column)
+    if (!type) continue
+    let text = (first(names[column.id]) || first(`f.${column.id}`)).trim()
     // An old link with a range of months ("2026-10~2026-11") sets no filter
-    if (filterType(column) === 'month' && text.includes('~')) continue
-    if (text && filterType(column)) filters[column.id] = text
+    if (type === 'month' && text.includes('~')) continue
+    if (type === 'choice') {
+      const ids = new Set(column.attribute!.options.map((option) => option.id))
+      const byName = new Map(
+        Object.entries(optionNames(column.attribute!)).map(([id, name]) => [name, id]),
+      )
+      text = mapPicks(text, (pick) => byName.get(pick.trim()) ?? (ids.has(pick) ? pick : null))
+    }
+    if (text) filters[column.id] = text
   }
   return {
     tags: first('tags').trim(),
     filters,
-    sort: columns.some((column) => column.id === sort) ? sort : 'tag',
+    sort:
+      columns.find((column) => names[column.id] === sort)?.id ??
+      (columns.some((column) => column.id === sort) ? sort : 'tag'),
     dir: first('dir') === 'desc' ? 'desc' : 'asc',
   }
 }
 
 /** The URL of a state: what is the default (all stems, by tag, ascending) is left out. */
-export function writeQuery({ tags, filters, sort, dir }: ListQuery): LocationQueryRaw {
+export function writeQuery(
+  { tags, filters, sort, dir }: ListQuery,
+  columns: Column[],
+): LocationQueryRaw {
+  const names = urlNames(columns)
   const query: LocationQueryRaw = {}
   if (tags) query.tags = tags
-  for (const [id, text] of Object.entries(filters)) query[`f.${id}`] = text
-  if (sort !== 'tag') query.sort = sort
+  for (const column of columns) {
+    let text = filters[column.id]
+    if (!text) continue
+    if (filterType(column) === 'choice') {
+      const optionName = optionNames(column.attribute!)
+      text = mapPicks(text, (pick) => optionName[pick] ?? pick)
+    }
+    query[names[column.id]] = text
+  }
+  if (sort !== 'tag') query.sort = names[sort] ?? sort
   if (dir === 'desc') query.dir = 'desc'
   return query
 }

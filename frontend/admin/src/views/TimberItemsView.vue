@@ -76,13 +76,10 @@ const showTable = computed(() => status.value === 'ready' && rows.value.length >
 const showBar = computed(() => status.value === 'ready' && (showTable.value || hasFilter.value))
 
 function sortOn(columnId: string) {
-  void router.push({ query: writeQuery(sortBy(query.value, columnId)) })
+  void router.push({ query: writeQuery(sortBy(query.value, columnId), columns.value) })
 }
 function setTags(tags: string, replace: boolean) {
-  // Whatever else is in the URL (sort, direction, filters) stays as it is
-  const next = { ...route.query }
-  if (tags) next.tags = tags
-  else delete next.tags
+  const next = writeQuery({ ...query.value, tags }, columns.value)
   return replace ? router.replace({ query: next }) : router.push({ query: next })
 }
 
@@ -114,7 +111,7 @@ const { tagsInput, onTagsInput, applyTagsNow, clearTags, resetTagsInput } = useT
 })
 function resetFilter() {
   resetTagsInput()
-  void router.push({ query: writeQuery({ ...query.value, tags: '', filters: {} }) })
+  void router.push({ query: writeQuery({ ...query.value, tags: '', filters: {} }, columns.value) })
 }
 // The focus goes to the field, but the page stays where it is (the button is in the bar, the field far above after scrolling)
 function resetFromBar() {
@@ -136,7 +133,7 @@ function setColumnFilter(columnId: string, filter: ColumnFilter | null, replace:
   const filters = { ...query.value.filters }
   if (filter) filters[columnId] = writeFilter(filter)
   else delete filters[columnId]
-  const next = { query: writeQuery({ ...query.value, filters }) }
+  const next = { query: writeQuery({ ...query.value, filters }, columns.value) }
   return replace ? router.replace(next) : router.push(next)
 }
 

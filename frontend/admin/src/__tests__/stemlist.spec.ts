@@ -272,18 +272,136 @@ describe('URL', () => {
     expect(readQuery({ sort: ['beams', 'changed'] }, columnIds).sort).toBe('beams')
   })
 
-  it('writes only what is not the default, and reads back what it wrote', () => {
-    expect(writeQuery({ tags: '', filters: {}, sort: 'tag', dir: 'asc' })).toEqual({})
-    expect(writeQuery({ tags: '104', filters: {}, sort: 'beams', dir: 'desc' })).toEqual({
-      tags: '104',
+  it('writes names instead of ids and still reads old links with ids', () => {
+    const [eiche] = column('Holzart').attribute!.options
+    const state = {
+      tags: '',
+      filters: { [holzart]: eiche.id, beams: '1~3', changed: '2026-10-01~' },
       sort: 'beams',
-      dir: 'desc',
+      dir: 'desc' as const,
+    }
+    const written = writeQuery(state, columnIds)
+    expect(Object.keys(written)).toEqual(['Holzart', 'Balken', 'Geändert', 'sort', 'dir'])
+    expect(written.sort).toBe('Balken')
+    expect(written.Holzart).toBe(eiche.label)
+    expect(readQuery(written, columnIds)).toEqual(state)
+    expect(readQuery({ [`f.${holzart}`]: eiche.id, sort: 'beams' }, columnIds)).toEqual({
+      tags: '',
+      filters: { [holzart]: eiche.id },
+      sort: 'beams',
+      dir: 'asc',
     })
+    // a name that is not (any more) a column is ignored
+    expect(readQuery({ Gibtsnicht: 'has', sort: 'Gibtsnicht' }, columnIds)).toEqual(
+      readQuery({}, columnIds),
+    )
+  })
+
+  // Names the code does not know: each case is a clash the URL has to survive
+  describe('ambiguous names', () => {
+    const attribute = (id: string, name: string, extra: Partial<Attribute> = {}): Attribute => ({
+      id,
+      key: null,
+      name,
+      description: '',
+      type: 'choice',
+      unit: null,
+      is_series: false,
+      is_inheritable: false,
+      applies_to: ['stem'],
+      hidden_when: [],
+      sort_order: 1,
+      active: true,
+      options: [],
+      ...extra,
+    })
+    const options = (...labels: string[]) =>
+      labels.map((label, index) => ({ id: `opt-${index}`, label, sort_order: index, active: true }))
+    const cols = buildColumns(
+      [
+        attribute('a-tags', 'tags', {
+          options: options('A b', 'C,d', 'none', 'Doppelt', 'Doppelt', 'Ä'),
+        }),
+        attribute('a-sort', 'sort'),
+        attribute('a-dir', 'dir'),
+        attribute('a-beams', 'Balken'),
+        attribute('a-changed', 'Geändert'),
+        attribute('a-beams-id', 'beams'),
+        attribute('a-twin1', 'Zwilling'),
+        attribute('a-twin2', 'Zwilling'),
+        attribute('a-empty', '  '),
+        attribute('a-ok', 'Länge mit Leerzeichen', { options: options('Ä') }),
+      ],
+      'stem',
+    )
+
+    it('falls back to the id for them and keeps the heading of the fixed columns', () => {
+      const written = writeQuery(
+        {
+          tags: '',
+          filters: Object.fromEntries(
+            cols
+              .filter((c) => c.kind !== 'tag')
+              .map((c) => [c.id, c.kind === 'attribute' ? 'opt-0' : '1~2']),
+          ),
+          sort: 'beams',
+          dir: 'asc',
+        },
+        cols,
+      )
+      expect(Object.keys(written).sort()).toEqual(
+        [
+          'Balken',
+          'Geändert',
+          'Länge mit Leerzeichen',
+          'a-tags',
+          'a-sort',
+          'a-dir',
+          'a-beams',
+          'a-changed',
+          'a-beams-id',
+          'a-twin1',
+          'a-twin2',
+          'a-empty',
+          'sort',
+        ].sort(),
+      )
+      expect(written['Länge mit Leerzeichen']).toBe('Ä')
+    })
+
+    it('does not split an option with a comma, nor confuse "none" or twins', () => {
+      const filters = { 'a-tags': 'opt-0,opt-1,none,opt-2,opt-3,opt-5' }
+      const written = writeQuery({ tags: '', filters, sort: 'tag', dir: 'asc' }, cols)
+      expect(written['a-tags']).toBe('A b,opt-1,none,opt-2,opt-3,Ä')
+      expect(readQuery(written, cols).filters).toEqual(filters)
+      // an option that does not exist is dropped, none left = no filter
+      expect(readQuery({ 'a-tags': 'A b,Gibtsnicht' }, cols).filters).toEqual({ 'a-tags': 'opt-0' })
+      expect(readQuery({ 'a-tags': 'Gibtsnicht' }, cols).filters).toEqual({})
+    })
+
+    it('reads sort by name, and a name that is a URL word never means a column', () => {
+      expect(readQuery({ sort: 'Balken' }, cols).sort).toBe('beams')
+      expect(readQuery({ sort: 'beams' }, cols).sort).toBe('beams')
+      expect(readQuery({ sort: 'tags' }, cols).sort).toBe('tag')
+      expect(readQuery({ sort: 'Zwilling' }, cols).sort).toBe('tag')
+      expect(readQuery({ sort: 'a-twin2' }, cols).sort).toBe('a-twin2')
+    })
+  })
+
+  it('writes only what is not the default, and reads back what it wrote', () => {
+    expect(writeQuery({ tags: '', filters: {}, sort: 'tag', dir: 'asc' }, columnIds)).toEqual({})
+    expect(writeQuery({ tags: '104', filters: {}, sort: 'beams', dir: 'desc' }, columnIds)).toEqual(
+      {
+        tags: '104',
+        sort: 'Balken',
+        dir: 'desc',
+      },
+    )
     for (const state of [
       { tags: '1-10,15', filters: {}, sort: holzart, dir: 'asc' as const },
       { tags: '', filters: {}, sort: 'tag', dir: 'desc' as const },
     ]) {
-      expect(readQuery(writeQuery(state), columnIds)).toEqual(state)
+      expect(readQuery(writeQuery(state, columnIds), columnIds)).toEqual(state)
     }
   })
 
