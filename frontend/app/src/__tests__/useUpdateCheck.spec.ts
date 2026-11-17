@@ -18,12 +18,19 @@ import {
   startUpdateCheck,
 } from '@/composables/useUpdateCheck'
 import { save } from '@/persistence/database'
+import { flushDiagnostics } from '@/diagnostics/send'
 import { holdSync } from './storeSetup'
 
 // Pass-through spy: a test can hold back a write to the device.
 vi.mock('@/persistence/database', async (importOriginal) => {
   const original = await importOriginal<typeof import('@/persistence/database')>()
   return { ...original, save: vi.fn(original.save) }
+})
+
+// Pass-through spy: a test can hold back the delivery that comes before a reload.
+vi.mock('@/diagnostics/send', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/diagnostics/send')>()
+  return { ...original, flushDiagnostics: vi.fn(original.flushDiagnostics) }
 })
 
 let visibility: DocumentVisibilityState
@@ -195,17 +202,34 @@ describe('applying a waiting update', () => {
     expect(reload).not.toHaveBeenCalled()
   })
 
-  it('reloads when the worker reports activated', () => {
+  it('reloads when the worker reports activated', async () => {
     setState('activating')
+    await vi.advanceTimersByTimeAsync(0)
     expect(reload).not.toHaveBeenCalled()
     setState('activated')
+    await vi.advanceTimersByTimeAsync(0)
     expect(reload).toHaveBeenCalledTimes(1)
   })
 
-  it('reloads after the timeout if nothing happens, once the report had a moment to be stored', () => {
-    vi.advanceTimersByTime(APPLY_UPDATE_TIMEOUT_MS + RELOAD_GRACE_MS - 1)
+  it('reloads after the timeout if nothing happens, once the report had a moment to be stored', async () => {
+    await vi.advanceTimersByTimeAsync(APPLY_UPDATE_TIMEOUT_MS + RELOAD_GRACE_MS - 1)
     expect(reload).not.toHaveBeenCalled()
-    vi.advanceTimersByTime(1)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(reload).toHaveBeenCalledTimes(1)
+  })
+
+  it('reloads only after the diagnostics were delivered, so they are not sent again', async () => {
+    let delivered!: () => void
+    vi.mocked(flushDiagnostics).mockClear()
+    vi.mocked(flushDiagnostics).mockImplementationOnce(
+      () => new Promise<void>((resolve) => (delivered = resolve)),
+    )
+    setState('activated')
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(flushDiagnostics).toHaveBeenCalledTimes(1)
+    expect(reload).not.toHaveBeenCalled()
+    delivered()
+    await vi.advanceTimersByTimeAsync(0)
     expect(reload).toHaveBeenCalledTimes(1)
   })
 
@@ -234,18 +258,18 @@ describe('applying a waiting update', () => {
       expect(isLockStuck.value).toBe(false)
     })
 
-    it('reloads on the button even after the timeout fallback has used up its own reload', () => {
-      vi.advanceTimersByTime(APPLY_UPDATE_TIMEOUT_MS + RELOAD_GRACE_MS)
+    it('reloads on the button even after the timeout fallback has used up its own reload', async () => {
+      await vi.advanceTimersByTimeAsync(APPLY_UPDATE_TIMEOUT_MS + RELOAD_GRACE_MS)
       expect(reload).toHaveBeenCalledTimes(1)
       reloadFromLock()
-      vi.advanceTimersByTime(RELOAD_GRACE_MS)
+      await vi.advanceTimersByTimeAsync(RELOAD_GRACE_MS)
       expect(reload).toHaveBeenCalledTimes(2)
     })
   })
 
-  it('reloads only once when both happen', () => {
+  it('reloads only once when both happen', async () => {
     setState('activated')
-    vi.advanceTimersByTime(APPLY_UPDATE_TIMEOUT_MS + RELOAD_GRACE_MS)
+    await vi.advanceTimersByTimeAsync(APPLY_UPDATE_TIMEOUT_MS + RELOAD_GRACE_MS)
     expect(reload).toHaveBeenCalledTimes(1)
   })
 })

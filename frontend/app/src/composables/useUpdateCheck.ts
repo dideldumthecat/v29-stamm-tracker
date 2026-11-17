@@ -1,5 +1,6 @@
 import { ref, watch, type Ref } from 'vue'
 import { record } from '@/diagnostics/record'
+import { flushDiagnostics } from '@/diagnostics/send'
 import { useTimberItemStore } from '@/stores/timberItems'
 
 // Same reasoning as MIN_REFRESH_INTERVAL_MS: short stays at other apps should not each cost a request.
@@ -9,6 +10,8 @@ export const UPDATE_CHECK_PERIOD_MS = 60 * 60_000
 export const APPLY_UPDATE_TIMEOUT_MS = 4000
 // After the timeout the report gets this long to reach device storage before the page goes.
 export const RELOAD_GRACE_MS = 300
+// Longest wait for the diagnostics to be delivered before the reload (see flushDiagnostics).
+export const RELOAD_DIAGNOSTICS_FLUSH_MS = 1500
 // The normal reload comes after a few seconds; if the lock still stands after this, the reload failed (iOS freezes
 // timers in the background) and the lock offers a way out. Not earlier: a tap before the new worker has taken over
 // would load the old version and start the update again.
@@ -20,8 +23,9 @@ export const isInstalling = ref(false)
 // The lock has stood longer than LOCK_ESCAPE_MS: it shows the reload button.
 export const isLockStuck = ref(false)
 
+// Entries still unsent when the page goes away would be sent again after the reload: deliver them while the page lives.
 function reloadPage() {
-  window.location.reload()
+  void flushDiagnostics(RELOAD_DIAGNOSTICS_FLUSH_MS).finally(() => window.location.reload())
 }
 
 /** The lock's reload button: the same reload as the timeout fallback, but without its once-only guard (which may already have been spent). */
