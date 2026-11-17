@@ -33,7 +33,7 @@ class Photo
         public readonly User $user,
         #[ORM\Column(options: ['unsigned' => true])]
         public readonly int $size,
-        #[ORM\Column(type: Types::STRING, length: 64, columnDefinition: 'CHAR(64) NOT NULL')]
+        #[ORM\Column(type: Types::STRING, length: 64, options: ['fixed' => true])]
         public readonly string $sha256,
         #[ORM\Column(type: Types::DATETIME_IMMUTABLE, columnDefinition: 'DATETIME(6) NOT NULL')]
         public readonly \DateTimeImmutable $takenAt,
