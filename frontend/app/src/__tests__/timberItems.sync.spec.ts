@@ -73,7 +73,7 @@ describe('timber item store: sync', () => {
       'info',
       'sync',
       'Sync finished',
-      expect.objectContaining({ transferred: 2 }),
+      expect.objectContaining({ entries_uploaded_without_photos: 2 }),
     )
   })
 

@@ -5,7 +5,7 @@
 import { computed, readonly, ref, toRaw, watch } from 'vue'
 import { defineStore } from 'pinia'
 import type { AttributeValue, Event, TimberItem, Timestamp, Uuid } from '@v29/shared/contract'
-import { api, type User } from '@/api/client'
+import { api, setPendingCounts, type User } from '@/api/client'
 import { load as loadStored, type StoredPhoto } from '@/persistence/database'
 import { record } from '@/diagnostics/record'
 import { sendDiagnostics, setDiagnosticsSignedIn } from '@/diagnostics/send'
@@ -54,6 +54,11 @@ export const useTimberItemStore = defineStore('timberItems', () => {
       events.value.filter((event) => isEntry(event) && !isPhotoEvent(event)).length +
       photos.value.length,
   )
+  setPendingCounts(() => ({
+    entries: pendingCount.value,
+    events: events.value.length,
+    photos: photos.value.length,
+  }))
   const progress = ref<SyncProgress | null>(null)
   // The running sync lives here, not in a screen: a screen opened later sees it and can stop it.
   const isSyncing = ref(false)

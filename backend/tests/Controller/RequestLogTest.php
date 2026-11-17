@@ -109,6 +109,21 @@ class RequestLogTest extends WebTestCase
         self::assertStringNotContainsString('secret', json_encode($lines[0]->toArray()));
     }
 
+    public function testPendingCountsAreLoggedAndInvalidOrMissingOnesAreNull(): void
+    {
+        $this->client->request('GET', '/api/ping', server: ['HTTP_X_PENDING_ENTRIES' => '3', 'HTTP_X_PENDING_EVENTS' => '0', 'HTTP_X_PENDING_PHOTOS' => 'many']);
+        $this->client->request('GET', '/api/ping', server: ['HTTP_X_PENDING_ENTRIES' => '-1', 'HTTP_X_PENDING_EVENTS' => '1.5']);
+        $this->client->request('GET', '/api/ping');
+
+        $lines = $this->requestLines();
+        self::assertCount(3, $lines);
+        $keys = array_flip(['pending_entries', 'pending_events', 'pending_photos']);
+        self::assertSame(['pending_entries' => 3, 'pending_events' => 0, 'pending_photos' => null], array_intersect_key($lines[0]->context, $keys));
+        self::assertSame(['pending_entries' => null, 'pending_events' => null, 'pending_photos' => null], array_intersect_key($lines[1]->context, $keys));
+        self::assertSame(['pending_entries' => null, 'pending_events' => null, 'pending_photos' => null], array_intersect_key($lines[2]->context, $keys));
+        self::assertResponseIsSuccessful();
+    }
+
     public function testSyncProducesOneRequestLineWithTheUserAndADomainLine(): void
     {
         $this->signIn();

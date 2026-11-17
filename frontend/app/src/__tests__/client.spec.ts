@@ -23,6 +23,38 @@ describe('real API client', () => {
   })
 })
 
+describe('pending counts', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs()
+    vi.unstubAllGlobals()
+    vi.resetModules()
+  })
+
+  it('sends the registered counts with every request, and none before that', async () => {
+    vi.stubEnv('VITE_API', '')
+    const fetchMock = vi.fn(async () => Response.json({ accepted_event_ids: [], rejected: [] }))
+    vi.stubGlobal('fetch', fetchMock)
+    const { api, setPendingCounts } = await import('@/api/client')
+    const headersOfCall = (index: number) =>
+      (fetchMock.mock.calls[index] as unknown as [string, RequestInit])[1].headers as Record<
+        string,
+        string
+      >
+
+    await api.loadSnapshot()
+    setPendingCounts(() => ({ entries: 3, events: 5, photos: 0 }))
+    await api.sync([])
+
+    expect(headersOfCall(0)).not.toHaveProperty('X-Pending-Entries')
+    expect(headersOfCall(1)).toMatchObject({
+      'X-Pending-Entries': '3',
+      'X-Pending-Events': '5',
+      'X-Pending-Photos': '0',
+      'Content-Type': 'application/json',
+    })
+  })
+})
+
 describe('failed requests in the diagnostics', () => {
   afterEach(() => {
     vi.unstubAllEnvs()

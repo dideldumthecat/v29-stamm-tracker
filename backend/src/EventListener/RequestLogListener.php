@@ -7,6 +7,7 @@ use Monolog\Attribute\WithMonologChannel;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Event\TerminateEvent;
 
 /**
@@ -45,6 +46,17 @@ final class RequestLogListener
             'user_name' => $user instanceof User ? $user->name : null,
             'user_agent' => mb_substr((string) $request->headers->get('User-Agent'), 0, 120),
             'app_build' => $request->headers->get('X-App-Build'),
+            // At /api/sync the state before the upload. Diagnostics only, nothing evaluates them.
+            'pending_entries' => $this->count($request, 'X-Pending-Entries'),
+            'pending_events' => $this->count($request, 'X-Pending-Events'),
+            'pending_photos' => $this->count($request, 'X-Pending-Photos'),
         ]);
+    }
+
+    private function count(Request $request, string $header): ?int
+    {
+        $value = filter_var($request->headers->get($header), \FILTER_VALIDATE_INT, ['options' => ['min_range' => 0]]);
+
+        return false === $value ? null : $value;
     }
 }
