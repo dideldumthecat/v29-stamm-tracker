@@ -24,6 +24,9 @@ const error = ref(false)
 // focused elements and anchors then never land under it. Below `lg` it scrolls away and the variable is ignored.
 const header = useTemplateRef<HTMLElement>('header')
 useSizeVariable(header, '--header-height', 'height')
+// The footer height is for pages that must leave room for it at the end (the photo card of the detail view)
+const footer = useTemplateRef<HTMLElement>('footer')
+useSizeVariable(footer, '--footer-height', 'height')
 
 async function onSignOut() {
   error.value = false
@@ -92,7 +95,7 @@ async function onSignOut() {
       <!-- The name as key: the two lists are one component, each starts fresh (own filters, own data) -->
       <RouterView :key="String(route.name)" />
     </div>
-    <footer class="sticky left-0 w-[100cqw]">
+    <footer ref="footer" class="sticky left-0 w-[100cqw]">
       <div class="page-column py-8 text-center text-caption text-mute">
         <AuthorCredit />
       </div>
