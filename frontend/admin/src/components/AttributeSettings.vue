@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, useId, watch } from 'vue'
+import { computed, nextTick, reactive, ref, useId } from 'vue'
 import {
   EyeIcon,
   EyeOffIcon,
@@ -36,9 +36,7 @@ import { useReorder } from '@/reorder'
  * change in type, inheritance and series (the server refuses it too).
  * The type on top is text with "ändern" (to the tiles, the parent shows them); for a date the row "Genauigkeit" (day or month).
  * Without an `attribute` the form is the second step of a new one: "Abbrechen" and "Anlegen" at the bottom.
- * On a narrow screen the card is as high as its content and scrolls with the page; the buttons are its last row (without a line above).
- * From `lg` on it sits in the sticky column of the view and is at most as high as the visible area: the content (`data-card-scroll`, with
- * the heading) scrolls inside the card, the buttons stay at the bottom.
+ * The card is as high as its content and scrolls with the page; the buttons are its last row (without a line above), nothing sticks.
  */
 const props = defineProps<{
   /** null: the draft of a new attribute */
@@ -74,28 +72,6 @@ async function focusFirstError() {
   })
   control?.focus({ preventScroll: true })
 }
-// From lg on the content scrolls inside the card (data-card-scroll): while something is hidden below the buttons they get a line on top.
-// Measured on scrolling and when the card or its form changes size (a row appears, an option is added); without scrolling there is nothing hidden.
-const scroller = ref<HTMLElement>()
-const moreBelow = ref(false)
-function measure() {
-  const el = scroller.value
-  moreBelow.value = !!el && el.scrollHeight - el.scrollTop - el.clientHeight > 1
-}
-let observer: ResizeObserver | undefined
-onMounted(() => {
-  measure()
-  if (typeof ResizeObserver === 'undefined') return
-  observer = new ResizeObserver(measure)
-  if (scroller.value) observer.observe(scroller.value)
-  if (form.value) observer.observe(form.value)
-})
-watch(form, (now, before) => {
-  if (before) observer?.unobserve(before)
-  if (now) observer?.observe(now)
-  measure()
-})
-onBeforeUnmount(() => observer?.disconnect())
 // After a successful save "Speichern" is disabled, which would drop the focus onto the page: the heading takes it (the parent asks for it)
 const heading = ref<HTMLElement>()
 const focusHeading = () => heading.value?.focus()
@@ -201,14 +177,8 @@ function newOptionLabel(option: AttributeDraft['options'][number]) {
 
 <template>
   <!-- Padding 20 px on all sides; no line above the buttons (as there is none below the heading), 24 px between the last row and them -->
-  <section class="card lg:flex lg:min-h-0 lg:flex-col" :aria-labelledby="`${id}-heading`">
-    <div
-      ref="scroller"
-      data-card-scroll
-      class="px-5 pt-5 lg:min-h-0 lg:flex-1 lg:overflow-y-auto"
-      :class="attribute?.is_system ? 'pb-2' : 'pb-0'"
-      @scroll="measure"
-    >
+  <section class="card" :aria-labelledby="`${id}-heading`">
+    <div class="px-5 pt-5" :class="attribute?.is_system ? 'pb-2' : 'pb-0'">
       <!-- The heading is the first row, so that the X sits in the corner beside it; the note of a system attribute follows right below -->
       <div class="flex items-center justify-between gap-3">
         <h2
@@ -594,8 +564,7 @@ function newOptionLabel(option: AttributeDraft['options'][number]) {
 
     <div
       v-if="!attribute?.is_system"
-      class="flex flex-wrap items-center justify-end gap-3 border-t px-5 pt-6 pb-5 lg:shrink-0"
-      :class="moreBelow ? 'border-soft' : 'border-transparent'"
+      class="flex flex-wrap items-center justify-end gap-3 px-5 pt-6 pb-5"
     >
       <p v-if="failed" class="mr-auto text-sm font-semibold" role="alert">
         {{ isNew ? 'Anlegen' : 'Speichern' }} fehlgeschlagen. Bitte noch einmal versuchen.

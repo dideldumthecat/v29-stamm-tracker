@@ -9,12 +9,15 @@ import {
   dialog,
   dialogButton,
   field,
+  handle,
   handles,
   open,
   previewNames,
   settings,
   squeezed,
 } from './attributesPage'
+import snapshot from '@v29/shared/fixtures/snapshot.json' with { type: 'json' }
+
 import { stubBrowser } from './popup'
 
 enableAutoUnmount(afterEach)
@@ -900,7 +903,7 @@ describe('bringing the settings into view', () => {
     document.documentElement.removeAttribute('style')
   })
 
-  it('does not scroll the page to the card on a wide screen: it is sticky and always in view', async () => {
+  it('does not scroll to the card on a wide screen: it stands beside the field', async () => {
     const { wrapper } = await open()
     cardStartsAt(-100)
 
@@ -911,19 +914,6 @@ describe('bringing the settings into view', () => {
     await flushPromises()
 
     expect(scrolled()).toHaveLength(0)
-  })
-
-  it('starts the content of the card at the top for another selection', async () => {
-    const { wrapper } = await open()
-    await field(wrapper, 'Holzart').trigger('click')
-    await flushPromises()
-    const scroller = wrapper.get('[data-settings-column] [data-card-scroll]').element
-    scroller.scrollTop = 120
-
-    await field(wrapper, 'Lagerplatz').trigger('click')
-    await flushPromises()
-
-    expect(wrapper.get('[data-settings-column] [data-card-scroll]').element.scrollTop).toBe(0)
   })
 
   it('always scrolls to the card on a narrow screen, where it lies below the preview', async () => {
@@ -938,65 +928,257 @@ describe('bringing the settings into view', () => {
     expect(scrolled()[0].options).toEqual({ block: 'start', behavior: 'auto' })
   })
 
-  it('does not scroll while the question about unsaved changes holds the selection back', async () => {
+  const scrolledToField = () =>
+    vi
+      .mocked(Element.prototype.scrollIntoView)
+      .mock.contexts.map((element, index) => ({
+        element: element as HTMLElement,
+        options: vi.mocked(Element.prototype.scrollIntoView).mock.calls[index][0],
+      }))
+      // what is scrolled to is selected when it happens, not necessarily later
+      .filter(({ element }) => element.closest('[aria-label="Vorschau"]'))
+  const idOf = (name: string) =>
+    snapshot.attributes.find((attribute) => attribute.name === name)!.id
+  const smooth = { block: 'start', behavior: 'smooth' }
+
+  it('scrolls to the field a click selects, smoothly, so that it starts at the top', async () => {
+    const { wrapper } = await open()
+
+    await field(wrapper, 'Lagerplatz').trigger('click')
+    await flushPromises()
+
+    expect(scrolledToField()).toHaveLength(1)
+    expect(scrolledToField()[0].element.getAttribute('aria-label')).toBe('Lagerplatz')
+    expect(scrolledToField()[0].options).toEqual(smooth)
+
+    await field(wrapper, 'Holzart').trigger('click')
+    await flushPromises()
+    expect(scrolledToField().map(({ element }) => element.getAttribute('aria-label'))).toEqual([
+      'Lagerplatz',
+      'Holzart',
+    ])
+  })
+
+  it('scrolls once the selection is made, and not for a click on the field that is selected', async () => {
+    const { wrapper } = await open()
+    await field(wrapper, 'Holzart').trigger('click')
+    await flushPromises()
+    await field(wrapper, 'Holzart').trigger('click')
+    await flushPromises()
+
+    expect(scrolledToField()).toHaveLength(1)
+  })
+
+  it('does not scroll without animation when the motion is reduced, and not to the field when it is closed', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('reduce') }))
+    const { wrapper } = await open()
+
+    await field(wrapper, 'Holzart').trigger('click')
+    await flushPromises()
+    expect(scrolledToField()[0].options).toEqual({ block: 'start', behavior: 'auto' })
+
+    await wrapper.get('button[aria-label="Schließen"]').trigger('click')
+    await flushPromises()
+    expect(scrolledToField()).toHaveLength(1)
+  })
+
+  it('scrolls to the placeholder when "Merkmal hinzufügen" creates it, in the card too', async () => {
+    const { wrapper } = await open()
+
+    await wrapper
+      .get('[data-settings-column]')
+      .findAll('button')
+      .find((button) => squeezed(button.text()) === 'Merkmal hinzufügen')!
+      .trigger('click')
+    await flushPromises()
+
+    expect(scrolledToField()).toHaveLength(1)
+    expect(scrolledToField()[0].element.hasAttribute('data-placeholder')).toBe(true)
+    expect(scrolledToField()[0].options).toEqual(smooth)
+  })
+
+  it('scrolls to the selected field when the page loads with it in the URL, and to the placeholder of a new attribute', async () => {
+    const { wrapper } = await open(`/attributes?attribute=${idOf('Lagerplatz')}`)
+    expect(scrolledToField()).toHaveLength(1)
+    expect(scrolledToField()[0].element.getAttribute('aria-label')).toBe('Lagerplatz')
+    expect(scrolledToField()[0].options).toEqual(smooth)
+    wrapper.unmount()
+
+    vi.mocked(Element.prototype.scrollIntoView).mockClear()
+    await open('/attributes?attribute=new')
+    expect(scrolledToField()).toHaveLength(1)
+    expect(scrolledToField()[0].element.hasAttribute('data-placeholder')).toBe(true)
+  })
+
+  it('scrolls to the selection that back brings', async () => {
+    const { router, wrapper } = await open('/attributes')
+    await field(wrapper, 'Holzart').trigger('click')
+    await flushPromises()
+    await field(wrapper, 'Lagerplatz').trigger('click')
+    await flushPromises()
+    vi.mocked(Element.prototype.scrollIntoView).mockClear()
+
+    router.back()
+    await flushPromises()
+
+    expect(router.currentRoute.value.query.attribute).toBe(idOf('Holzart'))
+    expect(scrolledToField()).toHaveLength(1)
+    expect(scrolledToField()[0].element.getAttribute('aria-label')).toBe('Holzart')
+  })
+
+  it('does not scroll while the question about unsaved changes holds the selection back, and scrolls once it changes', async () => {
     const { wrapper } = await open()
     await field(wrapper, 'Lagerplatz').trigger('click')
     await flushPromises()
     await settings(wrapper).get('input[type=text]').setValue('Ort')
-    cardStartsAt(-100)
+    vi.mocked(Element.prototype.scrollIntoView).mockClear()
 
     await field(wrapper, 'Holzart').trigger('click')
     await flushPromises()
-
     expect(dialog()).not.toBeNull()
-    expect(scrolled()).toHaveLength(0)
+    expect(scrolledToField().map(({ element }) => element.getAttribute('aria-label'))).toEqual([])
+
+    dialogButton('Weiter bearbeiten').click()
+    await flushPromises()
+    expect(scrolledToField()).toHaveLength(0)
+
+    await field(wrapper, 'Holzart').trigger('click')
+    await flushPromises()
+    dialogButton('Verwerfen').click()
+    await flushPromises()
+    expect(scrolledToField()).toHaveLength(1)
+    expect(scrolledToField()[0].element.getAttribute('aria-label')).toBe('Holzart')
   })
 
-  it('draws a line above the buttons while content is hidden below them, and not at the end or without scrolling', async () => {
+  it('does not scroll when the selection stays: after a save and after a move', async () => {
     const { wrapper } = await open()
     await field(wrapper, 'Lagerplatz').trigger('click')
     await flushPromises()
-    const scroller = settings(wrapper).get('[data-card-scroll]')
-    const bar = () => buttonWith(wrapper, 'Speichern')!.element.parentElement!
-    const layout = async (scrollHeight: number, scrollTop: number) => {
-      for (const [key, value] of Object.entries({ scrollHeight, scrollTop, clientHeight: 400 })) {
-        Object.defineProperty(scroller.element, key, { value, configurable: true })
-      }
-      await scroller.trigger('scroll')
-    }
+    await settings(wrapper).get('input[type=text]').setValue('Ort')
+    vi.mocked(Element.prototype.scrollIntoView).mockClear()
 
-    // nothing to scroll
-    await layout(400, 0)
-    expect(bar().className).toContain('border-transparent')
-    // scrollable and not at the end: the line, in the color of the dividers
-    await layout(900, 0)
-    expect(bar().className).toContain('border-soft')
-    await layout(900, 300)
-    expect(bar().className).toContain('border-soft')
-    // at the bottom: no line
-    await layout(900, 500)
-    expect(bar().className).toContain('border-transparent')
+    await buttonWith(wrapper, 'Speichern')!.trigger('click')
+    await flushPromises()
+    await handle(wrapper, 'Ort').trigger('keydown', { key: 'ArrowUp' })
+    await flushPromises()
+
+    expect(scrolledToField()).toHaveLength(0)
   })
 
-  it('has a card that is sticky from lg on, at most as high as the visible area, and scrolls its content inside', async () => {
+  it('does not scroll to the field below lg', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('max-width') }))
+    const { wrapper } = await open(`/attributes?attribute=${idOf('Lagerplatz')}`)
+    await field(wrapper, 'Holzart').trigger('click')
+    await flushPromises()
+
+    expect(scrolledToField()).toHaveLength(0)
+  })
+
+  it('does not scroll after "Anlegen": the new field is where its placeholder was', async () => {
+    const { wrapper } = await open()
+    await buttonWith(wrapper, 'Merkmal hinzufügen')!.trigger('click')
+    await flushPromises()
+    await wrapper
+      .findAll('section button')
+      .find((button) => button.text().startsWith('Text'))!
+      .trigger('click')
+    await settings(wrapper).get('input[type=text]').setValue('Neu')
+    vi.mocked(Element.prototype.scrollIntoView).mockClear()
+
+    await buttonWith(wrapper, 'Anlegen')!.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.vm.$route.query.attribute).not.toBe('new')
+    expect(scrolledToField()).toHaveLength(0)
+  })
+
+  /** What the browser would say about the layout: the selected field starts `top` px below the column and is `height` px high. */
+  function selectedFieldAt(top: number, height: number) {
+    const selected = (element: HTMLElement) => element.matches('[aria-current="true"]')
+    vi.spyOn(HTMLElement.prototype, 'offsetTop', 'get').mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      return selected(this) ? top : 0
+    })
+    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      return selected(this) ? height : 0
+    })
+  }
+  const cardTop = (wrapper: VueWrapper) =>
+    (wrapper.get('[data-settings-column]').element as HTMLElement).style.getPropertyValue(
+      '--card-top',
+    )
+  const arrow = (wrapper: VueWrapper) => wrapper.find<HTMLElement>('[data-card-arrow]')
+  const close = (wrapper: VueWrapper) => wrapper.get('button[aria-label="Schließen"]')
+
+  it('starts the card at the height of the selected field, with an arrow at the middle of that field', async () => {
+    const { wrapper } = await open()
+    selectedFieldAt(300, 80)
+
+    await field(wrapper, 'Lagerplatz').trigger('click')
+    await flushPromises()
+
+    expect(cardTop(wrapper)).toBe('300px')
+    // from the top of the card to the middle of the field, minus half the arrow (14 px)
+    expect(arrow(wrapper).element.style.top).toBe('33px')
+    expect(arrow(wrapper).classes()).toContain('lg:block')
+    expect(arrow(wrapper).classes()).toContain('hidden')
+  })
+
+  it('follows another selection, and starts at the top with the arrow gone when nothing is selected', async () => {
+    const { wrapper } = await open()
+    selectedFieldAt(300, 80)
+    await field(wrapper, 'Lagerplatz').trigger('click')
+    await flushPromises()
+    selectedFieldAt(500, 100)
+
+    await field(wrapper, 'Holzart').trigger('click')
+    await flushPromises()
+    expect(cardTop(wrapper)).toBe('500px')
+    expect(arrow(wrapper).element.style.top).toBe('43px')
+
+    await close(wrapper).trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('Nichts ausgewählt')
+    expect(cardTop(wrapper)).toBe('0px')
+    expect(arrow(wrapper).exists()).toBe(false)
+  })
+
+  it('starts the type tiles and the form of a new attribute at the placeholder', async () => {
+    const { wrapper } = await open()
+    selectedFieldAt(700, 130)
+
+    await buttonWith(wrapper, 'Merkmal hinzufügen')!.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('[data-placeholder]').attributes('aria-current')).toBe('true')
+    expect(wrapper.text()).toContain('Neues Merkmal')
+    expect(cardTop(wrapper)).toBe('700px')
+    expect(arrow(wrapper).element.style.top).toBe('58px')
+  })
+
+  it('has a card that does not stick and does not scroll inside, with the buttons as its last row and nothing sticking', async () => {
     const { wrapper } = await open()
     await field(wrapper, 'Lagerplatz').trigger('click')
     await flushPromises()
 
     const column = wrapper.get('[data-settings-column]').element
     const panel = settings(wrapper).element
-    const scroller = panel.querySelector('[data-card-scroll]')!
-    // the column sticks under the header and the bar (24 px), at most as high as what is left below them (24 px at the bottom)
-    expect(column.className).toContain('lg:sticky')
-    expect(column.className).toContain('lg:top-[calc(var(--sticky-top)+1.5rem)]')
-    expect(column.className).toContain('lg:max-h-[calc(100dvh-var(--sticky-top)-3rem)]')
-    // the card shrinks to it, its content (with the heading) scrolls, "Verwerfen" and "Speichern" stay at the bottom, after the scrolling part
-    expect(panel.className).toContain('lg:min-h-0')
-    expect(scroller.className).toContain('lg:overflow-y-auto')
-    expect(scroller.contains(panel.querySelector('h2'))).toBe(true)
-    expect(scroller.contains(buttonWith(wrapper, 'Speichern')!.element)).toBe(false)
+    expect(column.className).not.toMatch(/sticky|max-h|overflow/)
+    expect(panel.outerHTML).not.toMatch(/data-card-scroll|overflow-y|max-h|sticky/)
     expect(panel.lastElementChild!.contains(buttonWith(wrapper, 'Speichern')!.element)).toBe(true)
-    expect(panel.lastElementChild!.className).toContain('lg:shrink-0')
+  })
+
+  it('has the buttons of the type tiles as the last row, nothing sticks', async () => {
+    const { wrapper } = await open()
+    await buttonWith(wrapper, 'Merkmal hinzufügen')!.trigger('click')
+    await flushPromises()
+
+    const card = wrapper.get('[data-settings-column] section')
+    expect(card.element.outerHTML).not.toMatch(/sticky|overflow-y|max-h/)
+    expect(card.element.lastElementChild!.textContent!.trim()).toBe('Abbrechen')
   })
 })
 
