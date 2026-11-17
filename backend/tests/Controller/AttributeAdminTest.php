@@ -158,10 +158,10 @@ class AttributeAdminTest extends WebTestCase
         yield 'hidden when an unknown key' => [['name' => 'A', 'type' => 'text', 'hidden_when' => ['nowhere']], ['hidden_when: Ausblenden ist nur bei Ja-Nein-Merkmalen mit Schlüssel möglich.']];
         yield 'series of a choice' => [['name' => 'A', 'type' => 'choice', 'is_series' => true, 'options' => [['label' => 'X']]], ['is_series: Bei Auswahl und Ja/Nein gibt es keine Messreihe.']];
         yield 'series of a boolean' => [['name' => 'A', 'type' => 'boolean', 'is_series' => true], ['is_series: Bei Auswahl und Ja/Nein gibt es keine Messreihe.']];
-        yield 'choice without options' => [['name' => 'A', 'type' => 'choice'], ['options: Bitte mindestens eine aktive Option anlegen.']];
-        yield 'choice with inactive options only' => [['name' => 'A', 'type' => 'choice', 'options' => [['label' => 'X', 'active' => false]]], ['options: Bitte mindestens eine aktive Option anlegen.']];
-        yield 'blank option' => [['name' => 'A', 'type' => 'choice', 'options' => [['label' => 'X'], ['label' => ' ']]], ['options.1.label: Bitte einen Namen für die Option eingeben.']];
-        yield 'option twice, trimmed' => [['name' => 'A', 'type' => 'choice', 'options' => [['label' => 'X'], ['label' => ' X ']]], ['options.1.label: Die Option „X“ gibt es schon.']];
+        yield 'choice without options' => [['name' => 'A', 'type' => 'choice'], ['options: Bitte mindestens eine aktive Auswahl-Option anlegen.']];
+        yield 'choice with inactive options only' => [['name' => 'A', 'type' => 'choice', 'options' => [['label' => 'X', 'active' => false]]], ['options: Bitte mindestens eine aktive Auswahl-Option anlegen.']];
+        yield 'blank option' => [['name' => 'A', 'type' => 'choice', 'options' => [['label' => 'X'], ['label' => ' ']]], ['options.1.label: Bitte einen Namen für die Auswahl-Option eingeben.']];
+        yield 'option twice, trimmed' => [['name' => 'A', 'type' => 'choice', 'options' => [['label' => 'X'], ['label' => ' X ']]], ['options.1.label: Die Auswahl-Option „X“ gibt es schon.']];
     }
 
     public function testFieldsOfAValidAttributeAreTrimmedAndHiddenWhenMayNameAYesNoKey(): void
@@ -270,7 +270,7 @@ class AttributeAdminTest extends WebTestCase
     {
         $this->call('PATCH', '/'.$this->species->id->toRfc4122(), ['options' => [['id' => $this->oak->id->toRfc4122(), 'label' => 'Eiche']]]);
 
-        self::assertSame(['options: Bestehende Optionen dürfen nicht fehlen; sie lassen sich nur deaktivieren.'], $this->errors());
+        self::assertSame(['options: Bestehende Auswahl-Optionen dürfen nicht fehlen; sie lassen sich nur deaktivieren.'], $this->errors());
         $this->em->clear();
         self::assertCount(2, $this->em->getRepository(AttributeOption::class)->findBy(['attribute' => $this->species]));
     }
@@ -282,13 +282,13 @@ class AttributeAdminTest extends WebTestCase
             ['id' => $this->beech->id->toRfc4122(), 'label' => 'Buche', 'active' => false],
             ['id' => Uuid::v7()->toRfc4122(), 'label' => 'Fremd'],
         ]]);
-        self::assertSame(['options.2.id: Diese Option gehört nicht zum Merkmal.', 'options: Bestehende Optionen dürfen nicht fehlen; sie lassen sich nur deaktivieren.'][0], $this->errors()[0]);
+        self::assertSame(['options.2.id: Diese Auswahl-Option gehört nicht zum Merkmal.', 'options: Bestehende Auswahl-Optionen dürfen nicht fehlen; sie lassen sich nur deaktivieren.'][0], $this->errors()[0]);
 
         $this->call('PATCH', '/'.$this->species->id->toRfc4122(), ['options' => [
             ['id' => $this->oak->id->toRfc4122(), 'label' => 'Eiche', 'active' => false],
             ['id' => $this->beech->id->toRfc4122(), 'label' => 'Buche', 'active' => false],
         ]]);
-        self::assertSame(['options: Bitte mindestens eine aktive Option anlegen.'], $this->errors());
+        self::assertSame(['options: Bitte mindestens eine aktive Auswahl-Option anlegen.'], $this->errors());
     }
 
     public function testOrderingIncludesSystemAttributes(): void

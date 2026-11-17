@@ -273,7 +273,7 @@ final class AttributeEditor
     private function checkOptions(mixed $list, array $existing, callable $fail): array
     {
         if (!\is_array($list) || !array_is_list($list)) {
-            $fail('options', 'Die Optionen müssen eine Liste sein.');
+            $fail('options', 'Die Auswahl-Optionen müssen eine Liste sein.');
 
             return [];
         }
@@ -289,15 +289,15 @@ final class AttributeEditor
             $id = \is_array($option) ? ($option['id'] ?? null) : null;
             $active = \is_array($option) ? ($option['active'] ?? true) : true;
             if ('' === $label) {
-                $fail("options.$i.label", 'Bitte einen Namen für die Option eingeben.');
+                $fail("options.$i.label", 'Bitte einen Namen für die Auswahl-Option eingeben.');
             } elseif (mb_strlen($label) > 255) {
-                $fail("options.$i.label", 'Der Name einer Option darf höchstens 255 Zeichen lang sein.');
+                $fail("options.$i.label", 'Der Name einer Auswahl-Option darf höchstens 255 Zeichen lang sein.');
             } elseif (isset($labels[mb_strtolower($label)])) {
-                $fail("options.$i.label", \sprintf('Die Option „%s“ gibt es schon.', $label));
+                $fail("options.$i.label", \sprintf('Die Auswahl-Option „%s“ gibt es schon.', $label));
             }
             $labels[mb_strtolower($label)] = true;
             if (null !== $id && (!\is_string($id) || !isset($known[$id]) || isset($seen[$id]))) {
-                $fail("options.$i.id", 'Diese Option gehört nicht zum Merkmal.');
+                $fail("options.$i.id", 'Diese Auswahl-Option gehört nicht zum Merkmal.');
             }
             if (\is_string($id)) {
                 $seen[$id] = true;
@@ -309,10 +309,10 @@ final class AttributeEditor
             $result[] = ['id' => \is_string($id) ? $id : null, 'label' => $label, 'active' => $active];
         }
         if (array_diff_key($known, $seen)) {
-            $fail('options', 'Bestehende Optionen dürfen nicht fehlen; sie lassen sich nur deaktivieren.');
+            $fail('options', 'Bestehende Auswahl-Optionen dürfen nicht fehlen; sie lassen sich nur deaktivieren.');
         }
         if (!array_filter($result, static fn (array $o) => $o['active'])) {
-            $fail('options', 'Bitte mindestens eine aktive Option anlegen.');
+            $fail('options', 'Bitte mindestens eine aktive Auswahl-Option anlegen.');
         }
 
         return $result;

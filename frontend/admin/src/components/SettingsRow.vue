@@ -10,7 +10,7 @@ import { useId } from 'vue'
  */
 const props = defineProps<{ label: string; labelFor?: string; error?: string }>()
 const labelId = useId()
-defineSlots<{ default(): unknown; hint?(): unknown }>()
+defineSlots<{ default(props: { labelId: string }): unknown; hint?(): unknown }>()
 </script>
 
 <template>
@@ -28,7 +28,7 @@ defineSlots<{ default(): unknown; hint?(): unknown }>()
       >{{ label }}</component
     >
     <div class="flex min-w-0 flex-col gap-1.5">
-      <slot />
+      <slot :label-id="labelId" />
       <p v-if="error" class="text-sm font-semibold" role="alert">{{ error }}</p>
       <slot name="hint" />
     </div>

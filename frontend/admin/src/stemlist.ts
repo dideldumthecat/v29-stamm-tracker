@@ -24,7 +24,7 @@ import {
 } from '@/listFilters'
 
 /**
- * Pure logic of the list of stems (`kind` "stem", Rundholz) and of beams (`kind` "beam", Schnittholz): columns from the attributes, rows from the snapshot, cell values,
+ * Pure logic of the list of stems (`kind` "stem", "Stämme") and of beams (`kind` "beam", "Balken"): columns from the attributes, rows from the snapshot, cell values,
  * sorting and the URL. Nothing here knows an attribute by name or key: columns and cells follow type and definition. The filters
  * and their texts are in `listFilters.ts`.
  */

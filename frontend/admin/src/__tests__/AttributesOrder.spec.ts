@@ -282,7 +282,7 @@ describe('sorting the options', () => {
   }
   const labels = (wrapper: VueWrapper) =>
     settings(wrapper)
-      .findAll<HTMLInputElement>('input[aria-label^="Option"]')
+      .findAll<HTMLInputElement>('input[aria-label^="Auswahl-Option"]')
       .map((input) => input.element.value)
   const optionHandle = (wrapper: VueWrapper, label: string) =>
     settings(wrapper)

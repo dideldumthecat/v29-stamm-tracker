@@ -9,10 +9,10 @@ import { signOut, user } from '@/auth'
 import AdminMenu from '@/components/AdminMenu.vue'
 import { useSizeVariable } from '@/sizeVariable'
 
-// Only pages that exist, one line each, in the order of the design: Dashboard, Rundholz, Schnittholz, Merkmale, Nutzer, Aktivität.
+// Only pages that exist, one line each, in the order of the design: Dashboard, Stämme, Balken, Merkmale, Nutzer, Aktivität.
 const navigation = [
-  { label: 'Rundholz', to: { name: 'stems' } },
-  { label: 'Schnittholz', to: { name: 'beams' } },
+  { label: 'Stämme', to: { name: 'stems' } },
+  { label: 'Balken', to: { name: 'beams' } },
   { label: 'Aktivität', to: { name: 'activity' } },
 ]
 

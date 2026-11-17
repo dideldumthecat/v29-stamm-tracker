@@ -107,13 +107,13 @@ const setInactive = (inactive: boolean) =>
 // --- The form of the selected attribute or of the new one ----------------------------------------------------------------------
 
 const draft = ref<AttributeDraft | null>(null)
-/** A new attribute: first the type (tiles), then the form. */
+/** The type tiles or the form: a new attribute starts with the tiles, "ändern" at the type of an existing one leads to them too. */
 const newStep = ref<'type' | 'form'>('type')
 const errors = ref<Record<string, string>>({})
 const saving = ref(false)
 const saveFailed = ref(false)
 function resetDraft() {
-  newStep.value = 'type'
+  newStep.value = isNew.value ? 'type' : 'form'
   draft.value = selected.value ? draftOf(selected.value) : null
   errors.value = {}
   saveFailed.value = false
@@ -161,6 +161,9 @@ async function save() {
         { view, inactive: query.value.inactive || !created.active, attribute: created.id },
         true,
       )
+      await nextTick()
+      settings.value?.focusHeading()
+      confirmSaved(created)
       return
     }
     const saved = await request<AdminAttribute>(
@@ -172,6 +175,9 @@ async function save() {
     // The selection stays; the form shows what the server made of it (trimmed texts, the options with ids)
     await nextTick()
     resetDraft()
+    await nextTick()
+    settings.value?.focusHeading()
+    confirmSaved(saved)
   } catch (error) {
     if (error instanceof ApiError && error.status === 422) {
       errors.value = errorsOf(error.body)
@@ -189,8 +195,8 @@ async function save() {
 const list = useTemplateRef<HTMLElement>('list')
 const ordering = ref(false)
 const orderFailed = ref(false)
-/** "Reihenfolge gespeichert" beside the count, for about 3 seconds after a successful save. */
-const orderSaved = ref(false)
+/** "Reihenfolge gespeichert" or "Merkmal gespeichert" beside the count, for about 3 seconds after a successful save. */
+const savedText = ref('')
 let savedTimer: ReturnType<typeof setTimeout> | undefined
 onBeforeUnmount(() => clearTimeout(savedTimer))
 /** What a screen reader hears once a move is saved (the live region; the message in the bar is hidden from it so nothing is read twice). */
@@ -198,6 +204,17 @@ const announcement = ref('')
 const items = () =>
   [...(list.value?.children ?? [])].slice(0, visible.value.length) as HTMLElement[]
 const reorder = useReorder((from, to) => void moveAttribute(from, to))
+
+/** After a save: "Merkmal gespeichert" beside the count for about 3 seconds, and the same words for a screen reader. Nothing else moves. */
+async function confirmSaved(saved: AdminAttribute) {
+  clearTimeout(savedTimer)
+  savedText.value = 'Merkmal gespeichert'
+  savedTimer = setTimeout(() => (savedText.value = ''), 3000)
+  // Emptied first: the same words twice in a row are only read again if the region changed in between
+  announcement.value = ''
+  await nextTick()
+  announcement.value = `Merkmal „${saved.name}“ gespeichert.`
+}
 
 /**
  * Moves the attribute at `from` in the preview to `to`. The order is global: the preview holds only the attributes of its view, they
@@ -215,15 +232,15 @@ async function moveAttribute(from: number, to: number) {
   const where = `${moved.name} ist jetzt an Stelle ${to + 1} von ${visible.value.length}.`
   ordering.value = true
   orderFailed.value = false
-  orderSaved.value = false
+  savedText.value = ''
   clearTimeout(savedTimer)
   // Emptied first: the same words twice in a row are only read again if the region changed in between
   announcement.value = ''
   try {
     await request('PUT', 'admin/attributes/order', { ids: next.map((attribute) => attribute.id) })
     announcement.value = `${where} Reihenfolge gespeichert.`
-    orderSaved.value = true
-    savedTimer = setTimeout(() => (orderSaved.value = false), 3000)
+    savedText.value = 'Reihenfolge gespeichert'
+    savedTimer = setTimeout(() => (savedText.value = ''), 3000)
   } catch {
     attributes.value = before
     orderFailed.value = true
@@ -265,33 +282,63 @@ onBeforeRouteLeave((to) => (proceeding || !changed.value || to.name === 'login' 
 function discard() {
   resetDraft()
   const to = pending
+  const closed = closing
   pending = null
-  if (to) void router.push(to)
+  closing = null
+  if (to) void router.push(to).then(() => closed && focusInPreview(closed))
 }
 watch(asking, (open) => {
-  if (!open) pending = null
+  if (!open) {
+    pending = null
+    closing = null
+  }
 })
 
-// The settings card is as high as its content and scrolls with the page. After a click on a field or on "Merkmal hinzufügen" its beginning is
-// brought into view: on a wide screen only if it lies above the visible area (under the header and the bar, which stay), smoothly, so that it
-// starts right under the bar (the scroll padding of the page, main.css); where it is visible nothing moves. On a narrow screen the card lies
-// below the preview and always comes into view, at once.
+// The X of the form ends the selection (with the same question as any other change of the selection); the focus goes to the attribute that
+// was closed, once it is closed (after the question, if there was one)
+let closing: string | null = null
+function focusInPreview(id: string) {
+  list.value
+    ?.querySelector<HTMLElement>(`[data-attribute="${id}"] button:not([aria-label$="verschieben"])`)
+    ?.focus()
+}
+async function closeSelected() {
+  const id = selected.value?.id
+  if (!id) return
+  closing = id
+  await go({ attribute: null })
+  if (asking.value) return
+  closing = null
+  await nextTick()
+  focusInPreview(id)
+}
+
+// From lg on the settings card is sticky (under the header and the bar, 24 px like the gap between the cards) and at most as high as the visible
+// area: its content scrolls inside it, the buttons stay at the bottom, so it is always in view. Below lg it lies under the preview, is as high as
+// its content and scrolls with the page: after a click on a field or on "Merkmal hinzufügen" its beginning is brought into view, at once.
 const right = useTemplateRef<HTMLElement>('right')
-const settings = useTemplateRef<{ focusFirstError: () => Promise<void> }>('settings')
-const sticky = (name: string) =>
-  Number.parseFloat(document.documentElement.style.getPropertyValue(name)) || 0
+const settings = useTemplateRef<{ focusFirstError: () => Promise<void>; focusHeading: () => void }>(
+  'settings',
+)
 async function reveal(next: Partial<AttributesQuery>) {
   await go(next)
   await nextTick()
   // The question "Änderungen verwerfen?" may have kept the page where it was
   if (query.value.attribute !== (next.attribute ?? null)) return
-  const card = right.value
+  // From lg on the card is sticky and always in view; only below the preview (narrow) it has to be scrolled to
   const narrow = window.matchMedia?.('(max-width: 1023px)').matches ?? false
-  const top = sticky('--sticky-bar-height') + (narrow ? 0 : sticky('--header-height'))
-  if (!card || (!narrow && card.getBoundingClientRect().top >= top)) return
-  const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-  card.scrollIntoView?.({ block: 'start', behavior: narrow || reduced ? 'auto' : 'smooth' })
+  if (!narrow) return
+  right.value?.scrollIntoView?.({ block: 'start', behavior: 'auto' })
 }
+// Another selection starts at the top of the card (the form of another attribute is the same element and would keep its scroll position)
+watch(
+  () => (isNew.value ? NEW_ATTRIBUTE : selected.value?.id),
+  async () => {
+    await nextTick()
+    const scroller = right.value?.querySelector<HTMLElement>('[data-card-scroll]')
+    if (scroller) scroller.scrollTop = 0
+  },
+)
 const select = (attribute: AdminAttribute) =>
   attribute.id === query.value.attribute ? undefined : reveal({ attribute: attribute.id })
 const startNew = () => (isNew.value ? undefined : reveal({ attribute: NEW_ATTRIBUTE }))
@@ -362,12 +409,12 @@ const viewButton = 'flex h-11 items-center rounded-lg border-2 px-3 text-base'
           Die Reihenfolge konnte nicht gespeichert werden. Sie ist wieder wie vorher.
         </p>
         <p
-          v-else-if="orderSaved"
+          v-else-if="savedText"
           class="flex items-center gap-1.5 text-base text-mute"
           aria-hidden="true"
         >
           <CheckIcon :size="18" />
-          Reihenfolge gespeichert
+          {{ savedText }}
         </p>
       </template>
     </ResultsBar>
@@ -459,9 +506,20 @@ const viewButton = 'flex h-11 items-center rounded-lg border-2 px-3 text-base'
         </div>
 
         <!-- As high as its content, scrolls with the page; after a click on a field it is scrolled into view (see `reveal`) -->
-        <div ref="right" data-settings-column>
+        <div
+          ref="right"
+          data-settings-column
+          class="lg:sticky lg:top-[calc(var(--sticky-top)+1.5rem)] lg:flex lg:max-h-[calc(100dvh-var(--sticky-top)-3rem)] lg:flex-col"
+        >
+          <AttributeTypePicker
+            v-if="(isNew || selected) && newStep === 'type'"
+            :title="isNew ? undefined : 'Typ ändern'"
+            :current="draft ? tileOf(draft.type) : undefined"
+            @pick="pickType"
+            @cancel="isNew ? cancelNew() : (newStep = 'form')"
+          />
           <AttributeSettings
-            v-if="selected && draft"
+            v-else-if="selected && draft"
             ref="settings"
             v-model="draft"
             :attribute="selected"
@@ -471,12 +529,8 @@ const viewButton = 'flex h-11 items-center rounded-lg border-2 px-3 text-base'
             :failed="saveFailed"
             @save="save"
             @reset="resetDraft"
-          />
-          <AttributeTypePicker
-            v-else-if="isNew && newStep === 'type'"
-            :current="draft ? tileOf(draft.type) : undefined"
-            @pick="pickType"
-            @cancel="cancelNew"
+            @close="closeSelected"
+            @change-type="newStep = 'type'"
           />
           <AttributeSettings
             v-else-if="isNew && draft"

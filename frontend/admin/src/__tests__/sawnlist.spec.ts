@@ -5,7 +5,7 @@ import { applyFilters, matchesFilter, tagFilter } from '@/listFilters'
 import { buildColumns, buildRows, filtersFor, sortRows, type Row } from '@/stemlist'
 import { snapshotFixture } from './fakeSnapshot'
 
-// The list Schnittholz: the rows (beams and stems sawn whole), their effective values, the order by tag.
+// The list "Balken": the rows (beams and stems sawn whole), their effective values, the order by tag.
 beforeEach(() => vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-11-09T12:00:00Z') }))
 afterEach(() => vi.useRealTimers())
 
@@ -41,7 +41,7 @@ const snapshotOf = (...extra: TimberItem[]): Snapshot => ({
 const listOf = (snapshot: Snapshot) => buildRows(snapshot, 'beam')
 const tagsOf = (rows: Row[]) => rows.map((row) => row.item.tag_number)
 
-describe('Schnittholz rows', () => {
+describe('Balken rows', () => {
   it('are the beams and the stems sawn whole, not split stems, not stems that are not sawn', () => {
     const whole = item('200', sawn(true))
     const notSawn = item('201', sawn(false))
@@ -87,7 +87,7 @@ describe('Schnittholz rows', () => {
   })
 })
 
-describe('Schnittholz values', () => {
+describe('Balken values', () => {
   const columns = buildColumns(attributes, 'beam')
   const column = (name: string) => columns.find((candidate) => candidate.label === name)!
 
@@ -204,7 +204,7 @@ describe('sorting by tag', () => {
     ])
   })
 
-  it('also orders the stems of Rundholz with a plain number', () => {
+  it('also orders the stems of the list "Stämme" with a plain number', () => {
     const stems = buildRows(snapshotFixture, 'stem')
     const column = buildColumns(attributes, 'stem')[0]
     expect(tagsOf(sortRows([...stems].reverse(), column, 'asc'))).toEqual([
@@ -228,7 +228,7 @@ describe('sorting by tag', () => {
   })
 })
 
-describe('Schnittholz "Kennung" filter', () => {
+describe('Balken "Kennung" filter', () => {
   const rows = listOf(
     snapshotOf(item('104-D', {}, stem104), item('105', sawn(true)), item('2', sawn(true))),
   )

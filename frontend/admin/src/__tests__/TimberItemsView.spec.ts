@@ -60,7 +60,7 @@ describe('stem list', () => {
   it('shows the title, the sentence, the number of stems and a column per attribute of stems', async () => {
     const { wrapper } = await open()
 
-    expect(wrapper.get('h1').text()).toBe('Rundholz')
+    expect(wrapper.get('h1').text()).toBe('Stämme')
     expect(wrapper.get('h1 + p').text()).toBe('Eine Spalte je Merkmal, Reihenfolge wie in der App.')
     expect(wrapper.get('main p.text-lg').text()).toBe('4 Stämme')
     expect(wrapper.findAll('thead th').map((th) => squeezed(th.text()))).toEqual([
@@ -79,7 +79,7 @@ describe('stem list', () => {
     expect(wrapper.text()).not.toContain('Sortierklasse')
     expect(header(wrapper, 'Stamm').attributes('aria-sort')).toBe('ascending')
     expect(header(wrapper, 'Holzart').attributes('aria-sort')).toBeUndefined()
-    expect(wrapper.get('nav a[aria-current="page"]').text()).toBe('Rundholz')
+    expect(wrapper.get('nav a[aria-current="page"]').text()).toBe('Stämme')
   })
 
   it('writes a row: tag as link, values, "–" for what is not recorded, beams and last change', async () => {
@@ -587,11 +587,11 @@ describe('filter bar and chips', () => {
   })
 })
 
-describe('Schnittholz list', () => {
+describe('Balken list', () => {
   it('shows the beams with the beam attributes, "Balken" first, no count of beams and no column of the stem', async () => {
     const { wrapper } = await open('/beams')
 
-    expect(wrapper.get('h1').text()).toBe('Schnittholz')
+    expect(wrapper.get('h1').text()).toBe('Balken')
     expect(wrapper.get('main p.text-lg').text()).toBe('3 Balken')
     expect(wrapper.findAll('thead th').map((th) => squeezed(th.text()))).toEqual([
       'Balken',
@@ -604,12 +604,12 @@ describe('Schnittholz list', () => {
     ])
     expect(header(wrapper, 'Balken').attributes('aria-sort')).toBe('ascending')
     expect(rowTags(wrapper)).toEqual(['00104-A', '00104-B', '00104-C'])
-    expect(wrapper.get('nav a[aria-current="page"]').text()).toBe('Schnittholz')
+    expect(wrapper.get('nav a[aria-current="page"]').text()).toBe('Balken')
     // a click on the tag opens the detail view of the beam
     expect(wrapper.get('tbody a').attributes('href')).toBe('/beams/104-A')
   })
 
-  it('filters by tag and keeps the state in its own URL, apart from Rundholz', async () => {
+  it('filters by tag and keeps the state in its own URL, apart from the list of stems', async () => {
     const { wrapper, router } = await open('/beams?tags=104-b&sort=Notiz')
 
     expect(rowTags(wrapper)).toEqual(['00104-B'])

@@ -38,7 +38,7 @@ import { useScrollEdges } from '@/scrollEdges'
 import { useSizeVariable } from '@/sizeVariable'
 import { useTagsField } from '@/tagsField'
 
-// "stem": the list Rundholz, "beam": the list Schnittholz (beams and stems sawn whole). Both are this view; the router sets `kind`.
+// "stem": the list "Stämme", "beam": the list "Balken" (beams and stems sawn whole). Both are this view; the router sets `kind`.
 const props = defineProps<{ kind: ItemKind }>()
 
 const route = useRoute()
@@ -158,7 +158,7 @@ async function removeFilter(id: string) {
   <main data-wide class="py-8">
     <div class="sticky left-0 w-[100cqw]">
       <div class="page-column">
-        <h1 class="text-3xl font-bold">{{ kind === 'stem' ? 'Rundholz' : 'Schnittholz' }}</h1>
+        <h1 class="text-3xl font-bold">{{ kind === 'stem' ? 'Stämme' : 'Balken' }}</h1>
         <p class="mt-2 text-mute">Eine Spalte je Merkmal, Reihenfolge wie in der App.</p>
 
         <form class="mt-6" @submit.prevent>
