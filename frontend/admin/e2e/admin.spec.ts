@@ -843,16 +843,16 @@ test.describe('stem list', () => {
       .getByRole('button', { name: filterName(name), exact: true })
       .filter({ hasText: name })
 
-  test('Schnittholz lists the beams, filters by tag, opens a beam and keeps its own URL; the path follows the kind', async ({
+  test('Balken lists the beams, filters by tag, opens a beam and keeps its own URL; the path follows the kind', async ({
     page,
   }) => {
     await page.goto('/admin/activity')
     await signIn(page, 'K7QM4XHT9RDP')
     const links = page.getByRole('navigation').getByRole('link')
-    await expect(links).toHaveText(['Rundholz', 'Schnittholz', 'Aktivität'])
-    await links.filter({ hasText: 'Schnittholz' }).click()
+    await expect(links).toHaveText(['Stämme', 'Balken', 'Aktivität'])
+    await links.filter({ hasText: 'Balken' }).click()
     await expect(page).toHaveURL(/\/admin\/beams$/)
-    await expect(page.locator('h1')).toHaveText('Schnittholz')
+    await expect(page.locator('h1')).toHaveText('Balken')
     await expect(page.getByText('3 Balken', { exact: true })).toBeVisible()
     await expect(tags(page)).toHaveText(['00104-A', '00104-B', '00104-C'])
     await expect(page.getByRole('columnheader', { name: 'Balken', exact: true })).toHaveAttribute(
@@ -870,7 +870,7 @@ test.describe('stem list', () => {
     await page.getByRole('button', { name: 'Zurück', exact: true }).click()
     await expect(page).toHaveURL(/\/admin\/beams\?tags=104-B$/)
 
-    // Rundholz has its own filter state
+    // the list of stems has its own filter state
     await links.first().click()
     await expect(page).toHaveURL(/\/admin\/stems$/)
     await expect(page.getByText('4 Stämme', { exact: true })).toBeVisible()
@@ -887,9 +887,9 @@ test.describe('stem list', () => {
   }) => {
     await page.goto('/admin/activity')
     await signIn(page, 'K7QM4XHT9RDP')
-    await page.getByRole('navigation').getByRole('link', { name: 'Rundholz', exact: true }).click()
+    await page.getByRole('navigation').getByRole('link', { name: 'Stämme', exact: true }).click()
     await expect(page).toHaveURL(/\/admin\/stems$/)
-    await expect(page.locator('h1')).toHaveText('Rundholz')
+    await expect(page.locator('h1')).toHaveText('Stämme')
     await expect(page.getByText('4 Stämme', { exact: true })).toBeVisible()
     await expect(tags(page)).toHaveText(['00007', '00104', '01500', 'ohne Kennung'])
 
@@ -1592,6 +1592,11 @@ test.describe('attributes', () => {
     )
     await expect(page.getByRole('heading', { name: 'Ort', level: 2, exact: true })).toBeVisible()
     await expect(save).toBeDisabled()
+    await expect(page.getByText('Merkmal gespeichert', { exact: true })).toBeVisible()
+    // the confirmation goes away by itself
+    await expect(page.getByText('Merkmal gespeichert', { exact: true })).toHaveCount(0, {
+      timeout: 6000,
+    })
   })
 
   test('asks before unsaved changes are lost, with its own dialog', async ({ page }) => {
@@ -1609,6 +1614,49 @@ test.describe('attributes', () => {
     await expect(
       page.getByRole('heading', { name: 'Holzart', level: 2, exact: true }),
     ).toBeVisible()
+  })
+
+  test('changes the type of an attribute without values through the tiles, only "Speichern" keeps it', async ({
+    page,
+  }) => {
+    await page.getByRole('button', { name: 'Lieferdatum', exact: true }).click()
+    await page.getByRole('button', { name: 'ändern', exact: true }).click()
+    await expect(
+      page.getByRole('heading', { name: 'Typ ändern', level: 2, exact: true }),
+    ).toBeVisible()
+
+    // "Abbrechen" leads back to the form without a change
+    await page.getByRole('button', { name: 'Abbrechen', exact: true }).click()
+    await expect(
+      page.getByRole('heading', { name: 'Lieferdatum', level: 2, exact: true }),
+    ).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Speichern', exact: true })).toBeDisabled()
+
+    await page.getByRole('button', { name: 'ändern', exact: true }).click()
+    await page.getByRole('button', { name: /^Text/ }).click()
+    await expect(page.getByRole('button', { name: 'Speichern', exact: true })).toBeEnabled()
+    await page.getByRole('button', { name: 'Speichern', exact: true }).click()
+    await expect(page.getByText('Merkmal gespeichert', { exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Speichern', exact: true })).toBeDisabled()
+    await expect(page.getByLabel('Genauigkeit')).toHaveCount(0)
+  })
+
+  test('closes the form with the X: the selection ends, the focus goes to the attribute, unsaved changes are asked about', async ({
+    page,
+  }) => {
+    await page.getByRole('button', { name: 'Lagerplatz', exact: true }).click()
+    await page.getByRole('button', { name: 'Schließen', exact: true }).click()
+    await expect(page).not.toHaveURL(/attribute=/)
+    await expect(page.getByText('Nichts ausgewählt', { exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Lagerplatz', exact: true })).toBeFocused()
+
+    await page.getByRole('button', { name: 'Lagerplatz', exact: true }).click()
+    await page.getByLabel('Name', { exact: true }).fill('Ort')
+    await page.getByRole('button', { name: 'Schließen', exact: true }).click()
+    const dialog = page.getByRole('alertdialog', { name: 'Änderungen verwerfen?', exact: true })
+    await expect(dialog).toBeVisible()
+    await dialog.getByRole('button', { name: 'Verwerfen', exact: true }).click()
+    await expect(page.getByText('Nichts ausgewählt', { exact: true })).toBeVisible()
   })
 
   test('shows a system attribute without controls', async ({ page }) => {
@@ -1655,6 +1703,7 @@ test.describe('attributes', () => {
 
       await page.getByRole('button', { name: 'Anlegen', exact: true }).click()
       await expect(page.getByText('9 Merkmale', { exact: true })).toBeVisible()
+      await expect(page.getByText('Merkmal gespeichert', { exact: true })).toBeVisible()
       await expect(page.getByRole('button', { name: 'Eingang', exact: true })).toHaveAttribute(
         'aria-current',
         'true',
@@ -1678,6 +1727,46 @@ test.describe('attributes', () => {
       await expect(page).toHaveURL(/\/admin\/activity/)
     })
   }
+
+  test('shows the bin beside a new option only after its field was left, and saves one that was only typed', async ({
+    page,
+  }) => {
+    await page.getByRole('button', { name: 'Merkmal hinzufügen', exact: true }).first().click()
+    await page.getByRole('button', { name: /^Auswahl/ }).click()
+    await page.getByLabel('Name', { exact: true }).fill('Farbe')
+    await expect(
+      page.getByText('Erfassbar nur am Stamm. Balken haben dieses Merkmal nicht.', { exact: true }),
+    ).toBeVisible()
+
+    // typing: no button and no place reserved, the field gets narrower by the column (44 px and the 4 px gap) when the bin appears
+    const first = page.getByLabel('Auswahl-Option 1', { exact: true })
+    const width = (await first.boundingBox())!.width
+    await first.fill('Rot')
+    await expect(page.getByRole('button', { name: /löschen$/ })).toHaveCount(0)
+    // a click beside the field: the bin appears, the option stays
+    await page.getByLabel('Name', { exact: true }).click()
+    await expect(page.getByRole('button', { name: '„Rot“ löschen', exact: true })).toBeVisible()
+    await expect(first).toHaveValue('Rot')
+    expect((await first.boundingBox())!.width).toBeCloseTo(width - 48, 0)
+
+    await page.getByRole('button', { name: 'Auswahl-Option hinzufügen', exact: true }).click()
+    await page.getByLabel('Auswahl-Option 2', { exact: true }).fill('Blau')
+    await page.keyboard.press('Enter')
+    await expect(page.getByRole('button', { name: '„Blau“ löschen', exact: true })).toBeVisible()
+
+    // an empty one: leave it, then delete it
+    await page.getByRole('button', { name: 'Auswahl-Option hinzufügen', exact: true }).click()
+    await page.getByLabel('Name', { exact: true }).click()
+    await page.getByRole('button', { name: 'Leere Auswahl-Option löschen', exact: true }).click()
+    await expect(page.getByLabel('Auswahl-Option 3', { exact: true })).toHaveCount(0)
+
+    await page.getByRole('button', { name: 'Auswahl-Option hinzufügen', exact: true }).click()
+    await page.getByLabel('Auswahl-Option 3', { exact: true }).fill('Grün')
+    await page.getByRole('button', { name: 'Anlegen', exact: true }).click()
+    await expect(page.getByText('Merkmal gespeichert', { exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Speichern', exact: true })).toBeDisabled()
+    await expect(page.getByLabel('Auswahl-Option 3', { exact: true })).toHaveValue('Grün')
+  })
 
   test('sorts with the arrow keys and the order stays after a reload', async ({ page }) => {
     const names = () =>
@@ -1715,6 +1804,43 @@ test.describe('attributes', () => {
     // the position in the list is what the drag changes
     await expect(page.locator('[aria-label="Vorschau"] > li').nth(2)).toContainText('Holzart')
     await expect(page.locator('[aria-label="Vorschau"] > li').nth(0)).toContainText('Fälldatum')
+  })
+
+  test('keeps the card in view while scrolling from 1024px on, with the buttons at the bottom, and not below', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 520 })
+    await page.getByRole('button', { name: 'Lagerplatz', exact: true }).click()
+    const column = page.locator('[data-settings-column]')
+    const stuck = () =>
+      page.evaluate(() => {
+        const style = document.documentElement.style
+        return (
+          Number.parseFloat(style.getPropertyValue('--header-height')) +
+          Number.parseFloat(style.getPropertyValue('--sticky-bar-height'))
+        )
+      })
+    await page.evaluate(() => window.scrollTo(0, 300))
+
+    // 24 px under the header and the bar, no higher than what is left below them (24 px at the bottom), the buttons in view
+    const box = (await column.boundingBox())!
+    expect(Math.abs(box.y - ((await stuck()) + 24))).toBeLessThan(2)
+    expect(box.y + box.height).toBeLessThanOrEqual(520 - 24 + 2)
+    const save = (await page.getByRole('button', { name: 'Speichern', exact: true }).boundingBox())!
+    expect(save.y + save.height).toBeLessThanOrEqual(520)
+    // the content scrolls inside the card, the heading with it, the buttons stay
+    const scroller = column.locator('[data-card-scroll]')
+    expect(await scroller.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true)
+    await scroller.evaluate((el) => (el.scrollTop = 200))
+    await expect(
+      page.getByRole('heading', { name: 'Lagerplatz', level: 2, exact: true }),
+    ).not.toBeInViewport()
+    await expect(page.getByRole('button', { name: 'Speichern', exact: true })).toBeInViewport()
+
+    // below 1024px the card is not sticky: it scrolls away with the page
+    await page.setViewportSize({ width: 800, height: 520 })
+    await page.evaluate(() => window.scrollTo(0, 3000))
+    expect((await column.boundingBox())!.y).toBeLessThan(0)
   })
 
   test('stays free of sideways scrolling', async ({ page }) => {

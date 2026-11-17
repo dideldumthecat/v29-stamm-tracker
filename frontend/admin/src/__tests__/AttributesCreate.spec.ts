@@ -54,6 +54,8 @@ describe('step 1: the type', () => {
     expect(dashed.attributes('aria-current')).toBe('true')
     expect(countText(wrapper)).toBe('8 Merkmale')
     expect(wrapper.get('section[aria-labelledby] h2').text()).toBe('Neues Merkmal')
+    // a new attribute is not closed with an X but with "Abbrechen"
+    expect(wrapper.find('button[aria-label="Schließen"]').exists()).toBe(false)
     const tiles = wrapper.findAll('section ul button').map((button) => squeezed(button.text()))
     expect(tiles).toEqual([
       'Auswahl z. B. Holzart, Länge',
@@ -91,8 +93,8 @@ describe('step 2: the form', () => {
     expect(form.text()).not.toContain('Genauigkeit')
     // Stamm, Balken, Vererbbar, then the yes/no attributes, Aktiv
     expect(boxes(wrapper)).toEqual([true, false, false, false, true])
-    expect(form.findAll<HTMLInputElement>('input[aria-label^="Option"]')).toHaveLength(1)
-    expect(form.get<HTMLInputElement>('input[aria-label^="Option"]').element.value).toBe('')
+    expect(form.findAll<HTMLInputElement>('input[aria-label^="Auswahl-Option"]')).toHaveLength(1)
+    expect(form.get<HTMLInputElement>('input[aria-label^="Auswahl-Option"]').element.value).toBe('')
     expect(squeezed(form.text())).not.toContain('Nicht mehr änderbar')
     expect(buttonWith(wrapper, 'Abbrechen')).toBeDefined()
     expect(buttonWith(wrapper, 'Anlegen')!.attributes('disabled')).toBeUndefined()
@@ -192,9 +194,9 @@ describe('step 2: the form', () => {
     const opened = await start()
     const { wrapper, api } = opened
     await create(opened, 'Auswahl', 'Farbe')
-    await settings(wrapper).get('input[aria-label="Option 1"]').setValue('Rot')
-    await buttonWith(wrapper, 'Option hinzufügen')!.trigger('click')
-    await settings(wrapper).get('input[aria-label="Option 2"]').setValue('Blau')
+    await settings(wrapper).get('input[aria-label="Auswahl-Option 1"]').setValue('Rot')
+    await buttonWith(wrapper, 'Auswahl-Option hinzufügen')!.trigger('click')
+    await settings(wrapper).get('input[aria-label="Auswahl-Option 2"]').setValue('Blau')
 
     await buttonWith(wrapper, 'Anlegen')!.trigger('click')
     await flushPromises()
@@ -214,8 +216,8 @@ describe('step 2: the form', () => {
 describe('the form of a new attribute, in the order of the settings', () => {
   const rowLabels = (wrapper: VueWrapper) =>
     panel(wrapper)
-      .findAll('form > div')
-      .map((row) => row.element.firstElementChild!.textContent!.trim())
+      .findAll('form > div, form > section > h3, form > section > div > div')
+      .map((row) => (row.element.firstElementChild ?? row.element).textContent!.trim())
 
   it('has the rows in the order of the settings', async () => {
     const { wrapper } = await start()
@@ -226,9 +228,10 @@ describe('the form of a new attribute, in the order of the settings', () => {
       'Name',
       'Beschreibung',
       'Einheit',
+      'Stamm und Balken',
       'Gültig für',
+      'Wert vererbbar',
       'Serie',
-      'Vererbbar',
       'Anzeige-Bedingung',
       'Aktiv',
     ])
@@ -241,23 +244,23 @@ describe('the form of a new attribute, in the order of the settings', () => {
     expect(rowLabels(wrapper).slice(0, 4)).toEqual(['Typ', 'Name', 'Beschreibung', 'Genauigkeit'])
   })
 
-  it('switches "Vererbbar" off in the draft when "Stamm" is unticked, and hides the row', async () => {
+  it('switches "Wert vererbbar" off in the draft when "Stamm" is unticked, and hides the row', async () => {
     const opened = await start()
     const { wrapper, api } = opened
     await create(opened, 'Text', 'Merkmal')
     const boxes = () => panel(wrapper).findAll<HTMLInputElement>('input[type=checkbox]')
-    // Stamm, Balken, Serie, Vererbbar
-    await boxes()[3].setValue(true)
-    expect(rowLabels(wrapper)).toContain('Vererbbar')
+    // Stamm, Balken, Vererbbar, Serie
+    await boxes()[2].setValue(true)
+    expect(rowLabels(wrapper)).toContain('Wert vererbbar')
 
     await boxes()[1].setValue(true)
     await boxes()[0].setValue(false)
 
-    expect(rowLabels(wrapper)).not.toContain('Vererbbar')
+    expect(rowLabels(wrapper)).not.toContain('Wert vererbbar')
     // "Stamm" again: the row is back, and the value stays off
     await boxes()[0].setValue(true)
-    expect(rowLabels(wrapper)).toContain('Vererbbar')
-    expect(boxes()[3].element.checked).toBe(false)
+    expect(rowLabels(wrapper)).toContain('Wert vererbbar')
+    expect(boxes()[2].element.checked).toBe(false)
 
     await boxes()[0].setValue(false)
     await buttonWith(wrapper, 'Anlegen')!.trigger('click')
@@ -273,12 +276,13 @@ describe('the form of a new attribute, in the order of the settings', () => {
     const { wrapper } = opened
     await tile(wrapper, 'Text').trigger('click')
 
-    expect(rowLabels(wrapper)).not.toContain('Vererbbar')
+    expect(rowLabels(wrapper)).not.toContain('Wert vererbbar')
   })
 })
 
 describe('creating', () => {
-  it('keeps the new attribute selected as an attribute, at the end, and counts it', async () => {
+  it('keeps the new attribute selected as an attribute, at the end, counts it and confirms', async () => {
+    const focus = vi.spyOn(HTMLElement.prototype, 'focus')
     const opened = await start()
     const { wrapper, api, router } = opened
     await create(opened, 'Text', 'Bemerkung')
@@ -295,12 +299,20 @@ describe('creating', () => {
     expect(previewNames(wrapper).pop()).toBe('Bemerkung')
     expect(field(wrapper, 'Bemerkung').attributes('aria-current')).toBe('true')
     expect(dialog()).toBeNull()
-    // now the form of an existing attribute: the type as a select, "Speichern" and "Verwerfen" off
+    // now the form of an existing attribute: the type as text with "ändern", "Speichern" off
     expect(settings(wrapper).get('h2').text()).toBe('Bemerkung')
-    expect(settings(wrapper).get<HTMLSelectElement>('select').element.value).toBe('text')
+    expect(settings(wrapper).find('select').exists()).toBe(false)
+    expect(squeezed(settings(wrapper).text())).toContain('Text ändern')
     expect(buttonWith(wrapper, 'Speichern')!.attributes('disabled')).toBeDefined()
-    expect(buttonWith(wrapper, 'ändern')).toBeUndefined()
     expect(placeholder(wrapper).exists()).toBe(false)
+    // the confirmation beside the count and for the screen reader
+    expect(wrapper.text()).toContain('Merkmal gespeichert')
+    expect(wrapper.get('[role=status].sr-only').text()).toBe('Merkmal „Bemerkung“ gespeichert.')
+    // the heading of the card has the focus
+    expect(focus.mock.contexts[focus.mock.contexts.length - 1]).toBe(
+      settings(wrapper).get('h2').element,
+    )
+    focus.mockRestore()
   })
 
   it('shows it in a view where it belongs when it is made for the other kind', async () => {
@@ -512,5 +524,123 @@ describe('a draft', () => {
 
     expect(dialog()).toBeNull()
     expect(router.currentRoute.value.name).toBe('login')
+  })
+})
+
+describe('the section "Stamm und Balken"', () => {
+  it('has a heading of level 3 and the sentence follows "Gültig für" and "Wert vererbbar" at once', async () => {
+    const opened = await start()
+    const { wrapper } = opened
+    await create(opened, 'Text', 'Merkmal')
+    const boxes = () => panel(wrapper).findAll<HTMLInputElement>('input[type=checkbox]')
+    const sentence = () => panel(wrapper).get('h3 + p').text()
+    expect(panel(wrapper).get('h3').text()).toBe('Stamm und Balken')
+
+    // Stamm, Balken, Vererbbar, Serie
+    expect(sentence()).toBe('Erfassbar nur am Stamm. Balken haben dieses Merkmal nicht.')
+    await boxes()[2].setValue(true)
+    expect(sentence()).toBe(
+      'Erfassbar nur am Stamm. Balken zeigen seinen Wert, ändern lässt er sich nur am Stamm.',
+    )
+    await boxes()[1].setValue(true)
+    expect(sentence()).toBe(
+      'Erfassbar an Stamm und Balken. Balken zeigen den Wert des Stamms, bis sie einen eigenen bekommen.',
+    )
+    await boxes()[2].setValue(false)
+    expect(sentence()).toBe(
+      'Erfassbar an Stamm und Balken. Balken starten leer, auch wenn der Stamm einen Wert hat.',
+    )
+    await boxes()[0].setValue(false)
+    expect(sentence()).toBe(
+      'Erfassbar nur an Balken, auch an einem Stamm, der als Ganzes zum Balken gesägt ist.',
+    )
+  })
+})
+
+describe('the checkbox "Wert vererbbar"', () => {
+  it('is named by the label of its row and its own text', async () => {
+    const opened = await start()
+    const { wrapper } = opened
+    await create(opened, 'Text', 'Merkmal')
+    const box = panel(wrapper).findAll<HTMLInputElement>('input[type=checkbox]')[2]
+    const name = box
+      .attributes('aria-labelledby')!
+      .split(' ')
+      .map((id) => wrapper.element.querySelector(`[id="${id}"]`)?.textContent?.trim())
+      .join(' ')
+
+    expect(name).toBe('Wert vererbbar Ja')
+  })
+})
+
+describe('a new option', () => {
+  const optionInput = (wrapper: VueWrapper, index = 0) =>
+    settings(wrapper).findAll<HTMLInputElement>('input[aria-label^="Auswahl-Option"]')[index]
+  const optionButtons = (wrapper: VueWrapper) =>
+    settings(wrapper)
+      .findAll('li button:not([data-handle])')
+      .map((button) => button.attributes('aria-label'))
+  async function choice() {
+    const opened = await start()
+    await create(opened, 'Auswahl', 'Farbe')
+    return opened
+  }
+
+  it('has no button and reserves no place while it is typed in', async () => {
+    const { wrapper } = await choice()
+    const column = () => settings(wrapper).findAll('li div.w-11')
+    expect(optionButtons(wrapper)).toEqual([])
+    expect(column()).toHaveLength(0)
+
+    await optionInput(wrapper).setValue('Rot')
+    expect(optionButtons(wrapper)).toEqual([])
+    expect(column()).toHaveLength(0)
+
+    await optionInput(wrapper).trigger('blur')
+    expect(column()).toHaveLength(1)
+  })
+
+  it('shows the bin once the field was left, and keeps it while it is edited', async () => {
+    const { wrapper } = await choice()
+    await optionInput(wrapper).setValue('Rot')
+    await optionInput(wrapper).trigger('blur')
+    expect(optionButtons(wrapper)).toEqual(['„Rot“ löschen'])
+    expect(optionInput(wrapper).element.value).toBe('Rot')
+
+    await optionInput(wrapper).setValue('Rotbraun')
+    expect(optionButtons(wrapper)).toEqual(['„Rotbraun“ löschen'])
+
+    await wrapper.get('button[aria-label="„Rotbraun“ löschen"]').trigger('click')
+    expect(settings(wrapper).findAll('input[aria-label^="Auswahl-Option"]')).toHaveLength(0)
+  })
+
+  it('leaves the field with Enter without submitting the form', async () => {
+    const { wrapper, api } = await choice()
+    await optionInput(wrapper).setValue('Rot')
+    const enter = new KeyboardEvent('keydown', { key: 'Enter', cancelable: true })
+    optionInput(wrapper).element.dispatchEvent(enter)
+    await flushPromises()
+
+    expect(enter.defaultPrevented).toBe(true)
+    expect(optionButtons(wrapper)).toEqual(['„Rot“ löschen'])
+    expect(attributeOf(api, 'Farbe')).toBeUndefined()
+  })
+
+  it('can be deleted with the bin after an empty field was left', async () => {
+    const { wrapper } = await choice()
+    await optionInput(wrapper).trigger('blur')
+    expect(optionButtons(wrapper)).toEqual(['Leere Auswahl-Option löschen'])
+
+    await wrapper.get('button[aria-label="Leere Auswahl-Option löschen"]').trigger('click')
+    expect(settings(wrapper).findAll('input[aria-label^="Auswahl-Option"]')).toHaveLength(0)
+  })
+
+  it('is saved with the attribute although the field was never left', async () => {
+    const { wrapper, api } = await choice()
+    await optionInput(wrapper).setValue('Rot')
+    await buttonWith(wrapper, 'Anlegen')!.trigger('click')
+    await flushPromises()
+
+    expect(attributeOf(api, 'Farbe').options.map((option) => option.label)).toEqual(['Rot'])
   })
 })

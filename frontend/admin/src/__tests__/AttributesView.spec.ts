@@ -277,11 +277,13 @@ describe('the settings', () => {
     expect(panel.get('textarea').attributes('placeholder')).toBe(
       'Hinweis für die Erfassung (optional)',
     )
-    expect(panel.get<HTMLSelectElement>('select').element.value).toBe('choice')
+    expect(panel.find('select').exists()).toBe(false)
+    expect(panel.text()).toContain('Auswahl')
+    expect(buttonWith(wrapper, 'ändern')).toBeDefined()
     // the options: a field and a button each
-    expect(panel.findAll('input[aria-label^="Option"]')).toHaveLength(3)
-    expect(panel.findAll('button').filter((b) => b.text() === 'Deaktivieren')).toHaveLength(2)
-    expect(panel.findAll('button').filter((b) => b.text() === 'Aktivieren')).toHaveLength(1)
+    expect(panel.findAll('input[aria-label^="Auswahl-Option"]')).toHaveLength(3)
+    expect(panel.findAll('button[aria-label$=" deaktivieren"]')).toHaveLength(2)
+    expect(panel.findAll('button[aria-label$=" aktivieren"]')).toHaveLength(1)
     expect(panel.text()).toContain('Ausblenden, wenn folgende Merkmale gesetzt sind:')
     // the yes/no system attributes, not the attribute itself
     expect(panel.text()).toContain('Gesägt')
@@ -297,6 +299,7 @@ describe('the settings', () => {
 
     const panel = settings(wrapper)
     expect(panel.find('select').exists()).toBe(false)
+    expect(buttonWith(wrapper, 'ändern')).toBeUndefined()
     expect(panel.text()).toContain('Zahl')
     expect(panel.findAll('svg.lucide-lock').length).toBeGreaterThanOrEqual(3)
     expect(panel.text().match(/Nicht mehr änderbar: Es sind schon Werte erfasst\./g)).toHaveLength(
@@ -311,33 +314,80 @@ describe('the settings', () => {
     expect(panel.text()).toContain('Einheit')
   })
 
+  /** "ändern" at the type, then a tile of the picker (a month: the tile "Datum", then the precision). */
+  const changeType = async (wrapper: VueWrapper, tile: string) => {
+    await buttonWith(wrapper, 'ändern')!.trigger('click')
+    await wrapper
+      .findAll('section ul button')
+      .find((button) => button.text().startsWith(tile))!
+      .trigger('click')
+  }
+
   it('leave type and inheritance free without values, and offer the series only for number, text, date and month', async () => {
     const { wrapper } = await open()
     await field(wrapper, 'Lieferdatum').trigger('click')
     await flushPromises()
     const panel = () => settings(wrapper)
-    const type = (value: string) => panel().get('select').setValue(value)
 
     expect(panel().text()).not.toContain('Nicht mehr änderbar')
     expect(panel().text()).toContain('Jeder Eintrag wird zu einer Liste hinzugefügt') // date
     expect(panel().text()).not.toContain('Einheit')
 
-    await type('number')
+    await changeType(wrapper, 'Zahl')
     expect(panel().text()).toContain('Einheit')
     expect(panel().text()).toContain('Jeder Eintrag wird zu einer Liste hinzugefügt')
-    await type('text')
+    await changeType(wrapper, 'Text')
     expect(panel().text()).toContain('Jeder Eintrag wird zu einer Liste hinzugefügt')
-    await type('month')
+    await changeType(wrapper, 'Datum')
+    await panel().get('select').setValue('month')
     expect(panel().text()).toContain('Jeder Eintrag wird zu einer Liste hinzugefügt')
-    await type('choice')
+    await changeType(wrapper, 'Auswahl')
     expect(panel().text()).not.toContain('Jeder Eintrag wird zu einer Liste hinzugefügt')
-    expect(panel().text()).toContain('Option hinzufügen')
-    await type('boolean')
+    expect(panel().text()).toContain('Auswahl-Option hinzufügen')
+    await changeType(wrapper, 'Ja / Nein')
     expect(panel().text()).not.toContain('Jeder Eintrag wird zu einer Liste hinzugefügt')
-    expect(panel().text()).not.toContain('Option hinzufügen')
+    expect(panel().text()).not.toContain('Auswahl-Option hinzufügen')
   })
 
-  it('put the note on a system attribute at the very top, above the name', async () => {
+  it('change the type through the tiles: "Abbrechen" changes nothing, the choice counts as unsaved until "Speichern"', async () => {
+    const { wrapper, api } = await open()
+    await field(wrapper, 'Lieferdatum').trigger('click')
+    await flushPromises()
+
+    // the tiles for this attribute, the current type marked; "Abbrechen" leads back to the form as it was
+    await buttonWith(wrapper, 'ändern')!.trigger('click')
+    expect(settings(wrapper).get('h2').text()).toBe('Typ ändern')
+    expect(
+      wrapper.findAll('section ul button[aria-pressed=true]').map((button) => button.text()),
+    ).toEqual([expect.stringMatching(/^Datum/)])
+    await buttonWith(wrapper, 'Abbrechen')!.trigger('click')
+    expect(settings(wrapper).get('h2').text()).toBe('Lieferdatum')
+    expect(buttonWith(wrapper, 'Speichern')!.attributes('disabled')).toBeDefined()
+
+    // a month stays a month with the tile "Datum" again
+    await changeType(wrapper, 'Datum')
+    expect(buttonWith(wrapper, 'Speichern')!.attributes('disabled')).toBeDefined()
+
+    await changeType(wrapper, 'Text')
+    expect(buttonWith(wrapper, 'Speichern')!.attributes('disabled')).toBeUndefined()
+    await buttonWith(wrapper, 'Speichern')!.trigger('click')
+    await flushPromises()
+    expect(attributeOf(api, 'Lieferdatum').type).toBe('text')
+  })
+
+  it('leave the picker with unsaved changes: a switch of the selection asks first', async () => {
+    const { wrapper } = await open()
+    await field(wrapper, 'Lieferdatum').trigger('click')
+    await flushPromises()
+    await changeType(wrapper, 'Text')
+    await buttonWith(wrapper, 'ändern')!.trigger('click')
+
+    await field(wrapper, 'Lagerplatz').trigger('click')
+    await flushPromises()
+    expect(dialog()).not.toBeNull()
+  })
+
+  it('put the note on a system attribute right below the name, so that the X sits in the corner beside it', async () => {
     const { wrapper } = await open()
     await field(wrapper, 'Gesägt').trigger('click')
     await flushPromises()
@@ -346,12 +396,11 @@ describe('the settings', () => {
     const note = panel.findAll('p').find((p) => p.text().startsWith('Systemmerkmal'))!
     const heading = panel.get('h2')
     expect(note.text()).toBe('Systemmerkmal: Ändern nur im Code möglich.')
-    expect(
-      note.element.compareDocumentPosition(heading.element) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy()
-    // nothing but the note comes before the name
-    expect(heading.element.previousElementSibling).toBe(note.element)
-    expect(note.element.previousElementSibling).toBeNull()
+    // nothing comes before the name; the X is in its row, the note is the next element
+    const headingRow = heading.element.parentElement!
+    expect(headingRow.previousElementSibling).toBeNull()
+    expect(headingRow.querySelector('button[aria-label="Schließen"]')).not.toBeNull()
+    expect(headingRow.nextElementSibling).toBe(note.element)
     // and attributes of V29 have none
     await field(wrapper, 'Holzart').trigger('click')
     await flushPromises()
@@ -361,23 +410,26 @@ describe('the settings', () => {
   /** The labels of the rows, top to bottom (the first child of a row is its label). */
   const rowLabels = (wrapper: VueWrapper) =>
     settings(wrapper)
-      .findAll('form > div, dl > div')
-      .map((row) => row.element.firstElementChild!.textContent!.trim())
+      .findAll(
+        'form > div, form > section > h3, form > section > div > div, section > h3, dl > div',
+      )
+      .map((row) => (row.element.firstElementChild ?? row.element).textContent!.trim())
 
-  it('order the rows: Name, Beschreibung, Typ, Einheit, Gültig für, Serie, Vererbbar, Anzeige-Bedingung, Aktiv', async () => {
+  it('order the rows: Typ, Name, Beschreibung, the fields of the type, Stamm und Balken, Serie, Anzeige-Bedingung, Aktiv', async () => {
     const { wrapper } = await open()
     await field(wrapper, 'Lieferdatum').trigger('click')
     await flushPromises()
-    await settings(wrapper).get('select').setValue('number')
+    await changeType(wrapper, 'Zahl')
 
     expect(rowLabels(wrapper)).toEqual([
       'Typ',
       'Name',
       'Beschreibung',
       'Einheit',
+      'Stamm und Balken',
       'Gültig für',
+      'Wert vererbbar',
       'Serie',
-      'Vererbbar',
       'Anzeige-Bedingung',
       'Aktiv',
     ])
@@ -391,10 +443,11 @@ describe('the settings', () => {
       'Typ',
       'Name',
       'Beschreibung',
+      'Auswahl-Optionen',
+      'Stamm und Balken',
       'Gültig für',
-      'Vererbbar',
+      'Wert vererbbar',
       'Anzeige-Bedingung',
-      'Optionen',
       'Aktiv',
     ])
   })
@@ -406,20 +459,21 @@ describe('the settings', () => {
 
     expect(rowLabels(wrapper)).toEqual([
       'Typ',
+      'Stamm und Balken',
       'Gültig für',
+      'Wert vererbbar',
       'Serie',
-      'Vererbbar',
       'Anzeige-Bedingung',
       'Aktiv',
     ])
   })
 
-  it('hide "Vererbbar" unless "Stamm" is ticked, and leave the saved value as it is', async () => {
+  it('hide "Wert vererbbar" unless "Stamm" is ticked, and leave the saved value as it is', async () => {
     const { wrapper, api } = await open()
     await field(wrapper, 'Lagerplatz').trigger('click')
     await flushPromises()
     const boxes = () => settings(wrapper).findAll<HTMLInputElement>('input[type=checkbox]')
-    const inheritable = () => rowLabels(wrapper).includes('Vererbbar')
+    const inheritable = () => rowLabels(wrapper).includes('Wert vererbbar')
     // Stamm, Balken, Vererbbar
     await boxes()[2].setValue(true)
     expect(inheritable()).toBe(true)
@@ -427,7 +481,7 @@ describe('the settings', () => {
     await boxes()[1].setValue(true)
     await boxes()[0].setValue(false)
     expect(inheritable()).toBe(false)
-    expect(settings(wrapper).text()).not.toContain('Ja, Balken übernehmen den Wert des Stamms')
+    expect(settings(wrapper).text()).not.toContain('Wert vererbbar')
 
     // ticked again: the row is back with the value it had, nothing was switched off
     await boxes()[0].setValue(true)
@@ -444,7 +498,7 @@ describe('the settings', () => {
     })
   })
 
-  it('hide "Vererbbar" of a system attribute that is not valid for the stem, and show it otherwise', async () => {
+  it('hide "Wert vererbbar" of a system attribute that is not valid for the stem, and show it otherwise', async () => {
     const { wrapper } = await open('/attributes?view=beam', (fake) => {
       const notes = fake.attributes.attributes.find((attribute) => attribute.key === 'notes')!
       notes.applies_to = ['beam']
@@ -452,11 +506,18 @@ describe('the settings', () => {
     })
     await field(wrapper, 'Notiz').trigger('click')
     await flushPromises()
-    expect(rowLabels(wrapper)).toEqual(['Typ', 'Gültig für', 'Serie', 'Anzeige-Bedingung', 'Aktiv'])
+    expect(rowLabels(wrapper)).toEqual([
+      'Typ',
+      'Stamm und Balken',
+      'Gültig für',
+      'Serie',
+      'Anzeige-Bedingung',
+      'Aktiv',
+    ])
 
     await field(wrapper, 'Gesägt').trigger('click')
     await flushPromises()
-    expect(rowLabels(wrapper)).toContain('Vererbbar')
+    expect(rowLabels(wrapper)).toContain('Wert vererbbar')
   })
 
   it('show a system attribute as text only, without any control', async () => {
@@ -470,7 +531,14 @@ describe('the settings', () => {
     expect(panel.text()).toContain('Ja/Nein')
     expect(panel.text()).toContain('Stamm')
     expect(panel.text()).toContain('Immer angezeigt')
-    expect(panel.find('input, select, textarea, button').exists()).toBe(false)
+    expect(panel.get('h3').text()).toBe('Stamm und Balken')
+    expect(panel.get('h3 + p').text()).toMatch(/^Erfassbar /)
+    // nothing to operate but the X that closes it
+    expect(
+      panel
+        .findAll('input, select, textarea, button')
+        .map((control) => control.attributes('aria-label')),
+    ).toEqual(['Schließen'])
     expect(buttonWith(wrapper, 'Speichern')).toBeUndefined()
     expect(buttonWith(wrapper, 'Verwerfen')).toBeUndefined()
   })
@@ -492,7 +560,7 @@ describe('the settings', () => {
     const panel = settings(wrapper)
     // by name, not by key (the yes/no system attributes: here "Notiz" is text, so the key is the fallback)
     expect(panel.text()).toContain('Ausgeblendet, wenn gesetzt:')
-    expect(panel.text()).toContain('Optionen')
+    expect(panel.text()).toContain('Auswahl-Optionen')
     expect(panel.find('li .line-through').text()).toBe('Nein')
     expect(panel.text()).toContain('(deaktiviert)')
   })
@@ -518,7 +586,8 @@ describe('saving', () => {
     expect(buttonWith(wrapper, 'Speichern')!.attributes('disabled')).toBeDefined()
   })
 
-  it('sends the attribute, keeps the selection and updates the preview', async () => {
+  it('sends the attribute, keeps the selection, updates the preview and confirms', async () => {
+    const focus = vi.spyOn(HTMLElement.prototype, 'focus')
     const { wrapper, api, router } = await open()
     await edit(wrapper, 'Lagerplatz', 'Ort')
     await settings(wrapper).get('textarea').setValue('Wo der Stamm liegt')
@@ -539,6 +608,13 @@ describe('saving', () => {
     expect(previewNames(wrapper)).not.toContain('Lagerplatz')
     expect(field(wrapper, 'Ort').text()).toContain('Wo der Stamm liegt')
     expect(buttonWith(wrapper, 'Speichern')!.attributes('disabled')).toBeDefined()
+    expect(wrapper.text()).toContain('Merkmal gespeichert')
+    // "Speichern" is disabled now: the heading of the card has the focus
+    expect(focus.mock.contexts[focus.mock.contexts.length - 1]).toBe(
+      settings(wrapper).get('h2').element,
+    )
+    expect(settings(wrapper).get('h2').attributes('tabindex')).toBe('-1')
+    focus.mockRestore()
   })
 
   it('updates the count when the attribute leaves the view', async () => {
@@ -553,32 +629,28 @@ describe('saving', () => {
 
     expect(countText(wrapper)).toBe('7 Merkmale')
     expect(previewNames(wrapper)).not.toContain('Lagerplatz')
+    expect(wrapper.text()).toContain('Merkmal gespeichert')
   })
 
-  it('adds a new option and takes back one that is new, deactivates one that exists', async () => {
+  it('adds a new option and deletes one that is new, deactivates one that exists', async () => {
     const { wrapper, api } = await open()
     await field(wrapper, 'Lagerplatz').trigger('click')
     await flushPromises()
     const panel = () => settings(wrapper)
 
-    await buttonWith(wrapper, 'Option hinzufügen')!.trigger('click')
-    expect(panel().findAll('input[aria-label^="Option"]')).toHaveLength(4)
-    await buttonWith(wrapper, 'Entfernen')!.trigger('click')
-    expect(panel().findAll('input[aria-label^="Option"]')).toHaveLength(3)
+    await buttonWith(wrapper, 'Auswahl-Option hinzufügen')!.trigger('click')
+    expect(panel().findAll('input[aria-label^="Auswahl-Option"]')).toHaveLength(4)
+    await panel().findAll('input[aria-label^="Auswahl-Option"]')[3].setValue('Lager Nord')
+    await panel().findAll('input[aria-label^="Auswahl-Option"]')[3].trigger('blur')
+    await wrapper.get('button[aria-label="„Lager Nord“ löschen"]').trigger('click')
+    expect(panel().findAll('input[aria-label^="Auswahl-Option"]')).toHaveLength(3)
     expect(buttonWith(wrapper, 'Speichern')!.attributes('disabled')).toBeDefined()
 
-    await buttonWith(wrapper, 'Option hinzufügen')!.trigger('click')
-    await panel().findAll('input[aria-label^="Option"]')[3].setValue('Lager Mitte')
-    await panel()
-      .findAll('button')
-      .find((b) => b.text() === 'Deaktivieren')!
-      .trigger('click')
+    await buttonWith(wrapper, 'Auswahl-Option hinzufügen')!.trigger('click')
+    await panel().findAll('input[aria-label^="Auswahl-Option"]')[3].setValue('Lager Mitte')
+    await panel().get('button[aria-label$=" deaktivieren"]').trigger('click')
     expect(panel().find('input.line-through').exists()).toBe(true)
-    expect(
-      panel()
-        .findAll('button')
-        .some((b) => b.text() === 'Aktivieren'),
-    ).toBe(true)
+    expect(panel().find('button[aria-label$=" aktivieren"]').exists()).toBe(true)
 
     await buttonWith(wrapper, 'Speichern')!.trigger('click')
     await flushPromises()
@@ -597,7 +669,7 @@ describe('saving', () => {
     await edit(wrapper, 'Lagerplatz', 'Holzart')
     api.attributes.reject([
       { field: 'name', message: 'Ein Merkmal mit diesem Namen gibt es schon.' },
-      { field: 'options.1.label', message: 'Die Option „X“ gibt es schon.' },
+      { field: 'options.1.label', message: 'Die Auswahl-Option „X“ gibt es schon.' },
     ])
 
     await buttonWith(wrapper, 'Speichern')!.trigger('click')
@@ -607,11 +679,13 @@ describe('saving', () => {
     const alerts = panel.findAll('[role=alert]').map((alert) => alert.text())
     expect(alerts).toEqual([
       'Ein Merkmal mit diesem Namen gibt es schon.',
-      'Die Option „X“ gibt es schon.',
+      'Die Auswahl-Option „X“ gibt es schon.',
     ])
     expect(panel.get('input[type=text]').attributes('aria-invalid')).toBe('true')
     // the name's error is in the name row, the option's under its option
-    expect(panel.findAll('input[aria-label^="Option"]')[1].attributes('aria-invalid')).toBe('true')
+    expect(panel.findAll('input[aria-label^="Auswahl-Option"]')[1].attributes('aria-invalid')).toBe(
+      'true',
+    )
     expect(panel.get<HTMLInputElement>('input[type=text]').element.value).toBe('Holzart')
     expect(buttonWith(wrapper, 'Speichern')!.attributes('disabled')).toBeUndefined()
 
@@ -741,6 +815,67 @@ describe('unsaved changes', () => {
   })
 })
 
+describe('closing the form', () => {
+  const close = (wrapper: VueWrapper) => wrapper.get('button[aria-label="Schließen"]')
+  const lastFocused = (focus: { mock: { contexts: unknown[] } }) =>
+    focus.mock.contexts[focus.mock.contexts.length - 1]
+
+  it('ends the selection with the X and puts the focus on the attribute in the preview', async () => {
+    const focus = vi.spyOn(HTMLElement.prototype, 'focus')
+    const { wrapper } = await open()
+    await field(wrapper, 'Lagerplatz').trigger('click')
+    await flushPromises()
+    expect(close(wrapper).attributes('title')).toBe('Schließen')
+
+    await close(wrapper).trigger('click')
+    await flushPromises()
+
+    expect(wrapper.vm.$route.query.attribute).toBeUndefined()
+    expect(settings(wrapper).exists()).toBe(false)
+    expect(wrapper.text()).toContain('Nichts ausgewählt')
+    expect(dialog()).toBeNull()
+    expect(lastFocused(focus)).toBe(field(wrapper, 'Lagerplatz').element)
+    focus.mockRestore()
+  })
+
+  it('is there for a system attribute too', async () => {
+    const { wrapper } = await open()
+    await field(wrapper, 'Gesägt').trigger('click')
+    await flushPromises()
+
+    await close(wrapper).trigger('click')
+    await flushPromises()
+
+    expect(wrapper.vm.$route.query.attribute).toBeUndefined()
+    expect(wrapper.text()).toContain('Nichts ausgewählt')
+  })
+
+  it('asks first with unsaved changes: "Weiter bearbeiten" stays, "Verwerfen" closes and focuses the attribute', async () => {
+    const focus = vi.spyOn(HTMLElement.prototype, 'focus')
+    const { wrapper, api } = await open()
+    await field(wrapper, 'Lagerplatz').trigger('click')
+    await flushPromises()
+    await settings(wrapper).get('input[type=text]').setValue('Ort')
+
+    await close(wrapper).trigger('click')
+    await flushPromises()
+    expect(dialog()!.textContent).toContain('Änderungen verwerfen?')
+    dialogButton('Weiter bearbeiten').click()
+    await flushPromises()
+    expect(wrapper.vm.$route.query.attribute).toBe(attributeOf(api, 'Lagerplatz').id)
+    expect(settings(wrapper).get<HTMLInputElement>('input[type=text]').element.value).toBe('Ort')
+
+    await close(wrapper).trigger('click')
+    await flushPromises()
+    dialogButton('Verwerfen').click()
+    await flushPromises()
+    expect(wrapper.vm.$route.query.attribute).toBeUndefined()
+    expect(wrapper.text()).toContain('Nichts ausgewählt')
+    expect(lastFocused(focus)).toBe(field(wrapper, 'Lagerplatz').element)
+    focus.mockRestore()
+  })
+})
+
 describe('bringing the settings into view', () => {
   /** What the browser would say about the card: where it starts. The header (72 px) and the bar (60 px) stay at the top. */
   function cardStartsAt(top: number) {
@@ -765,64 +900,30 @@ describe('bringing the settings into view', () => {
     document.documentElement.removeAttribute('style')
   })
 
-  it('scrolls smoothly to the card when it starts above the visible area, under the header and the bar', async () => {
+  it('does not scroll the page to the card on a wide screen: it is sticky and always in view', async () => {
     const { wrapper } = await open()
     cardStartsAt(-100)
 
     await field(wrapper, 'Holzart').trigger('click')
     await flushPromises()
-
-    expect(scrolled()).toHaveLength(1)
-    expect(scrolled()[0].options).toEqual({ block: 'start', behavior: 'smooth' })
-  })
-
-  it('does so when the card starts under the bar only partly: the first 132 px are covered', async () => {
-    const { wrapper } = await open()
-    cardStartsAt(100)
-
-    await field(wrapper, 'Holzart').trigger('click')
+    await buttonWith(wrapper, 'Abbrechen')?.trigger('click')
+    await buttonWith(wrapper, 'Merkmal hinzufügen')!.trigger('click')
     await flushPromises()
 
-    expect(scrolled()).toHaveLength(1)
+    expect(scrolled()).toHaveLength(0)
   })
 
-  it('does nothing when the card is visible', async () => {
+  it('starts the content of the card at the top for another selection', async () => {
     const { wrapper } = await open()
-    cardStartsAt(132)
-
     await field(wrapper, 'Holzart').trigger('click')
     await flushPromises()
+    const scroller = wrapper.get('[data-settings-column] [data-card-scroll]').element
+    scroller.scrollTop = 120
+
     await field(wrapper, 'Lagerplatz').trigger('click')
     await flushPromises()
 
-    expect(scrolled()).toHaveLength(0)
-    expect(settings(wrapper).get('h2').text()).toBe('Lagerplatz')
-  })
-
-  it('does the same for "Merkmal hinzufügen"', async () => {
-    const { wrapper } = await open()
-    cardStartsAt(300)
-    await buttonWith(wrapper, 'Merkmal hinzufügen')!.trigger('click')
-    await flushPromises()
-    expect(scrolled()).toHaveLength(0)
-
-    await buttonWith(wrapper, 'Abbrechen')!.trigger('click')
-    await flushPromises()
-    cardStartsAt(-40)
-    await buttonWith(wrapper, 'Merkmal hinzufügen')!.trigger('click')
-    await flushPromises()
-    expect(scrolled()).toHaveLength(1)
-  })
-
-  it('moves without animation when the system asks for less motion', async () => {
-    const { wrapper } = await open()
-    cardStartsAt(-100)
-    vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('reduced-motion') }))
-
-    await field(wrapper, 'Holzart').trigger('click')
-    await flushPromises()
-
-    expect(scrolled()[0].options).toEqual({ block: 'start', behavior: 'auto' })
+    expect(wrapper.get('[data-settings-column] [data-card-scroll]').element.scrollTop).toBe(0)
   })
 
   it('always scrolls to the card on a narrow screen, where it lies below the preview', async () => {
@@ -851,19 +952,51 @@ describe('bringing the settings into view', () => {
     expect(scrolled()).toHaveLength(0)
   })
 
-  it('has a card that is not sticky, not limited in height and without a scrollbar of its own', async () => {
+  it('draws a line above the buttons while content is hidden below them, and not at the end or without scrolling', async () => {
+    const { wrapper } = await open()
+    await field(wrapper, 'Lagerplatz').trigger('click')
+    await flushPromises()
+    const scroller = settings(wrapper).get('[data-card-scroll]')
+    const bar = () => buttonWith(wrapper, 'Speichern')!.element.parentElement!
+    const layout = async (scrollHeight: number, scrollTop: number) => {
+      for (const [key, value] of Object.entries({ scrollHeight, scrollTop, clientHeight: 400 })) {
+        Object.defineProperty(scroller.element, key, { value, configurable: true })
+      }
+      await scroller.trigger('scroll')
+    }
+
+    // nothing to scroll
+    await layout(400, 0)
+    expect(bar().className).toContain('border-transparent')
+    // scrollable and not at the end: the line, in the color of the dividers
+    await layout(900, 0)
+    expect(bar().className).toContain('border-soft')
+    await layout(900, 300)
+    expect(bar().className).toContain('border-soft')
+    // at the bottom: no line
+    await layout(900, 500)
+    expect(bar().className).toContain('border-transparent')
+  })
+
+  it('has a card that is sticky from lg on, at most as high as the visible area, and scrolls its content inside', async () => {
     const { wrapper } = await open()
     await field(wrapper, 'Lagerplatz').trigger('click')
     await flushPromises()
 
     const column = wrapper.get('[data-settings-column]').element
     const panel = settings(wrapper).element
-    for (const element of [column, panel, panel.firstElementChild!]) {
-      expect(element.className).not.toMatch(/sticky|max-h|overflow-y/)
-    }
-    // "Verwerfen" and "Speichern" are the card's last row, after the form
+    const scroller = panel.querySelector('[data-card-scroll]')!
+    // the column sticks under the header and the bar (24 px), at most as high as what is left below them (24 px at the bottom)
+    expect(column.className).toContain('lg:sticky')
+    expect(column.className).toContain('lg:top-[calc(var(--sticky-top)+1.5rem)]')
+    expect(column.className).toContain('lg:max-h-[calc(100dvh-var(--sticky-top)-3rem)]')
+    // the card shrinks to it, its content (with the heading) scrolls, "Verwerfen" and "Speichern" stay at the bottom, after the scrolling part
+    expect(panel.className).toContain('lg:min-h-0')
+    expect(scroller.className).toContain('lg:overflow-y-auto')
+    expect(scroller.contains(panel.querySelector('h2'))).toBe(true)
+    expect(scroller.contains(buttonWith(wrapper, 'Speichern')!.element)).toBe(false)
     expect(panel.lastElementChild!.contains(buttonWith(wrapper, 'Speichern')!.element)).toBe(true)
-    expect(panel.firstElementChild!.contains(buttonWith(wrapper, 'Speichern')!.element)).toBe(false)
+    expect(panel.lastElementChild!.className).toContain('lg:shrink-0')
   })
 })
 
@@ -899,7 +1032,9 @@ describe('after a 422', () => {
   it('focuses the input of the option that has the message', async () => {
     const { wrapper } = await fail([{ field: 'options.1.label', message: 'Doppelt' }])
 
-    expect(focused()).toBe(settings(wrapper).findAll('input[aria-label^="Option"]')[1].element)
+    expect(focused()).toBe(
+      settings(wrapper).findAll('input[aria-label^="Auswahl-Option"]')[1].element,
+    )
   })
 
   it('focuses the first box of a group of boxes, and the box of "Aktiv"', async () => {

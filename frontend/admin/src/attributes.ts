@@ -28,6 +28,25 @@ export const NEW_ATTRIBUTE = 'new'
 
 export const KIND_LABELS: Record<ItemKind, string> = { stem: 'Stamm', beam: 'Balken' }
 
+/** The sentence under "Stamm und Balken": what "Gültig für" and "Wert vererbbar" together mean for the beams. */
+export function stemBeamText(appliesTo: ItemKind[], isInheritable: boolean): string {
+  const stem = appliesTo.includes('stem')
+  const beam = appliesTo.includes('beam')
+  if (!stem) {
+    return beam
+      ? 'Erfassbar nur an Balken, auch an einem Stamm, der als Ganzes zum Balken gesägt ist.'
+      : ''
+  }
+  if (beam) {
+    return isInheritable
+      ? 'Erfassbar an Stamm und Balken. Balken zeigen den Wert des Stamms, bis sie einen eigenen bekommen.'
+      : 'Erfassbar an Stamm und Balken. Balken starten leer, auch wenn der Stamm einen Wert hat.'
+  }
+  return isInheritable
+    ? 'Erfassbar nur am Stamm. Balken zeigen seinen Wert, ändern lässt er sich nur am Stamm.'
+    : 'Erfassbar nur am Stamm. Balken haben dieses Merkmal nicht.'
+}
+
 // --- The URL: ?view=beam, ?inactive=1, ?attribute=<id> ---------------------------------------------------------------------------
 
 export interface AttributesQuery {

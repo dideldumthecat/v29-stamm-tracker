@@ -179,8 +179,8 @@ describe('frame', () => {
     await router.push('/')
 
     expect(wrapper.findAll('nav a').map((link) => link.text())).toEqual([
-      'Rundholz',
-      'Schnittholz',
+      'Stämme',
+      'Balken',
       'Aktivität',
     ])
     const current = wrapper.get('nav [aria-current=page]')
