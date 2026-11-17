@@ -36,6 +36,26 @@ export interface PhotoUpload extends PhotoUploadFields {
   blob: Blob
 }
 
+/** Not-yet-synced counts, for the server log only (headers X-Pending-*); the store registers where they come from. */
+type PendingCounts = { entries: number; events: number; photos: number }
+let pendingCounts: (() => PendingCounts) | undefined
+
+export function setPendingCounts(counts: (() => PendingCounts) | undefined) {
+  pendingCounts = counts
+}
+
+function diagnosticHeaders(): Record<string, string> {
+  const pending = pendingCounts?.()
+  return {
+    'X-App-Build': APP_BUILD,
+    ...(pending && {
+      'X-Pending-Entries': String(pending.entries),
+      'X-Pending-Events': String(pending.events),
+      'X-Pending-Photos': String(pending.photos),
+    }),
+  }
+}
+
 /**
  * `body` is sent as JSON, a FormData as multipart. An aborted `signal` (cancel, timeout) ends up as status 0 like
  * any lost connection; the caller knows whether it aborted. `keepalive` lets the request outlive the page.
@@ -53,8 +73,8 @@ async function request<T>(
       method,
       headers:
         body === undefined || body instanceof FormData
-          ? { 'X-App-Build': APP_BUILD }
-          : { 'X-App-Build': APP_BUILD, 'Content-Type': 'application/json' },
+          ? diagnosticHeaders()
+          : { ...diagnosticHeaders(), 'Content-Type': 'application/json' },
       body: body === undefined || body instanceof FormData ? body : JSON.stringify(body),
       signal,
       keepalive,

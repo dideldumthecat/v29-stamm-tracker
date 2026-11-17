@@ -87,7 +87,8 @@ export function createSync({
           })
           const result = await syncDataAndPhotos(stoppable)
           void record('info', 'sync', result.cancelled ? 'Sync stopped' : 'Sync finished', {
-            transferred: result.transferred,
+            // Not comparable with pending_entries: no photos here (their files are counted in photos_uploaded).
+            entries_uploaded_without_photos: result.transferred,
             rejected: result.rejected.length,
             photos_uploaded: result.photos?.uploaded,
             photos_failed: result.photos?.failed,
