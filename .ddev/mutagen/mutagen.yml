@@ -1,0 +1,50 @@
+# Customised (no "ddev-generated" line, so DDEV leaves it alone): build and test output is not synced.
+# Please do `ddev mutagen reset` after changing the file.
+# See DDEV Mutagen docs at
+# https://docs.ddev.com/en/stable/users/install/performance/#mutagen
+# For detailed information about mutagen configuration options, see
+# https://mutagen.io/documentation/introduction/configuration
+sync:
+  defaults:
+    mode: "two-way-resolved"
+    stageMode: "neighboring"
+    ignore:
+      paths:
+        # The top-level .git directory is ignored because where possible it's
+        # mounted into the container with a traditional docker bind-mount
+        - "/.git"
+        - "/.tarballs"
+        - "/.ddev/db_snapshots"
+        - "/.ddev/.importdb*"
+        - "/.ddev/.snapshot*"
+        - ".DS_Store"
+        - ".idea"
+
+        # Build and test output is produced and read inside the container only
+        - "/frontend/app/dist"
+        - "/frontend/app/dist-e2e"
+        - "/frontend/app/test-results"
+        - "/frontend/app/playwright-report"
+        - "/frontend/admin/dist"
+        - "/frontend/admin/dist-e2e"
+        - "/frontend/admin/test-results"
+        - "/frontend/admin/playwright-report"
+        # Built app and administration (index.php, .htaccess and php.ini stay synced)
+        - "/backend/public/admin"
+        - "/backend/public/assets"
+        - "/backend/public/index.html"
+        - "/backend/public/manifest.webmanifest"
+        - "/backend/public/sw.js"
+        - "/backend/public/workbox-*.js"
+        - "/backend/public/favicon.ico"
+        - "/backend/public/*.png"
+
+        # You can also exclude other directories from mutagen-syncing
+        # For example /var/www/html/var does not need to sync in TYPO3
+        # so you can add:
+        # - "/var"
+        # vcs like .git can be ignored for safety, but then some
+        # composer operations may fail if they use dev versions/git.
+        # vcs: true
+    symlink:
+      mode: "posix-raw"
