@@ -5,8 +5,9 @@ import { LogOutIcon } from '@lucide/vue'
 import AuthorCredit from '@v29/shared/AuthorCredit.vue'
 import V29Logo from '@v29/shared/V29Logo.vue'
 
-import { signOut, user } from '@/auth'
+import { connectionLost, signOut, user } from '@/auth'
 import AdminMenu from '@/components/AdminMenu.vue'
+import LoadFailure from '@/components/LoadFailure.vue'
 import { useSizeVariable } from '@/sizeVariable'
 
 // Only pages that exist, one line each, in the order of the design: Dashboard, Stämme, Balken, Merkmale, Nutzer, Aktivität.
@@ -27,6 +28,8 @@ useSizeVariable(header, '--header-height', 'height')
 // The footer height is for pages that must leave room for it at the end (the photo card of the detail view)
 const footer = useTemplateRef<HTMLElement>('footer')
 useSizeVariable(footer, '--footer-height', 'height')
+
+const retry = () => router.replace(connectionLost.value ?? '/')
 
 async function onSignOut() {
   error.value = false
@@ -92,8 +95,10 @@ async function onSignOut() {
       </div>
     </header>
     <div class="flex-1">
+      <!-- The first check of the sign-in found no server: this stands in for the page until the retry gets through -->
+      <LoadFailure v-if="connectionLost" :failure="0" @retry="retry" />
       <!-- The name as key: the two lists are one component, each starts fresh (own filters, own data) -->
-      <RouterView :key="String(route.name)" />
+      <RouterView v-else :key="String(route.name)" />
     </div>
     <footer ref="footer" class="sticky left-0 w-[100cqw]">
       <div class="page-column py-8 text-center text-caption text-mute">

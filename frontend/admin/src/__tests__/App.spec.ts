@@ -75,6 +75,27 @@ describe('router guard', () => {
     expect(wrapper.get('h1').text()).toBe('V29 Stamm-Tracker – Administration')
   })
 
+  it('shows a retry instead of the login when the server cannot be reached, and opens the page with its URL after it', async () => {
+    const api = fakeApi(CODES)
+    await fetch('/api/session', { method: 'POST', body: JSON.stringify({ token: ADMIN }) })
+    api.setOffline(true)
+    const { router, wrapper } = await start('/x')
+    // mounting runs the guard for the start of the memory history ("/"); the real browser starts at the page itself
+    await router.push('/activity?tags=104')
+    await flushPromises()
+
+    expect(router.currentRoute.value.name).not.toBe('login')
+    expect(wrapper.get('[role=alert]').text()).toContain('keine Verbindung zum Server')
+    expect(wrapper.find('input').exists()).toBe(false)
+
+    api.setOffline(false)
+    await wrapper.get('[role=alert] button').trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.fullPath).toBe('/activity?tags=104')
+    expect(wrapper.find('[role=alert]').exists()).toBe(false)
+  })
+
   it('goes to the login when a later request is refused', async () => {
     const api = fakeApi(CODES)
     const { router, wrapper } = await start('/login')
