@@ -23,8 +23,7 @@ const icons: Record<TileType, Component> = {
 <template>
   <section class="card p-5" aria-labelledby="new-attribute-heading">
     <h2 id="new-attribute-heading" class="text-xl font-bold">Neues Merkmal</h2>
-    <p class="mt-4 text-sm font-bold sm:text-base">Welche Art von Merkmal soll es sein?</p>
-    <ul class="mt-3 grid gap-3 sm:grid-cols-2">
+    <ul class="mt-5 grid gap-3 sm:grid-cols-2">
       <li v-for="tile in TILES" :key="tile.type">
         <button
           type="button"
@@ -42,7 +41,7 @@ const icons: Record<TileType, Component> = {
         </button>
       </li>
     </ul>
-    <div class="mt-5 flex justify-end">
+    <div class="mt-6 flex justify-end">
       <button
         type="button"
         class="h-11 rounded-lg border-2 border-ink px-4 font-bold whitespace-nowrap"

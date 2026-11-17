@@ -371,9 +371,9 @@ describe('the settings', () => {
     await settings(wrapper).get('select').setValue('number')
 
     expect(rowLabels(wrapper)).toEqual([
+      'Typ',
       'Name',
       'Beschreibung',
-      'Typ',
       'Einheit',
       'Gültig für',
       'Serie',
@@ -388,9 +388,9 @@ describe('the settings', () => {
     dialogButton('Verwerfen').click()
     await flushPromises()
     expect(rowLabels(wrapper)).toEqual([
+      'Typ',
       'Name',
       'Beschreibung',
-      'Typ',
       'Gültig für',
       'Vererbbar',
       'Anzeige-Bedingung',

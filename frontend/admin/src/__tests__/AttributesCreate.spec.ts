@@ -222,9 +222,9 @@ describe('the form of a new attribute, in the order of the settings', () => {
     await tile(wrapper, 'Zahl').trigger('click')
 
     expect(rowLabels(wrapper)).toEqual([
+      'Typ',
       'Name',
       'Beschreibung',
-      'Typ',
       'Einheit',
       'Gültig für',
       'Serie',
@@ -234,11 +234,11 @@ describe('the form of a new attribute, in the order of the settings', () => {
     ])
   })
 
-  it('puts the precision of a date right after the type', async () => {
+  it('puts the precision of a date after the description', async () => {
     const { wrapper } = await start()
     await tile(wrapper, 'Datum').trigger('click')
 
-    expect(rowLabels(wrapper).slice(0, 4)).toEqual(['Name', 'Beschreibung', 'Typ', 'Genauigkeit'])
+    expect(rowLabels(wrapper).slice(0, 4)).toEqual(['Typ', 'Name', 'Beschreibung', 'Genauigkeit'])
   })
 
   it('switches "Vererbbar" off in the draft when "Stamm" is unticked, and hides the row', async () => {
