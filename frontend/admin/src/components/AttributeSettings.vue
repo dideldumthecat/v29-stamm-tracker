@@ -237,33 +237,6 @@ const optionButton = 'h-11 w-34 shrink-0 rounded-lg border-2 px-2 font-bold whit
         class="mt-2 divide-y divide-soft"
         @submit.prevent="emit('save')"
       >
-        <SettingsRow label="Name" :label-for="`${id}-name`" :error="errors.name">
-          <input
-            :id="`${id}-name`"
-            :value="draft.name"
-            type="text"
-            autocomplete="off"
-            :class="field"
-            :aria-invalid="!!errors.name"
-            @input="set('name', ($event.target as HTMLInputElement).value)"
-          />
-        </SettingsRow>
-
-        <SettingsRow
-          label="Beschreibung"
-          :label-for="`${id}-description`"
-          :error="errors.description"
-        >
-          <textarea
-            :id="`${id}-description`"
-            :value="draft.description"
-            rows="2"
-            placeholder="Hinweis für die Erfassung (optional)"
-            class="min-h-[72px] w-full resize-y rounded-lg border-2 border-ink bg-paper px-3 py-2 text-base text-ink placeholder:text-dim"
-            @input="set('description', ($event.target as HTMLTextAreaElement).value)"
-          ></textarea>
-        </SettingsRow>
-
         <!-- A new attribute: the type as text; "ändern" leads back to the tiles and keeps what was typed -->
         <SettingsRow v-if="isNew" label="Typ">
           <div class="flex min-h-11 items-center gap-3">
@@ -306,6 +279,33 @@ const optionButton = 'h-11 w-34 shrink-0 rounded-lg border-2 px-2 font-bold whit
               Nicht mehr änderbar: Es sind schon Werte erfasst.
             </p>
           </template>
+        </SettingsRow>
+
+        <SettingsRow label="Name" :label-for="`${id}-name`" :error="errors.name">
+          <input
+            :id="`${id}-name`"
+            :value="draft.name"
+            type="text"
+            autocomplete="off"
+            :class="field"
+            :aria-invalid="!!errors.name"
+            @input="set('name', ($event.target as HTMLInputElement).value)"
+          />
+        </SettingsRow>
+
+        <SettingsRow
+          label="Beschreibung"
+          :label-for="`${id}-description`"
+          :error="errors.description"
+        >
+          <textarea
+            :id="`${id}-description`"
+            :value="draft.description"
+            rows="2"
+            placeholder="Hinweis für die Erfassung (optional)"
+            class="min-h-[72px] w-full resize-y rounded-lg border-2 border-ink bg-paper px-3 py-2 text-base text-ink placeholder:text-dim"
+            @input="set('description', ($event.target as HTMLTextAreaElement).value)"
+          ></textarea>
         </SettingsRow>
 
         <SettingsRow
