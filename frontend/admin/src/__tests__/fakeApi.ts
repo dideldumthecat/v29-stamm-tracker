@@ -73,6 +73,7 @@ export function fakeApi(codes: Record<string, string>, { offline = false, pageSi
   )
   return {
     calls,
+    setOffline: (down: boolean) => (offline = down),
     expireSession: () => (role = null),
     failSignOut: () => (signOutFails = true),
     failActivity: (fails = true) => (activityFails = fails),

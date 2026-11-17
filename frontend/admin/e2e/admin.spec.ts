@@ -1,4 +1,4 @@
-import { test, expect, type Locator, type Page } from '@playwright/test'
+import { test, expect, type Locator, type Page, type Route } from '@playwright/test'
 
 import keyFiguresFixture from '@v29/shared/fixtures/key-figures-response.json' with { type: 'json' }
 
@@ -83,6 +83,28 @@ for (const [path, landing, heading] of [
     await expect(page.locator('header')).toContainText('Ada')
   })
 }
+
+test('no connection at the start: a retry instead of the sign-in, then the page with its filter', async ({
+  page,
+}) => {
+  await page.goto('/admin/login')
+  await signIn(page, 'K7QM4XHT9RDP')
+  await expect(page.locator('h1')).toHaveText('Aktivität')
+
+  // the last route handler wins: the call to /admin/me gets no answer until the handler is removed
+  const noAnswer = (route: Route) => route.abort()
+  await page.route('**/api/admin/me', noAnswer)
+  await page.goto('/admin/activity?tags=104')
+  await expect(page.getByRole('alert')).toContainText('keine Verbindung zum Server')
+  await expect(page).toHaveURL(/\/admin\/activity\?tags=104$/)
+
+  await page.unroute('**/api/admin/me', noAnswer)
+  await page.getByRole('button', { name: 'Erneut versuchen' }).click()
+
+  await expect(page.locator('h1')).toHaveText('Aktivität')
+  await expect(page).toHaveURL(/\/admin\/activity\?tags=104$/)
+  await expect(page.getByRole('alert')).toHaveCount(0)
+})
 
 // the sticky bar with the count and the chips (ResultsBar)
 // A filter button and its pop-up are named after the filter, plus the number of ticks once it is active ("Person", "Person 2").

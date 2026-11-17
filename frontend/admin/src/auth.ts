@@ -6,6 +6,9 @@ import { ApiError, request } from '@/api/client'
 /** The signed-in user, kept in memory only: the cookie decides, so every page load asks the server once. */
 export const user = ref<AdminMeResponse['user'] | null>(null)
 
+/** The page that could not be opened because the server did not answer (no sign-in decision yet); App.vue shows a retry instead of it. */
+export const connectionLost = ref<string | null>(null)
+
 const me = () => request<AdminMeResponse>('GET', 'admin/me', undefined, { silent: true })
 
 /** @returns false if there is no valid sign-in (401) or no access to the administration (403) */

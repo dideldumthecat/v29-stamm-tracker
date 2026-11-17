@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory, type RouterHistory } from 'vue-router'
 
 import { setUnauthorizedHandler } from '@/api/client'
-import { loadUser, user } from '@/auth'
+import { connectionLost, loadUser, user } from '@/auth'
 import { itemRoute, normalizeTag } from '@/detail'
 import ActivityView from '@/views/ActivityView.vue'
 import AttributesView from '@/views/AttributesView.vue'
@@ -33,8 +33,16 @@ export function createAdminRouter(history: RouterHistory = createWebHistory('/ad
 
   router.beforeEach(async (to) => {
     if (to.name === 'login') return true
-    // Without a connection the sign-in page is the right place too: it reports the missing connection.
-    if (!(await loadUser().catch(() => false))) return toLogin(to.fullPath)
+    // Without a connection there is no answer about the sign-in: stay where we are, App.vue offers a retry (`router.replace(connectionLost)`).
+    let signedIn: boolean
+    try {
+      signedIn = await loadUser()
+    } catch {
+      connectionLost.value = to.fullPath
+      return false
+    }
+    connectionLost.value = null
+    if (!signedIn) return toLogin(to.fullPath)
     // A tag on the path of the other kind (/beams/104, /stems/104-A) goes to the right one. A guard redirect keeps the way the navigation was made
     // (push stays push, a pasted link replaces its entry): the wrong path never lands in the history, and no entry is added or replaced beyond that.
     const tag =
