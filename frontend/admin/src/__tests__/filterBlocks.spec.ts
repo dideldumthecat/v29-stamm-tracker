@@ -168,9 +168,9 @@ describe('ColumnFilterButton', () => {
     ])
   })
 
-  it('offers "ja" and "nein" for yes/no, and a range with the unit and "Nicht erfasst" for a number', async () => {
+  it('offers "ja" and "nein" without "Nicht erfasst" for yes/no, and a range with the unit and "Nicht erfasst" for a number', async () => {
     await open('Gesägt', null)
-    expect(labels()).toEqual(['ja', 'nein', 'Nicht erfasst'])
+    expect(labels()).toEqual(['ja', 'nein'])
   })
 
   it('has no badge for a range, and from–to with "Nicht erfasst" as the alternative', async () => {

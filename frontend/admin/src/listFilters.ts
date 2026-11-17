@@ -1,4 +1,10 @@
-import { bySortOrder, formatDate, formatMonthLong, formatNumber } from '@v29/shared/attributes'
+import {
+  bySortOrder,
+  currentValue,
+  formatDate,
+  formatMonthLong,
+  formatNumber,
+} from '@v29/shared/attributes'
 import type {
   Attribute,
   AttributeType,
@@ -184,9 +190,9 @@ export function boundText(type: FilterType, value: string): string {
   }
 }
 
-/** Whether the filter of the column offers "Nicht erfasst" (all but a count, and "Geändert", which every item has). */
+/** Whether the filter of the column offers "Nicht erfasst" (all but a count, "Geändert", which every item has, and yes/no, where no value is "nein"). */
 export const offersNone = (column: FilterColumn) =>
-  column.kind !== 'beams' && column.kind !== 'changed'
+  column.kind !== 'beams' && column.kind !== 'changed' && column.attribute?.type !== 'boolean'
 
 const MONTH = /^\d{4}-(?:0[1-9]|1[0-2])$/
 
@@ -201,7 +207,7 @@ export function readFilter(
     case 'boolean': {
       const picks = [...new Set(text.split(','))]
       const known = (pick: string) =>
-        type === 'choice' ? /^\S+$/.test(pick) : ['yes', 'no', NOT_RECORDED_PICK].includes(pick)
+        type === 'choice' ? /^\S+$/.test(pick) : ['yes', 'no'].includes(pick)
       return picks.every(known) ? { kind: 'pick', picks } : null
     }
     case 'month': {
@@ -247,8 +253,9 @@ export function writeFilter(filter: ColumnFilter): string {
 /** Whether the column has a value in the row. The cell shows "–" exactly for what is not recorded, so the filter and the table cannot disagree. */
 const recorded = (row: FilterRow, column: FilterColumn) => row.cells[column.id].text !== null
 
+// The columns are those of the list's kind, so the attribute applies to every row of it
 const lastValue = (row: FilterRow, attribute: Attribute) =>
-  row.values[attribute.id]?.slice(-1)[0]?.value
+  currentValue(attribute, row.values[attribute.id], true)
 
 /**
  * Whether a row passes the filter of a column. Only the item's own values count (the notes of the beams of a stem never do);

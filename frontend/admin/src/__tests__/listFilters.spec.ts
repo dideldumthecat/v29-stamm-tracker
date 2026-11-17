@@ -166,12 +166,11 @@ describe('column filters', () => {
     expect(pass(column, { kind: 'pick', picks: ['o-gibtsnicht'] })).toEqual([])
   })
 
-  it('boolean: "ja", "nein" and "not recorded" are three different things', () => {
+  it('boolean: no value is "nein"', () => {
     const column = col('boolean')
     expect(pass(column, { kind: 'pick', picks: ['yes'] })).toEqual(['1'])
-    expect(pass(column, { kind: 'pick', picks: ['no'] })).toEqual(['2'])
-    expect(pass(column, { kind: 'pick', picks: ['none'] })).toEqual(['3', '4', '5'])
-    expect(pass(column, { kind: 'pick', picks: ['yes', 'no'] })).toEqual(['1', '2'])
+    expect(pass(column, { kind: 'pick', picks: ['no'] })).toEqual(['2', '3', '4', '5'])
+    expect(pass(column, { kind: 'pick', picks: ['yes', 'no'] })).toEqual(['1', '2', '3', '4', '5'])
   })
 
   it('number: both ends included, one end may be missing, 0 is a value, "not recorded" apart; a series counts by its latest value', () => {
@@ -278,7 +277,7 @@ describe('column filters', () => {
   it('reads and writes the URL form, and refuses what it cannot read', () => {
     const forms: [AttributeType | 'count', string, ColumnFilter][] = [
       ['choice', 'o-eins,none', { kind: 'pick', picks: ['o-eins', 'none'] }],
-      ['boolean', 'yes,no,none', { kind: 'pick', picks: ['yes', 'no', 'none'] }],
+      ['boolean', 'yes,no', { kind: 'pick', picks: ['yes', 'no'] }],
       ['number', '30.5~40', range('30.5', '40')],
       ['number', '~40', range('', '40')],
       ['number', 'none', { kind: 'none' }],
@@ -295,6 +294,7 @@ describe('column filters', () => {
     }
     const unreadable: [AttributeType | 'count', string][] = [
       ['boolean', 'maybe'],
+      ['boolean', 'none'],
       ['number', 'abc~'],
       ['number', '~'],
       ['number', '1~2~3'],
@@ -365,9 +365,6 @@ describe('column filters', () => {
     expect(chip('boolean', { kind: 'pick', picks: ['yes'] })).toBe('Zufallsmerkmal boolean: ja')
     expect(chip('boolean', { kind: 'pick', picks: ['no', 'yes'] })).toBe(
       'Zufallsmerkmal boolean: ja, nein',
-    )
-    expect(chip('boolean', { kind: 'pick', picks: ['no', 'yes', 'none'] })).toBe(
-      'Zufallsmerkmal boolean: 3 ausgewählt',
     )
     expect(chip('number', range('30', '40'))).toBe('Zufallsmerkmal number: 30–40 cm')
     expect(chip('number', range('30.5', ''))).toBe('Zufallsmerkmal number: ab 30,5 cm')
@@ -459,13 +456,26 @@ describe('column filters', () => {
     })
   })
 
+  it('drops "Nicht erfasst" from the URL of a yes/no filter, the other picks stay', () => {
+    const name = id('boolean')
+    expect(readQuery({ [`f.${name}`]: 'none' }, cols).filters).toEqual({})
+    expect(readQuery({ [`f.${name}`]: 'yes,none' }, cols).filters).toEqual({ [name]: 'yes' })
+    // a choice keeps it
+    expect(readQuery({ [`f.${id('choice')}`]: 'none' }, cols).filters).toEqual({
+      [id('choice')]: 'none',
+    })
+  })
+
   describe('"Nicht erfasst" of "Geändert"', () => {
     const cols = buildColumns(attrs, 'stem')
     const column = (kind: string) => cols.find((c) => c.kind === kind)!
 
-    it('is offered for every column but the beams and "Geändert", which every item has', () => {
+    it('is offered for every column but the beams, "Geändert", which every item has, and yes/no, where no value is "nein"', () => {
       expect(cols.map((c) => [c.label, c.kind === 'tag' || offersNone(c)])).toEqual(
-        cols.map((c) => [c.label, !['beams', 'changed'].includes(c.kind)]),
+        cols.map((c) => [
+          c.label,
+          !['beams', 'changed'].includes(c.kind) && c.attribute?.type !== 'boolean',
+        ]),
       )
     })
 

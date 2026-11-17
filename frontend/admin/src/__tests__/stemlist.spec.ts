@@ -97,6 +97,8 @@ describe('cellOf', () => {
     expect(text('104', 'Fälldatum')).toBe('10/2026')
     expect(text('104', 'Gesägt')).toBe('ja')
     expect(text('1500', 'Gesägt')).toBe('nein')
+    // a yes/no attribute without a value is "nein", other types stay "–"
+    expect(text('7', 'Gesägt')).toBe('nein')
     expect(text('1500', 'Holzfeuchte')).toBe('30 %')
     expect(text('7', 'Holzart')).toBeNull()
     expect(text('7', 'Fotos')).toBeNull()
@@ -167,9 +169,10 @@ describe('sortRows', () => {
     expect(order('Geändert', 'desc')).toEqual(['104', null, '7', '1500'])
   })
 
-  it('sorts yes, no, not recorded ascending and no, yes, not recorded descending', () => {
-    expect(order('Gesägt')).toEqual(['104', '1500', '7', null])
-    expect(order('Gesägt', 'desc')).toEqual(['1500', '104', '7', null])
+  it('sorts yes before no ascending and no before yes descending; no value counts as no, ties by tag', () => {
+    // "7" and the stem without a tag have no value: "nein"
+    expect(order('Gesägt')).toEqual(['104', '7', '1500', null])
+    expect(order('Gesägt', 'desc')).toEqual(['7', '1500', null, '104'])
   })
 
   it('sorts photos and beams by number: no photo is not recorded, no beams is the number 0', () => {

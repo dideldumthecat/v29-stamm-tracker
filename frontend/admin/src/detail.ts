@@ -6,7 +6,13 @@ import type {
   ItemKind,
   TimberItem,
 } from '@v29/shared/contract'
-import { bySortOrder, formatValue, isInheritedValue, SAWN_KEY } from '@v29/shared/attributes'
+import {
+  bySortOrder,
+  currentValue,
+  formatValue,
+  isInheritedValue,
+  SAWN_KEY,
+} from '@v29/shared/attributes'
 import { itemRoles, splitChoiceOf } from '@v29/shared/itemRoles'
 import { formatTag } from '@v29/shared/tag'
 
@@ -119,20 +125,23 @@ export function splitValues(
   for (const attribute of sorted) {
     const records = item.values[attribute.id] ?? []
     const inherited = isInheritedValue(item, parent, attribute.id)
+    const applies = attribute.active && attribute.applies_to.some((kind) => kinds.includes(kind))
     if (attribute.type === 'photo') {
       if (!inherited) photos.push(...records)
-    } else if (
-      records.length ||
-      (attribute.active && attribute.applies_to.some((kind) => kinds.includes(kind)))
-    ) {
+    } else if (records.length || applies) {
       // A series lists every recording, newest first; anything else holds just its current value.
       // A beam does not show the stem's notes (text series), only its own.
       const hidden = inherited && attribute.type === 'text' && attribute.is_series
       const shown = hidden ? [] : attribute.is_series ? [...records].reverse() : records.slice(-1)
+      // No value on a yes/no attribute that applies to this item: "nein", with no source (nobody recorded it)
+      const implied = currentValue(attribute, records, applies)
       rows.push({
         id: attribute.id,
         name: attribute.name,
-        lines: shown.map((record) => line(attribute, record, inherited)),
+        lines:
+          !records.length && implied !== undefined
+            ? [{ text: formatRecorded(attribute, implied), source: '' }]
+            : shown.map((record) => line(attribute, record, inherited)),
       })
     }
   }

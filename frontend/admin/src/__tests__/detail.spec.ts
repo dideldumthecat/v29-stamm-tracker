@@ -94,6 +94,18 @@ describe('splitValues', () => {
       expect(names(wholeSawn(false))).not.toContain('Sortierklasse')
     })
 
+    it('shows a yes/no attribute without a value as "nein" if it applies to the kind, no row if it does not', () => {
+      const row = (item: typeof stem, parent?: typeof stem) =>
+        splitValues(item, parent, attributes, users).rows.find((r) => r.name === 'Gesägt')
+      const unrecorded = structuredClone(stem)
+      delete unrecorded.values[idOf('Gesägt')]
+      expect(row(unrecorded)!.lines).toEqual([{ text: 'nein', source: '' }])
+      // "Gesägt" applies to stems only: a beam without a value of its own or inherited has no row
+      const beam = structuredClone(beamC)
+      delete beam.values[idOf('Gesägt')]
+      expect(row(beam, unrecorded)).toBeUndefined()
+    })
+
     it('keeps a row with a value although the attribute does not apply (old data)', () => {
       const item = structuredClone(stem)
       item.values[idOf('Sortierklasse')] = beamC.values[idOf('Sortierklasse')]

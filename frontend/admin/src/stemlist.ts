@@ -1,5 +1,5 @@
 import type { LocationQueryRaw } from 'vue-router'
-import { bySortOrder, isInheritedValue, SAWN_KEY } from '@v29/shared/attributes'
+import { bySortOrder, currentValue, isInheritedValue, SAWN_KEY } from '@v29/shared/attributes'
 import type {
   Attribute,
   AttributeValueRecord,
@@ -191,25 +191,26 @@ export function cellOf(row: RawRow, column: Column): Cell {
   }
   const attribute = column.attribute!
   const records = row.values[attribute.id] ?? []
-  const last = records[records.length - 1]
-  if (!last) return NOT_RECORDED
+  // The columns are those of the list's kind, so the attribute applies to every row of it
+  const value = currentValue(attribute, records, true)
+  if (value === undefined) return NOT_RECORDED
   switch (attribute.type) {
     case 'photo':
       return { text: formatCount(records.length), key: records.length }
     case 'boolean':
       // "ja" before "nein"
-      return { text: last.value ? 'ja' : 'nein', key: last.value ? 0 : 1 }
+      return { text: value ? 'ja' : 'nein', key: value ? 0 : 1 }
     case 'choice': {
-      const option = attribute.options.find((candidate) => candidate.id === last.value)
+      const option = attribute.options.find((candidate) => candidate.id === value)
       return option ? { text: option.label, key: option.sort_order } : NOT_RECORDED
     }
     case 'number':
-      return { text: formatRecorded(attribute, last.value), key: Number(last.value) }
+      return { text: formatRecorded(attribute, value), key: Number(value) }
     case 'date':
     case 'month':
-      return { text: formatRecorded(attribute, last.value), key: Date.parse(String(last.value)) }
+      return { text: formatRecorded(attribute, value), key: Date.parse(String(value)) }
     case 'text': {
-      const text = String(last.value)
+      const text = String(value)
       // Texts are sorted by whether there is one, not by what it says: all values equal, the stem number decides
       return { text, key: 0, more: attribute.is_series ? records.length - 1 : 0 }
     }
@@ -355,6 +356,12 @@ export function readQuery(query: LocationQueryRaw, columns: Column[]): ListQuery
     let text = (first(names[column.id]) || first(`f.${column.id}`)).trim()
     // An old link with a range of months ("2026-10~2026-11") sets no filter
     if (type === 'month' && text.includes('~')) continue
+    // An old link with "Nicht erfasst" for a yes/no attribute: that value is gone (no value counts as "nein")
+    if (type === 'boolean')
+      text = text
+        .split(',')
+        .filter((pick) => pick !== NOT_RECORDED_PICK)
+        .join(',')
     if (type === 'choice') {
       const ids = new Set(column.attribute!.options.map((option) => option.id))
       const byName = new Map(

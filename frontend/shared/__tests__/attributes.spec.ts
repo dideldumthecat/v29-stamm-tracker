@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
-import { formatDate, formatMonth, formatMonthLong, isInheritedValue, SAWN_KEY } from '../attributes'
+import {
+  currentValue,
+  formatDate,
+  formatMonth,
+  formatMonthLong,
+  isInheritedValue,
+  SAWN_KEY,
+} from '../attributes'
 import snapshot from '../fixtures/snapshot.json' with { type: 'json' }
 
 describe('formatDate', () => {
@@ -33,6 +40,25 @@ describe('isInheritedValue', () => {
     expect(isInheritedValue(beam, parent, 'b')).toBe(false)
     expect(isInheritedValue(beam, parent, 'c')).toBe(false)
     expect(isInheritedValue(beam, undefined, 'a')).toBe(false)
+  })
+})
+
+describe('currentValue', () => {
+  const attribute = (type: Attribute['type']) => ({ type }) as Attribute
+  const records = (...values: boolean[]) =>
+    values.map((value) => ({ value, recorded_at: '', user_id: 'u', event_id: 'e' }))
+  it('is the latest recorded value', () => {
+    expect(currentValue(attribute('boolean'), records(false, true), true)).toBe(true)
+    expect(currentValue(attribute('boolean'), records(true, false), false)).toBe(false)
+  })
+  it('counts a yes/no attribute without a value as "nein" if it applies, nothing otherwise', () => {
+    expect(currentValue(attribute('boolean'), undefined, true)).toBe(false)
+    expect(currentValue(attribute('boolean'), [], true)).toBe(false)
+    expect(currentValue(attribute('boolean'), undefined, false)).toBeUndefined()
+  })
+  it('leaves every other type not recorded', () => {
+    expect(currentValue(attribute('number'), undefined, true)).toBeUndefined()
+    expect(currentValue(attribute('choice'), [], true)).toBeUndefined()
   })
 })
 
