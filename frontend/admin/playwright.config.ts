@@ -10,6 +10,8 @@ export default defineConfig({
   timeout: 30 * 1000,
   expect: { timeout: 5000 },
   fullyParallel: true,
+  // Local load: at most 2 workers (the Mac also runs the container); CI keeps Playwright's default.
+  workers: process.env.CI ? undefined : 2,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   reporter: [['list'], ['html', { open: 'never' }]],
