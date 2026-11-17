@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Component } from 'vue'
-import { CalendarIcon, HashIcon, ListIcon, SquareCheckIcon, TextIcon } from '@lucide/vue'
+import { CalendarIcon, ChevronDownIcon, NumbersIcon, SquareCheckIcon, TextIcon } from '@lucide/vue'
 
 import { TILES, type TileType } from '@/attributes'
 
@@ -12,9 +12,9 @@ defineProps<{ current?: TileType }>()
 defineEmits<{ pick: [type: TileType]; cancel: [] }>()
 
 const icons: Record<TileType, Component> = {
-  choice: ListIcon,
+  choice: ChevronDownIcon,
   boolean: SquareCheckIcon,
-  number: HashIcon,
+  number: NumbersIcon,
   text: TextIcon,
   date: CalendarIcon,
 }
