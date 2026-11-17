@@ -1548,6 +1548,8 @@ test.describe('stem list', () => {
 
 test.describe('attributes', () => {
   test.beforeEach(async ({ page }) => {
+    // Selecting scrolls the page; without animation the measurements below do not have to wait for it (one test has it with)
+    await page.emulateMedia({ reducedMotion: 'reduce' })
     await page.goto('/admin/activity')
     await signIn(page, 'K7QM4XHT9RDP')
     await page.getByRole('button', { name: 'Verwaltung', exact: true }).click()
@@ -1806,41 +1808,197 @@ test.describe('attributes', () => {
     await expect(page.locator('[aria-label="Vorschau"] > li').nth(0)).toContainText('Fälldatum')
   })
 
-  test('keeps the card in view while scrolling from 1024px on, with the buttons at the bottom, and not below', async ({
+  // The card and the arrow, measured against the selected field (the visible frame of its button)
+  const centerY = async (locator: Locator) => {
+    const box = (await locator.boundingBox())!
+    return box.y + box.height / 2
+  }
+
+  test('starts the card at the height of the selected field from 1024px on, with the arrow pointing at it, and the page jumps to it', async ({
     page,
   }) => {
-    await page.setViewportSize({ width: 1280, height: 520 })
-    await page.getByRole('button', { name: 'Lagerplatz', exact: true }).click()
-    const column = page.locator('[data-settings-column]')
-    const stuck = () =>
-      page.evaluate(() => {
-        const style = document.documentElement.style
-        return (
-          Number.parseFloat(style.getPropertyValue('--header-height')) +
-          Number.parseFloat(style.getPropertyValue('--sticky-bar-height'))
+    await page.setViewportSize({ width: 1280, height: 900 })
+    // a field far down the preview: the page jumps, the field and the card start under the bar
+    const field = page.getByRole('button', { name: 'Holzfeuchte', exact: true })
+    await field.click()
+    await expectAtScrollTarget(page, field)
+
+    const card = page.getByRole('region', { name: 'Holzfeuchte', exact: true })
+    await expect(card).toBeVisible()
+    expect(Math.abs((await card.boundingBox())!.y - (await field.boundingBox())!.y)).toBeLessThan(2)
+    // the arrow sits on the card's left edge at the middle of the field, and the card has no scrollbar of its own
+    const arrow = page.locator('[data-card-arrow]')
+    expect(Math.abs((await centerY(arrow)) - (await centerY(field)))).toBeLessThan(2)
+    const left = (await card.boundingBox())!.x
+    expect(
+      Math.abs((await arrow.boundingBox())!.x + (await arrow.boundingBox())!.width / 2 - left),
+    ).toBeLessThan(2)
+    const scrollers = await page
+      .locator('[data-settings-column]')
+      .evaluate(
+        (column) =>
+          [column, ...column.querySelectorAll('*')].filter(
+            (el) =>
+              /auto|scroll/.test(getComputedStyle(el).overflowY) &&
+              el.scrollHeight > el.clientHeight,
+          ).length,
+      )
+    expect(scrollers).toBe(0)
+
+    // nothing selected: the card stands at the top again, without an arrow
+    await page.getByRole('button', { name: 'Schließen', exact: true }).click()
+    await expect(page.locator('[data-card-arrow]')).toHaveCount(0)
+    const preview = (await page.getByRole('list', { name: 'Vorschau', exact: true }).boundingBox())!
+    const column = (await page.locator('[data-settings-column]').boundingBox())!
+    // the preview card has 8 px of padding above its list
+    expect(Math.abs(column.y - (preview.y - 8))).toBeLessThan(2)
+  })
+
+  // Under the header and the bar, with the distance of every other scroll target
+  const scrollPaddingTop = (page: Page) =>
+    page.evaluate(() =>
+      Number.parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop),
+    )
+
+  // Where the scroll lands: the field starts under the header and the bar, or the page ends before it can get there
+  const expectAtScrollTarget = async (page: Page, field: Locator) => {
+    await expect
+      .poll(async () => {
+        const y = (await field.boundingBox())!.y
+        const top = await scrollPaddingTop(page)
+        const atEnd = await page.evaluate(
+          () =>
+            Math.ceil(window.scrollY + window.innerHeight) >= document.documentElement.scrollHeight,
         )
+        return y >= top - 2 && (atEnd || Math.abs(y - top) < 2)
       })
-    await page.evaluate(() => window.scrollTo(0, 300))
+      .toBe(true)
+  }
 
-    // 24 px under the header and the bar, no higher than what is left below them (24 px at the bottom), the buttons in view
-    const box = (await column.boundingBox())!
-    expect(Math.abs(box.y - ((await stuck()) + 24))).toBeLessThan(2)
-    expect(box.y + box.height).toBeLessThanOrEqual(520 - 24 + 2)
-    const save = (await page.getByRole('button', { name: 'Speichern', exact: true }).boundingBox())!
-    expect(save.y + save.height).toBeLessThanOrEqual(520)
-    // the content scrolls inside the card, the heading with it, the buttons stay
-    const scroller = column.locator('[data-card-scroll]')
-    expect(await scroller.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true)
-    await scroller.evaluate((el) => (el.scrollTop = 200))
-    await expect(
-      page.getByRole('heading', { name: 'Lagerplatz', level: 2, exact: true }),
-    ).not.toBeInViewport()
-    await expect(page.getByRole('button', { name: 'Speichern', exact: true })).toBeInViewport()
+  test('scrolls to the selected field when the page is opened with it in the URL', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 420 })
+    await page.getByRole('button', { name: 'Holzfeuchte', exact: true }).click()
+    await expect(page).toHaveURL(/attribute=/)
+    const url = page.url()
 
-    // below 1024px the card is not sticky: it scrolls away with the page
-    await page.setViewportSize({ width: 800, height: 520 })
-    await page.evaluate(() => window.scrollTo(0, 3000))
-    expect((await column.boundingBox())!.y).toBeLessThan(0)
+    // opened again: the page starts at the top and scrolls to the field
+    await page.goto(url)
+    await expectAtScrollTarget(page, page.getByRole('button', { name: 'Holzfeuchte', exact: true }))
+    expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0)
+  })
+
+  test('scrolls to the selection that the back button brings, wherever the browser would put the page', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 420 })
+    await page.getByRole('button', { name: 'Holzfeuchte', exact: true }).click()
+    await expect(page).toHaveURL(/attribute=/)
+    await page.evaluate(() => window.scrollTo(0, 0))
+    await page.getByRole('button', { name: 'Holzart', exact: true }).click()
+    await expect(page.getByRole('region', { name: 'Holzart', exact: true })).toBeVisible()
+    await page.evaluate(() => window.scrollTo(0, 0))
+
+    await page.goBack()
+    const field = page.getByRole('button', { name: 'Holzfeuchte', exact: true })
+    await expect(field).toBeInViewport()
+    expect(Math.abs((await field.boundingBox())!.y - (await scrollPaddingTop(page)))).toBeLessThan(
+      2,
+    )
+  })
+
+  test('starts the type tiles and the form of a new attribute at the placeholder', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 900 })
+    await page
+      .locator('[data-settings-column]')
+      .getByRole('button', { name: 'Merkmal hinzufügen', exact: true })
+      .click()
+    const placeholder = page.locator('[data-placeholder]')
+    const card = page.getByRole('region', { name: 'Neues Merkmal', exact: true })
+    await expect(card).toBeVisible()
+    await expectAtScrollTarget(page, placeholder)
+    expect(
+      Math.abs((await card.boundingBox())!.y - (await placeholder.boundingBox())!.y),
+    ).toBeLessThan(2)
+    expect(
+      Math.abs((await centerY(page.locator('[data-card-arrow]'))) - (await centerY(placeholder))),
+    ).toBeLessThan(2)
+  })
+
+  test('has a long form that grows downwards, with the page scrolling to the buttons at the end of the card and nothing stuck', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 420 })
+    const field = page.getByRole('button', { name: 'Lagerplatz', exact: true })
+    await field.click()
+    await expectAtScrollTarget(page, field)
+    const card = page.getByRole('region', { name: 'Lagerplatz', exact: true })
+    const save = page.getByRole('button', { name: 'Speichern', exact: true })
+    const bottomOf = async (locator: Locator) => {
+      const box = (await locator.boundingBox())!
+      return box.y + box.height
+    }
+
+    // the card reaches below the window, the buttons are at its end and out of view
+    expect(await bottomOf(card)).toBeGreaterThan(420)
+    await expect(save).not.toBeInViewport()
+    // no box of its own: the card is as high as its content
+    expect(
+      await card.evaluate((element) => element.scrollHeight - element.clientHeight),
+    ).toBeLessThanOrEqual(0)
+
+    // the page scrolls down to them, they stay at the end of the card (20 px padding and the 1 px frame below the button)
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+    await expect(save).toBeInViewport()
+    expect(Math.abs((await bottomOf(card)) - (await bottomOf(save)) - 21)).toBeLessThan(2)
+    const y = await save.evaluate((element) => element.getBoundingClientRect().top + scrollY)
+    await page.evaluate(() => window.scrollBy(0, -100))
+    expect(await save.evaluate((element) => element.getBoundingClientRect().top + scrollY)).toBe(y)
+  })
+
+  test('scrolls smoothly to the field unless the motion is reduced', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    await page.setViewportSize({ width: 1280, height: 420 })
+    const field = page.getByRole('button', { name: 'Holzfeuchte', exact: true })
+    await field.click()
+
+    await expectAtScrollTarget(page, field)
+    await expect(page.getByRole('region', { name: 'Holzfeuchte', exact: true })).toBeVisible()
+  })
+
+  test('puts the card below the preview under 1024px, without an arrow', async ({ page }) => {
+    await page.setViewportSize({ width: 800, height: 900 })
+    await page.getByRole('button', { name: 'Lagerplatz', exact: true }).click()
+    const card = page.getByRole('region', { name: 'Lagerplatz', exact: true })
+    await expect(card).toBeVisible()
+    const preview = (await page.getByRole('list', { name: 'Vorschau', exact: true }).boundingBox())!
+    expect((await card.boundingBox())!.y).toBeGreaterThanOrEqual(preview.y + preview.height)
+    await expect(page.locator('[data-card-arrow]')).toBeHidden()
+  })
+
+  test('moves the card and the arrow along with the selected field when it is sorted', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 900 })
+    const field = page.getByRole('button', { name: 'Holzart', exact: true })
+    await field.click()
+    await expectAtScrollTarget(page, field)
+    // at the top of the page, where the browser does not keep the position of the page by scrolling when the fields change places
+    await page.evaluate(() => window.scrollTo(0, 0))
+    const card = page.getByRole('region', { name: 'Holzart', exact: true })
+    await expect(card).toBeVisible()
+    const before = (await card.boundingBox())!.y
+
+    await page.getByRole('button', { name: 'Holzart verschieben', exact: true }).focus()
+    await page.keyboard.press('ArrowDown')
+    await expect.poll(async () => (await card.boundingBox())!.y).toBeGreaterThan(before + 40)
+    expect(Math.abs((await card.boundingBox())!.y - (await field.boundingBox())!.y)).toBeLessThan(2)
+    expect(
+      Math.abs((await centerY(page.locator('[data-card-arrow]'))) - (await centerY(field))),
+    ).toBeLessThan(2)
   })
 
   test('stays free of sideways scrolling', async ({ page }) => {

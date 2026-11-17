@@ -24,8 +24,8 @@ const icons: Record<TileType, Component> = {
 </script>
 
 <template>
-  <section class="card lg:flex lg:min-h-0 lg:flex-col" aria-labelledby="new-attribute-heading">
-    <div data-card-scroll class="px-5 pt-5 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
+  <section class="card" aria-labelledby="new-attribute-heading">
+    <div class="px-5 pt-5">
       <h2 id="new-attribute-heading" class="text-xl font-bold">{{ title }}</h2>
       <ul class="mt-5 grid gap-3 sm:grid-cols-2">
         <li v-for="tile in TILES" :key="tile.type">
@@ -46,7 +46,7 @@ const icons: Record<TileType, Component> = {
         </li>
       </ul>
     </div>
-    <div class="flex justify-end px-5 pt-6 pb-5 lg:shrink-0">
+    <div class="flex justify-end px-5 pt-6 pb-5">
       <button
         type="button"
         class="h-11 rounded-lg border-2 border-ink px-4 font-bold whitespace-nowrap"
