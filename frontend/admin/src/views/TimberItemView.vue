@@ -271,7 +271,9 @@ watch(() => route.params.tag, load, { immediate: true })
                   >
                   <p v-for="(line, index) in row.lines" :key="index" class="leading-snug">
                     <span class="block whitespace-pre-line">{{ line.text }}</span>
-                    <span class="mt-meta block text-caption text-mute">{{ line.source }}</span>
+                    <span v-if="line.source" class="mt-meta block text-caption text-mute">{{
+                      line.source
+                    }}</span>
                   </p>
                 </dd>
               </div>

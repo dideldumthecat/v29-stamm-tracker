@@ -53,6 +53,21 @@ export function formatValue(attribute: Attribute, value: AttributeValue): string
   }
 }
 
+/**
+ * The value that counts for an item: the latest recorded one. A yes/no attribute without a value counts as "nein" (as in the app,
+ * `attributeDraft.ts`) – if it applies to the item (`applies`: the kind of the item is in `applies_to`); otherwise, and for every other type,
+ * undefined means "not recorded". The one place for this rule: lists, filters and the detail view all ask here.
+ */
+export function currentValue(
+  attribute: Attribute,
+  records: AttributeValueRecord[] | undefined,
+  applies: boolean,
+): AttributeValue | undefined {
+  return (
+    records?.slice(-1)[0]?.value ?? (attribute.type === 'boolean' && applies ? false : undefined)
+  )
+}
+
 /** The event behind the latest recording of a value list. */
 export const lastEventId = (records: AttributeValueRecord[] | undefined) =>
   records?.slice(-1)[0]?.event_id
