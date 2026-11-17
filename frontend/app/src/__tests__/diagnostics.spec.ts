@@ -1,7 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest'
 import { addDiagnostic, loadDiagnostics, removeDiagnostics } from '@/persistence/database'
 import { createEntry, captureErrors, record, recordBuildChange } from '@/diagnostics/record'
-import { sendDiagnostics, reportWithoutBuffer, setDiagnosticsSignedIn } from '@/diagnostics/send'
+import {
+  flushDiagnostics,
+  sendDiagnostics,
+  reportWithoutBuffer,
+  setDiagnosticsSignedIn,
+} from '@/diagnostics/send'
 import { api, ApiError } from '@/api/client'
 import { APP_BUILD, DIAGNOSTICS_MAX_AGE_MS, DIAGNOSTICS_MAX_ENTRIES } from '@/config/constants'
 
@@ -220,6 +225,46 @@ describe('sending diagnostics', () => {
     expect(send.mock.calls[send.mock.calls.length - 1]![0].entries).toMatchObject([
       { level: 'error', kind: 'storage_unavailable', message: 'no storage', count: 1 },
     ])
+  })
+})
+
+describe('sending before a reload', () => {
+  let send: MockInstance<typeof api.sendDiagnostics>
+
+  beforeEach(async () => {
+    await clearBuffer()
+    setDiagnosticsSignedIn(true)
+    send = vi.spyOn(api, 'sendDiagnostics').mockResolvedValue(undefined)
+    await record('info', 'update', 'Update requested')
+  })
+  afterEach(() => vi.restoreAllMocks())
+
+  it('does not send a confirmed entry again after the reload', async () => {
+    const [entry] = await buffered()
+    await flushDiagnostics(1000)
+    // The page that starts after the reload; the page going away also asks once more.
+    await sendDiagnostics({ keepalive: true })
+    await sendDiagnostics()
+
+    expect(send).toHaveBeenCalledTimes(1)
+    expect(send.mock.calls[0]![0].entries.map(({ id }) => id)).toEqual([entry!.id])
+    expect(await buffered()).toEqual([])
+  })
+
+  it('sends an entry after the reload when the send was cut off', async () => {
+    const [entry] = await buffered()
+    let cutOff!: () => void
+    send.mockImplementationOnce(
+      () => new Promise<undefined>((_, reject) => (cutOff = () => reject(new ApiError(0, 'lost')))),
+    )
+    // The flush gives up after its time; the reload follows while the request is still open.
+    await flushDiagnostics(20)
+    cutOff()
+    await sendDiagnostics()
+
+    await vi.waitFor(() => expect(send).toHaveBeenCalledTimes(2))
+    expect(send.mock.calls[1]![0].entries.map(({ id }) => id)).toEqual([entry!.id])
+    expect(await buffered()).toEqual([])
   })
 })
 

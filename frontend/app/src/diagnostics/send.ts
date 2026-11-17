@@ -78,6 +78,19 @@ export function sendDiagnostics({ keepalive = false } = {}): Promise<void> {
   return sending
 }
 
+/**
+ * For the moments before a deliberate reload: waits (at most `timeoutMs`) until the entries are sent and removed from
+ * the buffer. Without it the page's own send is cut off by the reload, and its answer – or the removal after it – is
+ * lost: the next start sends the same entries again. If the time runs out the entries stay and go out after the
+ * reload (twice rather than never). Never rejects.
+ */
+export function flushDiagnostics(timeoutMs: number): Promise<void> {
+  return Promise.race([
+    sendDiagnostics(),
+    new Promise<void>((resolve) => setTimeout(resolve, timeoutMs)),
+  ])
+}
+
 /** For a start without device storage: there is no buffer, so the one entry goes out directly. */
 export async function reportWithoutBuffer(kind: string, message: string, context?: Context) {
   try {
