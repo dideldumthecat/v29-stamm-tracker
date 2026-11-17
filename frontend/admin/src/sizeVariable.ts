@@ -1,8 +1,8 @@
 import { onBeforeUnmount, watch, type Ref } from 'vue'
 
 /**
- * Publishes the width or height of an element as a CSS variable on `<html>` (main.css adds them to the scroll padding of the page,
- * so that a focused element does not end up under what sticks to the window). Measured again when the element changes size,
+ * Publishes the width or height of an element as a CSS variable on `<html>` (main.css adds the header height to the scroll padding
+ * of the page, so that a focused element does not end up under what sticks to the window). Measured again when the element changes size,
  * removed when it goes away.
  */
 export function useSizeVariable(

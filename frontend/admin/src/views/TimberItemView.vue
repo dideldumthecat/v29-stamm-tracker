@@ -140,7 +140,7 @@ watch(() => route.params.tag, load, { immediate: true })
 
 <template>
   <!-- Flex column, so the negative margins of the back link do not collapse with the margin of what follows. -->
-  <main class="page-column flex flex-col pt-4 pb-8">
+  <main class="page-column flex flex-col pt-4 pb-(--page-bottom) [--page-bottom:2rem]">
     <!-- Without header (loading, error, not found) the link sits above the card. 44 px tap target, but only the text line (24 px)
          takes up space: the rest hangs into the padding and the gap below. With content it is the first element of the header. -->
     <BackLink v-if="status !== 'ready' || !item" class="-my-2.5 self-start" />
@@ -213,11 +213,11 @@ watch(() => route.params.tag, load, { immediate: true })
 
         <!-- Sticky 24 px (like the gap between the cards) under the page header (sticky itself from lg on), otherwise 16 px from the top.
              The maximum height keeps the whole card in the viewport (the main photo shrinks, see ItemPhotos). It also leaves room for what sits below
-             the grid at the end of the page (bottom padding of the page and footer, about 7 rem): there the card ends with its grid area,
+             the grid at the end of the page (bottom padding of the page and the footer, measured as `--footer-height`): there the card ends with its grid area,
              and if it were taller it would be pushed up under the page header. -->
         <ItemPhotos
           :key="item.id"
-          class="min-[900px]:sticky min-[900px]:top-4 min-[900px]:col-start-1 min-[900px]:row-span-2 min-[900px]:row-start-1 min-[900px]:flex min-[900px]:max-h-[calc(100dvh-1rem-7rem)] min-[900px]:flex-col lg:top-[calc(var(--header-height,0px)+24px)] lg:max-h-[calc(100dvh-var(--header-height,0px)-24px-7rem)]"
+          class="min-[900px]:sticky min-[900px]:top-4 min-[900px]:col-start-1 min-[900px]:row-span-2 min-[900px]:row-start-1 min-[900px]:flex min-[900px]:max-h-[calc(100dvh-1rem-var(--page-bottom)-var(--footer-height,0px))] min-[900px]:flex-col lg:top-[calc(var(--header-height,0px)+24px)] lg:max-h-[calc(100dvh-var(--header-height,0px)-24px-var(--page-bottom)-var(--footer-height,0px))]"
           :photos="parts.photos"
           :tag="tag!"
         />
