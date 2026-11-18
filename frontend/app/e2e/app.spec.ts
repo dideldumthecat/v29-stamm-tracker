@@ -317,6 +317,45 @@ test('invalid input keeps the item open and shows the error', async ({ page }) =
   await expect(page.locator('h1')).toContainText('STAMM')
 })
 
+// The two mid diameters are saved only as a pair; the shared fixture has neither, so the fake API adds them (and a stem with just one).
+test('a mid diameter alone blocks the save until its partner is filled', async ({ page }) => {
+  const diameter = (key: string, name: string, sort_order: number) => ({
+    id: `e2e-${key}`,
+    key,
+    name,
+    description: '',
+    type: 'number',
+    unit: 'cm',
+    is_series: false,
+    is_inheritable: false,
+    applies_to: ['stem'],
+    hidden_when: [],
+    sort_order,
+    active: true,
+    options: [],
+  })
+  const extra = {
+    attributes: [
+      diameter('mid_diameter_max', 'Stammmittendurchmesser groß', 1),
+      diameter('mid_diameter_min', 'Stammmittendurchmesser klein', 2),
+    ],
+  }
+  await page.addInitScript(
+    (value) => localStorage.setItem('fake-api-extra', value),
+    JSON.stringify(extra),
+  )
+  await page.goto('/timber-item/43')
+  await page.getByLabel('Stammmittendurchmesser groß', { exact: true }).fill('30')
+  await page.getByRole('button', { name: 'Stamm anlegen & schließen', exact: true }).click()
+  await expect(page.getByRole('alert')).toHaveText('Bitte auch diesen Durchmesser eintragen')
+  await expect(page.locator('h1')).toContainText('STAMM')
+
+  await page.getByLabel('Stammmittendurchmesser klein', { exact: true }).fill('25')
+  await expect(page.getByRole('alert')).toHaveCount(0)
+  await page.getByRole('button', { name: 'Stamm anlegen & schließen', exact: true }).click()
+  await expect(page.getByText('Stamm 00043 gespeichert')).toBeVisible()
+})
+
 const SIGNED_OUT = () => localStorage.setItem('fake-api', 'signed-out')
 
 // Production browsers get no form at all (unit test); the fake API keeps it for these tests.

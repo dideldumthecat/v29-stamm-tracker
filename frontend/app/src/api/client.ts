@@ -204,6 +204,10 @@ const fake: typeof real = {
   loadSnapshot: async () => {
     signedIn()
     const snapshot = structuredClone(fixtureSnapshot)
+    // Test hook: localStorage "fake-api-extra" = {"attributes": [...], "timber_items": [...]} adds to the fixture (what the shared fixture lacks).
+    const extra = JSON.parse(localStorage.getItem('fake-api-extra') ?? '{}')
+    snapshot.attributes.push(...(extra.attributes ?? []))
+    snapshot.timber_items.push(...(extra.timber_items ?? []))
     const voided = voidedIds()
     snapshot.timber_items = snapshot.timber_items.filter((item) => !voided.has(item.id))
     for (const stem of snapshot.timber_items) {

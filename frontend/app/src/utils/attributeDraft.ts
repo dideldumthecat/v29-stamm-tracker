@@ -1,5 +1,5 @@
 import type { Attribute, AttributeValue, AttributeValueRecord } from '@v29/shared/contract'
-import { bySortOrder, formatValue } from '@v29/shared/attributes'
+import { bySortOrder, formatValue, MID_DIAMETER_KEYS } from '@v29/shared/attributes'
 import { plural } from '@/utils/plural'
 
 /**
@@ -21,6 +21,7 @@ export interface CollectedDraft {
 }
 
 export const NUMBER_ERROR = 'Bitte eine Zahl eingeben, zum Beispiel 34,5.'
+export const DIAMETER_PAIR_ERROR = 'Bitte auch diesen Durchmesser eintragen'
 export const MONTH_ERROR = 'Bitte Jahr und Monat als JJJJ-MM eingeben, zum Beispiel 2026-10.'
 
 /**
@@ -114,6 +115,34 @@ export function collectDraft(
     }
   }
   return { changes, errors }
+}
+
+/**
+ * The two mid diameters are saved only as a pair (a deliberate exception to "no required fields"): if the draft touches one of them
+ * and only one is filled afterwards (draft, else recorded), the empty one gets the error. Items recorded with one diameter stay
+ * saveable as long as the draft leaves both alone. Invalid input counts as touched and filled: its own error blocks the save anyway.
+ * Returns errors by attribute id like `collectDraft`.
+ */
+export function missingDiameterErrors(
+  attributes: Attribute[],
+  collected: CollectedDraft,
+  recorded: Record<string, AttributeValueRecord[]> | undefined,
+): Record<string, string> {
+  const ids = MID_DIAMETER_KEYS.map(
+    (key) => attributes.find((attribute) => attribute.key === key && attribute.active)?.id,
+  )
+  if (ids.some((id) => id === undefined)) {
+    return {}
+  }
+  const touched = ids.map(
+    (id) =>
+      id! in collected.errors || collected.changes.some((change) => change.attributeId === id),
+  )
+  const filled = ids.map((id, index) => touched[index] || (recorded?.[id!]?.length ?? 0) > 0)
+  if (!touched.some(Boolean) || filled[0] === filled[1]) {
+    return {}
+  }
+  return { [ids[filled[0] ? 1 : 0]!]: DIAMETER_PAIR_ERROR }
 }
 
 /**
