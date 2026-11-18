@@ -5,6 +5,7 @@ import {
   collectDraft,
   formatPhotoCount,
   formatValueLine,
+  missingDiameterErrors,
   type DraftInput,
 } from '@/utils/attributeDraft'
 import { attachPhotos } from '@/utils/photo'
@@ -159,6 +160,15 @@ export function useTimberItemDraft(item: Ref<TimberItem | undefined>, tagNumber:
     collectDraft(store.attributes.filter(appliesNow), draft.value, added.value, item.value?.values),
   )
   const changes = computed(() => collected.value.changes)
+  // Blocks the save like invalid input, but is no unsaved input itself (not in `isDirty`, not in the leave dialog).
+  const blockingErrors = computed(() => ({
+    ...missingDiameterErrors(
+      store.attributes.filter(appliesNow),
+      collected.value,
+      item.value?.values,
+    ),
+    ...collected.value.errors,
+  }))
   // Invalid input counts as unsaved, so the leave dialog still protects it.
   const isDirty = computed(
     () =>
@@ -173,7 +183,7 @@ export function useTimberItemDraft(item: Ref<TimberItem | undefined>, tagNumber:
   const failedInputs = ref<Record<string, DraftInput | undefined>>({})
   const shownErrors = computed(() =>
     Object.fromEntries(
-      Object.entries(collected.value.errors).filter(
+      Object.entries(blockingErrors.value).filter(
         ([id]) => id in failedInputs.value && failedInputs.value[id] === draft.value[id],
       ),
     ),
@@ -320,7 +330,7 @@ export function useTimberItemDraft(item: Ref<TimberItem | undefined>, tagNumber:
   // Records the draft and resets it. null = invalid input blocks it; the errors are shown.
   // Only called with something to save: a dirty draft or a stem not recorded yet.
   function save(): TimberItem | null {
-    const errorIds = Object.keys(collected.value.errors)
+    const errorIds = Object.keys(blockingErrors.value)
     failedInputs.value = Object.fromEntries(errorIds.map((id) => [id, draft.value[id]]))
     if (errorIds.length > 0) {
       return null

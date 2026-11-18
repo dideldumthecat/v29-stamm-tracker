@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import type { Attribute, AttributeType, AttributeValueRecord } from '@v29/shared/contract'
-import { collectDraft, parseNumber } from '@/utils/attributeDraft'
+import { collectDraft, missingDiameterErrors, parseNumber } from '@/utils/attributeDraft'
 
 function attribute(id: string, type: AttributeType, overrides: Partial<Attribute> = {}): Attribute {
   return {
@@ -140,5 +140,48 @@ describe('collectDraft', () => {
     const { changes, errors } = collectDraft([series], { series: 'x' }, { series: [38] }, undefined)
     expect(changes).toEqual([{ attributeId: 'series', value: 38 }])
     expect(errors).toHaveProperty('series')
+  })
+})
+
+describe('missingDiameterErrors', () => {
+  const max = attribute('max', 'number', { key: 'mid_diameter_max', applies_to: ['stem'] })
+  const min = attribute('min', 'number', { key: 'mid_diameter_min', applies_to: ['stem'] })
+  const note = attribute('note', 'text')
+  const all = [max, min, note]
+  const check = (
+    input: Record<string, string>,
+    recorded?: Record<string, AttributeValueRecord[]>,
+  ) => missingDiameterErrors(all, collectDraft(all, input, {}, recorded), recorded)
+
+  it('blocks a new item with one diameter, the error sits at the empty one', () => {
+    expect(Object.keys(check({ max: '30' }))).toEqual(['min'])
+    expect(Object.keys(check({ min: '25' }))).toEqual(['max'])
+  })
+
+  it('accepts none or both', () => {
+    expect(check({})).toEqual({})
+    expect(check({ max: '30', min: '25' })).toEqual({})
+  })
+
+  it('leaves an item with one recorded diameter alone while neither is touched', () => {
+    expect(check({ note: 'Kern faul' }, { max: record(30) })).toEqual({})
+    // Same value again is no change either.
+    expect(check({ max: '30' }, { max: record(30) })).toEqual({})
+  })
+
+  it('blocks changing the one recorded diameter, and takes the recorded one as filled', () => {
+    expect(Object.keys(check({ max: '31' }, { max: record(30) }))).toEqual(['min'])
+    expect(check({ min: '25' }, { max: record(30) })).toEqual({})
+  })
+
+  it('counts invalid input as filled, so only its own error is reported', () => {
+    expect(check({ max: 'abc', min: '25' })).toEqual({})
+  })
+
+  it('does nothing without both attributes', () => {
+    const only = [max, note]
+    expect(
+      missingDiameterErrors(only, collectDraft(only, { max: '30' }, {}, undefined), undefined),
+    ).toEqual({})
   })
 })

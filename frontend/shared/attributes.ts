@@ -6,6 +6,9 @@ import type { Attribute, AttributeValue, AttributeValueRecord, TimberItem } from
 /** Key of the attribute "Gesägt": "ja" on a stem without beams means it was sawn whole (the app asks the split question by it, the administration lists such stems as beams). */
 export const SAWN_KEY = 'sawn'
 
+/** Keys of the two mid diameters of a stem ("Stammmittendurchmesser groß" and "klein"): the app takes them only as a pair. */
+export const MID_DIAMETER_KEYS = ['mid_diameter_max', 'mid_diameter_min'] as const
+
 /** Compare function for attributes and options: V29 maintains the order via `sort_order`. */
 export const bySortOrder = (a: { sort_order: number }, b: { sort_order: number }) =>
   a.sort_order - b.sort_order
