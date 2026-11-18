@@ -70,9 +70,13 @@ describe('NumberAttributeField', () => {
       await addButton(wrapper).trigger('click')
       expect(wrapper.emitted('update:added')).toBeUndefined()
       expect(wrapper.find('[role="alert"]').text()).toContain('Zahl')
+      expect(input.attributes('aria-invalid')).toBe('true')
+      expect(wrapper.find('.border-alert').exists()).toBe(true)
 
       await input.setValue('34')
       expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+      expect(input.attributes('aria-invalid')).toBeUndefined()
+      expect(wrapper.find('.border-alert').exists()).toBe(false)
     })
 
     it('removes a new value individually', async () => {

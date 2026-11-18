@@ -208,6 +208,30 @@ describe('App', () => {
       expect(checkForUpdateNow).toHaveBeenCalledTimes(1)
     })
 
+    it('reports photos that cannot be uploaded as an error toast, unlike a stop', async () => {
+      const store = useTimberItemStore()
+      const stem = store.createTimberItem(1555)
+      const photoAttribute = store.attributes.find((attribute) => attribute.type === 'photo')!.id
+      store.addPhoto(
+        stem.id,
+        photoAttribute,
+        new NodeBlob(['x'], { type: 'image/jpeg' }) as unknown as Blob,
+      )
+      vi.spyOn(api, 'sync').mockImplementation(async (events) => ({
+        accepted_event_ids: events.map((event) => event.id),
+        rejected: [],
+      }))
+      vi.spyOn(api, 'uploadPhoto').mockRejectedValue(new ApiError(413, 'too large'))
+      const { wrapper } = await mountAt('/sync')
+
+      await wrapper.find('button.h-action').trigger('click')
+      await flushPromises()
+      expect(useToast().current.value).toMatchObject({
+        before: expect.stringContaining('konnten nicht hochgeladen werden (Datei zu groß)'),
+        kind: 'error',
+      })
+    })
+
     it('shows a rejected batch and keeps it', async () => {
       const store = useTimberItemStore()
       store.createTimberItem(321)
@@ -217,6 +241,8 @@ describe('App', () => {
       await wrapper.find('button.bg-ink.text-lg').trigger('click')
       await flushPromises()
       expect(wrapper.find('[role="alert"]').text()).toContain('abgelehnt (events[0]: broken)')
+      expect(wrapper.find('[role="alert"]').classes()).toContain('border-alert')
+      expect(wrapper.find('[role="alert"] strong').classes()).toContain('text-alert')
       expect(wrapper.text()).toContain('Stamm angelegt')
       expect(store.pendingCount).toBe(1)
       expect(checkForUpdateNow).not.toHaveBeenCalled()

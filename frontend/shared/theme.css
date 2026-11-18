@@ -34,6 +34,7 @@
   --color-lockline: #b0b0b0; /* locked field border */
   --color-desk: #e4e4e2; /* area beside the app column (desktop) */
   --color-disabled: #cccccc;
+  --color-alert: #b42318; /* only errors and warnings, never an accent */
 
   --font-sans: 'Roboto Variable', 'Helvetica Neue', Helvetica, Arial, sans-serif;
 

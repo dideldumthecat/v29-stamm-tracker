@@ -3,6 +3,8 @@ import { computed, useId } from 'vue'
 import { CalendarIcon } from '@lucide/vue'
 import type { Attribute, AttributeValueRecord } from '@/stores/timberItems'
 import AttributeField from '@/components/AttributeField.vue'
+import FieldError from '@/components/FieldError.vue'
+import { useFieldError } from '@/composables/useFieldError'
 import { formatDate, formatMonth } from '@v29/shared/attributes'
 
 const props = defineProps<{
@@ -40,7 +42,9 @@ const recordedText = computed(() =>
 const draft = defineModel<string | undefined>()
 
 const inputId = useId()
-const errorId = useId()
+const { errorId, errorBorder, errorAttrs } = useFieldError(() =>
+  props.readonly ? undefined : props.error,
+)
 
 // What the input shows: the draft if touched, otherwise the recorded value.
 const inputValue = computed(() => draft.value ?? String(current.value?.value ?? ''))
@@ -71,12 +75,11 @@ function onInput(event: Event) {
     <div class="relative">
       <input
         :id="inputId"
-        class="block h-[52px] w-full max-w-full min-w-0 appearance-none rounded-lg border-2 border-ink bg-paper py-0 pr-12 pl-3 leading-[48px] font-semibold [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:size-full [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-date-and-time-value]:m-0 [&::-webkit-date-and-time-value]:text-left"
-        :class="inputValue === '' ? 'text-transparent' : 'text-ink'"
+        class="block h-[52px] w-full max-w-full min-w-0 appearance-none rounded-lg border-2 bg-paper py-0 pr-12 pl-3 leading-[48px] font-semibold [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:size-full [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-date-and-time-value]:m-0 [&::-webkit-date-and-time-value]:text-left"
+        :class="[inputValue === '' ? 'text-transparent' : 'text-ink', errorBorder]"
         :type="type"
         :value="inputValue"
-        :aria-invalid="error ? true : undefined"
-        :aria-describedby="error ? errorId : undefined"
+        v-bind="errorAttrs"
         @input="onInput"
       />
       <!-- Own placeholder: browsers differ in what an empty date input shows (blank, format hint, today). -->
@@ -91,8 +94,6 @@ function onInput(event: Event) {
         aria-hidden="true"
       />
     </div>
-    <span v-if="error && !readonly" :id="errorId" class="text-sm font-semibold" role="alert">{{
-      error
-    }}</span>
+    <FieldError :id="errorId" :message="readonly ? undefined : error" />
   </AttributeField>
 </template>

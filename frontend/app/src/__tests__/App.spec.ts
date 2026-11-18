@@ -172,6 +172,12 @@ describe('App', () => {
       await wrapper.find('form').trigger('submit')
       await flushPromises()
       expect(wrapper.text()).toContain('Kein Einladungscode erkannt')
+      const input = wrapper.find('input#invite-code')
+      expect(input.classes()).toContain('border-alert')
+      expect(input.attributes('aria-invalid')).toBe('true')
+      expect(input.attributes('aria-describedby')).toBe(
+        wrapper.find('[role="alert"]').attributes('id'),
+      )
       expect(redeem).not.toHaveBeenCalled()
       vi.restoreAllMocks()
     })

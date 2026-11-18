@@ -2,6 +2,8 @@
 import { ref, useTemplateRef, watch } from 'vue'
 import { XIcon } from '@lucide/vue'
 import { ApiError } from '@/api/client'
+import FieldError from '@/components/FieldError.vue'
+import { useFieldError } from '@/composables/useFieldError'
 import { useTimberItemStore } from '@/stores/timberItems'
 import { formatInviteInput, isInviteCode } from '@v29/shared/invite'
 
@@ -12,6 +14,7 @@ const store = useTimberItemStore()
 const input = ref('')
 watch(input, (text) => (input.value = formatInviteInput(text)))
 const error = ref<string | null>(null)
+const { errorId, errorBorder, errorAttrs } = useFieldError(error)
 const isBusy = ref(false)
 const inputElement = useTemplateRef('inputElement')
 
@@ -61,7 +64,9 @@ async function onSubmit() {
         spellcheck="false"
         enterkeyhint="go"
         placeholder="K7QM-4XHT-9RDP"
-        class="h-16 w-full rounded-lg border-2 border-ink bg-paper px-12 text-center text-xl font-semibold tracking-wide"
+        class="h-16 w-full rounded-lg border-2 bg-paper px-12 text-center text-xl font-semibold tracking-wide"
+        :class="errorBorder"
+        v-bind="errorAttrs"
       />
       <button
         v-if="input && !isBusy"
@@ -73,7 +78,7 @@ async function onSubmit() {
         <XIcon :size="22" aria-hidden="true" />
       </button>
     </div>
-    <p v-if="error" class="text-sm leading-copy font-semibold" role="alert">{{ error }}</p>
+    <FieldError :id="errorId" :message="error" class="leading-copy" />
     <button
       type="submit"
       class="flex h-action w-full items-center justify-center rounded-lg bg-ink text-lg font-bold text-paper disabled:bg-disabled disabled:text-mute short:h-16"

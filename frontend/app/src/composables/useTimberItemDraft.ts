@@ -257,7 +257,7 @@ export function useTimberItemDraft(item: Ref<TimberItem | undefined>, tagNumber:
       if (skipped > 0) {
         toast.show({
           before: `${plural(skipped, 'Foto konnte', 'Fotos konnten')} nicht gelesen werden`,
-          kind: 'warning',
+          kind: 'error',
         })
       }
     } finally {

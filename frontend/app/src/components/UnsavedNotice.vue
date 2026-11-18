@@ -8,12 +8,12 @@ const route = useRoute()
 </script>
 
 <template>
-  <!-- Stays until the entries are safe (see createPersistence). Inverted: the app has no warning colour, and this must
-       be seen outdoors. Above every screen, so it needs no place in their layouts. -->
+  <!-- Stays until the entries are safe (see createPersistence). Warning colour with white text: this must be
+       seen outdoors. Above every screen, so it needs no place in their layouts. -->
   <div
     v-if="store.hasUnsaved"
     role="alert"
-    class="flex shrink-0 items-center gap-3 bg-ink py-3 px-gutter text-detail leading-notice text-paper"
+    class="flex shrink-0 items-center gap-3 bg-alert py-3 px-gutter text-detail leading-notice text-paper"
   >
     <TriangleAlertIcon class="shrink-0" :size="22" aria-hidden="true" />
     <p class="min-w-0 flex-1">

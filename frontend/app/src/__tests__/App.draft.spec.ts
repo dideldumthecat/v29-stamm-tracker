@@ -290,6 +290,21 @@ describe('App', () => {
     }
   })
 
+  it('keeps an error toast for 8 s like a warning', async () => {
+    vi.useFakeTimers()
+    try {
+      await mountAt('/')
+      const toast = useToast()
+      toast.show({ before: 'Fehlgeschlagen', kind: 'error' })
+      vi.advanceTimersByTime(7999)
+      expect(toast.current.value).not.toBeNull()
+      vi.advanceTimersByTime(201)
+      expect(toast.current.value).toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   describe('open draft', () => {
     const isDraftOpen = () => useTimberItemStore().isDraftOpen
 

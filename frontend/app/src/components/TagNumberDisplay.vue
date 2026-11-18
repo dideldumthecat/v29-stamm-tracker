@@ -2,11 +2,20 @@
 import { TAG_DIGITS } from '@v29/shared/tag'
 import { TAG_MIN_NUMBER, TAG_MAX_NUMBER } from '@/config/constants'
 import { computed } from 'vue'
+import FieldError from '@/components/FieldError.vue'
+import { useFieldError } from '@/composables/useFieldError'
 
 const props = defineProps<{
   tagInput: string
   hasError: boolean
 }>()
+
+const message = computed(() =>
+  props.hasError
+    ? `Ungültige Nummer. Bitte gib eine Zahl zwischen ${TAG_MIN_NUMBER} und ${TAG_MAX_NUMBER} ein.`
+    : undefined,
+)
+const { errorId, errorBorder, errorAttrs } = useFieldError(message)
 
 const boxes = computed(() => {
   const digits = props.tagInput.padStart(TAG_DIGITS, '0').split('')
@@ -25,6 +34,7 @@ const boxes = computed(() => {
     <div
       class="grid gap-2"
       role="status"
+      v-bind="errorAttrs"
       :style="{ 'grid-template-columns': `repeat(${TAG_DIGITS}, minmax(0, 1fr))` }"
     >
       <span class="sr-only">{{
@@ -34,21 +44,16 @@ const boxes = computed(() => {
         v-for="(box, index) in boxes"
         :key="index"
         class="flex h-20 items-center justify-center rounded-lg border-2 text-[56px] leading-none font-bold tabular-nums shorter:h-[60px] shorter:text-[42px]"
-        :class="[
+        :class="
           box.isLeadingZero
             ? 'border-line bg-well text-faint opacity-40'
-            : 'border-ink bg-ink text-paper',
-        ]"
+            : ['bg-ink text-paper', errorBorder]
+        "
         aria-hidden="true"
       >
         {{ box.digit }}
       </div>
     </div>
-    <div role="alert">
-      <p v-if="hasError" class="mt-2 text-center text-sm">
-        Ungültige Nummer. Bitte gib eine Zahl zwischen {{ TAG_MIN_NUMBER }} und
-        {{ TAG_MAX_NUMBER }} ein.
-      </p>
-    </div>
+    <FieldError :id="errorId" :message="message" class="mt-2 text-center" />
   </section>
 </template>
