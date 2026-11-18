@@ -25,12 +25,13 @@ const { current } = useToast()
         <div
           v-if="current"
           class="flex items-center justify-center gap-3 border-b border-line py-3.5 px-gutter text-center text-label leading-notice font-normal text-ink shadow-sm select-none"
-          :class="current.kind === 'warning' ? 'bg-well' : 'bg-paper'"
+          :class="current.kind === 'success' || !current.kind ? 'bg-paper' : 'bg-well'"
           role="status"
         >
           <TriangleAlertIcon
-            v-if="current.kind === 'warning'"
-            class="shrink-0 text-ink"
+            v-if="current.kind === 'warning' || current.kind === 'error'"
+            class="shrink-0"
+            :class="current.kind === 'error' ? 'text-alert' : 'text-ink'"
             :size="20"
             aria-hidden="true"
           />

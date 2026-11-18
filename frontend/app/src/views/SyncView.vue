@@ -213,7 +213,8 @@ async function onSync() {
     result.value = synced
     const notice = photoNotice(synced)
     if (notice) {
-      useToast().show({ before: notice, kind: 'warning' })
+      // Stopped by the user = warning; photos that failed to upload = error.
+      useToast().show({ before: notice, kind: synced.cancelled === 'photos' ? 'warning' : 'error' })
     }
     // Reception is proven now. Not awaited: the result page must not wait for it.
     void checkForUpdateNow()
@@ -354,10 +355,10 @@ function onMainButton() {
     >
       <div
         v-if="failureText"
-        class="flex flex-col gap-1 rounded-lg border-2 border-ink bg-paper px-3.5 py-3 text-sm leading-copy"
+        class="flex flex-col gap-1 rounded-lg border-2 border-alert bg-paper px-3.5 py-3 text-sm leading-copy"
         role="alert"
       >
-        <strong class="text-base">Synchronisieren fehlgeschlagen</strong>
+        <strong class="text-base text-alert">Synchronisieren fehlgeschlagen</strong>
         <span>{{ failureText }}</span>
       </div>
       <SignInForm v-if="failure?.status === 401" @signed-in="onSync" />

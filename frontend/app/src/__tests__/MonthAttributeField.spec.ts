@@ -60,5 +60,7 @@ describe('MonthAttributeField', () => {
     const alert = wrapper.find('[role="alert"]')
     expect(alert.text()).toBe('Bitte Jahr und Monat eingeben.')
     expect(wrapper.find('input').attributes('aria-describedby')).toBe(alert.attributes('id'))
+    expect(wrapper.find('input').attributes('aria-invalid')).toBe('true')
+    expect(wrapper.find('input').classes()).toContain('border-alert')
   })
 })

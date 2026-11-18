@@ -4,6 +4,8 @@ import { XIcon } from '@lucide/vue'
 import type { Attribute, AttributeValueRecord } from '@/stores/timberItems'
 import type { AttributeValue } from '@v29/shared/contract'
 import AttributeField from '@/components/AttributeField.vue'
+import FieldError from '@/components/FieldError.vue'
+import { useFieldError } from '@/composables/useFieldError'
 import { formatNumber } from '@v29/shared/attributes'
 import { NUMBER_ERROR, parseNumber } from '@/utils/attributeDraft'
 import { formatDateTime } from '@/utils/date'
@@ -33,7 +35,6 @@ const draft = defineModel<string | undefined>()
 const added = defineModel<AttributeValue[]>('added', { default: () => [] })
 
 const inputId = useId()
-const errorId = useId()
 const input = useTemplateRef<HTMLInputElement>('input')
 
 const current = computed(() => props.recorded?.slice(-1)[0])
@@ -50,7 +51,8 @@ const newValues = computed(() => added.value.map((value, index) => ({ value, ind
 
 // "Hinzufügen" can fail on its own, before any save; cleared on the next keystroke.
 const addError = ref<string>()
-const shownError = computed(() => addError.value ?? props.error)
+const shownError = computed(() => (props.readonly ? undefined : (addError.value ?? props.error)))
+const { errorId, errorBorder, errorAttrs } = useFieldError(shownError)
 
 function onInput(event: Event) {
   addError.value = undefined
@@ -129,7 +131,8 @@ function remove(index: number) {
     <div v-if="!readonly" class="flex gap-2">
       <!-- The border sits on the wrapper; the focus ring via focus-within, the input itself has no outline. -->
       <div
-        class="flex h-[52px] min-w-0 flex-1 items-center rounded-lg border-2 border-ink bg-paper px-3 focus-within:outline-3 focus-within:outline-offset-2 focus-within:outline-ink"
+        class="flex h-[52px] min-w-0 flex-1 items-center rounded-lg border-2 bg-paper px-3 focus-within:outline-3 focus-within:outline-offset-2 focus-within:outline-ink"
+        :class="errorBorder"
       >
         <input
           :id="inputId"
@@ -140,8 +143,7 @@ function remove(index: number) {
           placeholder="Wert"
           autocomplete="off"
           :value="draft ?? (attribute.is_series ? '' : recordedText)"
-          :aria-invalid="shownError ? true : undefined"
-          :aria-describedby="shownError ? errorId : undefined"
+          v-bind="errorAttrs"
           @input="onInput"
           @keydown.enter.prevent="attribute.is_series && add()"
         />
@@ -156,8 +158,6 @@ function remove(index: number) {
         Hinzufügen
       </button>
     </div>
-    <span v-if="shownError && !readonly" :id="errorId" class="text-sm font-semibold" role="alert">{{
-      shownError
-    }}</span>
+    <FieldError :id="errorId" :message="shownError" />
   </AttributeField>
 </template>

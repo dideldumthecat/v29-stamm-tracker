@@ -5,11 +5,12 @@ export interface ToastMessage {
   before: string
   tagNumber?: number | string
   after?: string
-  // Success unless stated otherwise; decides the icon.
-  kind?: 'success' | 'warning'
+  // Success unless stated otherwise; decides the icon. Error = something failed (red icon), warning = a state the
+  // user caused or should notice (e.g. stopped).
+  kind?: 'success' | 'warning' | 'error'
 }
 
-// Warnings stay longer: they report something the user has to notice.
+// Warnings and errors stay longer: they report something the user has to notice.
 const TOAST_DURATION_MS = 3000
 const WARNING_DURATION_MS = 8000
 // Slide-in time of the <Transition> in AppToast; the display time starts once the toast is fully out.
@@ -23,7 +24,10 @@ export function useToast() {
   function show(message: ToastMessage) {
     clearTimeout(hideTimer)
     // Already visible: only the text changes, nothing slides in again.
-    const duration = message.kind === 'warning' ? WARNING_DURATION_MS : TOAST_DURATION_MS
+    const duration =
+      message.kind === 'warning' || message.kind === 'error'
+        ? WARNING_DURATION_MS
+        : TOAST_DURATION_MS
     const delay = current.value ? duration : TOAST_ENTER_MS + duration
     current.value = message
     hideTimer = setTimeout(hide, delay)
