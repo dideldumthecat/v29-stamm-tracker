@@ -5,6 +5,7 @@ import keyFiguresFixture from '@v29/shared/fixtures/key-figures-response.json' w
 
 import { activityAnswer } from './fakeActivity'
 import { createFakeAttributes } from './fakeAttributes'
+import { createFakeUsers } from './fakeUsers'
 import { snapshotFixture } from './fakeSnapshot'
 
 /**
@@ -20,6 +21,8 @@ export function fakeApi(codes: Record<string, string>, { offline = false, pageSi
   let keyFiguresFail = false
   let snapshot: Snapshot = snapshotFixture
   const attributes = createFakeAttributes()
+  const users = createFakeUsers()
+  let usersFail = false
   let attributesFail = false
   const calls: string[] = []
   vi.stubGlobal(
@@ -68,6 +71,13 @@ export function fakeApi(codes: Record<string, string>, { offline = false, pageSi
         const answer = attributes.handle(init.method!, url, body)
         if (answer) return json(answer.status, answer.json)
       }
+      if (url.startsWith('/api/admin/users')) {
+        if (!role) return json(401)
+        if (usersFail) return json(500)
+        const body = init.body ? JSON.parse(init.body as string) : undefined
+        const answer = users.handle(init.method!, url, body, role)
+        if (answer) return json(answer.status, answer.json)
+      }
       return json(404)
     }),
   )
@@ -81,6 +91,8 @@ export function fakeApi(codes: Record<string, string>, { offline = false, pageSi
     setSnapshot: (next: Snapshot) => (snapshot = next),
     failKeyFigures: (fails = true) => (keyFiguresFail = fails),
     failAttributes: (fails = true) => (attributesFail = fails),
+    failUsers: (fails = true) => (usersFail = fails),
     attributes,
+    users,
   }
 }

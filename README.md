@@ -23,7 +23,9 @@ Everything is stored on the device first. Out in the woods there is usually no n
 - Activity: the latest changes of everyone, filterable by period, person and tag.
 - Attributes: create, edit, reorder and deactivate them, with a preview of how the app shows them. Attributes that code refers to (system attributes) are read-only here.
 
-Users, corrections and voids, bulk changes, photo imports and the export are handled with console commands (see below).
+- Users: create, rename, block and unblock, copy a new invite code (shown once) or issue one. Admins manage users; only the superadmin manages admins and the role `admin`.
+
+Corrections and voids, bulk changes, photo imports and the export are handled with console commands (see below).
 
 ## Design decisions
 
@@ -102,7 +104,8 @@ ddev frontend run dev          # capture app (5173) and administration (5174); a
 
 ### Roles and sign-in
 
-- `user` – the capture app only. `admin` – additionally the administration. `superadmin` – like `admin`; there is at most one (`app:user:create` and `app:user:role` refuse a second).
+- `user` – the capture app only. `admin` – additionally the administration. `superadmin` – like `admin`; there is at most one (`app:user:create` and `app:user:role` refuse a second), and nobody can change or block it in the administration.
+- Users are never deleted (events refer to them), only blocked. A blocked user is out at once; unblocking makes the same invite code work again. The invite code is a password: only its hash is stored. It is shown once, when the user is created or "Neuer Code" issues a new one (the old one stops working); whoever loses it gets a new one.
 - The administration signs in with the same invite codes as the app (`/admin/login`) and lets in `admin` and `superadmin` only; `GET /api/admin/me` and everything else below `/api/admin/` answers 403 for `user`.
 - The app and the administration share the sign-in cookie: signing out in the administration signs the app out in the same browser too.
 
@@ -112,7 +115,7 @@ Every command explains its options with `--help`; bulk changes, imports and void
 
 | Command | Purpose |
 |---|---|
-| `app:user:create` / `list` / `revoke` | Manage users and invite codes (`create --role=user, admin or superadmin`) |
+| `app:user:create` / `list` / `revoke` | Manage users and invite codes (`create --role=user, admin or superadmin`); the administration does the same for everyday use |
 | `app:user:role <name or ID> <role>` | Change the role of an active user |
 | `app:attributes:import` | Create and update the system attributes (those with a `key`) and their options from YAML, see `backend/data/attributes.example.yaml`. Attributes without a key belong to the administration: the import creates them only if no attribute has that name and never touches them again. The options of the attribute with the key `source` are skipped. Every entry must state `is_series`, `is_inheritable`, `applies_to` (`stem` and/or `beam`: where the app offers the attribute for input) and `hidden_when` (keys of yes/no attributes: while one of them is "ja", the app hides the attribute; may be empty) |
 | `app:attribute:set` / `clear` | Set or clear one attribute on many logs |

@@ -8,6 +8,7 @@ import AttributesView from '@/views/AttributesView.vue'
 import LoginView from '@/views/LoginView.vue'
 import TimberItemsView from '@/views/TimberItemsView.vue'
 import TimberItemView from '@/views/TimberItemView.vue'
+import UsersView from '@/views/UsersView.vue'
 import PlaceholderView from '@/views/PlaceholderView.vue'
 
 // History mode below /admin/; Apache serves admin/index.html for every path there (backend/public/.htaccess).
@@ -19,6 +20,7 @@ export function createAdminRouter(history: RouterHistory = createWebHistory('/ad
       { path: '/', redirect: { name: 'activity' } },
       { path: '/activity', name: 'activity', component: ActivityView },
       { path: '/attributes', name: 'attributes', component: AttributesView },
+      { path: '/users', name: 'users', component: UsersView },
       // One view for both lists; the router decides which. Another name makes another instance (App.vue keys the view by it).
       { path: '/stems', name: 'stems', component: TimberItemsView, props: { kind: 'stem' } },
       { path: '/beams', name: 'beams', component: TimberItemsView, props: { kind: 'beam' } },

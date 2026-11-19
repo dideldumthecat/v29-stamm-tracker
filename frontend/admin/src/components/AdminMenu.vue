@@ -11,10 +11,13 @@ import { SettingsIcon } from '@lucide/vue'
 
 /**
  * The gear in the header with the pages of the administration of the system (Reka UI DropdownMenu, as the filter pop-ups are Reka UI
- * too). On one of its pages the gear is white like the active item of the navigation. "Nutzer" follows with its page.
+ * too). On one of its pages the gear is white like the active item of the navigation.
  */
 const route = useRoute()
-const items = [{ label: 'Merkmale', to: { name: 'attributes' } }]
+const items = [
+  { label: 'Merkmale', to: { name: 'attributes' } },
+  { label: 'Nutzer', to: { name: 'users' } },
+]
 </script>
 
 <template>

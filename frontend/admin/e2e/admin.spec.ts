@@ -4,6 +4,7 @@ import keyFiguresFixture from '@v29/shared/fixtures/key-figures-response.json' w
 
 import { activityAnswer } from '../src/__tests__/fakeActivity'
 import { createFakeAttributes } from '../src/__tests__/fakeAttributes'
+import { createFakeUsers } from '../src/__tests__/fakeUsers'
 import { snapshotFixture, stemPhotos } from '../src/__tests__/fakeSnapshot'
 
 /**
@@ -12,9 +13,14 @@ import { snapshotFixture, stemPhotos } from '../src/__tests__/fakeSnapshot'
  * 31 October (one page; the test of "Ältere laden" asks for smaller pages).
  */
 async function fakeApi(page: Page) {
-  const codes: Record<string, string> = { 'K7QM-4XHT-9RDP': 'admin', 'W3ZV-8NBC-2F6G': 'user' }
+  const codes: Record<string, string> = {
+    'K7QM-4XHT-9RDP': 'admin',
+    'W3ZV-8NBC-2F6G': 'user',
+    'S4PA-2DM1-N8QX': 'superadmin',
+  }
   let role: string | null = null
   const attributes = createFakeAttributes()
+  const users = createFakeUsers()
   await page.route('**/api/**', async (route) => {
     const request = route.request()
     const path = new URL(request.url()).pathname
@@ -48,6 +54,12 @@ async function fakeApi(page: Page) {
     if (path.startsWith('/api/admin/attributes')) {
       if (!role) return route.fulfill({ status: 401 })
       const answer = attributes.handle(request.method(), path, request.postDataJSON())
+      return route.fulfill({ status: answer?.status ?? 404, json: answer?.json })
+    }
+    if (path.startsWith('/api/admin/users')) {
+      if (!role) return route.fulfill({ status: 401 })
+      const body = request.postData() ? request.postDataJSON() : undefined
+      const answer = users.handle(request.method(), path, body, role)
       return route.fulfill({ status: answer?.status ?? 404, json: answer?.json })
     }
     if (call.startsWith('GET /api/photos/')) {
@@ -2026,4 +2038,165 @@ test.describe('attributes', () => {
     )
     expect(overflow).toBe(0)
   })
+})
+
+test.describe('users', () => {
+  // The clipboard of a headless browser is not readable without permissions: the copied text is kept on the window
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, 'clipboard', {
+        value: {
+          writeText: async (text: string) =>
+            ((window as never as { copied: string }).copied = text),
+        },
+      })
+    })
+    await page.goto('/admin/activity')
+  })
+
+  const open = async (page: Page, code: string) => {
+    await signIn(page, code)
+    await page.getByRole('button', { name: 'Verwaltung', exact: true }).click()
+    await page.getByRole('menuitem', { name: 'Nutzer', exact: true }).click()
+    await expect(page).toHaveURL(/\/admin\/users$/)
+    await expect(page.getByText('5 Nutzer', { exact: true })).toBeVisible()
+  }
+  const user = (page: Page, name: string) => page.locator(`[data-user="${name}"]`)
+  const card = (page: Page, name: string) =>
+    page.getByRole('region', { name: `Einstellungen von ${name}`, exact: true })
+  const toggle = (page: Page, name: string) => user(page, name).getByRole('button')
+
+  test('adds a user: the form closes and the new user is open with the code, which is copied', async ({
+    page,
+  }) => {
+    await open(page, 'K7QM4XHT9RDP')
+
+    await page.getByRole('button', { name: 'Nutzer hinzufügen', exact: true }).click()
+    await page.getByLabel('Name', { exact: true }).fill('Eva')
+    await page.getByRole('button', { name: 'Anlegen', exact: true }).click()
+
+    await expect(page.getByText('6 Nutzer', { exact: true })).toBeVisible()
+    await expect(user(page, 'Eva')).toBeVisible()
+    await expect(card(page, 'Eva')).toContainText('N1AA-BBBB-CCCC')
+    await expect(page.locator('[data-add-arrow]')).toHaveCount(0)
+
+    await card(page, 'Eva').getByRole('button', { name: 'Code kopieren', exact: true }).click()
+    await expect(
+      card(page, 'Eva').getByRole('button', { name: 'Kopiert', exact: true }),
+    ).toBeVisible()
+    expect(await page.evaluate(() => (window as never as { copied: string }).copied)).toBe(
+      'N1AA-BBBB-CCCC',
+    )
+  })
+
+  test('opens one user at a time; the arrow sits under the chevron of the row', async ({
+    page,
+  }) => {
+    await open(page, 'K7QM4XHT9RDP')
+
+    await toggle(page, 'Bruno').click()
+    await expect(card(page, 'Bruno')).toContainText('nicht gespeichert')
+    await toggle(page, 'Dora').click()
+    await expect(card(page, 'Bruno')).toHaveCount(0)
+    await expect(card(page, 'Dora')).toContainText('Wird aus Sicherheitsgründen nicht gespeichert.')
+
+    const chevron = (await user(page, 'Dora').locator('[data-chevron]').boundingBox())!
+    const arrow = (await page.locator('[data-card-arrow]').boundingBox())!
+    expect(Math.abs(chevron.x + chevron.width / 2 - (arrow.x + arrow.width / 2))).toBeLessThan(2)
+  })
+
+  test('the arrow of the add card points at the button', async ({ page }) => {
+    await open(page, 'K7QM4XHT9RDP')
+    const add = page.getByRole('button', { name: 'Nutzer hinzufügen', exact: true })
+    await add.click()
+
+    const button = (await add.boundingBox())!
+    const arrow = (await page.locator('[data-add-arrow]').boundingBox())!
+    expect(Math.abs(button.x + button.width / 2 - (arrow.x + arrow.width / 2))).toBeLessThan(2)
+  })
+
+  test('renews the code after a question, which makes the old one invalid', async ({ page }) => {
+    await open(page, 'K7QM4XHT9RDP')
+    await toggle(page, 'Bruno').click()
+
+    await card(page, 'Bruno').getByRole('button', { name: 'Neuer Code', exact: true }).click()
+    const dialog = page.getByRole('alertdialog', {
+      name: 'Neuen Code für Bruno erzeugen?',
+      exact: true,
+    })
+    await expect(dialog).toContainText('werden abgemeldet')
+    await dialog.getByRole('button', { name: 'Neuen Code erzeugen', exact: true }).click()
+
+    await expect(card(page, 'Bruno')).toContainText('N1AA-BBBB-CCCC')
+    await expect(card(page, 'Bruno')).toContainText('nur dieses eine Mal')
+    await expect(card(page, 'Bruno').getByRole('img', { name: 'Warnung' })).toBeVisible()
+    // closed and opened again: the code is gone
+    await toggle(page, 'Bruno').click()
+    await toggle(page, 'Bruno').click()
+    await expect(card(page, 'Bruno')).not.toContainText('N1AA-BBBB-CCCC')
+  })
+
+  test('blocks after a question and unblocks', async ({ page }) => {
+    await open(page, 'K7QM4XHT9RDP')
+    await toggle(page, 'Bruno').click()
+
+    await card(page, 'Bruno').getByRole('button', { name: 'Sperren', exact: true }).click()
+    await page
+      .getByRole('alertdialog', { name: 'Bruno sperren?', exact: true })
+      .getByRole('button', { name: 'Sperren', exact: true })
+      .click()
+    await expect(user(page, 'Bruno').getByText('Gesperrt', { exact: true })).toBeVisible()
+    await expect(
+      card(page, 'Bruno').getByRole('button', { name: 'Neuer Code', exact: true }),
+    ).toHaveCount(0)
+
+    await card(page, 'Bruno').getByRole('button', { name: 'Entsperren', exact: true }).click()
+    await expect(user(page, 'Bruno').getByText('Gesperrt', { exact: true })).toHaveCount(0)
+    await expect(
+      card(page, 'Bruno').getByRole('button', { name: 'Neuer Code', exact: true }),
+    ).toBeVisible()
+  })
+
+  test('renames with "Speichern"', async ({ page }) => {
+    await open(page, 'K7QM4XHT9RDP')
+    await toggle(page, 'Bruno').click()
+
+    await card(page, 'Bruno').getByLabel('Name', { exact: true }).fill('Brunhild')
+    await card(page, 'Bruno').getByRole('button', { name: 'Speichern', exact: true }).click()
+
+    await expect(user(page, 'Brunhild')).toBeVisible()
+    await expect(user(page, 'Bruno')).toHaveCount(0)
+  })
+
+  test('leaves an admin without a role to choose, and gives the superadmin the role of everybody but their own', async ({
+    page,
+  }) => {
+    await open(page, 'K7QM4XHT9RDP')
+    await expect(toggle(page, 'Chef')).toHaveCount(0)
+    await toggle(page, 'Bruno').click()
+    await expect(card(page, 'Bruno').getByRole('combobox')).toHaveCount(0)
+    await page.getByRole('button', { name: 'Abmelden', exact: true }).click()
+
+    await signIn(page, 'S4PA2DM1N8QX')
+    await page.getByRole('button', { name: 'Verwaltung', exact: true }).click()
+    await page.getByRole('menuitem', { name: 'Nutzer', exact: true }).click()
+    await expect(toggle(page, 'Ada')).toHaveCount(0)
+    await toggle(page, 'Bruno').click()
+    await card(page, 'Bruno').getByLabel('Rolle', { exact: true }).selectOption('admin')
+    await card(page, 'Bruno').getByRole('button', { name: 'Speichern', exact: true }).click()
+    await expect(user(page, 'Bruno').getByText('Admin', { exact: true })).toBeVisible()
+  })
+
+  for (const width of [1000, 390]) {
+    test(`stays free of sideways scrolling at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 800 })
+      await open(page, 'S4PA2DM1N8QX')
+      await toggle(page, 'Bruno').click()
+      await expect(card(page, 'Bruno')).toBeVisible()
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      )
+      expect(overflow).toBe(0)
+    })
+  }
 })
