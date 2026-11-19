@@ -1,0 +1,16 @@
+{
+  "user": {
+    "id": "00000000-0000-7000-8000-000000000003",
+    "name": "Bruno",
+    "role": "user",
+    "created_at": "2026-10-22T08:00:00.000Z",
+    "revoked_at": null,
+    "last_active_at": "2026-11-13T09:15:00.000Z",
+    "can_manage": true,
+    "can_block": true,
+    "can_set_role": true
+  },
+  "invite": {
+    "code": "K7QM-4XHT-9RDP"
+  }
+}

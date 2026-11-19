@@ -1,0 +1,60 @@
+{
+  "users": [
+    {
+      "id": "00000000-0000-7000-8000-000000000001",
+      "name": "Ada",
+      "role": "superadmin",
+      "created_at": "2026-10-20T08:00:00.000Z",
+      "revoked_at": null,
+      "last_active_at": "2026-11-12T16:30:00.000Z",
+      "can_manage": false,
+      "can_block": false,
+      "can_set_role": false
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000002",
+      "name": "Chef",
+      "role": "admin",
+      "created_at": "2026-10-21T08:00:00.000Z",
+      "revoked_at": null,
+      "last_active_at": null,
+      "can_manage": true,
+      "can_block": true,
+      "can_set_role": true
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000003",
+      "name": "Bruno",
+      "role": "user",
+      "created_at": "2026-10-22T08:00:00.000Z",
+      "revoked_at": null,
+      "last_active_at": "2026-11-13T09:15:00.000Z",
+      "can_manage": true,
+      "can_block": true,
+      "can_set_role": true
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000004",
+      "name": "Cem",
+      "role": "user",
+      "created_at": "2026-10-23T08:00:00.000Z",
+      "revoked_at": "2026-11-05T12:00:00.000Z",
+      "last_active_at": null,
+      "can_manage": true,
+      "can_block": true,
+      "can_set_role": true
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000005",
+      "name": "Dora",
+      "role": "user",
+      "created_at": "2026-10-24T08:00:00.000Z",
+      "revoked_at": null,
+      "last_active_at": null,
+      "can_manage": true,
+      "can_block": true,
+      "can_set_role": true
+    }
+  ],
+  "creatable_roles": ["user", "admin"]
+}

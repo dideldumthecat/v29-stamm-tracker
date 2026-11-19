@@ -139,6 +139,67 @@ export interface KeyFigure {
   note: string | null
 }
 
+// --- /api/admin/users --------------------------------------------------------
+// User management in the administration (roles admin and superadmin, otherwise 403). Users are never deleted, only blocked (their events refer to them).
+// Rules, checked by the server (403 if broken, the administration hides what is not allowed; the flags below say what the acting user may do):
+// admin and superadmin create, rename, block and unblock users with the role "user" and issue them a new invite code; only the superadmin does the
+// same for users with the role "admin" and gives or takes the role "admin"; nobody changes, blocks or creates a superadmin; nobody blocks themselves.
+// The "invite" is the personal code (the app has no link that signs in, the code is typed; the app explains the installation itself).
+
+/** GET /api/admin/users: everybody, in the order of creation, blocked users too. */
+export interface AdminUsersResponse {
+  users: AdminUser[]
+  /** The roles the acting user may give to a new user (admin: user; superadmin: user, admin). */
+  creatable_roles: Exclude<UserRole, 'superadmin'>[]
+}
+
+export interface AdminUser {
+  id: Uuid
+  name: string
+  role: UserRole
+  created_at: Timestamp
+  /** Blocked since then; the invite code does not work and the user is out at once. Null = active. */
+  revoked_at: Timestamp | null
+  /** Latest time events of the user reached the server (a sync); null if none yet. */
+  last_active_at: Timestamp | null
+  /** Rename, block, unblock or issue a new invite code. */
+  can_manage: boolean
+  /** Block (not oneself); unblocking needs can_manage. */
+  can_block: boolean
+  /** Give or take the role "admin" (superadmin only, never for a superadmin). */
+  can_set_role: boolean
+}
+
+/**
+ * POST /api/admin/users (answers 201 with AdminInviteResponse; name and role are required, role is not "superadmin").
+ * PATCH /api/admin/users/{id} (answers 200 with AdminUserResponse; fields left out stay as they are; 404 for an unknown id).
+ * Status 422 as AttributeErrorsResponse: field "name", "role" or "blocked".
+ */
+export interface AdminUserInput {
+  name: string
+  role: Exclude<UserRole, 'superadmin'>
+  /** true blocks, false unblocks (the same code works again). */
+  blocked: boolean
+}
+
+export interface AdminUserResponse {
+  user: AdminUser
+}
+
+/**
+ * The invite code is a password: only its hash is stored, so it is shown exactly once, in the answer to the call that makes it. Nothing shows it
+ * again (the list and the single user carry none); whoever loses it gets a new one.
+ * POST /api/admin/users answers 201 with this (see AdminUserInput), and so does
+ * POST /api/admin/users/{id}/invite (no body): a new code; the old one stops working at once (whoever uses it has to sign in again).
+ * 409 for a blocked user.
+ */
+export interface AdminInviteResponse extends AdminUserResponse {
+  invite: {
+    /** "K7QM-4XHT-9RDP" */
+    code: string
+  }
+}
+
 // --- GET /api/snapshot -------------------------------------------------------
 
 export interface Snapshot {
