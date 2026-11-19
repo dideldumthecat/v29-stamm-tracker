@@ -90,6 +90,14 @@ describe('the table', () => {
     expect(row(wrapper, 'Ada').find('button').exists()).toBe(false)
   })
 
+  it('shows the count in the results bar, with the button for adding at its right', async () => {
+    const { wrapper } = await open()
+
+    const bar = wrapper.get('[aria-label=Ergebnisse]')
+    expect(bar.get('p').text()).toBe('5 Nutzer')
+    expect(bar.get('button').text()).toBe('Nutzer hinzufügen')
+  })
+
   it('is in the gear menu', async () => {
     const { wrapper } = await open()
 

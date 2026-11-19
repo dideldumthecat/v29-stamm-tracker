@@ -12,6 +12,7 @@ import { CheckIcon, CopyIcon, PlusIcon, TriangleAlertIcon } from '@lucide/vue'
 import { ApiError, request } from '@/api/client'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import LoadFailure from '@/components/LoadFailure.vue'
+import ResultsBar from '@/components/ResultsBar.vue'
 import SelectField from '@/components/SelectField.vue'
 import StatusCard from '@/components/StatusCard.vue'
 import UserTable from '@/components/UserTable.vue'
@@ -258,290 +259,290 @@ const label = 'text-caption font-semibold text-mute'
         </template>
         <template #text>Nutzer werden zurechtgesägt</template>
       </StatusCard>
+    </div>
 
-      <div v-else class="mt-6">
-        <div class="flex min-h-11 flex-wrap items-center gap-x-4 gap-y-2">
-          <p class="text-base text-mute">{{ countUsers(users.length) }}</p>
-          <p
-            v-if="notice"
-            class="text-base"
-            :class="notice.error ? 'font-semibold' : 'text-mute'"
-            :role="notice.error ? 'alert' : 'status'"
-          >
-            {{ notice.text }}
-          </p>
-          <button
-            ref="addButton"
-            type="button"
-            :class="[
-              button,
-              'ml-auto border-ink',
-              adding ? 'border-solid bg-paper' : 'border-dashed bg-transparent',
-            ]"
-            :aria-expanded="adding"
-            :aria-controls="`${id}-add`"
-            @click="toggleAdd"
-          >
-            <PlusIcon :size="20" aria-hidden="true" />
-            Nutzer hinzufügen
-          </button>
-        </div>
+    <ResultsBar
+      v-if="status === 'ready'"
+      class="mt-4"
+      :text="countUsers(users.length)"
+      :chips="[]"
+      :can-reset="false"
+    >
+      <template #status>
+        <p
+          v-if="notice"
+          class="text-base"
+          :class="notice.error ? 'font-semibold' : 'text-mute'"
+          :role="notice.error ? 'alert' : 'status'"
+        >
+          {{ notice.text }}
+        </p>
+      </template>
+      <template #end>
+        <button
+          ref="addButton"
+          type="button"
+          :class="[
+            button,
+            'border-ink',
+            adding ? 'border-solid bg-paper' : 'border-dashed bg-transparent',
+          ]"
+          :aria-expanded="adding"
+          :aria-controls="`${id}-add`"
+          @click="toggleAdd"
+        >
+          <PlusIcon :size="20" aria-hidden="true" />
+          Nutzer hinzufügen
+        </button>
+      </template>
+    </ResultsBar>
 
+    <div v-if="status === 'ready'" class="page-column">
+      <section
+        v-if="adding"
+        :id="`${id}-add`"
+        ref="addCard"
+        class="relative mt-2 card p-5 sm:px-6"
+        :aria-labelledby="`${id}-add-title`"
+      >
+        <span
+          class="absolute -top-2 size-3.5 rotate-45 border-t border-l border-line bg-paper"
+          :style="{ right: `${arrowRight}px` }"
+          data-add-arrow
+          aria-hidden="true"
+        />
+        <h2 :id="`${id}-add-title`" class="text-label font-bold">Nutzer hinzufügen</h2>
+        <form @submit.prevent="create">
+          <div class="mt-4 flex flex-wrap items-start gap-x-6 gap-y-4">
+            <div class="min-w-60 flex-1 basis-60 sm:max-w-[420px]">
+              <label :for="`${id}-name`" :class="label">Name</label>
+              <input
+                :id="`${id}-name`"
+                ref="nameField"
+                v-model="newName"
+                type="text"
+                autocomplete="off"
+                :class="[field, 'mt-1']"
+                :aria-invalid="!!createErrors.name"
+                :aria-describedby="`${id}-name-hint${createErrors.name ? ` ${id}-name-error` : ''}`"
+              />
+              <p
+                v-if="createErrors.name"
+                :id="`${id}-name-error`"
+                class="mt-1 text-sm font-semibold"
+                role="alert"
+              >
+                {{ createErrors.name }}
+              </p>
+              <p :id="`${id}-name-hint`" class="mt-1 text-caption text-mute">
+                Steht in der App oben und an jeder Erfassung. Person oder Betrieb.
+              </p>
+            </div>
+            <div v-if="creatableRoles.length > 1" class="w-full sm:w-48">
+              <label :for="`${id}-role`" :class="label">Rolle</label>
+              <SelectField :id="`${id}-role`" v-model="newRole" class="mt-1">
+                <option v-for="role in creatableRoles" :key="role" :value="role">
+                  {{ ROLE_LABELS[role] }}
+                </option>
+              </SelectField>
+            </div>
+          </div>
+          <div class="mt-6 flex justify-end gap-3">
+            <button type="button" :class="[button, 'border-ink']" @click="toggleAdd">
+              Abbrechen
+            </button>
+            <button
+              type="submit"
+              :class="[button, 'border-ink bg-ink text-paper']"
+              :disabled="busy"
+            >
+              Anlegen
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <div :class="adding ? 'mt-4' : 'mt-2'">
+        <UserTable
+          :users="split.before"
+          head
+          :square="openUser ? 'bottom' : undefined"
+          :open-id="openId"
+          :controls="`${id}-panel`"
+          @toggle="toggle"
+        />
+
+        <!-- The card of the open user. The arrow sits under the chevron of the row above: 16 px padding of the cell plus half the chevron
+               (10 px) and the padding of the table card (8 px) from the edge of the table, less half the arrow (7 px) and the border (1 px). -->
         <section
-          v-if="adding"
-          :id="`${id}-add`"
-          ref="addCard"
-          class="relative mt-4 card p-5 sm:px-6"
-          :aria-labelledby="`${id}-add-title`"
+          v-if="openUser"
+          :id="`${id}-panel`"
+          class="relative my-4 card px-5 pt-[38px] pb-5 sm:px-6"
+          :aria-label="`Einstellungen von ${openUser.name}`"
         >
           <span
-            class="absolute -top-2 size-3.5 rotate-45 border-t border-l border-line bg-paper"
-            :style="{ right: `${arrowRight}px` }"
-            data-add-arrow
+            class="absolute -top-2 left-[26px] size-3.5 rotate-45 border-t border-l border-line bg-paper"
+            data-card-arrow
             aria-hidden="true"
           />
-          <h2 :id="`${id}-add-title`" class="text-label font-bold">Nutzer hinzufügen</h2>
-          <form @submit.prevent="create">
-            <div class="mt-4 flex flex-wrap items-start gap-x-6 gap-y-4">
-              <div class="min-w-60 flex-1 basis-60 sm:max-w-[420px]">
-                <label :for="`${id}-name`" :class="label">Name</label>
-                <input
-                  :id="`${id}-name`"
-                  ref="nameField"
-                  v-model="newName"
-                  type="text"
-                  autocomplete="off"
-                  :class="[field, 'mt-1']"
-                  :aria-invalid="!!createErrors.name"
-                  :aria-describedby="`${id}-name-hint${createErrors.name ? ` ${id}-name-error` : ''}`"
-                />
-                <p
-                  v-if="createErrors.name"
-                  :id="`${id}-name-error`"
-                  class="mt-1 text-sm font-semibold"
-                  role="alert"
-                >
-                  {{ createErrors.name }}
-                </p>
-                <p :id="`${id}-name-hint`" class="mt-1 text-caption text-mute">
-                  Steht in der App oben und an jeder Erfassung. Person oder Betrieb.
-                </p>
+          <form @submit.prevent="save">
+            <div class="divide-y divide-soft [&>*]:py-4 [&>:first-child]:pt-0 [&>:last-child]:pb-0">
+              <div class="grid gap-x-6 gap-y-1 sm:grid-cols-[9rem_minmax(0,1fr)] sm:items-center">
+                <label :for="`${id}-edit-name`" :class="label">Name</label>
+                <div>
+                  <input
+                    :id="`${id}-edit-name`"
+                    v-model="draft.name"
+                    type="text"
+                    autocomplete="off"
+                    :class="[field, 'sm:max-w-[420px]']"
+                    :aria-invalid="!!saveErrors.name"
+                    :aria-describedby="saveErrors.name ? `${id}-edit-error` : undefined"
+                  />
+                  <p
+                    v-if="saveErrors.name"
+                    :id="`${id}-edit-error`"
+                    class="mt-1 text-sm font-semibold"
+                    role="alert"
+                  >
+                    {{ saveErrors.name }}
+                  </p>
+                </div>
               </div>
-              <div v-if="creatableRoles.length > 1" class="w-full sm:w-48">
-                <label :for="`${id}-role`" :class="label">Rolle</label>
-                <SelectField :id="`${id}-role`" v-model="newRole" class="mt-1">
-                  <option v-for="role in creatableRoles" :key="role" :value="role">
-                    {{ ROLE_LABELS[role] }}
-                  </option>
+
+              <div>
+                <div class="grid gap-x-6 gap-y-1 sm:grid-cols-[9rem_minmax(0,1fr)] sm:items-center">
+                  <p :id="`${id}-code-label`" :class="label">Einladungs-Code</p>
+                  <div
+                    class="flex flex-wrap items-center gap-x-4 gap-y-2"
+                    role="group"
+                    :aria-labelledby="`${id}-code-label`"
+                  >
+                    <template v-if="code && !isBlocked(openUser)">
+                      <code
+                        class="flex h-11 items-center rounded-lg border-2 border-ink bg-paper px-3 font-mono text-base tracking-[.08em]"
+                        tabindex="0"
+                        data-invite-code
+                        >{{ code }}</code
+                      >
+                      <button
+                        type="button"
+                        :class="[button, 'border-ink bg-ink text-paper']"
+                        @click="copy"
+                      >
+                        <component
+                          :is="copied ? CheckIcon : CopyIcon"
+                          :size="18"
+                          aria-hidden="true"
+                        />
+                        {{ copied ? 'Kopiert' : 'Code kopieren' }}
+                      </button>
+                      <span class="sr-only" role="status">{{ copied ? 'Kopiert' : '' }}</span>
+                      <p v-if="copyFailed" class="w-full font-semibold" role="alert">
+                        Kopieren hat nicht geklappt. Markiere den Code und kopiere ihn von Hand.
+                      </p>
+                    </template>
+                    <template v-else>
+                      <p class="text-mute">Wird aus Sicherheitsgründen nicht gespeichert.</p>
+                      <button
+                        v-if="!isBlocked(openUser)"
+                        type="button"
+                        :class="[button, 'border-ink']"
+                        :disabled="busy"
+                        @click="((renewTarget = openUser), (renewOpen = true))"
+                      >
+                        Neuer Code
+                      </button>
+                    </template>
+                  </div>
+                </div>
+                <!-- Over the whole width of the field, not held to the width of the code -->
+                <div
+                  v-if="code && !isBlocked(openUser)"
+                  class="mt-4 flex items-center gap-3 rounded-lg bg-well px-4 py-3"
+                  data-code-warning
+                >
+                  <TriangleAlertIcon :size="20" class="shrink-0" aria-label="Warnung" role="img" />
+                  <p class="font-semibold">
+                    Achtung! Der Code wird nur dieses eine Mal angezeigt, danach nie wieder. Falls
+                    er verloren geht, muss ein neuer erstellt werden.
+                  </p>
+                </div>
+              </div>
+
+              <div class="grid gap-x-6 gap-y-1 sm:grid-cols-[9rem_minmax(0,1fr)] sm:items-center">
+                <label :for="`${id}-edit-role`" :class="label">Rolle</label>
+                <SelectField
+                  v-if="openUser.can_set_role"
+                  :id="`${id}-edit-role`"
+                  v-model="draft.role"
+                  class="sm:w-48"
+                >
+                  <option value="user">{{ ROLE_LABELS.user }}</option>
+                  <option value="admin">{{ ROLE_LABELS.admin }}</option>
                 </SelectField>
+                <p v-else :id="`${id}-edit-role`">{{ ROLE_LABELS[openUser.role] }}</p>
+              </div>
+
+              <div
+                v-if="isBlocked(openUser) || openUser.can_block"
+                class="grid gap-x-6 gap-y-2 sm:grid-cols-[9rem_minmax(0,1fr)] sm:items-center"
+              >
+                <p :id="`${id}-access-label`" :class="label">Zugang</p>
+                <div
+                  class="flex flex-wrap gap-3"
+                  role="group"
+                  :aria-labelledby="`${id}-access-label`"
+                >
+                  <button
+                    v-if="isBlocked(openUser)"
+                    type="button"
+                    :class="[button, 'border-ink']"
+                    :disabled="busy"
+                    @click="setBlocked(openUser, false)"
+                  >
+                    Entsperren
+                  </button>
+                  <button
+                    v-else
+                    type="button"
+                    :class="[button, 'border-alert text-alert']"
+                    :disabled="busy"
+                    @click="((blockTarget = openUser), (blockOpen = true))"
+                  >
+                    Sperren
+                  </button>
+                </div>
               </div>
             </div>
+
             <div class="mt-6 flex justify-end gap-3">
-              <button type="button" :class="[button, 'border-ink']" @click="toggleAdd">
+              <button type="button" :class="[button, 'border-ink']" @click="openId = null">
                 Abbrechen
               </button>
               <button
                 type="submit"
-                :class="[button, 'border-ink bg-ink text-paper']"
-                :disabled="busy"
+                :class="[
+                  button,
+                  'border-ink bg-ink text-paper disabled:border-line disabled:bg-well disabled:text-dim',
+                ]"
+                :disabled="!changed || busy"
               >
-                Anlegen
+                Speichern
               </button>
             </div>
           </form>
         </section>
 
-        <div class="mt-4">
-          <UserTable
-            :users="split.before"
-            head
-            :square="openUser ? 'bottom' : undefined"
-            :open-id="openId"
-            :controls="`${id}-panel`"
-            @toggle="toggle"
-          />
-
-          <!-- The card of the open user. The arrow sits under the chevron of the row above: 16 px padding of the cell plus half the chevron
-               (10 px) and the padding of the table card (8 px) from the edge of the table, less half the arrow (7 px) and the border (1 px). -->
-          <section
-            v-if="openUser"
-            :id="`${id}-panel`"
-            class="relative my-4 card px-5 pt-[38px] pb-5 sm:px-6"
-            :aria-label="`Einstellungen von ${openUser.name}`"
-          >
-            <span
-              class="absolute -top-2 left-[26px] size-3.5 rotate-45 border-t border-l border-line bg-paper"
-              data-card-arrow
-              aria-hidden="true"
-            />
-            <form @submit.prevent="save">
-              <div
-                class="divide-y divide-soft [&>*]:py-4 [&>:first-child]:pt-0 [&>:last-child]:pb-0"
-              >
-                <div class="grid gap-x-6 gap-y-1 sm:grid-cols-[9rem_minmax(0,1fr)] sm:items-center">
-                  <label :for="`${id}-edit-name`" :class="label">Name</label>
-                  <div>
-                    <input
-                      :id="`${id}-edit-name`"
-                      v-model="draft.name"
-                      type="text"
-                      autocomplete="off"
-                      :class="[field, 'sm:max-w-[420px]']"
-                      :aria-invalid="!!saveErrors.name"
-                      :aria-describedby="saveErrors.name ? `${id}-edit-error` : undefined"
-                    />
-                    <p
-                      v-if="saveErrors.name"
-                      :id="`${id}-edit-error`"
-                      class="mt-1 text-sm font-semibold"
-                      role="alert"
-                    >
-                      {{ saveErrors.name }}
-                    </p>
-                  </div>
-                </div>
-
-                <div>
-                  <div
-                    class="grid gap-x-6 gap-y-1 sm:grid-cols-[9rem_minmax(0,1fr)] sm:items-center"
-                  >
-                    <p :id="`${id}-code-label`" :class="label">Einladungs-Code</p>
-                    <div
-                      class="flex flex-wrap items-center gap-x-4 gap-y-2"
-                      role="group"
-                      :aria-labelledby="`${id}-code-label`"
-                    >
-                      <template v-if="code && !isBlocked(openUser)">
-                        <code
-                          class="flex h-11 items-center rounded-lg border-2 border-ink bg-paper px-3 font-mono text-base tracking-[.08em]"
-                          tabindex="0"
-                          data-invite-code
-                          >{{ code }}</code
-                        >
-                        <button
-                          type="button"
-                          :class="[button, 'border-ink bg-ink text-paper']"
-                          @click="copy"
-                        >
-                          <component
-                            :is="copied ? CheckIcon : CopyIcon"
-                            :size="18"
-                            aria-hidden="true"
-                          />
-                          {{ copied ? 'Kopiert' : 'Code kopieren' }}
-                        </button>
-                        <span class="sr-only" role="status">{{ copied ? 'Kopiert' : '' }}</span>
-                        <p v-if="copyFailed" class="w-full font-semibold" role="alert">
-                          Kopieren hat nicht geklappt. Markiere den Code und kopiere ihn von Hand.
-                        </p>
-                      </template>
-                      <template v-else>
-                        <p class="text-mute">Wird aus Sicherheitsgründen nicht gespeichert.</p>
-                        <button
-                          v-if="!isBlocked(openUser)"
-                          type="button"
-                          :class="[button, 'border-ink']"
-                          :disabled="busy"
-                          @click="((renewTarget = openUser), (renewOpen = true))"
-                        >
-                          Neuer Code
-                        </button>
-                      </template>
-                    </div>
-                  </div>
-                  <!-- Over the whole width of the field, not held to the width of the code -->
-                  <div
-                    v-if="code && !isBlocked(openUser)"
-                    class="mt-4 flex items-center gap-3 rounded-lg bg-well px-4 py-3"
-                    data-code-warning
-                  >
-                    <TriangleAlertIcon
-                      :size="20"
-                      class="shrink-0"
-                      aria-label="Warnung"
-                      role="img"
-                    />
-                    <p class="font-semibold">
-                      Achtung! Der Code wird nur dieses eine Mal angezeigt, danach nie wieder. Falls
-                      er verloren geht, muss ein neuer erstellt werden.
-                    </p>
-                  </div>
-                </div>
-
-                <div class="grid gap-x-6 gap-y-1 sm:grid-cols-[9rem_minmax(0,1fr)] sm:items-center">
-                  <label :for="`${id}-edit-role`" :class="label">Rolle</label>
-                  <SelectField
-                    v-if="openUser.can_set_role"
-                    :id="`${id}-edit-role`"
-                    v-model="draft.role"
-                    class="sm:w-48"
-                  >
-                    <option value="user">{{ ROLE_LABELS.user }}</option>
-                    <option value="admin">{{ ROLE_LABELS.admin }}</option>
-                  </SelectField>
-                  <p v-else :id="`${id}-edit-role`">{{ ROLE_LABELS[openUser.role] }}</p>
-                </div>
-
-                <div
-                  v-if="isBlocked(openUser) || openUser.can_block"
-                  class="grid gap-x-6 gap-y-2 sm:grid-cols-[9rem_minmax(0,1fr)] sm:items-center"
-                >
-                  <p :id="`${id}-access-label`" :class="label">Zugang</p>
-                  <div
-                    class="flex flex-wrap gap-3"
-                    role="group"
-                    :aria-labelledby="`${id}-access-label`"
-                  >
-                    <button
-                      v-if="isBlocked(openUser)"
-                      type="button"
-                      :class="[button, 'border-ink']"
-                      :disabled="busy"
-                      @click="setBlocked(openUser, false)"
-                    >
-                      Entsperren
-                    </button>
-                    <button
-                      v-else
-                      type="button"
-                      :class="[button, 'border-alert text-alert']"
-                      :disabled="busy"
-                      @click="((blockTarget = openUser), (blockOpen = true))"
-                    >
-                      Sperren
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div class="mt-6 flex justify-end gap-3">
-                <button type="button" :class="[button, 'border-ink']" @click="openId = null">
-                  Abbrechen
-                </button>
-                <button
-                  type="submit"
-                  :class="[
-                    button,
-                    'border-ink bg-ink text-paper disabled:border-line disabled:bg-well disabled:text-dim',
-                  ]"
-                  :disabled="!changed || busy"
-                >
-                  Speichern
-                </button>
-              </div>
-            </form>
-          </section>
-
-          <UserTable
-            v-if="split.after.length"
-            :users="split.after"
-            :head="false"
-            square="top"
-            :open-id="openId"
-            :controls="`${id}-panel`"
-            @toggle="toggle"
-          />
-        </div>
+        <UserTable
+          v-if="split.after.length"
+          :users="split.after"
+          :head="false"
+          square="top"
+          :open-id="openId"
+          :controls="`${id}-panel`"
+          @toggle="toggle"
+        />
       </div>
     </div>
 

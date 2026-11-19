@@ -272,7 +272,7 @@ const barText = computed(() =>
     </div>
 
     <!-- The 8 px below the filter block (pb-2, not a margin on the sticky bar, which would stick 8 px too low) and the bar's min-h-15 keep the text 24 px
-         under the filter, and the first card 16 px under the text, as without the bar. -->
+         under the filter; the first card lies 8 px under the bar, as the table of the lists does. -->
     <ResultsBar
       v-if="showBar"
       :text="barText"
@@ -321,7 +321,7 @@ const barText = computed(() =>
         <section
           v-for="day in days"
           :key="day.key"
-          class="mt-4 card px-4 first:mt-0 sm:px-6"
+          class="mt-4 card px-4 first:mt-2 sm:px-6"
           :aria-labelledby="`day-${day.key}`"
         >
           <h2 :id="`day-${day.key}`" class="border-b-2 border-ink pt-4 pb-2 text-lg font-bold">
