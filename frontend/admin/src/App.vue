@@ -73,7 +73,7 @@ async function onSignOut() {
             v-for="item in navigation"
             :key="item.label"
             :to="item.to"
-            class="flex min-h-11 items-center rounded-lg px-3.5 font-bold aria-[current=page]:bg-paper aria-[current=page]:text-ink"
+            class="flex min-h-11 items-center rounded-lg px-3.5 aria-[current=page]:bg-paper aria-[current=page]:text-ink"
           >
             {{ item.label }}
           </RouterLink>
