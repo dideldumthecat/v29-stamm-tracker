@@ -15,9 +15,6 @@ use Symfony\Component\Uid\Uuid;
  *
  * Everything goes through addSql(), so --dry-run writes nothing. The attributes are read once and then tracked in memory,
  * so a call sees what the calls before it in the same migration did. Mistakes abort the migration before it changes anything.
- *
- * `hiddenWhen` takes keys (readable here) and the database stores ids. They are resolved when the migration's SQL is collected, after all calls,
- * so an attribute may name one that the same migration creates further down.
  */
 abstract class AttributeMigration extends AbstractMigration
 {
@@ -25,11 +22,6 @@ abstract class AttributeMigration extends AbstractMigration
 
     /** @var list<array{id: string, name: string, key: ?string, type: string, sort: int, options: array<string, int>}> */
     private ?array $attributes = null;
-
-    /** @var list<array{id: string, key: string, hiddenWhen: list<string>}> hidden_when still to set, by the keys given */
-    private array $pendingHiddenWhen = [];
-
-    private bool $hiddenWhenResolved = false;
 
     protected function hasAttribute(string $key): bool
     {
@@ -39,9 +31,10 @@ abstract class AttributeMigration extends AbstractMigration
     /**
      * New attributes go to the end of the order, their options keep the given order.
      *
-     * @param list<string> $appliesTo  stem and/or beam
-     * @param list<string> $options    only for type choice, at least one
-     * @param list<string> $hiddenWhen keys of yes/no attributes, also of ones this migration creates
+     * hidden_when starts empty; set it with setHiddenWhen() once the attributes it names exist (two may name each other).
+     *
+     * @param list<string> $appliesTo stem and/or beam
+     * @param list<string> $options   only for type choice, at least one
      */
     protected function addAttribute(
         string $key,
@@ -51,7 +44,6 @@ abstract class AttributeMigration extends AbstractMigration
         bool $inheritable,
         bool $series = false,
         array $options = [],
-        array $hiddenWhen = [],
         ?string $unit = null,
         string $description = '',
     ): void {
@@ -72,9 +64,6 @@ abstract class AttributeMigration extends AbstractMigration
             [$id->toBinary(), $name, $type->value, $description, $unit, (int) $series, (int) $inheritable, $sort, $key, json_encode($appliesTo), '[]'],
         );
         $this->attributes[] = ['id' => $id->toBinary(), 'name' => $name, 'key' => $key, 'type' => $type->value, 'sort' => $sort, 'options' => []];
-        if ([] !== $hiddenWhen) {
-            $this->pendingHiddenWhen[] = ['id' => $id->toBinary(), 'key' => $key, 'hiddenWhen' => $hiddenWhen];
-        }
         foreach ($options as $label) {
             $this->addOption($key, $label);
         }
@@ -116,25 +105,24 @@ abstract class AttributeMigration extends AbstractMigration
         $this->attributes[$this->index($key)]['options'] = $options;
     }
 
-    /** Called by the migrations runner after up(); the first call plans the UPDATEs that set hidden_when, further calls add nothing. */
-    public function getSql(): array
+    /**
+     * Replaces hidden_when of an attribute: while one of the named yes/no attributes is "ja", the app does not offer it.
+     * Takes keys (readable here); the database stores the ids.
+     *
+     * @param list<string> $hidingKeys keys of other yes/no attributes, existing or created earlier in this migration
+     */
+    protected function setHiddenWhen(string $key, array $hidingKeys): void
     {
-        if (!$this->hiddenWhenResolved) {
-            $this->hiddenWhenResolved = true;
-            foreach ($this->pendingHiddenWhen as $pending) {
-                $ids = [];
-                foreach (array_unique($pending['hiddenWhen']) as $hidingKey) {
-                    $hiding = $this->attribute($hidingKey);
-                    $this->abortIf(AttributeType::Boolean->value !== $hiding['type'], \sprintf('"%s": hiddenWhen names "%s", which is not a yes/no attribute.', $pending['key'], $hidingKey));
-                    $this->abortIf($hiding['id'] === $pending['id'], \sprintf('"%s": hiddenWhen names the attribute itself.', $pending['key']));
-                    $ids[] = Uuid::fromBinary($hiding['id'])->toRfc4122();
-                }
-                sort($ids);
-                $this->addSql('UPDATE attributes SET hidden_when = ? WHERE id = ?', [json_encode($ids), $pending['id']]);
-            }
+        $attribute = $this->attribute($key);
+        $ids = [];
+        foreach (array_unique($hidingKeys) as $hidingKey) {
+            $hiding = $this->attribute($hidingKey);
+            $this->abortIf(AttributeType::Boolean->value !== $hiding['type'], \sprintf('"%s": hiddenWhen names "%s", which is not a yes/no attribute.', $key, $hidingKey));
+            $this->abortIf($hiding['id'] === $attribute['id'], \sprintf('"%s": hiddenWhen names the attribute itself.', $key));
+            $ids[] = Uuid::fromBinary($hiding['id'])->toRfc4122();
         }
-
-        return parent::getSql();
+        sort($ids);
+        $this->addSql('UPDATE attributes SET hidden_when = ? WHERE id = ?', [json_encode($ids), $attribute['id']]);
     }
 
     private function load(): void

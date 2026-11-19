@@ -27,10 +27,17 @@ class AttributeMigrationTest extends KernelTestCase
         $this->connection = $this->em->getConnection();
     }
 
-    /** Runs what the migration plans against the database, like doctrine:migrations:migrate. */
+    /** Plans and runs the migration against the database, like doctrine:migrations:migrate. */
     private function execute(AbstractMigration $migration): int
     {
         $migration->up(new Schema());
+
+        return $this->runPlanned($migration);
+    }
+
+    /** Runs the SQL that up() planned. */
+    private function runPlanned(AbstractMigration $migration): int
+    {
         foreach ($migration->getSql() as $query) {
             $this->connection->executeStatement($query->getStatement(), $query->getParameters(), $query->getTypes());
         }
@@ -53,13 +60,16 @@ class AttributeMigrationTest extends KernelTestCase
                 ($this->up)($this);
             }
 
-            /**
-             * @param list<string> $options
-             * @param list<string> $hiddenWhen
-             */
-            public function add(string $key, string $name, AttributeType $type = AttributeType::Text, array $options = [], array $hiddenWhen = []): void
+            /** @param list<string> $options */
+            public function add(string $key, string $name, AttributeType $type = AttributeType::Text, array $options = []): void
             {
-                $this->addAttribute($key, $name, $type, ['stem'], false, options: $options, hiddenWhen: $hiddenWhen);
+                $this->addAttribute($key, $name, $type, ['stem'], false, options: $options);
+            }
+
+            /** @param list<string> $hidingKeys */
+            public function hide(string $key, array $hidingKeys): void
+            {
+                $this->setHiddenWhen($key, $hidingKeys);
             }
 
             public function key(string $name, string $key): void
@@ -180,12 +190,20 @@ class AttributeMigrationTest extends KernelTestCase
             $m->add('a', 'X', AttributeType::Choice, ['A', 'B']);
             $m->rename('a', 'A', 'B');
         }, 'has the option "B" already'];
-        yield 'hidden by an unknown key' => [static fn ($m) => $m->add('a', 'X', hiddenWhen: ['nope']), 'No attribute with the key "nope"'];
+        yield 'hidden by an unknown key' => [static function ($m): void {
+            $m->add('a', 'X');
+            $m->hide('a', ['nope']);
+        }, 'No attribute with the key "nope"'];
+        yield 'hiding an unknown attribute' => [static fn ($m) => $m->hide('nope', []), 'No attribute with the key "nope"'];
         yield 'hidden by a text' => [static function ($m): void {
             $m->add('t', 'Text');
-            $m->add('a', 'X', hiddenWhen: ['t']);
+            $m->add('a', 'X');
+            $m->hide('a', ['t']);
         }, 'not a yes/no attribute'];
-        yield 'hidden by itself' => [static fn ($m) => $m->add('a', 'X', AttributeType::Boolean, hiddenWhen: ['a']), 'names the attribute itself'];
+        yield 'hidden by itself' => [static function ($m): void {
+            $m->add('a', 'X', AttributeType::Boolean);
+            $m->hide('a', ['a']);
+        }, 'names the attribute itself'];
         yield 'option of an unknown attribute' => [static fn ($m) => $m->option('nope', 'A'), 'No attribute with the key "nope"'];
     }
 
@@ -195,25 +213,32 @@ class AttributeMigrationTest extends KernelTestCase
     {
         $this->expectException(AbortMigration::class);
         $this->expectExceptionMessage($message);
-        $migration = $this->migration($up);
-        $migration->up(new Schema());
-        $migration->getSql();
+        $this->migration($up)->up(new Schema());
     }
 
-    public function testHiddenWhenTakesKeysAlsoOfAttributesCreatedLaterAndStoresIds(): void
+    public function testHiddenWhenTakesKeysOfNewAndExistingAttributesAndStoresIds(): void
     {
-        $this->em->persist(new Attribute('Entrindet', AttributeType::Boolean));
+        $debarked = new Attribute('Entrindet', AttributeType::Boolean, key: 'debarked');
+        $this->em->persist($debarked);
         $this->em->flush();
         $migration = $this->migration(static function ($m): void {
-            $m->add('a', 'A', AttributeType::Boolean, hiddenWhen: ['b']);
-            $m->add('b', 'B', AttributeType::Boolean, hiddenWhen: ['a']);
+            $m->add('a', 'A', AttributeType::Boolean);
+            $m->add('b', 'B', AttributeType::Boolean);
+            $m->hide('a', ['b', 'debarked', 'b']);
+            $m->hide('b', ['a']);
         });
-        $this->execute($migration);
-        self::assertCount(\count($migration->getSql()), $migration->getSql(), 'asking twice plans nothing twice');
+
+        // Planning writes nothing (what --dry-run relies on); the SQL does.
+        $migration->up(new Schema());
+        self::assertSame([], $this->em->getRepository(Attribute::class)->findBy(['key' => ['a', 'b']]));
+        $this->runPlanned($migration);
+
         $this->em->clear();
         $a = $this->em->getRepository(Attribute::class)->findOneBy(['key' => 'a']);
         $b = $this->em->getRepository(Attribute::class)->findOneBy(['key' => 'b']);
-        self::assertSame([$b->id->toRfc4122()], $a->hiddenWhen);
+        $expected = [$b->id->toRfc4122(), $debarked->id->toRfc4122()];
+        sort($expected);
+        self::assertSame($expected, $a->hiddenWhen);
         self::assertSame([$a->id->toRfc4122()], $b->hiddenWhen);
     }
 
