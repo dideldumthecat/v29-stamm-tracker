@@ -96,7 +96,7 @@ describe('photo section', () => {
     ]
     Object.defineProperty(gallery!.element, 'files', { value: files, configurable: true })
     await gallery!.trigger('change')
-    expect(wrapper.emitted('add')).toEqual([[files]])
+    expect(wrapper.emitted('add')).toEqual([[files, 'gallery']])
   })
 
   it('cannot be tapped again while photos are processed', () => {

@@ -808,6 +808,54 @@ test('three photos from the library stay in the draft until saving, then upload 
   await expect(page.getByRole('img', { name: '1 Foto hochgeladen', exact: true })).toHaveText('1')
 })
 
+// photo-2.jpg carries the capture time 2026:11:13 09:15:42 in its EXIF data (taken as the time on the device, whatever its time zone).
+// The time travels with the photo (`taken_at` of the stored photo, uploaded as it is); the camera photo is taken now.
+test('a photo from the library keeps its capture time, a camera photo is taken now', async ({
+  page,
+  browserName,
+}) => {
+  // eslint-disable-next-line playwright/no-skipped-test
+  test.skip(browserName === 'webkit', 'WebKit in Playwright cannot store Blobs in IndexedDB')
+  await page.goto('/timber-item/123')
+  const before = Date.now()
+  await pickPhotos(page, ['e2e/fixtures/photo-2.jpg'])
+  await expect(preview(page)).toHaveCount(1)
+  await takePhoto(page)
+  await expect(preview(page)).toHaveCount(2)
+  await saveDraft(page)
+  await photoStored(page, 2)
+
+  const times = await page.evaluate(
+    () =>
+      new Promise<string[]>((resolve) => {
+        const open = indexedDB.open('v29-stamm-tracker')
+        open.onsuccess = () => {
+          const request = open.result.transaction('photos').objectStore('photos').getAll()
+          request.onsuccess = () => {
+            open.result.close()
+            resolve(request.result.map((photo: { taken_at: string }) => photo.taken_at))
+          }
+        }
+      }),
+  )
+  const local = (iso: string) => new Date(iso)
+  const library = times.find(
+    (time) =>
+      local(time).getFullYear() === 2026 &&
+      local(time).getMonth() === 10 &&
+      local(time).getDate() === 13,
+  )!
+  expect(library).toBeDefined()
+  // 09:15:42 on this device, not in UTC
+  expect([
+    local(library).getHours(),
+    local(library).getMinutes(),
+    local(library).getSeconds(),
+  ]).toEqual([9, 15, 42])
+  const camera = times.find((time) => time !== library)!
+  expect(Date.parse(camera)).toBeGreaterThanOrEqual(before)
+})
+
 test('an unreadable file is skipped, the others join the draft of the new stem', async ({
   page,
   browserName,

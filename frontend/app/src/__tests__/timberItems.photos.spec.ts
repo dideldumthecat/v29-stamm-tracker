@@ -48,6 +48,18 @@ describe('timber item store: photos', () => {
     expect(store.uploadedPhotoCount(stem.id, photoAttribute())).toBe(0)
   })
 
+  it('takes the capture time of a library photo as taken_at, else now', () => {
+    const store = useTimberItemStore()
+    const stem = store.createTimberItem(5)
+    const before = Date.now()
+    store.addPhoto(stem.id, photoAttribute(), jpeg(), new Date('2026-11-13T09:15:42.000Z'))
+    store.addPhoto(stem.id, photoAttribute(), jpeg())
+
+    const [library, camera] = store.pendingPhotosOf(stem.id, photoAttribute())
+    expect(library!.taken_at).toBe('2026-11-13T09:15:42.000Z')
+    expect(Date.parse(camera!.taken_at)).toBeGreaterThanOrEqual(before)
+  })
+
   it('counts a photo once, with the entries of the stem', () => {
     const store = useTimberItemStore()
     const stem = store.createTimberItem(5)

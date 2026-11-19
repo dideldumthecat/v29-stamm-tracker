@@ -20,9 +20,9 @@ const props = defineProps<{
   // Photos are being compressed: no new ones meanwhile.
   busy: boolean
 }>()
-// `add`: the files from the camera (one) or the gallery (any number).
+// `add`: the files from the camera (one) or the gallery (any number); a library photo has its own capture time.
 const emit = defineEmits<{
-  add: [files: File[]]
+  add: [files: File[], source: 'camera' | 'gallery']
   remove: [photoId: string]
   // The system camera or library is open (true) or has answered (false); the page may be reloaded meanwhile.
   picker: [open: boolean]
@@ -36,11 +36,11 @@ function open(input: HTMLInputElement | null) {
   input?.click()
 }
 
-function onChange(input: HTMLInputElement | null) {
+function onChange(input: HTMLInputElement | null, source: 'camera' | 'gallery') {
   emit('picker', false)
   const files = [...(input?.files ?? [])]
   if (files.length > 0) {
-    emit('add', files)
+    emit('add', files, source)
   }
   // Reset, so choosing the same file again fires `change` again.
   input!.value = ''
@@ -93,7 +93,7 @@ const captureButton =
         accept="image/*"
         capture="environment"
         class="hidden"
-        @change="onChange(camera)"
+        @change="onChange(camera, 'camera')"
         @cancel="emit('picker', false)"
       />
       <input
@@ -102,7 +102,7 @@ const captureButton =
         accept="image/*"
         multiple
         class="hidden"
-        @change="onChange(gallery)"
+        @change="onChange(gallery, 'gallery')"
         @cancel="emit('picker', false)"
       />
     </template>

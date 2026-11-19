@@ -333,12 +333,12 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     emit('attribute_recorded', itemId, { attribute_id: attributeId, value })
   }
 
-  function addPhoto(itemId: string, attributeId: string, blob: Blob) {
+  function addPhoto(itemId: string, attributeId: string, blob: Blob, takenAt = new Date()) {
     assertRecordable(itemId)
     const photo: StoredPhoto = {
       id: crypto.randomUUID(),
       timber_item_id: itemId,
-      taken_at: new Date().toISOString(),
+      taken_at: takenAt.toISOString(),
       size: blob.size,
       blob,
     }

@@ -8,7 +8,7 @@ import {
   missingDiameterErrors,
   type DraftInput,
 } from '@/utils/attributeDraft'
-import { attachPhotos } from '@/utils/photo'
+import { attachPhotos, takenAtOfFile } from '@/utils/photo'
 import { plural } from '@/utils/plural'
 import { bySortOrder, SAWN_KEY } from '@v29/shared/attributes'
 import {
@@ -40,7 +40,7 @@ export function useTimberItemDraft(item: Ref<TimberItem | undefined>, tagNumber:
   // Series only: values already added with "Hinzufügen".
   const added = ref<Record<string, AttributeValue[]>>({})
   // `id` only keys the preview; the store gives the saved photo its own.
-  const draftPhotos = ref<{ id: string; attributeId: string; blob: Blob }[]>([])
+  const draftPhotos = ref<{ id: string; attributeId: string; blob: Blob; takenAt?: Date }[]>([])
   // Letters are shown at once and never change, because the beam may be chalked before it is saved.
   const draftBeams = ref<string[]>([])
   // Incremented after saving to remount the fields: resets their local "unlocked" state.
@@ -248,12 +248,22 @@ export function useTimberItemDraft(item: Ref<TimberItem | undefined>, tagNumber:
     store.setDraftOpen(false)
   })
 
-  async function addPhotos(attributeId: string, files: File[]) {
+  // Library photos carry their own capture time (read from the original); a camera photo is taken now.
+  async function addPhotos(
+    attributeId: string,
+    files: File[],
+    source: 'camera' | 'gallery' = 'camera',
+  ) {
     isCompressing.value = true
     try {
-      const { skipped } = await attachPhotos(files, (blob) => {
-        draftPhotos.value.push({ id: crypto.randomUUID(), attributeId, blob })
-      })
+      const { skipped } = await attachPhotos(
+        files,
+        (blob, takenAt) => {
+          draftPhotos.value.push({ id: crypto.randomUUID(), attributeId, blob, takenAt })
+        },
+        undefined,
+        source === 'gallery' ? takenAtOfFile : undefined,
+      )
       if (skipped > 0) {
         toast.show({
           before: `${plural(skipped, 'Foto konnte', 'Fotos konnten')} nicht gelesen werden`,
@@ -349,7 +359,7 @@ export function useTimberItemDraft(item: Ref<TimberItem | undefined>, tagNumber:
         store.recordAttribute(target.id, change.attributeId, change.value)
       }
       for (const photo of photosToSave) {
-        store.addPhoto(target.id, photo.attributeId, photo.blob)
+        store.addPhoto(target.id, photo.attributeId, photo.blob, photo.takenAt)
       }
       for (const tag of beamsToSave) {
         store.addBeam(target.id, tag)

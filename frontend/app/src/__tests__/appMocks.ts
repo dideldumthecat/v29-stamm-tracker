@@ -23,7 +23,8 @@ export const updateCheck = {
 export const photoUtils = (original: typeof import('@/utils/photo')) => ({
   ...original,
   attachPhotos: async (files: Blob[], add: (photo: Blob) => void) => {
-    files.forEach(add)
+    // Not `forEach(add)`: that would hand the index over as the capture time
+    files.forEach((file) => add(file))
     return { skipped: 0 }
   },
 })

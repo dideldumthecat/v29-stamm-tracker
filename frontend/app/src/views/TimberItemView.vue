@@ -278,7 +278,7 @@ function onDiscard() {
           :can-capture="mode === 'input'"
           :data-field="attribute.id"
           :busy="isCompressing"
-          @add="addPhotos(attribute.id, $event)"
+          @add="(files, source) => addPhotos(attribute.id, files, source)"
           @picker="isPicking = $event"
           @remove="photoToRemove = $event"
         />
