@@ -78,6 +78,18 @@ describe('the table', () => {
     expect(row(wrapper, 'Ada').find('[data-chevron]').exists()).toBe(false)
   })
 
+  it("makes the whole row of a changeable user the click area, and leaves the superadmin's row alone", async () => {
+    const { wrapper } = await open()
+
+    // one button per row, its pseudo-element covers the row (jsdom has no layout: the classes are what is checked)
+    expect(row(wrapper, 'Bruno').classes()).toContain('relative')
+    expect(row(wrapper, 'Bruno').classes()).toContain('hover:bg-well')
+    expect(row(wrapper, 'Bruno').findAll('button')).toHaveLength(1)
+    expect(row(wrapper, 'Bruno').get('button').classes()).toContain('after:absolute')
+    expect(row(wrapper, 'Ada').classes()).not.toContain('hover:bg-well')
+    expect(row(wrapper, 'Ada').find('button').exists()).toBe(false)
+  })
+
   it('is in the gear menu', async () => {
     const { wrapper } = await open()
 

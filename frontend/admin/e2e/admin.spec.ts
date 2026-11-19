@@ -2115,6 +2115,25 @@ test.describe('users', () => {
     expect(Math.abs(button.x + button.width / 2 - (arrow.x + arrow.width / 2))).toBeLessThan(2)
   })
 
+  test('opens and closes a user by a click anywhere in the row, but not the superadmin', async ({
+    page,
+  }) => {
+    await open(page, 'K7QM4XHT9RDP')
+
+    // The button covers the row, so Playwright would call it "intercepting" a click on a cell: click at the position instead
+    const clickCell = async (name: string) => {
+      const box = (await user(page, name).locator('td').nth(1).boundingBox())!
+      await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
+    }
+    await clickCell('Bruno')
+    await expect(card(page, 'Bruno')).toBeVisible()
+    await clickCell('Bruno')
+    await expect(card(page, 'Bruno')).toHaveCount(0)
+
+    await clickCell('Ada')
+    await expect(page.locator('section[aria-label^="Einstellungen von"]')).toHaveCount(0)
+  })
+
   test('renews the code after a question, which makes the old one invalid', async ({ page }) => {
     await open(page, 'K7QM4XHT9RDP')
     await toggle(page, 'Bruno').click()

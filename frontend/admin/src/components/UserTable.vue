@@ -60,15 +60,17 @@ defineEmits<{ toggle: [user: AdminUser] }>()
           v-for="user in users"
           :key="user.id"
           :data-user="user.name"
-          class="hover:bg-well"
-          :class="isBlocked(user) && 'text-mute'"
+          class="relative"
+          :class="[user.can_manage && 'hover:bg-well', isBlocked(user) && 'text-mute']"
         >
           <td class="h-16 py-2 pr-3 pl-4 align-middle">
-            <!-- The whole name opens and closes. Whoever cannot be changed has no button, the name stays where it is. -->
+            <!-- The one button of the row (chevron and name) opens and closes; its pseudo-element covers the whole row (the row is `relative`),
+                 so a click anywhere in it counts, and the keyboard and screen readers still meet one control. Whoever cannot be changed has no
+                 button, no hover and no pointer: the name stays where it is. -->
             <button
               v-if="user.can_manage"
               type="button"
-              class="flex w-full items-center gap-2 text-left"
+              class="flex w-full items-center gap-2 text-left after:absolute after:inset-0"
               :aria-expanded="openId === user.id"
               :aria-controls="openId === user.id ? controls : undefined"
               @click="$emit('toggle', user)"
