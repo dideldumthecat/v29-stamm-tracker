@@ -154,3 +154,7 @@ Every push to `main` runs lint, build, unit tests, PHPStan and PHPUnit on GitHub
 ## Author
 
 [Alexander Summa](https://alexandersumma.de) – design engineer, responsible for concept, UX, design and development.
+
+## License
+
+[MIT](LICENSE)
