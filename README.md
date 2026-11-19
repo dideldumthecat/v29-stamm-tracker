@@ -31,7 +31,7 @@ Corrections and voids, bulk changes, photo imports and the export are handled wi
 
 - **Offline-first with manual upload.** Own entries leave the phone only when someone taps the sync button – people should know when their data has left the phone. Only the download of the current state runs by itself. No background sync (unreliable on iOS).
 - **Append-only event log.** Nothing is ever updated or deleted. Every change is an event; corrections and voids are new events. The current state of each log is a projection computed from the events and can be rebuilt at any time.
-- **Attributes are configuration, not code.** Everything domain-specific – even the wood species – is an attribute V29 defines themselves in the administration. A new process step needs no deployment and no migration. Only the few attributes that code refers to carry a stable key and come from a YAML file.
+- **Attributes are configuration, not code.** Everything domain-specific – even the wood species – is an attribute V29 defines themselves in the administration. A new process step needs no deployment and no migration. Only the few attributes that code refers to carry a stable key; they live in the database like all others and are created and changed by migrations (`App\Migration\AttributeMigration`), which run on every deploy.
 - **Client-generated IDs.** Every log and every event gets a UUID on the device, so re-sending after a failed sync is harmless. The tag number is a label, not the key.
 - **Personal invite codes instead of passwords.** Each person gets a code that signs them in for good; it can be revoked individually.
 - **Same origin for app and API.** No CORS, plain session cookies.
@@ -66,7 +66,7 @@ flowchart LR
 
 ```
 .
-├── backend/     Symfony JSON API under /api, console commands, attribute definitions (data/)
+├── backend/     Symfony JSON API under /api, console commands
 ├── frontend/    npm workspace: app/ (Vue capture app), admin/ (administration), shared/ (API contract, fixtures, design values)
 ├── docs/        clickable prototype and static screens from the design phase
 ├── .ddev/       local development environment
@@ -85,7 +85,6 @@ ddev composer install
 ddev frontend install
 ddev console doctrine:migrations:migrate -n
 ddev console app:user:create "Name" --role=superadmin   # prints the invite code once; roles: user (default), admin, superadmin
-ddev console app:attributes:import data/attributes.yaml
 ddev frontend run dev          # capture app (5173) and administration (5174); alone: dev:app, dev:admin
 ```
 
@@ -117,7 +116,6 @@ Every command explains its options with `--help`; bulk changes, imports and void
 |---|---|
 | `app:user:create` / `list` / `revoke` | Manage users and invite codes (`create --role=user, admin or superadmin`); the administration does the same for everyday use |
 | `app:user:role <name or ID> <role>` | Change the role of an active user |
-| `app:attributes:import` | Create and update the system attributes (those with a `key`) and their options from YAML, see `backend/data/attributes.example.yaml`. Attributes without a key belong to the administration: the import creates them only if no attribute has that name and never touches them again. The options of the attribute with the key `source` are skipped. Every entry must state `is_series`, `is_inheritable`, `applies_to` (`stem` and/or `beam`: where the app offers the attribute for input) and `hidden_when` (keys of yes/no attributes: while one of them is "ja", the app hides the attribute; may be empty) |
 | `app:attribute:set` / `clear` | Set or clear one attribute on many logs |
 | `app:item:void` / `restore` | Void a log or beam created by mistake, or undo that |
 | `app:photo:import` | Attach existing photos from a CSV |

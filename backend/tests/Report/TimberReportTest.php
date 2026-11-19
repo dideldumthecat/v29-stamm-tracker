@@ -35,7 +35,7 @@ class TimberReportTest extends KernelTestCase
         $this->em->persist($this->user = new User('Kerstin', UserRole::User, User::hashToken('t')));
     }
 
-    /** Attributes as in data/attributes.yaml, plus one that is not inherited. */
+    /** Attributes as in the migration for system attributes, plus one that is not inherited. */
     private function attributes(string ...$except): void
     {
         $definitions = [

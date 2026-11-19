@@ -45,7 +45,7 @@ class PhotoImportCommand
         $attributes = $this->em->getRepository(Attribute::class)->findBy(['type' => AttributeType::Photo, 'active' => true]);
         $author = $this->superadmin->author();
         $error ??= match (true) {
-            1 !== \count($attributes) => \sprintf('Expected exactly one active attribute of type photo, found %d. Create it with app:attributes:import.', \count($attributes)),
+            1 !== \count($attributes) => \sprintf('Expected exactly one active attribute of type photo, found %d. Add it with a migration (AttributeMigration).', \count($attributes)),
             \is_string($author) => $author,
             default => null,
         };
