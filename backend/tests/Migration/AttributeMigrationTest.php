@@ -53,10 +53,13 @@ class AttributeMigrationTest extends KernelTestCase
                 ($this->up)($this);
             }
 
-            /** @param list<string> $options */
-            public function add(string $key, string $name, AttributeType $type = AttributeType::Text, array $options = []): void
+            /**
+             * @param list<string> $options
+             * @param list<string> $hiddenWhen
+             */
+            public function add(string $key, string $name, AttributeType $type = AttributeType::Text, array $options = [], array $hiddenWhen = []): void
             {
-                $this->addAttribute($key, $name, $type, ['stem'], false, options: $options);
+                $this->addAttribute($key, $name, $type, ['stem'], false, options: $options, hiddenWhen: $hiddenWhen);
             }
 
             public function key(string $name, string $key): void
@@ -85,7 +88,7 @@ class AttributeMigrationTest extends KernelTestCase
         $baseMigration = fn (): AbstractMigration => new $class($this->connection, new NullLogger());
 
         $created = $this->execute($baseMigration());
-        self::assertSame(13, $created);
+        self::assertSame(15, $created);
         $this->em->clear();
         $attributes = $this->em->getRepository(Attribute::class)->findBy([], ['sortOrder' => 'ASC']);
         self::assertSame(
@@ -98,7 +101,8 @@ class AttributeMigrationTest extends KernelTestCase
         self::assertSame(['stem'], $byKey['mid_diameter_max']->appliesTo);
         self::assertFalse($byKey['mid_diameter_max']->isInheritable);
         self::assertTrue($byKey['length']->isInheritable);
-        self::assertSame(['sawn'], $byKey['unsawable']->hiddenWhen);
+        self::assertSame([$byKey['sawn']->id->toRfc4122()], $byKey['unsawable']->hiddenWhen);
+        self::assertSame([$byKey['unsawable']->id->toRfc4122()], $byKey['sawn']->hiddenWhen);
         self::assertTrue($byKey['photos']->isSeries);
         self::assertSame(['4,10 m', '3,60 m', '3,20 m'], array_map(
             static fn (AttributeOption $o) => $o->label,
@@ -176,6 +180,12 @@ class AttributeMigrationTest extends KernelTestCase
             $m->add('a', 'X', AttributeType::Choice, ['A', 'B']);
             $m->rename('a', 'A', 'B');
         }, 'has the option "B" already'];
+        yield 'hidden by an unknown key' => [static fn ($m) => $m->add('a', 'X', hiddenWhen: ['nope']), 'No attribute with the key "nope"'];
+        yield 'hidden by a text' => [static function ($m): void {
+            $m->add('t', 'Text');
+            $m->add('a', 'X', hiddenWhen: ['t']);
+        }, 'not a yes/no attribute'];
+        yield 'hidden by itself' => [static fn ($m) => $m->add('a', 'X', AttributeType::Boolean, hiddenWhen: ['a']), 'names the attribute itself'];
         yield 'option of an unknown attribute' => [static fn ($m) => $m->option('nope', 'A'), 'No attribute with the key "nope"'];
     }
 
@@ -185,6 +195,65 @@ class AttributeMigrationTest extends KernelTestCase
     {
         $this->expectException(AbortMigration::class);
         $this->expectExceptionMessage($message);
-        $this->migration($up)->up(new Schema());
+        $migration = $this->migration($up);
+        $migration->up(new Schema());
+        $migration->getSql();
+    }
+
+    public function testHiddenWhenTakesKeysAlsoOfAttributesCreatedLaterAndStoresIds(): void
+    {
+        $this->em->persist(new Attribute('Entrindet', AttributeType::Boolean));
+        $this->em->flush();
+        $migration = $this->migration(static function ($m): void {
+            $m->add('a', 'A', AttributeType::Boolean, hiddenWhen: ['b']);
+            $m->add('b', 'B', AttributeType::Boolean, hiddenWhen: ['a']);
+        });
+        $this->execute($migration);
+        self::assertCount(\count($migration->getSql()), $migration->getSql(), 'asking twice plans nothing twice');
+        $this->em->clear();
+        $a = $this->em->getRepository(Attribute::class)->findOneBy(['key' => 'a']);
+        $b = $this->em->getRepository(Attribute::class)->findOneBy(['key' => 'b']);
+        self::assertSame([$b->id->toRfc4122()], $a->hiddenWhen);
+        self::assertSame([$a->id->toRfc4122()], $b->hiddenWhen);
+    }
+
+    /** The migration after the base one: keys become ids, ids stay, an unknown entry aborts. */
+    private function convertHiddenWhen(): void
+    {
+        require_once __DIR__.'/../../migrations/Version20261119140000.php';
+        /** @var class-string<AbstractMigration> $class */
+        $class = implode('\\', ['DoctrineMigrations', 'Version20261119140000']);
+        $this->execute(new $class($this->connection, new NullLogger()));
+        $this->em->clear();
+    }
+
+    public function testTheConversionReplacesKeysByIdsAndLeavesIdsAlone(): void
+    {
+        $sawn = new Attribute('Gesägt', AttributeType::Boolean, key: 'sawn');
+        $debarked = new Attribute('Entrindet', AttributeType::Boolean);
+        $this->em->persist($sawn);
+        $this->em->persist($debarked);
+        $this->em->persist(new Attribute('Eins', AttributeType::Text, hiddenWhen: ['sawn']));
+        $this->em->persist(new Attribute('Zwei', AttributeType::Text, hiddenWhen: [$debarked->id->toRfc4122(), 'sawn']));
+        $this->em->flush();
+
+        $this->convertHiddenWhen();
+        $this->convertHiddenWhen();
+
+        $byName = fn (string $name) => $this->em->getRepository(Attribute::class)->findOneBy(['name' => $name]);
+        self::assertSame([$sawn->id->toRfc4122()], $byName('Eins')->hiddenWhen);
+        $expected = [$sawn->id->toRfc4122(), $debarked->id->toRfc4122()];
+        sort($expected);
+        self::assertSame($expected, $byName('Zwei')->hiddenWhen);
+    }
+
+    public function testTheConversionAbortsOnAKeyWithoutAttribute(): void
+    {
+        $this->em->persist(new Attribute('Eins', AttributeType::Text, hiddenWhen: ['gone']));
+        $this->em->flush();
+
+        $this->expectException(AbortMigration::class);
+        $this->expectExceptionMessage('no attribute has that key or id');
+        $this->convertHiddenWhen();
     }
 }

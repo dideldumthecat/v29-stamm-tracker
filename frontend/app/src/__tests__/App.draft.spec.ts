@@ -426,17 +426,19 @@ describe('App', () => {
     )
   })
 
-  it('hides a field while the attribute named in its hidden_when is ticked and drops its input', async () => {
+  it('hides a field while the attribute with the id in its hidden_when is ticked and drops its input', async () => {
     const store = useTimberItemStore()
     const sawn = store.attributes.find((attribute) => attribute.key === 'sawn')!
-    sawn.hidden_when = ['unsawable']
+    const unsawableId = crypto.randomUUID()
+    sawn.hidden_when = [unsawableId]
+    // No key: an attribute is named by its id, so a yes/no attribute without key hides others too.
     store.attributes.push({
       ...sawn,
-      id: crypto.randomUUID(),
-      key: 'unsawable',
+      id: unsawableId,
+      key: null,
       name: 'Nicht sägbar',
       sort_order: sawn.sort_order - 1,
-      hidden_when: ['sawn'],
+      hidden_when: [sawn.id],
     })
     const { wrapper } = await mountAt('/timber-item/456')
     const toggle = (name: string) =>

@@ -189,15 +189,9 @@ export function bodyOf(draft: AttributeDraft): AdminAttributeInput {
   }
 }
 
-/** The yes/no attributes of the system, the only ones another attribute can be hidden by (not the attribute itself). */
+/** The yes/no attributes, the only ones another attribute can be hidden by (not the attribute itself). */
 export const hidingCandidates = (attributes: AdminAttribute[], exceptId: Uuid) =>
-  attributes.filter(
-    (attribute) =>
-      attribute.is_system &&
-      attribute.key !== null &&
-      attribute.type === 'boolean' &&
-      attribute.id !== exceptId,
-  )
+  attributes.filter((attribute) => attribute.type === 'boolean' && attribute.id !== exceptId)
 
 /** "field → message" of a 422; the first message of a field counts. */
 export function errorsOf(body: unknown): Record<string, string> {

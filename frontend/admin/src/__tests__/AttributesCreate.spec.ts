@@ -91,8 +91,8 @@ describe('step 2: the form', () => {
     expect(form.text()).toContain('Auswahl')
     expect(form.text()).toContain('ändern')
     expect(form.text()).not.toContain('Genauigkeit')
-    // Stamm, Balken, Vererbbar, then the yes/no attributes, Aktiv
-    expect(boxes(wrapper)).toEqual([true, false, false, false, true])
+    // Stamm, Balken, Vererbbar, then the yes/no attributes (Gesägt, Entlastungsschnitt: with or without key), Aktiv
+    expect(boxes(wrapper)).toEqual([true, false, false, false, false, true])
     expect(form.findAll<HTMLInputElement>('input[aria-label^="Auswahl-Option"]')).toHaveLength(1)
     expect(form.get<HTMLInputElement>('input[aria-label^="Auswahl-Option"]').element.value).toBe('')
     expect(squeezed(form.text())).not.toContain('Nicht mehr änderbar')

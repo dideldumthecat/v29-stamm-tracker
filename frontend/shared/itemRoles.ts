@@ -81,8 +81,8 @@ export function splitChoiceOf(state: {
 
 /** What the rule `hidden_when` needs to know about the item. */
 export interface YesValues {
-  /** The attribute with this key stands on "ja" as the form shows it: draft over recorded, own over inherited. */
-  isYes: (key: string) => boolean
+  /** The attribute with this id stands on "ja" as the form shows it: draft over recorded, own over inherited. */
+  isYes: (id: string) => boolean
   /**
    * The attribute itself is recorded as "ja". The draft does not count: taking the "ja" back must not hide the field
    * (and drop that input) before it is saved.
@@ -91,7 +91,7 @@ export interface YesValues {
 }
 
 /**
- * An attribute is not offered while one of the attributes it names in `hidden_when` stands on "ja".
+ * An attribute is not offered while one of the attributes it names (by id) in `hidden_when` stands on "ja".
  * Its own recorded "ja" keeps it open: two contradicting "ja" from the data can then be resolved in the app
  * instead of locking each other.
  */

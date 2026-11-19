@@ -154,8 +154,8 @@ class AttributeAdminTest extends WebTestCase
         yield 'unit on text' => [['name' => 'A', 'type' => 'text', 'unit' => 'm'], ['unit: Eine Einheit gibt es nur bei Zahlen.']];
         yield 'applies to nothing' => [['name' => 'A', 'type' => 'text', 'applies_to' => []], ['applies_to: Bitte mindestens Stamm oder Balken wählen.']];
         yield 'applies to something else' => [['name' => 'A', 'type' => 'text', 'applies_to' => ['plank']], ['applies_to: Bitte mindestens Stamm oder Balken wählen.']];
-        yield 'hidden when a text attribute' => [['name' => 'A', 'type' => 'text', 'hidden_when' => ['notes']], ['hidden_when: Ausblenden ist nur bei Ja-Nein-Merkmalen mit Schlüssel möglich.']];
-        yield 'hidden when an unknown key' => [['name' => 'A', 'type' => 'text', 'hidden_when' => ['nowhere']], ['hidden_when: Ausblenden ist nur bei Ja-Nein-Merkmalen mit Schlüssel möglich.']];
+        yield 'hidden when an unknown id' => [['name' => 'A', 'type' => 'text', 'hidden_when' => ['nowhere']], ['hidden_when: Ausblenden ist nur bei anderen Ja-Nein-Merkmalen möglich.']];
+        yield 'hidden when a key instead of an id' => [['name' => 'A', 'type' => 'text', 'hidden_when' => ['sawn']], ['hidden_when: Ausblenden ist nur bei anderen Ja-Nein-Merkmalen möglich.']];
         yield 'series of a choice' => [['name' => 'A', 'type' => 'choice', 'is_series' => true, 'options' => [['label' => 'X']]], ['is_series: Bei Auswahl und Ja/Nein gibt es keine Messreihe.']];
         yield 'series of a boolean' => [['name' => 'A', 'type' => 'boolean', 'is_series' => true], ['is_series: Bei Auswahl und Ja/Nein gibt es keine Messreihe.']];
         yield 'choice without options' => [['name' => 'A', 'type' => 'choice'], ['options: Bitte mindestens eine aktive Auswahl-Option anlegen.']];
@@ -164,11 +164,35 @@ class AttributeAdminTest extends WebTestCase
         yield 'option twice, trimmed' => [['name' => 'A', 'type' => 'choice', 'options' => [['label' => 'X'], ['label' => ' X ']]], ['options.1.label: Die Auswahl-Option „X“ gibt es schon.']];
     }
 
-    public function testFieldsOfAValidAttributeAreTrimmedAndHiddenWhenMayNameAYesNoKey(): void
+    public function testFieldsOfAValidAttributeAreTrimmedAndHiddenWhenMayNameAYesNoAttribute(): void
     {
-        $created = $this->create(['name' => '  Länge ', 'type' => 'number', 'unit' => ' m ', 'hidden_when' => ['sawn']]);
+        $sawn = $this->sawn->id->toRfc4122();
+        $created = $this->create(['name' => '  Länge ', 'type' => 'number', 'unit' => ' m ', 'hidden_when' => [$sawn]]);
 
-        self::assertSame(['Länge', 'm', ['sawn']], [$created['name'], $created['unit'], $created['hidden_when']]);
+        self::assertSame(['Länge', 'm', [$sawn]], [$created['name'], $created['unit'], $created['hidden_when']]);
+    }
+
+    public function testHiddenWhenMayNameAYesNoAttributeWithoutKey(): void
+    {
+        $debarked = $this->create(['name' => 'Entrindet', 'type' => 'boolean']);
+        self::assertNull($debarked['key']);
+
+        $created = $this->create(['name' => 'Rinde', 'type' => 'text', 'hidden_when' => [$debarked['id']]]);
+
+        self::assertSame([$debarked['id']], $created['hidden_when']);
+    }
+
+    public function testHiddenWhenRefusesATextAttributeAndTheAttributeItself(): void
+    {
+        $this->call('POST', '', ['name' => 'A', 'type' => 'text', 'hidden_when' => [$this->notes->id->toRfc4122()]]);
+        self::assertSame(['hidden_when: Ausblenden ist nur bei anderen Ja-Nein-Merkmalen möglich.'], $this->errors());
+
+        $this->call('PATCH', '/'.$this->sawn->id->toRfc4122(), ['hidden_when' => [$this->sawn->id->toRfc4122()]]);
+        self::assertSame(['hidden_when: Bei Systemmerkmalen ist das im Code festgelegt.'], $this->errors());
+
+        $entrindet = $this->create(['name' => 'Entrindet', 'type' => 'boolean']);
+        $this->call('PATCH', '/'.$entrindet['id'], ['hidden_when' => [$entrindet['id']]]);
+        self::assertSame(['hidden_when: Ausblenden ist nur bei anderen Ja-Nein-Merkmalen möglich.'], $this->errors());
     }
 
     public function testChoiceKeepsTheOrderOfItsOptions(): void
@@ -180,10 +204,11 @@ class AttributeAdminTest extends WebTestCase
 
     public function testPatchChangesFieldsAndKeepsWhatIsNotSent(): void
     {
-        $updated = $this->call('PATCH', '/'.$this->notes->id->toRfc4122(), ['name' => 'Bemerkung', 'description' => 'Frei', 'active' => false, 'applies_to' => ['stem'], 'hidden_when' => ['sawn']]);
+        $sawn = $this->sawn->id->toRfc4122();
+        $updated = $this->call('PATCH', '/'.$this->notes->id->toRfc4122(), ['name' => 'Bemerkung', 'description' => 'Frei', 'active' => false, 'applies_to' => ['stem'], 'hidden_when' => [$sawn]]);
 
         self::assertSame(200, $this->code());
-        self::assertSame(['Bemerkung', 'Frei', false, ['stem'], ['sawn'], 'text', true], [$updated['name'], $updated['description'], $updated['active'], $updated['applies_to'], $updated['hidden_when'], $updated['type'], $updated['is_series']]);
+        self::assertSame(['Bemerkung', 'Frei', false, ['stem'], [$sawn], 'text', true], [$updated['name'], $updated['description'], $updated['active'], $updated['applies_to'], $updated['hidden_when'], $updated['type'], $updated['is_series']]);
     }
 
     public function testPatchMayKeepItsOwnNameButNotTakeAnotherOne(): void
@@ -267,7 +292,7 @@ class AttributeAdminTest extends WebTestCase
         $this->record($this->notes);
 
         $updated = $this->call('PATCH', '/'.$this->notes->id->toRfc4122(), ['type' => 'text', 'is_series' => true, 'is_inheritable' => false,
-            'name' => 'Neu', 'description' => 'd', 'applies_to' => ['beam'], 'hidden_when' => ['sawn'], 'active' => false]);
+            'name' => 'Neu', 'description' => 'd', 'applies_to' => ['beam'], 'hidden_when' => [$this->sawn->id->toRfc4122()], 'active' => false]);
 
         self::assertSame(200, $this->code());
         self::assertSame(['Neu', true], [$updated['name'], $updated['has_values']]);

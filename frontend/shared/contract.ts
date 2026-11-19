@@ -232,7 +232,7 @@ export interface Attribute {
   is_inheritable: boolean
   /** Kinds of timber item the attribute is recorded on. Never empty. Only the app applies it; the server accepts any event. */
   applies_to: ItemKind[]
-  /** Keys of yes/no attributes: while one of them is "ja" on the item, this attribute is not offered. */
+  /** Ids of yes/no attributes: while one of them is "ja" on the item, this attribute is not offered. */
   hidden_when: string[]
   sort_order: number
   active: boolean
@@ -282,7 +282,7 @@ export interface AdminAttributeInput {
   is_inheritable: boolean
   /** At least one. */
   applies_to: ItemKind[]
-  /** Keys of yes/no attributes (so only system attributes). */
+  /** Ids of yes/no attributes other than this one. Not changeable on a system attribute. */
   hidden_when: string[]
   active: boolean
   /**

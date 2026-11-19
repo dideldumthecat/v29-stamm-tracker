@@ -576,7 +576,9 @@ describe('the settings', () => {
   it('name the attributes that hide a system attribute and show the options as text', async () => {
     const { wrapper, api } = await open('/attributes', (fake) => {
       const sawn = fake.attributes.attributes.find((attribute) => attribute.key === 'sawn')!
-      sawn.hidden_when = ['notes']
+      sawn.hidden_when = [
+        fake.attributes.attributes.find((attribute) => attribute.name === 'Entlastungsschnitt')!.id,
+      ]
       sawn.type = 'choice'
       sawn.options = [
         { id: 'o1', label: 'Ja', sort_order: 10, active: true },
@@ -588,8 +590,8 @@ describe('the settings', () => {
     await flushPromises()
 
     const panel = settings(wrapper)
-    // by name, not by key (the yes/no system attributes: here "Notiz" is text, so the key is the fallback)
-    expect(panel.text()).toContain('Ausgeblendet, wenn gesetzt:')
+    // by name, not by id
+    expect(panel.text()).toContain('Ausgeblendet, wenn gesetzt: Entlastungsschnitt')
     expect(panel.text()).toContain('Auswahl-Optionen')
     expect(panel.find('li .line-through').text()).toBe('Nein')
     expect(panel.text()).toContain('(deaktiviert)')
@@ -645,6 +647,29 @@ describe('saving', () => {
     )
     expect(settings(wrapper).get('h2').attributes('tabindex')).toBe('-1')
     focus.mockRestore()
+  })
+
+  it('offers every yes/no attribute but the attribute itself as a condition, one without key too, and saves its id', async () => {
+    const { wrapper, api } = await open()
+    await field(wrapper, 'Lagerplatz').trigger('click')
+    await flushPromises()
+    const labels = () =>
+      settings(wrapper)
+        .findAll('label')
+        .map((label) => label.text())
+    expect(labels()).toEqual(expect.arrayContaining(['Gesägt', 'Entlastungsschnitt']))
+    expect(labels()).not.toContain('Lagerplatz')
+
+    const row = settings(wrapper)
+      .findAll('label')
+      .find((label) => label.text() === 'Entlastungsschnitt')!
+    await row.get('input').setValue(true)
+    await buttonWith(wrapper, 'Speichern')!.trigger('click')
+    await flushPromises()
+
+    expect(attributeOf(api, 'Lagerplatz').hidden_when).toEqual([
+      attributeOf(api, 'Entlastungsschnitt').id,
+    ])
   })
 
   it('updates the count when the attribute leaves the view', async () => {

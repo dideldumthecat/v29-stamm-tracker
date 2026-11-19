@@ -158,7 +158,7 @@ const appliesText = computed(() =>
 const yesNo = (value: boolean) => (value ? 'Ja' : 'Nein')
 const hiddenBy = computed(() =>
   (props.attribute?.hidden_when ?? []).map(
-    (key) => props.candidates.find((candidate) => candidate.key === key)?.name ?? key,
+    (id) => props.candidates.find((candidate) => candidate.id === id)?.name ?? id,
   ),
 )
 
@@ -468,8 +468,8 @@ function newOptionLabel(option: AttributeDraft['options'][number]) {
             <CheckboxRow
               v-for="candidate in candidates"
               :key="candidate.id"
-              :checked="draft.hiddenWhen.includes(candidate.key!)"
-              @change="set('hiddenWhen', toggle(draft.hiddenWhen, candidate.key!))"
+              :checked="draft.hiddenWhen.includes(candidate.id)"
+              @change="set('hiddenWhen', toggle(draft.hiddenWhen, candidate.id))"
             >
               {{ candidate.name }}
             </CheckboxRow>

@@ -137,8 +137,10 @@ describe('isEditable and fieldMode', () => {
 
 describe('hidden_when', () => {
   const roles = itemRoles(stem)
+  // The id of a field is its key here; the rule only compares ids.
   const field = (key: string, hidden_when: string[], type: AttributeType = 'boolean') => ({
     key,
+    id: key,
     type,
     active: true,
     applies_to: ['stem' as const],
@@ -157,7 +159,7 @@ describe('hidden_when', () => {
     recorded: Record<string, unknown> = values,
   ) => {
     const yes = {
-      isYes: (key: string) => values[key] === true,
+      isYes: (id: string) => values[id] === true,
       recordedYes: recorded[attribute.key] === true,
     }
     return fieldMode(

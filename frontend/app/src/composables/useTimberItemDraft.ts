@@ -54,13 +54,12 @@ export function useTimberItemDraft(item: Ref<TimberItem | undefined>, tagNumber:
   )
   const recordedYes = (attributeId: string) =>
     item.value?.values[attributeId]?.slice(-1)[0]?.value === true
-  const isYes = (key: string) => {
-    const id = store.attributes.find((attribute) => attribute.key === key)?.id ?? ''
+  const isYes = (id: string) => {
     const input = draft.value[id]
     return typeof input === 'boolean' ? input : recordedYes(id)
   }
   const recordedSawn = computed(() => recordedYes(sawnId.value))
-  const sawn = computed(() => isYes(SAWN_KEY))
+  const sawn = computed(() => isYes(sawnId.value))
   // The user's answer to the dialog in this draft; null = follows from the state.
   const picked = ref<SplitChoice | null>(null)
   const splitChoice = computed(() =>

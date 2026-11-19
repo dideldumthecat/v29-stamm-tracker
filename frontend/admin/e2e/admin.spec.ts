@@ -1631,6 +1631,24 @@ test.describe('attributes', () => {
     })
   })
 
+  test('keeps the scroll position after saving, without a focus ring on the heading', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 420 })
+    await page.getByRole('button', { name: 'Lagerplatz', exact: true }).click()
+    await page.getByLabel('Name', { exact: true }).fill('Ort')
+    const save = page.getByRole('button', { name: 'Speichern', exact: true })
+    await save.scrollIntoViewIfNeeded()
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+    const before = await page.evaluate(() => window.scrollY)
+    await save.click()
+    await expect(page.getByText('Merkmal gespeichert', { exact: true })).toBeVisible()
+    const heading = page.getByRole('heading', { name: 'Ort', level: 2, exact: true })
+    await expect(heading).toBeFocused()
+    expect(await page.evaluate(() => window.scrollY)).toBe(before)
+    await expect(heading).toHaveCSS('outline-style', 'none')
+  })
+
   test('asks before unsaved changes are lost, with its own dialog', async ({ page }) => {
     await page.getByRole('button', { name: 'Lagerplatz', exact: true }).click()
     await page.getByLabel('Name', { exact: true }).fill('Ort')

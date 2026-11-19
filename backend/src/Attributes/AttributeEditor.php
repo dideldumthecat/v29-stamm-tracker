@@ -256,11 +256,11 @@ final class AttributeEditor
         $appliesTo = array_values(array_intersect(Attribute::KINDS, $appliesTo));
 
         $hiddenWhen = $in['hidden_when'];
-        if (!\is_array($hiddenWhen) || !array_is_list($hiddenWhen) || array_filter($hiddenWhen, static fn (mixed $key) => !\is_string($key))) {
+        if (!\is_array($hiddenWhen) || !array_is_list($hiddenWhen) || array_filter($hiddenWhen, static fn (mixed $id) => !\is_string($id))) {
             $fail('hidden_when', 'Die Bedingungen für das Ausblenden müssen eine Liste von Merkmalen sein.');
             $hiddenWhen = [];
-        } elseif (array_diff($hiddenWhen, $this->yesNoKeys())) {
-            $fail('hidden_when', 'Ausblenden ist nur bei Ja-Nein-Merkmalen mit Schlüssel möglich.');
+        } elseif (array_diff($hiddenWhen, $this->yesNoIds($current))) {
+            $fail('hidden_when', 'Ausblenden ist nur bei anderen Ja-Nein-Merkmalen möglich.');
         }
         $hiddenWhen = array_values(array_unique($hiddenWhen));
         sort($hiddenWhen);
@@ -391,12 +391,15 @@ final class AttributeEditor
         return false;
     }
 
-    /** @return list<string> */
-    private function yesNoKeys(): array
+    /** @return list<string> ids of the yes/no attributes except $current itself */
+    private function yesNoIds(?Attribute $current): array
     {
-        return array_values(array_filter(array_map(
-            static fn (Attribute $a) => AttributeType::Boolean === $a->type ? $a->key : null,
-            $this->em->getRepository(Attribute::class)->findAll(),
-        )));
+        return array_values(array_map(
+            static fn (Attribute $a) => $a->id->toRfc4122(),
+            array_filter(
+                $this->em->getRepository(Attribute::class)->findAll(),
+                static fn (Attribute $a) => AttributeType::Boolean === $a->type && $a !== $current,
+            ),
+        ));
     }
 }

@@ -75,7 +75,7 @@ describe('the preview of a view', () => {
   })
 
   it('shows an attribute that another one hides: hidden_when plays no part', () => {
-    const hiding = { ...named('Notiz'), hidden_when: ['sawn'] }
+    const hiding = { ...named('Notiz'), hidden_when: [named('Gesägt').id] }
     expect(visibleAttributes([hiding], 'stem', false)).toEqual([hiding])
   })
 
