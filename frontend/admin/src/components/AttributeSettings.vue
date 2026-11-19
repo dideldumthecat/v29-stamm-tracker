@@ -426,7 +426,7 @@ function newOptionLabel(option: AttributeDraft['options'][number]) {
                 />
                 <!-- The column right of the field is 44 px wide: the eye (deactivate or activate) of an existing option, the bin of a new one once its
                      field was left for the first time (it is not in the database yet). While it is typed in nothing is reserved: the field reaches the
-                     right edge of the symbol buttons, as wide as "Auswahl-Option hinzufügen", and gets narrower when the bin appears -->
+                     right edge of the symbol buttons, like "Auswahl-Option hinzufügen", and gets narrower when the bin appears -->
                 <div v-if="option.id || left.has(option.rowId)" class="flex w-11 shrink-0">
                   <template v-if="!option.id">
                     <button
@@ -466,11 +466,11 @@ function newOptionLabel(option: AttributeDraft['options'][number]) {
               </p>
             </li>
           </ul>
-          <!-- From the left edge of the text fields (40 px handle and 4 px gap = 44 px in, the handle area stays free) to the right edge of the
-               symbol buttons; 16 px below the last option (6 px of the column's gap and 10 px), the options are 8 px apart -->
+          <!-- From the left edge of the handles to the right edge of the symbol buttons; 16 px below the last option (6 px of the column's gap
+               and 10 px), the options are 8 px apart -->
           <button
             type="button"
-            class="mt-2.5 ml-11 flex h-11 items-center justify-center gap-2 rounded-lg border-2 border-dashed border-ink font-bold"
+            class="mt-2.5 flex h-11 items-center justify-center gap-2 rounded-lg border-2 border-dashed border-ink font-bold"
             @click="addOption"
           >
             <PlusIcon :size="18" aria-hidden="true" />
