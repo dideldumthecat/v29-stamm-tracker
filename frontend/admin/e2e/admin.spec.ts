@@ -488,12 +488,8 @@ test.describe('activity', () => {
     await expect(
       page.getByRole('button', { name: 'Person: Aaron Bauer, Mara Vogel', exact: true }),
     ).toBeVisible()
-    await expect(
-      page.getByRole('article').filter({ hasText: 'Mara Vogel' }).first(),
-    ).toBeVisible()
-    await expect(
-      page.getByRole('article').filter({ hasText: 'Aaron Bauer' }).first(),
-    ).toBeVisible()
+    await expect(page.getByRole('article').filter({ hasText: 'Mara Vogel' }).first()).toBeVisible()
+    await expect(page.getByRole('article').filter({ hasText: 'Aaron Bauer' }).first()).toBeVisible()
     await expect(page.getByRole('article').filter({ hasText: 'Sägewerk' })).toHaveCount(0)
 
     await page.reload()

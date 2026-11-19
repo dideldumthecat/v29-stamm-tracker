@@ -12,11 +12,11 @@ const itemId = (label: string) =>
   activityFixture.entries.flatMap((entry) => entry.items).find((item) => item.label === label)!
     .timber_item_id
 
-const bruno = activityFixture.users.find((user) => user.name === 'Aaron Bauer')!.id
-const summa = activityFixture.users.find((user) => user.name === 'Alex Beispiel')!.id
+const aaron = activityFixture.users.find((user) => user.name === 'Aaron Bauer')!.id
+const alex = activityFixture.users.find((user) => user.name === 'Alex Beispiel')!.id
 
 let counter = 0
-const record = (value: AttributeValueRecord['value'], recorded_at: string, user_id = summa) => ({
+const record = (value: AttributeValueRecord['value'], recorded_at: string, user_id = alex) => ({
   value,
   recorded_at,
   user_id,
@@ -25,7 +25,7 @@ const record = (value: AttributeValueRecord['value'], recorded_at: string, user_
 
 const holzart = record(option('Holzart', 'Stieleiche'), '2026-10-29T10:09:00.000Z')
 const faelldatum = record('2026-10', '2026-10-29T10:10:00.000Z')
-const gesaegt = record(true, '2026-10-31T10:46:00.000Z', bruno)
+const gesaegt = record(true, '2026-10-31T10:46:00.000Z', aaron)
 
 const stem: TimberItem = {
   id: itemId('104'),
@@ -33,18 +33,18 @@ const stem: TimberItem = {
   tag_number: '104',
   has_children: true,
   created_at: '2026-10-29T10:09:00.000Z',
-  created_by: summa,
+  created_by: alex,
   values: {
     [attribute('Holzart').id]: [holzart],
     [attribute('Fälldatum').id]: [faelldatum],
     [attribute('Gesägt').id]: [gesaegt],
     [attribute('Holzfeuchte').id]: [
       record(48.5, '2026-10-29T10:12:00.000Z'),
-      record(41, '2026-10-31T10:30:00.000Z', bruno),
+      record(41, '2026-10-31T10:30:00.000Z', aaron),
     ],
     [attribute('Notiz').id]: [
       record('Leichter Drehwuchs', '2026-10-29T10:13:00.000Z'),
-      record('Zweite Zeile\nmit Umbruch', '2026-10-31T10:50:00.000Z', bruno),
+      record('Zweite Zeile\nmit Umbruch', '2026-10-31T10:50:00.000Z', aaron),
     ],
     [attribute('Fotos').id]: [
       record('00000000-0000-4000-8000-0000000000a1', '2026-10-29T10:14:00.000Z'),
@@ -64,7 +64,7 @@ const beam = (letter: string, values: TimberItem['values']): TimberItem => ({
   tag_number: `104-${letter}`,
   has_children: false,
   created_at: '2026-10-31T10:46:20.000Z',
-  created_by: bruno,
+  created_by: aaron,
   values: { ...inherited, ...values },
 })
 
@@ -75,7 +75,7 @@ const otherStem = (tag: string | null, values: TimberItem['values']): TimberItem
   tag_number: tag,
   has_children: false,
   created_at: '2026-10-20T08:00:00.000Z',
-  created_by: summa,
+  created_by: alex,
   values,
 })
 
@@ -88,15 +88,15 @@ export const snapshotFixture: Snapshot = {
     stem,
     beam('A', {
       [attribute('Fotos').id]: [
-        record('00000000-0000-4000-8000-0000000000b1', '2026-10-31T10:46:40.000Z', bruno),
+        record('00000000-0000-4000-8000-0000000000b1', '2026-10-31T10:46:40.000Z', aaron),
       ],
     }),
     beam('B', {}),
     beam('C', {
       [attribute('Sortierklasse').id]: [
-        record(option('Sortierklasse', 'B'), '2026-10-31T10:47:45.000Z', bruno),
+        record(option('Sortierklasse', 'B'), '2026-10-31T10:47:45.000Z', aaron),
       ],
-      [attribute('Notiz').id]: [record('105x145', '2026-10-31T10:47:50.000Z', bruno)],
+      [attribute('Notiz').id]: [record('105x145', '2026-10-31T10:47:50.000Z', aaron)],
     }),
     otherStem('7', {}),
     otherStem('1500', {

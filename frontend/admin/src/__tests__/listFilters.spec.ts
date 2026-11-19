@@ -537,9 +537,7 @@ describe('parseTags', () => {
 describe('describePicks', () => {
   it('lists up to two, then counts', () => {
     expect(describePicks(['Mara'], 1)).toBe('Mara')
-    expect(describePicks(['Mara', 'Sägewerk Muster'], 2)).toBe(
-      'Mara, Sägewerk Muster',
-    )
+    expect(describePicks(['Mara', 'Sägewerk Muster'], 2)).toBe('Mara, Sägewerk Muster')
     expect(describePicks(['a', 'b', 'c'], 3)).toBe('3 ausgewählt')
     // more picks than names: the ones that are not offered any more count too
     expect(describePicks(['a', 'b'], 3)).toBe('3 ausgewählt')

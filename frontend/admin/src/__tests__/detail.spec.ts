@@ -125,9 +125,7 @@ describe('splitValues', () => {
 
   it('writes values with who and when, booleans as ja/nein, a series newest first, nothing recorded as empty', () => {
     const row = (name: string) => parts.rows.find((candidate) => candidate.name === name)!
-    expect(row('Holzart').lines).toEqual([
-      { text: 'Stieleiche', source: 'Alex Beispiel · 29.10.' },
-    ])
+    expect(row('Holzart').lines).toEqual([{ text: 'Stieleiche', source: 'Alex Beispiel · 29.10.' }])
     expect(row('Fälldatum').lines[0].text).toBe('10/2026')
     expect(row('Gesägt').lines).toEqual([{ text: 'ja', source: 'Aaron Bauer · 31.10.' }])
     expect(row('Holzfeuchte').lines.map((line) => line.text)).toEqual(['41 %', '48,5 %'])
