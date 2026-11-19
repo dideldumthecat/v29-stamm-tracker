@@ -21,7 +21,7 @@ Everything is stored on the device first. Out in the woods there is usually no n
 - Lists of logs and of beams with sorting and filters per column, shareable as links.
 - Detail view of a log or beam: photos, attributes, key figures (round wood, sawn timber, yield) and the history of its changes.
 - Activity: the latest changes of everyone, filterable by period, person and tag.
-- Attributes: create, edit, reorder and deactivate them, with a preview of how the app shows them. Attributes that code refers to (system attributes) are read-only here.
+- Attributes: create, edit, reorder and deactivate them, with a preview of how the app shows them. Attributes that code refers to (system attributes) can be renamed and described here; the rest is fixed in code.
 
 - Users: create, rename, block and unblock, copy a new invite code (shown once) or issue one. Admins manage users; only the superadmin manages admins and the role `admin`.
 

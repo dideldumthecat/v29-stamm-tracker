@@ -1691,10 +1691,20 @@ test.describe('attributes', () => {
     await expect(page.getByText('Nichts ausgewählt', { exact: true })).toBeVisible()
   })
 
-  test('shows a system attribute without controls', async ({ page }) => {
+  test('lets a system attribute change name and description only', async ({ page }) => {
     await page.getByRole('button', { name: 'Gesägt (Systemmerkmal)', exact: true }).click()
-    await expect(page.getByText('Systemmerkmal: Ändern nur im Code möglich.')).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Speichern', exact: true })).toHaveCount(0)
+    await expect(
+      page.getByText(
+        'Systemmerkmal: Name und Beschreibung änderst du hier, der Rest ist im Code festgelegt.',
+      ),
+    ).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Speichern', exact: true })).toBeDisabled()
+    await page.getByLabel('Name', { exact: true }).fill('Fertig gesägt')
+    await page.getByRole('button', { name: 'Speichern', exact: true }).click()
+    await expect(page.getByText('Merkmal gespeichert')).toBeVisible()
+    await expect(
+      page.getByRole('button', { name: 'Fertig gesägt (Systemmerkmal)', exact: true }),
+    ).toBeVisible()
   })
 
   // "Merkmal hinzufügen" exists twice: dashed under the preview, and in the card "Nichts ausgewählt" in the settings column

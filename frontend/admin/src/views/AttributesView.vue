@@ -126,7 +126,7 @@ watch(draft, () => (errors.value = {}), { deep: true })
 const changed = computed(() => {
   if (!draft.value) return false
   if (isNew.value) return !sameDraft(draft.value, newDraft(draft.value.type, query.value.view))
-  return !!selected.value && !selected.value.is_system && isChanged(selected.value, draft.value)
+  return !!selected.value && isChanged(selected.value, draft.value)
 })
 
 function pickType(tile: TileType) {
@@ -170,7 +170,10 @@ async function save() {
     const saved = await request<AdminAttribute>(
       'PATCH',
       `admin/attributes/${attribute!.id}`,
-      bodyOf(draft.value),
+      // The rest of a system attribute is fixed in the code: only what may change goes to the server
+      attribute!.is_system
+        ? { name: draft.value.name, description: draft.value.description }
+        : bodyOf(draft.value),
     )
     attributes.value = attributes.value.map((entry) => (entry.id === saved.id ? saved : entry))
     // The selection stays; the form shows what the server made of it (trimmed texts, the options with ids)
@@ -422,8 +425,8 @@ const viewButton = 'flex h-11 items-center rounded-lg border-2 px-3 text-base'
         Reihenfolge änderst du per Ziehen, sie wird sofort gespeichert. Änderungen kommen beim
         nächsten Synchronisieren auf die Handys. Merkmale mit
         <LockIcon :size="14" class="inline-block align-[-2px]" aria-label="Schloss" /> sind
-        Systemmerkmale: App und Berichte rechnen mit ihnen, deshalb lassen sie sich nur im Code
-        ändern.
+        Systemmerkmale: App und Berichte rechnen mit ihnen, deshalb änderst du hier nur Name,
+        Beschreibung und Reihenfolge, alles andere ist im Code festgelegt.
       </p>
 
       <div class="mt-6 flex flex-wrap items-end gap-x-6 gap-y-3">

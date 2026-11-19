@@ -10,14 +10,17 @@ use Doctrine\ORM\EntityManagerInterface;
 
 /**
  * Maintenance of attributes in the administration: GET/POST/PATCH/PUT /api/admin/attributes, see AdminAttribute in frontend/shared/contract.ts.
- * All rules live here. Attributes with a key (system attributes) belong to attributes.yaml: the controller refuses to edit them,
- * only their order can change. Nothing is deleted, options are only deactivated. No events: attributes are configuration.
+ * All rules live here. Attributes with a key (system attributes) are created and changed in migrations (App\Migration\AttributeMigration):
+ * the administration may only change their name, description and order. Nothing is deleted, options are only deactivated.
+ * No events: attributes are configuration.
  */
 final class AttributeEditor
 {
     private const array TYPES = [AttributeType::Choice, AttributeType::Boolean, AttributeType::Number, AttributeType::Text, AttributeType::Date, AttributeType::Month];
     private const array SERIES_TYPES = [AttributeType::Number, AttributeType::Text, AttributeType::Date, AttributeType::Month];
     private const int STEP = 10;
+    /** What the administration may change on a system attribute (the order has its own call). */
+    private const array SYSTEM_EDITABLE = ['name', 'description'];
 
     public function __construct(private readonly EntityManagerInterface $em)
     {
@@ -85,6 +88,9 @@ final class AttributeEditor
             'hidden_when' => $attribute->hiddenWhen, 'active' => $attribute->active,
             'options' => array_map(static fn (AttributeOption $o) => ['id' => $o->id->toRfc4122(), 'label' => $o->label, 'active' => $o->active], $options),
         ];
+        if (null !== $attribute->key) {
+            $this->refuseLockedFields($body, $current);
+        }
         $in = $this->check(array_replace($current, array_intersect_key($body, $current)), $attribute, $options);
 
         $attribute->name = $in['name'];
@@ -119,6 +125,34 @@ final class AttributeEditor
             $attributes[$id]->sortOrder = self::STEP * ($i + 1);
         }
         $this->em->flush();
+    }
+
+    /**
+     * A system attribute is only refused what differs: a client may send the whole form as long as the locked fields keep their value.
+     *
+     * @param array<mixed>         $body
+     * @param array<string, mixed> $current
+     *
+     * @throws InvalidAttribute
+     */
+    private function refuseLockedFields(array $body, array $current): void
+    {
+        $errors = [];
+        foreach (array_diff_key($current, array_flip(self::SYSTEM_EDITABLE)) as $field => $value) {
+            if (!\array_key_exists($field, $body)) {
+                continue;
+            }
+            $sent = $body[$field];
+            if ('options' === $field && \is_array($sent)) {
+                $sent = array_map(static fn (mixed $o) => \is_array($o) ? ['id' => $o['id'] ?? null, 'label' => $o['label'] ?? null, 'active' => $o['active'] ?? true] : $o, $sent);
+            }
+            if ($sent != $value) {
+                $errors[] = ['field' => $field, 'message' => 'Bei Systemmerkmalen ist das im Code festgelegt.'];
+            }
+        }
+        if ($errors) {
+            throw new InvalidAttribute($errors);
+        }
     }
 
     public function hasValues(Attribute $attribute): bool

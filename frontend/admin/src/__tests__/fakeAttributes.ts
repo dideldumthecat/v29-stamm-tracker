@@ -76,12 +76,15 @@ export function createFakeAttributes() {
       if (method === 'PATCH' && id) {
         const current = attributes.find((attribute) => attribute.id === id)
         if (!current) return { status: 404 }
-        if (current.is_system) return { status: 403 }
         if (rejection) return { status: 422, json: { errors: rejection } }
+        // A system attribute takes only name and description (the server refuses the rest)
+        const allowed = current.is_system
+          ? { name: input.name, description: input.description }
+          : input
         const next: AdminAttribute = {
           ...current,
-          ...input,
-          options: input.options ? options(input.options) : current.options,
+          ...allowed,
+          options: input.options && !current.is_system ? options(input.options) : current.options,
         }
         attributes = attributes.map((attribute) => (attribute.id === id ? next : attribute))
         return { status: 200, json: next }

@@ -205,12 +205,43 @@ class AttributeAdminTest extends WebTestCase
         self::assertSame(400, $this->code());
     }
 
-    public function testSystemAttributesCannotBePatched(): void
+    public function testSystemAttributeNameAndDescriptionCanBeChanged(): void
     {
-        $this->call('PATCH', '/'.$this->sawn->id->toRfc4122(), ['name' => 'Anders']);
+        $this->call('PATCH', '/'.$this->sawn->id->toRfc4122(), ['name' => 'Gesägt (fertig)', 'description' => 'Fertig gesägt']);
 
-        self::assertSame(403, $this->code());
+        self::assertSame(200, $this->code());
+        $first = $this->call('GET', '')['attributes'][0];
+        self::assertSame(['Gesägt (fertig)', 'Fertig gesägt', 'sawn'], [$first['name'], $first['description'], $first['key']]);
+    }
+
+    public function testSystemAttributeKeepsEverythingElseEvenWhenTheWholeFormIsSent(): void
+    {
+        $current = $this->call('GET', '')['attributes'][0];
+        $this->call('PATCH', '/'.$this->sawn->id->toRfc4122(), ['name' => 'Anders'] + $current);
+
+        self::assertSame(200, $this->code());
+    }
+
+    #[DataProvider('systemLockedFields')]
+    public function testSystemAttributeRefusesChangesToTheRest(string $field, mixed $value): void
+    {
+        $this->call('PATCH', '/'.$this->sawn->id->toRfc4122(), ['name' => 'Anders', $field => $value]);
+
+        self::assertSame([$field.': Bei Systemmerkmalen ist das im Code festgelegt.'], $this->errors());
         self::assertSame('Gesägt', $this->call('GET', '')['attributes'][0]['name']);
+    }
+
+    /** @return iterable<string, array{string, mixed}> */
+    public static function systemLockedFields(): iterable
+    {
+        yield 'type' => ['type', 'text'];
+        yield 'unit' => ['unit', 'cm'];
+        yield 'series' => ['is_series', true];
+        yield 'inheritable' => ['is_inheritable', true];
+        yield 'applies to' => ['applies_to', ['beam']];
+        yield 'hidden when' => ['hidden_when', ['sawn']];
+        yield 'active' => ['active', false];
+        yield 'options' => ['options', [['label' => 'Neu']]];
     }
 
     #[DataProvider('lockedFields')]

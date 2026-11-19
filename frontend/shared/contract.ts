@@ -249,7 +249,7 @@ export interface AttributeOption {
 
 // --- /api/admin/attributes --------------------------------------------------
 // Maintenance of attributes in the administration (roles admin and superadmin, otherwise 403). The app gets changes through the snapshot as before.
-// An attribute with a key is a system attribute: maintained in attributes.yaml, PATCH answers 403; only its order can change.
+// An attribute with a key is a system attribute: created and changed by migrations; PATCH accepts only name and description (any other field that differs answers 422), and its order can change.
 // Attributes are never deleted. Changes leave no events and do not appear in the activity list.
 
 /** GET /api/admin/attributes: every attribute in order, inactive ones and inactive options too. */
@@ -258,7 +258,7 @@ export interface AdminAttributesResponse {
 }
 
 export interface AdminAttribute extends Attribute {
-  /** Has a key: read-only in the administration. */
+  /** Has a key: only name, description and order can be changed in the administration. */
   is_system: boolean
   /** At least one value was recorded, on a voided item too: type, is_series and is_inheritable can then no longer change. */
   has_values: boolean

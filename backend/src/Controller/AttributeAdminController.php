@@ -10,7 +10,6 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
@@ -51,9 +50,6 @@ final class AttributeAdminController extends AbstractController
         $attribute = Uuid::isValid($id) ? $this->em->find(Attribute::class, Uuid::fromString($id)) : null;
         if (!$attribute) {
             throw new NotFoundHttpException('No such attribute.');
-        }
-        if (null !== $attribute->key) {
-            throw new AccessDeniedHttpException('System attributes are maintained in attributes.yaml.');
         }
 
         return $this->guard(function () use ($attribute, $request) {

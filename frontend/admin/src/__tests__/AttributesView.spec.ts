@@ -27,6 +27,9 @@ beforeEach(() => {
 })
 afterEach(() => vi.unstubAllGlobals())
 
+const SYSTEM_NOTE =
+  'Systemmerkmal: Name und Beschreibung änderst du hier, der Rest ist im Code festgelegt.'
+
 describe('access', () => {
   it('opens the page from the gear in the header, which is white on that page', async () => {
     const { wrapper, router } = await open('/activity')
@@ -398,7 +401,7 @@ describe('the settings', () => {
     const panel = settings(wrapper)
     const note = panel.findAll('p').find((p) => p.text().startsWith('Systemmerkmal'))!
     const heading = panel.get('h2')
-    expect(note.text()).toBe('Systemmerkmal: Ändern nur im Code möglich.')
+    expect(note.text()).toBe(SYSTEM_NOTE)
     // nothing comes before the name; the X is in its row, the note is the next element
     const headingRow = heading.element.parentElement!
     expect(headingRow.previousElementSibling).toBeNull()
@@ -407,7 +410,7 @@ describe('the settings', () => {
     // and attributes of V29 have none
     await field(wrapper, 'Holzart').trigger('click')
     await flushPromises()
-    expect(settings(wrapper).text()).not.toContain('Systemmerkmal: Ändern')
+    expect(settings(wrapper).text()).not.toContain('Systemmerkmal:')
   })
 
   /** The labels of the rows, top to bottom (the first child of a row is its label). */
@@ -461,6 +464,8 @@ describe('the settings', () => {
     await flushPromises()
 
     expect(rowLabels(wrapper)).toEqual([
+      'Name',
+      'Beschreibung',
       'Typ',
       'Stamm und Balken',
       'Gültig für',
@@ -510,6 +515,8 @@ describe('the settings', () => {
     await field(wrapper, 'Notiz').trigger('click')
     await flushPromises()
     expect(rowLabels(wrapper)).toEqual([
+      'Name',
+      'Beschreibung',
       'Typ',
       'Stamm und Balken',
       'Gültig für',
@@ -523,27 +530,47 @@ describe('the settings', () => {
     expect(rowLabels(wrapper)).toContain('Wert vererbbar')
   })
 
-  it('show a system attribute as text only, without any control', async () => {
+  it('show a system attribute as text, with only name and description to change', async () => {
     const { wrapper } = await open()
     await field(wrapper, 'Gesägt').trigger('click')
     await flushPromises()
 
     const panel = settings(wrapper)
     expect(panel.get('h2').text()).toBe('Gesägt')
-    expect(panel.text()).toContain('Systemmerkmal: Ändern nur im Code möglich.')
+    expect(panel.text()).toContain(SYSTEM_NOTE)
     expect(panel.text()).toContain('Ja/Nein')
     expect(panel.text()).toContain('Stamm')
     expect(panel.text()).toContain('Immer angezeigt')
     expect(panel.get('h3').text()).toBe('Stamm und Balken')
     expect(panel.get('h3 + p').text()).toMatch(/^Erfassbar /)
-    // nothing to operate but the X that closes it
+    // the X, the name and the description; everything else is text
     expect(
-      panel
-        .findAll('input, select, textarea, button')
-        .map((control) => control.attributes('aria-label')),
-    ).toEqual(['Schließen'])
-    expect(buttonWith(wrapper, 'Speichern')).toBeUndefined()
-    expect(buttonWith(wrapper, 'Verwerfen')).toBeUndefined()
+      panel.findAll('input, select, textarea').map((control) => control.element.tagName),
+    ).toEqual(['INPUT', 'TEXTAREA'])
+    expect(panel.findAll('button').map((control) => control.attributes('aria-label'))).toContain(
+      'Schließen',
+    )
+    expect(buttonWith(wrapper, 'Speichern')!.attributes('disabled')).toBeDefined()
+  })
+
+  it('save the name and description of a system attribute and send nothing else', async () => {
+    const { wrapper, api } = await open()
+    await field(wrapper, 'Gesägt').trigger('click')
+    await flushPromises()
+    await settings(wrapper).get('input[type=text]').setValue('Fertig gesägt')
+    await settings(wrapper).get('textarea').setValue('Stamm ist zu Balken gesägt')
+
+    await buttonWith(wrapper, 'Speichern')!.trigger('click')
+    await flushPromises()
+
+    expect(attributeOf(api, 'Fertig gesägt')).toMatchObject({
+      key: 'sawn',
+      description: 'Stamm ist zu Balken gesägt',
+      type: 'boolean',
+    })
+    expect(settings(wrapper).get('h2').text()).toBe('Fertig gesägt')
+    expect(previewNames(wrapper)).toContain('Fertig gesägt (Systemmerkmal)')
+    expect(wrapper.text()).toContain('Merkmal gespeichert')
   })
 
   it('name the attributes that hide a system attribute and show the options as text', async () => {
