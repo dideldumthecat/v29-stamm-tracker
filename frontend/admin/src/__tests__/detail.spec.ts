@@ -49,8 +49,9 @@ describe('splitValues', () => {
 
   it('takes the photos by attribute type, oldest first', () => {
     expect(parts.photos.map((photo) => photo.id)).toEqual(stemPhotos)
-    expect(parts.photos.map((photo) => photo.recorded_at)).toEqual([
-      '2026-10-29T10:14:00.000Z',
+    // the first has its capture time, the second falls back to the time of the recording
+    expect(parts.photos.map((photo) => photo.taken_at)).toEqual([
+      '2026-10-27T14:05:00.000Z',
       '2026-10-30T23:30:00.000Z',
     ])
   })

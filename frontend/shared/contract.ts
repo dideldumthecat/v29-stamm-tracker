@@ -331,6 +331,11 @@ export interface AttributeValueRecord {
   user_id: Uuid
   /** Event that produced this value – target for corrections and voids in the administration. */
   event_id: Uuid
+  /**
+   * Only for the value of a photo attribute whose file is uploaded: when the photo was taken (the EXIF time of a library photo, else the time
+   * of the recording on the device). The snapshot adds it from the photo's row; the administration's gallery shows it, falling back to `recorded_at`.
+   */
+  taken_at?: Timestamp
 }
 
 /** boolean → true/false, choice → option id (never the label), number → number,

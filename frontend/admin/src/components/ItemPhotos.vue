@@ -60,7 +60,7 @@ const markMissing = (id: string) => (missing.value = new Set(missing.value).add(
       <!-- shrink-0: in the sticky column only the stage gives way. -->
       <p class="mt-2 shrink-0 text-center text-caption text-mute tabular-nums">
         Foto {{ selected + 1 }} von {{ ids.length }} ·
-        {{ formatDateTime(photos[selected].recorded_at) }}
+        {{ formatDateTime(photos[selected].taken_at) }}
       </p>
 
       <div class="mt-3 flex flex-wrap gap-2">

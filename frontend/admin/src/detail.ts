@@ -61,10 +61,11 @@ export interface ValueRow {
   lines: ValueLine[]
 }
 
-/** A photo of an item: its id and the device time of the recording (the day shown in the gallery). */
+/** A photo of an item: its id and when it was taken (the day shown in the gallery). */
 export interface PhotoRecord {
   id: string
-  recorded_at: string
+  /** `taken_at` of the value (the server knows it once the file is uploaded), else the device time of the recording. */
+  taken_at: string
 }
 
 export interface ItemParts {
@@ -148,7 +149,7 @@ export function splitValues(
   return {
     photos: photos
       .sort((a, b) => a.recorded_at.localeCompare(b.recorded_at))
-      .map((p) => ({ id: String(p.value), recorded_at: p.recorded_at })),
+      .map((p) => ({ id: String(p.value), taken_at: p.taken_at ?? p.recorded_at })),
     rows,
     lastChanged: last?.recorded_at,
     lastChangedBy: last && userName(last),

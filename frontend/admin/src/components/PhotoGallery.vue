@@ -142,7 +142,7 @@ const iconButton =
     <header class="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-2">
       <p class="text-faint tabular-nums">
         {{ kind }} <strong class="font-bold text-paper">{{ plaqueTag(tag) }}</strong> · Foto
-        {{ index + 1 }} von {{ ids.length }} vom {{ formatDateTime(photos[index].recorded_at) }}
+        {{ index + 1 }} von {{ ids.length }} vom {{ formatDateTime(photos[index].taken_at) }}
       </p>
       <div class="flex items-center gap-1">
         <button type="button" :class="iconButton" aria-label="Verkleinern" @click="stepZoom(-1)">

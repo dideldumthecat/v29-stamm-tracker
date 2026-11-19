@@ -47,7 +47,11 @@ const stem: TimberItem = {
       record('Zweite Zeile\nmit Umbruch', '2026-10-31T10:50:00.000Z', aaron),
     ],
     [attribute('Fotos').id]: [
-      record('00000000-0000-4000-8000-0000000000a1', '2026-10-29T10:14:00.000Z'),
+      // A library photo: taken two days before it was recorded
+      {
+        ...record('00000000-0000-4000-8000-0000000000a1', '2026-10-29T10:14:00.000Z'),
+        taken_at: '2026-10-27T14:05:00.000Z',
+      },
       record('00000000-0000-4000-8000-0000000000a2', '2026-10-30T23:30:00.000Z'),
     ],
   },
@@ -113,8 +117,8 @@ export const snapshotFixture: Snapshot = {
   ],
 }
 
-/** Day and time of the stem's photos as the gallery shows them (the second one lies on the 31st in Berlin, on the 30th in UTC). */
-export const stemPhotoDays = ['29.10.2026, 11:14', '31.10.2026, 00:30']
+/** Day and time of the stem's photos as the gallery shows them (the first by its capture time, the second by its recording; it lies on the 31st in Berlin, on the 30th in UTC). */
+export const stemPhotoDays = ['27.10.2026, 15:05', '31.10.2026, 00:30']
 
 /** Photo ids of the stem, the first of them is uploaded, the second is not. */
 export const stemPhotos = [

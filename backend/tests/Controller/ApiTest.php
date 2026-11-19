@@ -1016,6 +1016,27 @@ class ApiTest extends WebTestCase
         self::assertSame($jpeg, file_get_contents(self::getContainer()->get(PhotoStorage::class)->path(Uuid::fromString($response['id']))));
     }
 
+    public function testSnapshotCarriesTheCaptureTimeOfAnUploadedPhotoOnly(): void
+    {
+        $this->syncItem123();
+        $uploaded = '29cee26c-65da-483b-8d56-e05211bb691e';
+        $waiting = Uuid::v4()->toRfc4122();
+        $this->request('POST', '/api/sync', ['events' => [
+            self::event('attribute_recorded', self::ITEM_123, ['attribute_id' => self::FOTOS, 'value' => $uploaded], '2026-10-02T07:16:00.000Z'),
+            self::event('attribute_recorded', self::ITEM_123, ['attribute_id' => self::FOTOS, 'value' => $waiting], '2026-10-02T07:17:00.000Z'),
+        ]], 'Kerstin');
+        $this->upload(self::jpeg(), $uploaded);
+
+        $photos = $this->values(self::ITEM_123)[self::FOTOS];
+
+        self::assertSame([$uploaded, $waiting], array_column($photos, 'value'));
+        self::assertSame('2026-10-02T07:12:00.000Z', $photos[0]['taken_at']);
+        self::assertArrayNotHasKey('taken_at', $photos[1], 'a photo that is not uploaded yet has no capture time');
+        $expected = self::fixture('snapshot')['timber_items'][0]['values'][self::FOTOS][0];
+        self::assertSame(array_keys($expected), array_keys($photos[0]));
+        self::assertSame($expected['taken_at'], $photos[0]['taken_at']);
+    }
+
     public function testPhotoUploadRejectsTooLargeFilesAndNonJpegs(): void
     {
         $this->upload(self::jpeg(PhotoStorage::MAX_BYTES + 1));

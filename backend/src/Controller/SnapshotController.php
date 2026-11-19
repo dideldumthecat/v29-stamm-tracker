@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\Api\Timestamp;
 use App\Entity\Attribute;
 use App\Entity\AttributeOption;
+use App\Entity\AttributeType;
 use App\Entity\TimberItem;
 use App\Entity\TimberItemState;
 use App\Entity\User;
@@ -13,6 +14,7 @@ use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * Snapshot in frontend/shared/contract.ts – the same for every user.
@@ -32,9 +34,24 @@ final class SnapshotController extends AbstractController
             ];
         }
 
+        // The capture time of an uploaded photo goes with its value (a photo not uploaded yet has none).
+        $photoAttributes = array_flip(array_map(
+            static fn (Attribute $attribute) => $attribute->id->toRfc4122(),
+            $em->getRepository(Attribute::class)->findBy(['type' => AttributeType::Photo]),
+        ));
+        $takenAt = [];
+        foreach ($em->getConnection()->fetchAllKeyValue('SELECT id, taken_at FROM photos') as $id => $time) {
+            $takenAt[Uuid::fromBinary((string) $id)->toRfc4122()] = Timestamp::format(new \DateTimeImmutable((string) $time, new \DateTimeZone('UTC')));
+        }
+
         $values = [];
         foreach ($em->getRepository(TimberItemState::class)->findAll() as $state) {
-            $values[$state->timberItemId->toRfc4122()][$state->attributeId->toRfc4122()] = $state->valueRecords;
+            $attributeId = $state->attributeId->toRfc4122();
+            $records = $state->valueRecords;
+            if (isset($photoAttributes[$attributeId])) {
+                $records = array_map(static fn (array $record) => isset($takenAt[$record['value']]) ? $record + ['taken_at' => $takenAt[$record['value']]] : $record, $records);
+            }
+            $values[$state->timberItemId->toRfc4122()][$attributeId] = $records;
         }
 
         $items = [];
