@@ -75,7 +75,8 @@ async function focusFirstError() {
 }
 // After a successful save "Speichern" is disabled, which would drop the focus onto the page: the heading takes it (the parent asks for it)
 const heading = ref<HTMLElement>()
-const focusHeading = () => heading.value?.focus()
+// Without scrolling (the card may reach far above or below the window) and without a ring (the heading is no control; after Enter in a field the browser would draw one)
+const focusHeading = () => heading.value?.focus({ preventScroll: true })
 defineExpose({ focusFirstError, focusHeading })
 const isNew = computed(() => !props.attribute)
 const system = computed(() => props.attribute?.is_system ?? false)
@@ -187,7 +188,7 @@ function newOptionLabel(option: AttributeDraft['options'][number]) {
           :id="`${id}-heading`"
           ref="heading"
           tabindex="-1"
-          class="text-display font-bold wrap-anywhere"
+          class="text-display font-bold wrap-anywhere outline-none"
         >
           {{ attribute ? attribute.name : 'Neues Merkmal' }}
         </h2>

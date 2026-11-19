@@ -1649,6 +1649,15 @@ test.describe('attributes', () => {
     await expect(heading).toHaveCSS('outline-style', 'none')
   })
 
+  test('shows no focus ring on the heading after saving with Enter', async ({ page }) => {
+    await page.getByRole('button', { name: 'Lagerplatz', exact: true }).click()
+    await page.getByLabel('Name', { exact: true }).fill('Ort')
+    await page.getByLabel('Name', { exact: true }).press('Enter')
+    const heading = page.getByRole('heading', { name: 'Ort', level: 2, exact: true })
+    await expect(heading).toBeFocused()
+    await expect(heading).toHaveCSS('outline-style', 'none')
+  })
+
   test('asks before unsaved changes are lost, with its own dialog', async ({ page }) => {
     await page.getByRole('button', { name: 'Lagerplatz', exact: true }).click()
     await page.getByLabel('Name', { exact: true }).fill('Ort')
