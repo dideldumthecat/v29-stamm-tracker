@@ -273,7 +273,7 @@ export interface AdminAttribute extends Attribute {
 export interface AdminAttributeInput {
   name: string
   description: string
-  /** Not 'photo'. */
+  /** Not 'photo'. Does not change (422) once values are recorded or while another attribute names this one in hidden_when. */
   type: Exclude<AttributeType, 'photo'>
   /** Only for type 'number'. */
   unit: string | null

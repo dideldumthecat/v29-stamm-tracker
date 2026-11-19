@@ -306,6 +306,25 @@ class AttributeAdminTest extends WebTestCase
         self::assertSame(['number', 'cm', true], [$updated['type'], $updated['unit'], $updated['is_inheritable']]);
     }
 
+    public function testTypeOfAnAttributeThatHidesOthersCannotChangeUntilTheyLetGo(): void
+    {
+        $debarked = $this->create(['name' => 'Entrindet', 'type' => 'boolean']);
+        $bark = $this->create(['name' => 'Rinde', 'hidden_when' => [$debarked['id']]]);
+        $this->create(['name' => 'Borke', 'hidden_when' => [$debarked['id']]]);
+
+        // also when everything else of the form comes along unchanged
+        $this->call('PATCH', '/'.$debarked['id'], ['type' => 'text'] + $debarked);
+        self::assertSame(['type: Der Typ lässt sich nicht ändern, solange „Rinde“ und „Borke“ damit ausgeblendet werden. Entferne dort zuerst die Ausblendung.'], $this->errors());
+
+        $this->call('PATCH', '/'.$bark['id'], ['hidden_when' => []]);
+        $this->call('PATCH', '/'.$debarked['id'], ['type' => 'text']);
+        self::assertSame(['type: Der Typ lässt sich nicht ändern, solange „Borke“ damit ausgeblendet wird. Entferne dort zuerst die Ausblendung.'], $this->errors());
+
+        // what is not the type stays free
+        $renamed = $this->call('PATCH', '/'.$debarked['id'], ['name' => 'Geschält', 'active' => false]);
+        self::assertSame([200, 'boolean'], [$this->code(), $renamed['type']]);
+    }
+
     public function testOptionsCanBeAddedRenamedDeactivatedAndReordered(): void
     {
         $this->record($this->species);

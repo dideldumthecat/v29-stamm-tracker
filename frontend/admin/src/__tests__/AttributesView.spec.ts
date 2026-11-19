@@ -381,6 +381,26 @@ describe('the settings', () => {
     expect(attributeOf(api, 'Lieferdatum').type).toBe('text')
   })
 
+  it('show the refusal of a type change in the type row, keeping the new type in the form', async () => {
+    const { wrapper, api } = await open()
+    await field(wrapper, 'Lieferdatum').trigger('click')
+    await flushPromises()
+    await changeType(wrapper, 'Text')
+    const message =
+      'Der Typ lässt sich nicht ändern, solange „Rinde“ damit ausgeblendet wird. Entferne dort zuerst die Ausblendung.'
+    api.attributes.reject([{ field: 'type', message }])
+
+    await buttonWith(wrapper, 'Speichern')!.trigger('click')
+    await flushPromises()
+
+    const typeRow = settings(wrapper)
+      .findAll('form > div')
+      .find((row) => row.element.firstElementChild?.textContent?.trim() === 'Typ')!
+    expect(typeRow.get('[role=alert]').text()).toBe(message)
+    expect(typeRow.text()).toContain('Text')
+    expect(attributeOf(api, 'Lieferdatum').type).toBe('date')
+  })
+
   it('leave the picker with unsaved changes: a switch of the selection asks first', async () => {
     const { wrapper } = await open()
     await field(wrapper, 'Lieferdatum').trigger('click')

@@ -282,6 +282,12 @@ final class AttributeEditor
                 }
             }
         }
+        // hidden_when may only name yes/no attributes: another type would leave the others with an id they can no longer save.
+        $hiders = $current && null !== $type && $type !== $current->type ? $this->namesHiddenBy($current) : [];
+        if ($hiders) {
+            $fail('type', \sprintf('Der Typ lässt sich nicht ändern, solange %s damit ausgeblendet %s. Entferne dort zuerst die Ausblendung.',
+                self::quotedList($hiders), 1 === \count($hiders) ? 'wird' : 'werden'));
+        }
 
         $choices = [];
         if (AttributeType::Choice === $type) {
@@ -389,6 +395,29 @@ final class AttributeEditor
         }
 
         return false;
+    }
+
+    /** @return list<string> names of the attributes whose hidden_when names $attribute, in their order */
+    private function namesHiddenBy(Attribute $attribute): array
+    {
+        $id = $attribute->id->toRfc4122();
+
+        return array_values(array_map(
+            static fn (Attribute $a) => $a->name,
+            array_filter(
+                $this->em->getRepository(Attribute::class)->findBy([], ['sortOrder' => 'ASC']),
+                static fn (Attribute $a) => \in_array($id, $a->hiddenWhen, true),
+            ),
+        ));
+    }
+
+    /** @param non-empty-list<string> $names „A“, „B“ und „C“ */
+    private static function quotedList(array $names): string
+    {
+        $quoted = array_map(static fn (string $name) => "„{$name}“", $names);
+        $last = array_pop($quoted);
+
+        return $quoted ? implode(', ', $quoted).' und '.$last : $last;
     }
 
     /** @return list<string> ids of the yes/no attributes except $current itself */
