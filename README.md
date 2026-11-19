@@ -16,13 +16,20 @@ Built pro bono for **V29**, a collective of architects building a publicly funde
 
 Everything is stored on the device first. Out in the woods there is usually no network, so the app works fully offline – including looking up what is already known about a log. New versions install themselves as soon as no unsaved input would be lost.
 
-**Administration** (desktop-first, online only, served below `/admin`; so far a skeleton behind the sign-in): manage attributes, correct or void entries, manage users, evaluate and export data. Until then, these tasks run as console commands.
+**Administration** (desktop-first, online only, served below `/admin`, signs in with the same invite codes):
+
+- Lists of logs and of beams with sorting and filters per column, shareable as links.
+- Detail view of a log or beam: photos, attributes, key figures (round wood, sawn timber, yield) and the history of its changes.
+- Activity: the latest changes of everyone, filterable by period, person and tag.
+- Attributes: create, edit, reorder and deactivate them, with a preview of how the app shows them. Attributes that code refers to (system attributes) are read-only here.
+
+Users, corrections and voids, bulk changes, photo imports and the export are handled with console commands (see below).
 
 ## Design decisions
 
 - **Offline-first with manual upload.** Own entries leave the phone only when someone taps the sync button – people should know when their data has left the phone. Only the download of the current state runs by itself. No background sync (unreliable on iOS).
 - **Append-only event log.** Nothing is ever updated or deleted. Every change is an event; corrections and voids are new events. The current state of each log is a projection computed from the events and can be rebuilt at any time.
-- **Attributes are configuration, not code.** Everything domain-specific – even the wood species – is an attribute V29 defines themselves. A new process step needs no deployment and no migration.
+- **Attributes are configuration, not code.** Everything domain-specific – even the wood species – is an attribute V29 defines themselves in the administration. A new process step needs no deployment and no migration. Only the few attributes that code refers to carry a stable key and come from a YAML file.
 - **Client-generated IDs.** Every log and every event gets a UUID on the device, so re-sending after a failed sync is harmless. The tag number is a label, not the key.
 - **Personal invite codes instead of passwords.** Each person gets a code that signs them in for good; it can be revoked individually.
 - **Same origin for app and API.** No CORS, plain session cookies.
@@ -47,7 +54,7 @@ flowchart LR
 | Part | Technology |
 |---|---|
 | Capture app | Vue 3, TypeScript, Pinia, Vue Router, Tailwind CSS 4, vite-plugin-pwa, IndexedDB |
-| Administration | Vue 3, TypeScript, Vue Router, Tailwind CSS 4 (separate project, no service worker) |
+| Administration | Vue 3, TypeScript, Vue Router, Reka UI, Tailwind CSS 4 (separate project, no service worker) |
 | API | PHP 8.4, Symfony 8, Doctrine ORM and Migrations |
 | Database | MariaDB 11.8 |
 | Tests | Vitest, Vue Test Utils, Playwright, PHPUnit |
@@ -107,7 +114,7 @@ Every command explains its options with `--help`; bulk changes, imports and void
 |---|---|
 | `app:user:create` / `list` / `revoke` | Manage users and invite codes (`create --role=user, admin or superadmin`) |
 | `app:user:role <name or ID> <role>` | Change the role of an active user |
-| `app:attributes:import` | Create and update attributes from YAML; every entry must state `is_series`, `is_inheritable`, `applies_to` (`stem` and/or `beam`: where the app offers the attribute for input) and `hidden_when` (keys of yes/no attributes: while one of them is "ja", the app hides the attribute; may be empty), see `backend/data/attributes.example.yaml` |
+| `app:attributes:import` | Create and update the system attributes (those with a `key`) and their options from YAML, see `backend/data/attributes.example.yaml`. Attributes without a key belong to the administration: the import creates them only if no attribute has that name and never touches them again. The options of the attribute with the key `source` are skipped. Every entry must state `is_series`, `is_inheritable`, `applies_to` (`stem` and/or `beam`: where the app offers the attribute for input) and `hidden_when` (keys of yes/no attributes: while one of them is "ja", the app hides the attribute; may be empty) |
 | `app:attribute:set` / `clear` | Set or clear one attribute on many logs |
 | `app:item:void` / `restore` | Void a log or beam created by mistake, or undo that |
 | `app:photo:import` | Attach existing photos from a CSV |
