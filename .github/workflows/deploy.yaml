@@ -61,6 +61,33 @@ jobs:
           echo "$SSH_PRIVATE_KEY" > key.pem
           chmod 600 key.pem
 
+      # With the code that runs there now, before anything changes. A failed, empty or cut-off dump stops the deploy.
+      # var/ is outside the web root and excluded from rsync, so --delete never touches the backups.
+      - name: Back up the database
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
+          REMOTE_PATH: ${{ secrets.REMOTE_PATH }}
+          PHP_BIN: ${{ vars.PHP_BIN }}
+        run: |
+          NAME="db-$(TZ=Europe/Berlin date +%Y-%m-%d-%H%M%S)-before-${GITHUB_SHA::7}.sql"
+          ssh -i key.pem -o UserKnownHostsFile=known_hosts "$SSH_USERNAME@$SSH_HOST" sh -s -- "$REMOTE_PATH" "$PHP_BIN" "$NAME" <<'SCRIPT'
+          set -e
+          cd "$1"
+          mkdir -p var/backups
+          FILE="var/backups/$3"
+          # mysqldump ends a complete dump with this line; an empty or interrupted file lacks it
+          if ! "$2" bin/console app:db:dump > "$FILE" || ! tail -n 1 "$FILE" | grep -q '^-- Dump completed'; then
+            rm -f "$FILE"
+            echo "Database dump failed or is incomplete; nothing was deployed." >&2
+            exit 1
+          fi
+          gzip "$FILE"
+          ls -1t var/backups/db-*.sql.gz | tail -n +11 | xargs -r rm -f --
+          ls -l "$FILE.gz"
+          SCRIPT
+          echo "Database backup: \`var/backups/$NAME.gz\`" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Upload and migrate
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}

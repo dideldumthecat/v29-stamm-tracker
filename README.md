@@ -139,7 +139,7 @@ ddev share --provider=cloudflared                 # open the printed address on 
 
 ## Deployment
 
-Every push to `main` runs lint, build, unit tests, PHPStan and PHPUnit on GitHub (`.github/workflows/checks.yaml`). A manually started GitHub Actions workflow (`.github/workflows/deploy.yaml`) runs these checks first and then builds the app into `backend/public/` and the administration into `backend/public/admin/`, uploads `backend/` via rsync over SSH, clears the cache and runs migrations on the server.
+Every push to `main` runs lint, build, unit tests, PHPStan and PHPUnit on GitHub (`.github/workflows/checks.yaml`). A manually started GitHub Actions workflow (`.github/workflows/deploy.yaml`) runs these checks first and then builds the app into `backend/public/` and the administration into `backend/public/admin/`, dumps the database on the server (see below), uploads `backend/` via rsync over SSH, clears the cache and runs migrations on the server.
 
 **One-time setup**
 
@@ -152,6 +152,13 @@ Every push to `main` runs lint, build, unit tests, PHPStan and PHPUnit on GitHub
 - Logs in `var/log/`: Symfony log (`prod-*.log`), diagnostics reported by the app (`client-*.log`) and PHP errors (`php-errors.log`, not rotated).
 - Photos live in `var/photos/`, outside the deploy and outside the database dump – back them up separately.
 - Backup: `ssh <host> "cd <path> && <php> bin/console app:db:dump" | gzip > backup-YYYY-MM-DD.sql.gz`
+
+**Database backups and restore**
+
+- Every deploy first dumps the database with the code still running on the server to `var/backups/db-<date>-<time>-before-<commit>.sql.gz` (Berlin time, the commit being deployed; also in the run's summary). If the dump fails, is empty or cut off, the deploy stops before anything is uploaded. The last 10 dumps are kept. `var/` is outside the web root and excluded from rsync.
+- Photos are not in the dump (`var/photos/`, see above).
+- Get a dump: `scp <host>:<REMOTE_PATH>/var/backups/db-….sql.gz .` (to look at it locally: `ddev import-db --file=db-….sql.gz`, replaces the local database).
+- Restore on the server, from `<REMOTE_PATH>`: `gunzip -c var/backups/db-….sql.gz | mysql -h <host> -u <user> -p <database>` with the values of `DATABASE_URL` in `.env.local` (asks for the password). Each table in the dump is dropped and recreated, `doctrine_migration_versions` included; tables that later migrations created stay and have to be dropped by hand. Run the code that matches the dump: deploy the `prod-*` tag that was live before (the commit in the file name is the one that came after it). Everything that reached the server after the dump is lost: the phones drop entries once the server has accepted them and do not send them again.
 
 ## Conventions
 
