@@ -137,11 +137,11 @@ test('the frame: active navigation item, credit, and one 1280px column from head
   await expect(page.getByRole('link', { name: 'Alexander Summa', exact: true })).toBeVisible()
   await signIn(page, 'K7QM4XHT9RDP')
 
-  // the sign-in lands on the dashboard, which has no navigation item
+  // the sign-in lands on the dashboard, the only marked navigation item
   await expect(page.locator('h1')).toHaveText('Dashboard')
   const navigation = page.getByRole('navigation')
-  await expect(navigation.getByRole('link')).toHaveCount(3)
-  await expect(navigation.locator('[aria-current]')).toHaveCount(0)
+  await expect(navigation.getByRole('link')).toHaveCount(4)
+  await expect(navigation.locator('[aria-current]')).toHaveText('Dashboard')
   await navigation.getByRole('link', { name: 'Aktivität', exact: true }).click()
   await expect(page.getByRole('link', { name: 'Aktivität', exact: true })).toHaveAttribute(
     'aria-current',
@@ -942,7 +942,7 @@ test.describe('stem list', () => {
     await page.goto('/admin/activity')
     await signIn(page, 'K7QM4XHT9RDP')
     const links = page.getByRole('navigation').getByRole('link')
-    await expect(links).toHaveText(['Stämme', 'Balken', 'Aktivität'])
+    await expect(links).toHaveText(['Dashboard', 'Stämme', 'Balken', 'Aktivität'])
     await links.filter({ hasText: 'Balken' }).click()
     await expect(page).toHaveURL(/\/admin\/beams$/)
     await expect(page.locator('h1')).toHaveText('Balken')
@@ -964,7 +964,7 @@ test.describe('stem list', () => {
     await expect(page).toHaveURL(/\/admin\/beams\?tags=104-B$/)
 
     // the list of stems has its own filter state
-    await links.first().click()
+    await links.nth(1).click()
     await expect(page).toHaveURL(/\/admin\/stems$/)
     await expect(page.getByText('4 Stämme', { exact: true })).toBeVisible()
 

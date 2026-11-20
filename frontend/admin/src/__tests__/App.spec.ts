@@ -201,12 +201,16 @@ describe('frame', () => {
     await router.push('/activity')
 
     expect(wrapper.findAll('nav a').map((link) => link.text())).toEqual([
+      'Dashboard',
       'Stämme',
       'Balken',
       'Aktivität',
     ])
     const current = wrapper.get('nav [aria-current=page]')
     expect(current.text()).toBe('Aktivität')
+
+    await router.push('/')
+    expect(wrapper.get('nav [aria-current=page]').text()).toBe('Dashboard')
 
     await router.push('/x')
     expect(wrapper.find('nav [aria-current]').exists()).toBe(false)

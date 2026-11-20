@@ -12,6 +12,7 @@ import { useSizeVariable } from '@/sizeVariable'
 
 // Only pages that exist, one line each, in the order of the design: Dashboard, Stämme, Balken, Merkmale, Nutzer, Aktivität.
 const navigation = [
+  { label: 'Dashboard', to: { name: 'dashboard' } },
   { label: 'Stämme', to: { name: 'stems' } },
   { label: 'Balken', to: { name: 'beams' } },
   { label: 'Aktivität', to: { name: 'activity' } },
