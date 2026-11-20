@@ -53,7 +53,7 @@ describe('dashboard', () => {
 
     expect(wrapper.get('h1').text()).toBe('Dashboard')
     expect(wrapper.text()).toContain('Letzter Sync: 19.11.2026, 11:54')
-    expect(cells(wrapper, 'Sägen')).toEqual([
+    expect(cells(wrapper, 'Kennzahlen: Sägen')).toEqual([
       'Stämme gesamt 5',
       'Stämme bearbeitet 4',
       'Stämme nicht bearbeitet 1',
@@ -78,7 +78,7 @@ describe('dashboard', () => {
     )
 
     expect(wrapper.findAll('h2').map((h2) => h2.text())).toEqual([
-      'Sägen',
+      'Kennzahlen: Sägen',
       'Stämme nach Mittendurchmesser',
       'Sortieren',
     ])
@@ -116,7 +116,7 @@ describe('dashboard', () => {
     api.failDashboard(false)
     await wrapper.get('[role=alert] button').trigger('click')
     await flushPromises()
-    expect(cells(wrapper, 'Sägen')).toHaveLength(6)
+    expect(cells(wrapper, 'Kennzahlen: Sägen')).toHaveLength(6)
   })
 
   describe('stems by diameter', () => {

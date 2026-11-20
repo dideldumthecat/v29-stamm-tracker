@@ -174,7 +174,7 @@ final class KeyFigures
     // --- Totals for the dashboard ------------------------------------------------------------------
 
     /**
-     * The section "Sägen". A stem is processed if it is sawn (StemFigures::isSawn(), the rule of ofStems()) or unsawable.
+     * The section "Kennzahlen: Sägen". A stem is processed if it is sawn (StemFigures::isSawn(), the rule of ofStems()) or unsawable.
      * Round wood adds up processed stems, sawn timber every piece of sawn stems (beams, or the stem sawn whole),
      * the yield divides it by the round wood of sawn stems only.
      * Items without a calculable volume are left out of a sum; the note says how many.

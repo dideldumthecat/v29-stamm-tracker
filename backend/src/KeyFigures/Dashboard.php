@@ -27,7 +27,7 @@ final class Dashboard
         return [
             'last_sync_at' => \is_string($last) ? Timestamp::format(new \DateTimeImmutable($last, new \DateTimeZone('UTC'))) : null,
             'sections' => [
-                ['type' => 'figures', 'key' => 'sawing', 'label' => 'Sägen', 'figures' => $this->figures->sawing($measures, $names)],
+                ['type' => 'figures', 'key' => 'sawing', 'label' => 'Kennzahlen: Sägen', 'figures' => $this->figures->sawing($measures, $names)],
                 ['type' => 'diameter_classes', 'key' => 'stems_by_diameter', 'label' => 'Stämme nach Mittendurchmesser', ...$this->figures->diameterClasses($measures, $names)],
             ],
         ];

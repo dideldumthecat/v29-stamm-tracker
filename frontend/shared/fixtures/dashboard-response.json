@@ -4,7 +4,7 @@
     {
       "type": "figures",
       "key": "sawing",
-      "label": "Sägen",
+      "label": "Kennzahlen: Sägen",
       "figures": [
         {
           "key": "stems_total",

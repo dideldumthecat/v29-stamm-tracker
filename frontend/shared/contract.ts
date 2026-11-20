@@ -156,7 +156,7 @@ export interface DashboardFiguresSection {
   type: 'figures'
   /** Stable, e.g. "sawing" */
   key: string
-  /** "Sägen" */
+  /** "Kennzahlen: Sägen" */
   label: string
   figures: DashboardFigure[]
 }
