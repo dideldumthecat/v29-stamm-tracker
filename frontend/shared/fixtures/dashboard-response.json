@@ -2,6 +2,7 @@
   "last_sync_at": "2026-11-19T10:54:00.250Z",
   "sections": [
     {
+      "type": "figures",
       "key": "sawing",
       "label": "Sägen",
       "figures": [
@@ -60,6 +61,80 @@
           "note": "Nur gesägte Stämme gehen ein. Als gesägt zählt ein Stamm, wenn Gesägt angehakt ist, Balken vorhanden sind oder Gesägter Querschnitt erfasst ist. Stämme mit Häkchen bei Nicht sägbar zählen nicht."
         }
       ]
+    },
+    {
+      "type": "diameter_classes",
+      "key": "stems_by_diameter",
+      "label": "Stämme nach Mittendurchmesser",
+      "notes": [
+        {
+          "term": "Stämme",
+          "text": "Alle bearbeiteten Stämme, also gesägt oder nicht sägbar."
+        },
+        {
+          "term": "Durchmesser",
+          "text": "(Durchmesser groß + Durchmesser klein) ÷ 2, auf ganze cm abgerundet. Ist nur einer erfasst, zählt dieser."
+        },
+        {
+          "term": "Klassen",
+          "text": "je 2 cm, z. B. 32–33 cm = 32 und 33 cm."
+        },
+        {
+          "term": "Ausbeute",
+          "text": "Schnittholz ÷ Rundholz der gesägten Stämme der Klasse."
+        },
+        {
+          "term": "Balken je Stamm",
+          "text": "Balken ÷ gesägte Stämme der Klasse. Ein als Ganzes gesägter Stamm zählt als 1 Balken."
+        },
+        {
+          "term": "Nicht sägbar",
+          "text": "zählt nur bei der Anzahl, nicht bei Ausbeute und Balken je Stamm."
+        }
+      ],
+      "rows": [
+        {
+          "from_cm": 30,
+          "to_cm": 32,
+          "stems": 1,
+          "not_sawable": 1,
+          "yield": null,
+          "beams_per_stem": null
+        },
+        {
+          "from_cm": 32,
+          "to_cm": 34,
+          "stems": 1,
+          "not_sawable": 0,
+          "yield": 0.26103826681387216,
+          "beams_per_stem": 1
+        },
+        {
+          "from_cm": 34,
+          "to_cm": 36,
+          "stems": 0,
+          "not_sawable": 0,
+          "yield": null,
+          "beams_per_stem": null
+        },
+        {
+          "from_cm": 36,
+          "to_cm": 38,
+          "stems": 0,
+          "not_sawable": 0,
+          "yield": null,
+          "beams_per_stem": null
+        },
+        {
+          "from_cm": 38,
+          "to_cm": 40,
+          "stems": 1,
+          "not_sawable": 0,
+          "yield": 0.6046908422457612,
+          "beams_per_stem": 4
+        }
+      ],
+      "without_diameter": 1
     }
   ]
 }

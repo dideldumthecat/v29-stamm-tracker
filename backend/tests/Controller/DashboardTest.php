@@ -23,7 +23,8 @@ use Symfony\Component\Uid\Uuid;
 /**
  * GET /api/admin/dashboard. The fixture dashboard-response.json is the expectation for one stem of every kind:
  * split into beams (without the checkmark "sawn": the beams make it sawn), sawn whole, unsawable, sawn without diameter,
- * unprocessed, and a voided one that must not count.
+ * unprocessed, and a voided one that must not count. By diameter: 104 in 38–40, 105 in 32–34, 106 alone and unsawable in 30–32,
+ * two empty classes between, 107 without diameter.
  */
 class DashboardTest extends WebTestCase
 {

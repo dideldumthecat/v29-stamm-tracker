@@ -149,12 +149,44 @@ export interface DashboardResponse {
   sections: DashboardSection[]
 }
 
-export interface DashboardSection {
+/** The type says how the administration renders a section; within a type it knows no key. */
+export type DashboardSection = DashboardFiguresSection | DashboardDiameterSection
+
+export interface DashboardFiguresSection {
+  type: 'figures'
   /** Stable, e.g. "sawing" */
   key: string
   /** "Sägen" */
   label: string
   figures: DashboardFigure[]
+}
+
+/** Processed stems in classes of 2 cm by the mean of both diameters ("stems_by_diameter"). Numbers raw, the administration formats and sorts. */
+export interface DashboardDiameterSection {
+  type: 'diameter_classes'
+  key: string
+  /** "Stämme nach Mittendurchmesser" */
+  label: string
+  /** The whole calculation, one term each ("Durchmesser" …); the texts carry the attribute names from the database */
+  notes: { term: string; text: string }[]
+  /** Ascending by from_cm, from the smallest to the largest class with a stem; empty classes in between with 0 */
+  rows: DiameterClass[]
+  /** Processed stems without any diameter: not in a class */
+  without_diameter: number
+}
+
+export interface DiameterClass {
+  /** A class holds two whole cm (the class diameter is rounded down): 32 and 33 cm are from_cm 32, to_cm 34, shown as "32–33 cm" */
+  from_cm: number
+  /** Not in the class (half-open interval from_cm ≤ d < to_cm): the next class starts here */
+  to_cm: number
+  /** Processed stems, the unsawable ones included */
+  stems: number
+  not_sawable: number
+  /** Sawn timber ÷ round wood of the sawn stems, 0–1; null without a sawn stem */
+  yield: number | null
+  /** Beams ÷ sawn stems, a stem sawn whole is one beam; null without a sawn stem */
+  beams_per_stem: number | null
 }
 
 export interface DashboardFigure {

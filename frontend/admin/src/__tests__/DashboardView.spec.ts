@@ -1,7 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { enableAutoUnmount, flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { createMemoryHistory } from 'vue-router'
-import type { DashboardResponse } from '@v29/shared/contract'
+import type {
+  DashboardDiameterSection,
+  DashboardFiguresSection,
+  DashboardResponse,
+} from '@v29/shared/contract'
 import dashboardFixture from '@v29/shared/fixtures/dashboard-response.json' with { type: 'json' }
 
 import { user } from '@/auth'
@@ -12,6 +16,8 @@ import { popup, pressEscape, stubBrowser } from './popup'
 
 const CODE = 'K7QM-4XHT-9RDP'
 const fixture = dashboardFixture as DashboardResponse
+const sawing = fixture.sections[0] as DashboardFiguresSection
+const byDiameter = fixture.sections[1] as DashboardDiameterSection
 
 async function open(prepare: (api: ReturnType<typeof fakeApi>) => void = () => {}) {
   const api = fakeApi({ [CODE]: 'admin' })
@@ -58,19 +64,24 @@ describe('dashboard', () => {
   })
 
   it('shows a further section without knowing it, and no sync line without events', async () => {
-    const sorting = {
+    const sorting: DashboardFiguresSection = {
+      type: 'figures',
       key: 'sorting',
       label: 'Sortieren',
       figures: [
-        { ...fixture.sections[0]!.figures[0]!, key: 'sorted', label: 'Sortiert', value: 1300 },
-        { ...fixture.sections[0]!.figures[5]!, value: null },
+        { ...sawing.figures[0]!, key: 'sorted', label: 'Sortiert', value: 1300 },
+        { ...sawing.figures[5]!, value: null },
       ],
     }
     const { wrapper } = await open((api) =>
       api.setDashboard({ last_sync_at: null, sections: [...fixture.sections, sorting] }),
     )
 
-    expect(wrapper.findAll('h2').map((h2) => h2.text())).toEqual(['Sägen', 'Sortieren'])
+    expect(wrapper.findAll('h2').map((h2) => h2.text())).toEqual([
+      'Sägen',
+      'Stämme nach Mittendurchmesser',
+      'Sortieren',
+    ])
     expect(cells(wrapper, 'Sortieren')).toEqual(['Sortiert 1.300', 'Ausbeute –'])
     expect(wrapper.text()).not.toContain('Letzter Sync')
   })
@@ -106,5 +117,167 @@ describe('dashboard', () => {
     await wrapper.get('[role=alert] button').trigger('click')
     await flushPromises()
     expect(cells(wrapper, 'Sägen')).toHaveLength(6)
+  })
+
+  describe('stems by diameter', () => {
+    const table = (wrapper: VueWrapper) => wrapper.get('table')
+    const rows = (wrapper: VueWrapper) =>
+      table(wrapper)
+        .findAll('tbody tr')
+        .map((row) =>
+          row
+            .findAll('th, td')
+            .map((cell) => squeezed(cell.text()))
+            .join(' | '),
+        )
+    const diameters = (wrapper: VueWrapper) =>
+      table(wrapper)
+        .findAll('tbody th')
+        .map((th) => squeezed(th.text()).replace(/ davon.*/, ''))
+    const header = (wrapper: VueWrapper, label: string) =>
+      table(wrapper)
+        .findAll('thead th')
+        .find((th) => th.text() === label)!
+    const sortBy = (wrapper: VueWrapper, label: string) =>
+      header(wrapper, label).get('button').trigger('click')
+
+    it('shows the notes as terms behind the info button, the classes by diameter descending and the row without diameter last', async () => {
+      const { wrapper } = await open()
+
+      expect(table(wrapper).element.closest('section')!.querySelector('dl')).toBeNull()
+      await wrapper
+        .get('button[aria-label="Erklärung zeigen: Stämme nach Mittendurchmesser"]')
+        .trigger('click')
+      const notes = popup()!
+      expect([...notes.querySelectorAll('dt')].map((dt) => dt.textContent)).toEqual([
+        'Stämme',
+        'Durchmesser',
+        'Klassen',
+        'Ausbeute',
+        'Balken je Stamm',
+        'Nicht sägbar',
+      ])
+      expect([...notes.querySelectorAll('dd')].map((dd) => dd.textContent)).toEqual(
+        byDiameter.notes.map((note) => note.text),
+      )
+      pressEscape()
+      await flushPromises()
+      expect(popup()).toBeNull()
+
+      expect(rows(wrapper)).toEqual([
+        '38–39 cm |  | 1 | Ausbeute 60,5 % | Balken je Stamm 4,0',
+        '36–37 cm |  | 0 | Ausbeute – | Balken je Stamm –',
+        '34–35 cm |  | 0 | Ausbeute – | Balken je Stamm –',
+        '32–33 cm |  | 1 | Ausbeute 26,1 % | Balken je Stamm 1,0',
+        '30–31 cm davon 1 nicht sägbar |  | 1 | Ausbeute – | Balken je Stamm –',
+        'ohne Durchmesser |  | 1 |  | ',
+      ])
+      expect(header(wrapper, 'Durchmesser').attributes('aria-sort')).toBe('descending')
+      expect(header(wrapper, 'Ausbeute').attributes('aria-sort')).toBeUndefined()
+    })
+
+    it('draws each bar relative to the largest row, with a text', async () => {
+      const { wrapper } = await open((api) =>
+        api.setDashboard({
+          ...fixture,
+          sections: [{ ...byDiameter, without_diameter: 2 }],
+        }),
+      )
+
+      const bars = table(wrapper).findAll('[role=img][style]')
+      expect(bars.map((bar) => [bar.attributes('aria-label'), bar.attributes('style')])).toEqual([
+        ['1 Stamm', 'width: 50%;'],
+        ['0 Stämme', 'width: 0%;'],
+        ['0 Stämme', 'width: 0%;'],
+        ['1 Stamm', 'width: 50%;'],
+        ['1 Stamm', 'width: 50%;'],
+        ['2 Stämme', 'width: 100%;'],
+      ])
+    })
+
+    it('sorts on every column, a click turns the direction, the row without diameter stays last', async () => {
+      const { wrapper } = await open()
+
+      await sortBy(wrapper, 'Durchmesser')
+      expect(header(wrapper, 'Durchmesser').attributes('aria-sort')).toBe('ascending')
+      expect(diameters(wrapper)).toEqual([
+        '30–31 cm',
+        '32–33 cm',
+        '34–35 cm',
+        '36–37 cm',
+        '38–39 cm',
+        'ohne Durchmesser',
+      ])
+
+      // another column starts descending; equal counts by diameter descending
+      await sortBy(wrapper, 'Stämme')
+      expect(header(wrapper, 'Stämme').attributes('aria-sort')).toBe('descending')
+      expect(header(wrapper, 'Durchmesser').attributes('aria-sort')).toBeUndefined()
+      expect(diameters(wrapper)).toEqual([
+        '38–39 cm',
+        '32–33 cm',
+        '30–31 cm',
+        '36–37 cm',
+        '34–35 cm',
+        'ohne Durchmesser',
+      ])
+      await sortBy(wrapper, 'Stämme')
+      expect(diameters(wrapper)).toEqual([
+        '36–37 cm',
+        '34–35 cm',
+        '38–39 cm',
+        '32–33 cm',
+        '30–31 cm',
+        'ohne Durchmesser',
+      ])
+
+      // "–" last in both directions
+      await sortBy(wrapper, 'Ausbeute')
+      expect(diameters(wrapper)).toEqual([
+        '38–39 cm',
+        '32–33 cm',
+        '36–37 cm',
+        '34–35 cm',
+        '30–31 cm',
+        'ohne Durchmesser',
+      ])
+      await sortBy(wrapper, 'Ausbeute')
+      expect(header(wrapper, 'Ausbeute').attributes('aria-sort')).toBe('ascending')
+      expect(diameters(wrapper)).toEqual([
+        '32–33 cm',
+        '38–39 cm',
+        '36–37 cm',
+        '34–35 cm',
+        '30–31 cm',
+        'ohne Durchmesser',
+      ])
+
+      await sortBy(wrapper, 'Balken je Stamm')
+      expect(diameters(wrapper)).toEqual([
+        '38–39 cm',
+        '32–33 cm',
+        '36–37 cm',
+        '34–35 cm',
+        '30–31 cm',
+        'ohne Durchmesser',
+      ])
+      await sortBy(wrapper, 'Balken je Stamm')
+      expect(diameters(wrapper)).toEqual([
+        '32–33 cm',
+        '38–39 cm',
+        '36–37 cm',
+        '34–35 cm',
+        '30–31 cm',
+        'ohne Durchmesser',
+      ])
+    })
+
+    it('has no row without diameter if every stem has one', async () => {
+      const { wrapper } = await open((api) =>
+        api.setDashboard({ ...fixture, sections: [{ ...byDiameter, without_diameter: 0 }] }),
+      )
+
+      expect(diameters(wrapper)).not.toContain('ohne Durchmesser')
+    })
   })
 })

@@ -14,7 +14,7 @@ final class Dashboard
     }
 
     /**
-     * @return array{last_sync_at: ?string, sections: list<array{key: string, label: string, figures: list<DashboardFigure>}>}
+     * @return array{last_sync_at: ?string, sections: list<array<string, mixed>>}
      *
      * @throws \RuntimeException if an attribute the figures need does not exist
      */
@@ -26,7 +26,10 @@ final class Dashboard
 
         return [
             'last_sync_at' => \is_string($last) ? Timestamp::format(new \DateTimeImmutable($last, new \DateTimeZone('UTC'))) : null,
-            'sections' => [['key' => 'sawing', 'label' => 'Sägen', 'figures' => $this->figures->sawing($measures, $names)]],
+            'sections' => [
+                ['type' => 'figures', 'key' => 'sawing', 'label' => 'Sägen', 'figures' => $this->figures->sawing($measures, $names)],
+                ['type' => 'diameter_classes', 'key' => 'stems_by_diameter', 'label' => 'Stämme nach Mittendurchmesser', ...$this->figures->diameterClasses($measures, $names)],
+            ],
         ];
     }
 }

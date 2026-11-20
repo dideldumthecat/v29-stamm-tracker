@@ -226,6 +226,56 @@ test('signing out leads every page back to the sign-in', async ({ page }) => {
   await expect(page).toHaveURL(/\/admin\/login\?redirect=/)
 })
 
+test.describe('dashboard: stems by diameter', () => {
+  const card = (page: Page) =>
+    page.getByRole('region', { name: 'Stämme nach Mittendurchmesser', exact: true })
+  const diameters = (page: Page) => card(page).getByRole('rowheader')
+  const header = (page: Page, name: string) =>
+    card(page).getByRole('columnheader', { name, exact: true })
+
+  test('sorts by every column, a click turns the direction, the row without diameter stays last', async ({
+    page,
+  }) => {
+    await page.goto('/admin/')
+    await signIn(page, 'K7QM4XHT9RDP')
+
+    await expect(header(page, 'Durchmesser')).toHaveAttribute('aria-sort', 'descending')
+    await expect(diameters(page)).toHaveText([
+      '38–39 cm',
+      '36–37 cm',
+      '34–35 cm',
+      '32–33 cm',
+      /^30–31 cm\s*davon 1 nicht sägbar$/,
+      'ohne Durchmesser',
+    ])
+
+    await header(page, 'Ausbeute').getByRole('button').click()
+    await expect(header(page, 'Ausbeute')).toHaveAttribute('aria-sort', 'descending')
+    await expect(header(page, 'Durchmesser')).not.toHaveAttribute('aria-sort')
+    await expect(diameters(page).first()).toHaveText('38–39 cm')
+    await header(page, 'Ausbeute').getByRole('button').click()
+    await expect(header(page, 'Ausbeute')).toHaveAttribute('aria-sort', 'ascending')
+    await expect(diameters(page).first()).toHaveText('32–33 cm')
+    await expect(diameters(page).last()).toHaveText('ohne Durchmesser')
+  })
+
+  test('stacks each row on a narrow screen: the bar below the diameter, yield and beams per stem named', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 800 })
+    await page.goto('/admin/')
+    await signIn(page, 'K7QM4XHT9RDP')
+
+    const row = card(page).getByRole('row', { name: /^32–33 cm/ })
+    const top = async (locator: Locator) => (await locator.boundingBox())!.y
+    expect(await top(row.getByRole('img', { name: '1 Stamm', exact: true }))).toBeGreaterThan(
+      await top(row.getByRole('rowheader')),
+    )
+    await expect(row.getByText('Ausbeute 26,1 %', { exact: true })).toBeVisible()
+    await expect(row.getByText('Balken je Stamm 1,0', { exact: true })).toBeVisible()
+  })
+})
+
 test.describe('activity', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/admin/activity')

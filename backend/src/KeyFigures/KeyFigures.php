@@ -244,6 +244,82 @@ final class KeyFigures
         ];
     }
 
+    /**
+     * The section "Stämme nach Mittendurchmesser": processed stems (as in sawing()) in classes of two whole cm (32 and 33 cm: from_cm 32, to_cm 34).
+     * The class diameter is the mean of both diameters rounded down to whole cm, or the one recorded (RoundWood holds it twice then).
+     * Classes run from the smallest to the largest one with a stem, empty ones in between included. Yield and beams per stem count
+     * sawn stems only, missing volumes are left out as in sawing(); a stem sawn whole is one beam.
+     *
+     * @param list<Measures>        $items all stems and beams that are not voided
+     * @param array<string, string> $names attribute names by key
+     *
+     * @return array{notes: list<array{term: string, text: string}>, rows: list<array{from_cm: int, to_cm: int, stems: int, not_sawable: int, yield: ?float, beams_per_stem: int|float|null}>, without_diameter: int}
+     */
+    public function diameterClasses(array $items, array $names): array
+    {
+        $figures = $this->ofStems($items);
+        $empty = ['stems' => 0, 'not_sawable' => 0, 'sawn' => 0, 'beams' => 0, 'sawn_timber' => 0.0, 'round_wood' => 0.0];
+        $classes = [];
+        $withoutDiameter = 0;
+        foreach ($items as $stem) {
+            if (null !== $stem->parentId) {
+                continue;
+            }
+            $stemFigures = $figures[$stem->id];
+            $sawn = $stemFigures->isSawn();
+            if (!$sawn && !$stem->unsawableMarked) {
+                continue;
+            }
+            $round = $stemFigures->roundWood;
+            if (null === $round->diameterMax || null === $round->diameterMin) {
+                ++$withoutDiameter;
+                continue;
+            }
+            // Rounded first, so that 33.3 + 34.7 lands on 34 and not on 33.99999…
+            $from = intdiv((int) floor(round(($round->diameterMax + $round->diameterMin) / 2, 6)), 2) * 2;
+            $classes[$from] ??= $empty;
+            ++$classes[$from]['stems'];
+            if (!$sawn) {
+                ++$classes[$from]['not_sawable'];
+                continue;
+            }
+            ++$classes[$from]['sawn'];
+            $classes[$from]['beams'] += \count($stemFigures->sawnTimber->pieces);
+            foreach ($stemFigures->sawnTimber->pieces as $piece) {
+                $classes[$from]['sawn_timber'] += $piece->volume ?? 0.0;
+            }
+            $classes[$from]['round_wood'] += $round->volume ?? 0.0;
+        }
+
+        $rows = [];
+        if ([] !== $classes) {
+            for ($from = min(array_keys($classes)); $from <= max(array_keys($classes)); $from += 2) {
+                $class = $classes[$from] ?? $empty;
+                $rows[] = [
+                    'from_cm' => $from,
+                    'to_cm' => $from + 2,
+                    'stems' => $class['stems'],
+                    'not_sawable' => $class['not_sawable'],
+                    'yield' => $class['round_wood'] > 0 ? $class['sawn_timber'] / $class['round_wood'] : null,
+                    'beams_per_stem' => $class['sawn'] > 0 ? $class['beams'] / $class['sawn'] : null,
+                ];
+            }
+        }
+
+        return [
+            'notes' => [
+                ['term' => 'Stämme', 'text' => 'Alle bearbeiteten Stämme, also gesägt oder nicht sägbar.'],
+                ['term' => 'Durchmesser', 'text' => \sprintf('(%s + %s) ÷ 2, auf ganze cm abgerundet. Ist nur einer erfasst, zählt dieser.', $names['mid_diameter_max'], $names['mid_diameter_min'])],
+                ['term' => 'Klassen', 'text' => 'je 2 cm, z. B. 32–33 cm = 32 und 33 cm.'],
+                ['term' => 'Ausbeute', 'text' => 'Schnittholz ÷ Rundholz der gesägten Stämme der Klasse.'],
+                ['term' => 'Balken je Stamm', 'text' => 'Balken ÷ gesägte Stämme der Klasse. Ein als Ganzes gesägter Stamm zählt als 1 Balken.'],
+                ['term' => 'Nicht sägbar', 'text' => 'zählt nur bei der Anzahl, nicht bei Ausbeute und Balken je Stamm.'],
+            ],
+            'rows' => $rows,
+            'without_diameter' => $withoutDiameter,
+        ];
+    }
+
     /** " 3 bearbeitete Stämme ohne Durchmesser oder Länge fehlen in der Summe."; empty if none. */
     private static function leftOut(int $count, string $one, string $many, string $what): string
     {
