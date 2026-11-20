@@ -433,6 +433,25 @@ describe('the settings', () => {
     expect(settings(wrapper).text()).not.toContain('Systemmerkmal:')
   })
 
+  it('points the options of the piles to the page "Polter"; their options are text, not fields', async () => {
+    const { wrapper } = await open('/attributes', (api) => {
+      Object.assign(attributeOf(api, 'Holzart'), { key: 'source', is_system: true })
+    })
+    await field(wrapper, 'Holzart').trigger('click')
+    await flushPromises()
+
+    const hint = settings(wrapper).get('[data-piles-hint]')
+    expect(squeezed(hint.text())).toBe(
+      'Die Optionen sind die Polter. Du pflegst sie auf der Seite Polter.',
+    )
+    expect(hint.get('a').attributes('href')).toBe('/piles')
+    expect(settings(wrapper).find('input[aria-label="Auswahl-Option 1"]').exists()).toBe(false)
+
+    await field(wrapper, 'Gesägt').trigger('click')
+    await flushPromises()
+    expect(settings(wrapper).find('[data-piles-hint]').exists()).toBe(false)
+  })
+
   /** The labels of the rows, top to bottom (the first child of a row is its label). */
   const rowLabels = (wrapper: VueWrapper) =>
     settings(wrapper)

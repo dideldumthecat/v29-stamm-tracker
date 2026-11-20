@@ -17,6 +17,7 @@ const route = useRoute()
 const items = [
   { label: 'Merkmale', to: { name: 'attributes' } },
   { label: 'Nutzer', to: { name: 'users' } },
+  { label: 'Polter', to: { name: 'piles' } },
 ]
 </script>
 

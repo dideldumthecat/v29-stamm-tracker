@@ -107,7 +107,7 @@ describe('the table', () => {
     const labels = [...document.querySelectorAll('[role=menuitem]')].map((item) =>
       item.textContent!.trim(),
     )
-    expect(labels).toEqual(['Merkmale', 'Nutzer'])
+    expect(labels).toEqual(['Merkmale', 'Nutzer', 'Polter'])
   })
 
   it('shows the error state when loading fails', async () => {

@@ -5,6 +5,7 @@ import keyFiguresFixture from '@v29/shared/fixtures/key-figures-response.json' w
 
 import { activityAnswer } from '../src/__tests__/fakeActivity'
 import { createFakeAttributes } from '../src/__tests__/fakeAttributes'
+import { createFakePiles } from '../src/__tests__/fakePiles'
 import { createFakeUsers } from '../src/__tests__/fakeUsers'
 import { snapshotFixture, stemPhotos } from '../src/__tests__/fakeSnapshot'
 
@@ -22,6 +23,7 @@ async function fakeApi(page: Page) {
   let role: string | null = null
   const attributes = createFakeAttributes()
   const users = createFakeUsers()
+  const piles = createFakePiles()
   await page.route('**/api/**', async (route) => {
     const request = route.request()
     const path = new URL(request.url()).pathname
@@ -58,6 +60,12 @@ async function fakeApi(page: Page) {
     if (path.startsWith('/api/admin/attributes')) {
       if (!role) return route.fulfill({ status: 401 })
       const answer = attributes.handle(request.method(), path, request.postDataJSON())
+      return route.fulfill({ status: answer?.status ?? 404, json: answer?.json })
+    }
+    if (path.startsWith('/api/admin/piles')) {
+      if (!role) return route.fulfill({ status: 401 })
+      const body = request.postData() ? request.postDataJSON() : undefined
+      const answer = piles.handle(request.method(), path, body)
       return route.fulfill({ status: answer?.status ?? 404, json: answer?.json })
     }
     if (path.startsWith('/api/admin/users')) {
@@ -2394,4 +2402,53 @@ test.describe('users', () => {
       expect(overflow).toBe(0)
     })
   }
+})
+
+test.describe('piles', () => {
+  const pile = (page: Page, label: string) => page.locator(`[data-pile="${label}"]`)
+  const card = (page: Page, label: string) =>
+    page.getByRole('region', { name: `Polter ${label} bearbeiten`, exact: true })
+
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/admin/activity')
+    await signIn(page, 'K7QM4XHT9RDP')
+    await page.getByRole('button', { name: 'Verwaltung', exact: true }).click()
+    await page.getByRole('menuitem', { name: 'Polter', exact: true }).click()
+    await expect(page).toHaveURL(/\/admin\/piles$/)
+    await expect(page.getByText('4 Polter', { exact: true })).toBeVisible()
+  })
+
+  test('adds a pile with a position in degrees, minutes and seconds', async ({ page }) => {
+    await page.getByRole('button', { name: 'Polter hinzufügen', exact: true }).click()
+    await page.getByLabel('Nummer', { exact: false }).fill('2601-010145')
+    await page.getByLabel('Lagerort', { exact: true }).fill('Krummes F')
+    await page.getByLabel('Raummeter', { exact: true }).fill('51,52')
+    await page.getByLabel('Breite (Nord)', { exact: true }).fill(`51°24'47"`)
+    await page.getByLabel('Länge (Ost)', { exact: true }).fill('13°03′38″')
+    await expect(page.getByText('= 51,413056', { exact: true })).toBeVisible()
+    await page.getByRole('button', { name: 'Speichern', exact: true }).click()
+
+    await expect(page.getByText('5 Polter', { exact: true })).toBeVisible()
+    await expect(pile(page, '2601-010145 (Krummes F)')).toContainText('51,52 Rm')
+  })
+
+  test('asks for the number when it is missing', async ({ page }) => {
+    await page.getByRole('button', { name: 'Polter hinzufügen', exact: true }).click()
+    await page.getByLabel('Lagerort', { exact: true }).fill('Am Bach')
+    await page.getByRole('button', { name: 'Speichern', exact: true }).click()
+
+    await expect(page.getByRole('alert')).toHaveText('Bitte eine Nummer eingeben.')
+    await expect(page.getByText('4 Polter', { exact: true })).toBeVisible()
+  })
+
+  test('edits a pile: the label follows number and location', async ({ page }) => {
+    await pile(page, '01').getByRole('button').click()
+    await card(page, '01').getByLabel('Nummer', { exact: false }).fill('2601-010145')
+    await card(page, '01').getByLabel('Lagerort', { exact: true }).fill('Krummes F')
+    await card(page, '01').getByRole('button', { name: 'Speichern', exact: true }).click()
+
+    await expect(pile(page, '2601-010145 (Krummes F)')).toBeVisible()
+    await expect(pile(page, '01')).toHaveCount(0)
+    await expect(card(page, '01')).toHaveCount(0)
+  })
 })

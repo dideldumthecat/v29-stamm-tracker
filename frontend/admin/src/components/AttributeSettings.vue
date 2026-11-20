@@ -513,6 +513,11 @@ function newOptionLabel(option: AttributeDraft['options'][number]) {
                     <span v-if="!option.active" class="ml-2 text-sm text-mute">(deaktiviert)</span>
                   </li>
                 </ul>
+                <!-- The piles are options with master data of their own: they are maintained on their page -->
+                <p v-if="attribute.key === 'source'" class="mt-2 text-sm text-mute" data-piles-hint>
+                  Die Optionen sind die Polter. Du pflegst sie auf der Seite
+                  <RouterLink :to="{ name: 'piles' }" class="underline">Polter</RouterLink>.
+                </p>
               </dd>
             </div>
           </dl>

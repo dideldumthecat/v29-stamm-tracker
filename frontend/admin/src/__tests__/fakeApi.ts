@@ -6,6 +6,7 @@ import keyFiguresFixture from '@v29/shared/fixtures/key-figures-response.json' w
 
 import { activityAnswer } from './fakeActivity'
 import { createFakeAttributes } from './fakeAttributes'
+import { createFakePiles } from './fakePiles'
 import { createFakeUsers } from './fakeUsers'
 import { snapshotFixture } from './fakeSnapshot'
 
@@ -25,6 +26,8 @@ export function fakeApi(codes: Record<string, string>, { offline = false, pageSi
   let snapshot: Snapshot = snapshotFixture
   const attributes = createFakeAttributes()
   const users = createFakeUsers()
+  const piles = createFakePiles()
+  let pilesFail = false
   let usersFail = false
   let attributesFail = false
   const calls: string[] = []
@@ -78,6 +81,13 @@ export function fakeApi(codes: Record<string, string>, { offline = false, pageSi
         const answer = attributes.handle(init.method!, url, body)
         if (answer) return json(answer.status, answer.json)
       }
+      if (url.startsWith('/api/admin/piles')) {
+        if (!role) return json(401)
+        if (pilesFail) return json(500)
+        const body = init.body ? JSON.parse(init.body as string) : undefined
+        const answer = piles.handle(init.method!, url, body)
+        if (answer) return json(answer.status, answer.json)
+      }
       if (url.startsWith('/api/admin/users')) {
         if (!role) return json(401)
         if (usersFail) return json(500)
@@ -101,7 +111,9 @@ export function fakeApi(codes: Record<string, string>, { offline = false, pageSi
     setDashboard: (next: DashboardResponse) => (dashboard = next),
     failAttributes: (fails = true) => (attributesFail = fails),
     failUsers: (fails = true) => (usersFail = fails),
+    failPiles: (fails = true) => (pilesFail = fails),
     attributes,
     users,
+    piles,
   }
 }
