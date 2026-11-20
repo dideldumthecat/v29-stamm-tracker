@@ -1,0 +1,40 @@
+{
+  "piles": [
+    {
+      "id": "00000000-0000-7000-8000-0000000000a1",
+      "label": "2601-000001 (Beispielwald Nord)",
+      "number": "2601-000001",
+      "location": "Beispielwald Nord",
+      "latitude": 51.413056,
+      "longitude": 13.060556,
+      "stacked_volume": 51.52
+    },
+    {
+      "id": "00000000-0000-7000-8000-0000000000a2",
+      "label": "2601-000002",
+      "number": "2601-000002",
+      "location": null,
+      "latitude": null,
+      "longitude": null,
+      "stacked_volume": null
+    },
+    {
+      "id": "00000000-0000-7000-8000-0000000000a3",
+      "label": "2601-000003 (Lagerplatz am Weg)",
+      "number": "2601-000003",
+      "location": "Lagerplatz am Weg",
+      "latitude": 51.4,
+      "longitude": 13.05,
+      "stacked_volume": 8
+    },
+    {
+      "id": "00000000-0000-7000-8000-0000000000a4",
+      "label": "01",
+      "number": null,
+      "location": null,
+      "latitude": null,
+      "longitude": null,
+      "stacked_volume": null
+    }
+  ]
+}

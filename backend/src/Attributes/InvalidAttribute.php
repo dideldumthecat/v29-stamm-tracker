@@ -2,7 +2,7 @@
 
 namespace App\Attributes;
 
-/** Request that breaks a rule of AttributeEditor; the messages are German, ready for display. */
+/** Request that breaks a rule of AttributeEditor or PileEditor; the messages are German, ready for display. */
 final class InvalidAttribute extends \RuntimeException
 {
     /** @param list<array{field: string, message: string}> $errors */

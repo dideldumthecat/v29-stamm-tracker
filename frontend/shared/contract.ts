@@ -370,6 +370,50 @@ export interface AttributeErrorsResponse {
   errors: { field: string; message: string }[]
 }
 
+// --- /api/admin/piles --------------------------------------------------------
+// Master data of the piles ("Polter") from the handover record of the forestry office (roles admin and superadmin, otherwise 403).
+// A pile is an option of the attribute with the key 'source'; the value recorded on a timber item stays the option id, so the app, the sync and
+// the snapshot do not change. The server derives the label of the option on every save: "number (location)", or only the number, and overwrites
+// the option with it. Nothing is deleted and the administration does not deactivate piles (the activity of the option stays as it is). No events,
+// not in the activity list.
+
+/** GET /api/admin/piles: every option of the attribute with key 'source', in order, inactive options too. An option without master data has null fields. */
+export interface AdminPilesResponse {
+  piles: AdminPile[]
+}
+
+export interface AdminPile {
+  /** The option id. */
+  id: Uuid
+  /** As stored on the option, the one the app shows. */
+  label: string
+  /** The forester's pile number, free text; null only for an option that has no master data yet. */
+  number: string | null
+  /** Storage place per forester. */
+  location: string | null
+  /** Decimal degrees. */
+  latitude: number | null
+  longitude: number | null
+  /** Raummeter. */
+  stacked_volume: number | null
+}
+
+/**
+ * POST /api/admin/piles (answers 201 with the AdminPile; creates the option, appended at the end, and its master data; fields left out are null,
+ * a missing number is 422) and PATCH /api/admin/piles/{id} (answers 200 with the AdminPile; fields left out stay as they are; 404 for an unknown id;
+ * the master data of an option that had none is created with the first PATCH, which needs the number).
+ * Status 422 as AttributeErrorsResponse, field = the field of AdminPileInput. Rules, all violations at once: the number is set (texts are trimmed,
+ * empty = null, at most 32 and 200 characters), no other pile has the same number or the same label, latitude (-90 to 90) and longitude
+ * (-180 to 180) come together or not at all, stacked_volume is above 0 with at most two decimals.
+ */
+export interface AdminPileInput {
+  number: string
+  location: string | null
+  latitude: number | null
+  longitude: number | null
+  stacked_volume: number | null
+}
+
 export interface TimberItem {
   id: Uuid
   /** Set for beams: the timber item they were cut from. */

@@ -18,5 +18,6 @@ $connection = DriverManager::getConnection([
     ...(new DsnParser(['mysql' => 'pdo_mysql']))->parse($_SERVER['DATABASE_URL']),
     'dbname' => 'db_test',
 ]);
+$connection->executeStatement('DELETE FROM piles');
 $connection->executeStatement('DELETE FROM attribute_options');
 $connection->executeStatement('DELETE FROM attributes');
