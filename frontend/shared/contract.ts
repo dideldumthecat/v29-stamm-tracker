@@ -185,8 +185,10 @@ export interface DiameterClass {
   not_sawable: number
   /** Sawn timber ÷ round wood of the sawn stems, 0–1; null without a sawn stem */
   yield: number | null
-  /** Beams ÷ sawn stems, a stem sawn whole is one beam; null without a sawn stem */
-  beams_per_stem: number | null
+  /** Large beams ÷ sawn stems, a stem sawn whole is one beam; null without a sawn stem. Large: shorter side of the cross-section ≥ 12 cm; without a readable cross-section a beam counts in neither */
+  beams_per_stem_large: number | null
+  /** Small beams (shorter side < 12 cm) ÷ sawn stems, as beams_per_stem_large */
+  beams_per_stem_small: number | null
 }
 
 export interface DashboardFigure {

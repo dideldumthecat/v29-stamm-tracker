@@ -15,6 +15,8 @@ namespace App\KeyFigures;
  */
 final class KeyFigures
 {
+    /** Wanted format 14×14 is large, 10×14 small: the shorter side in cm decides. */
+    private const LARGE_BEAM_MIN_SIDE_CM = 12;
     private const PRELIMINARY = 'Vorläufige Formel: Durchmesser mit Rinde, kein Abzug.';
 
     // --- Numbers ---------------------------------------------------------------------------------
@@ -249,16 +251,17 @@ final class KeyFigures
      * The class diameter is the mean of both diameters rounded down to whole cm, or the one recorded (RoundWood holds it twice then).
      * Classes run from the smallest to the largest one with a stem, empty ones in between included. Yield and beams per stem count
      * sawn stems only, missing volumes are left out as in sawing(); a stem sawn whole is one beam.
+     * Beams are large or small by the shorter side of their cross-section; one without a readable cross-section counts in neither.
      *
      * @param list<Measures>        $items all stems and beams that are not voided
-     * @param array<string, string> $names attribute names by key
+     * @param array<string, string> $names attribute names by key, with sawn_cross_section
      *
-     * @return array{notes: list<array{term: string, text: string}>, rows: list<array{from_cm: int, to_cm: int, stems: int, not_sawable: int, yield: ?float, beams_per_stem: int|float|null}>, without_diameter: int}
+     * @return array{notes: list<array{term: string, text: string}>, rows: list<array{from_cm: int, to_cm: int, stems: int, not_sawable: int, yield: ?float, beams_per_stem_large: int|float|null, beams_per_stem_small: int|float|null}>, without_diameter: int}
      */
     public function diameterClasses(array $items, array $names): array
     {
         $figures = $this->ofStems($items);
-        $empty = ['stems' => 0, 'not_sawable' => 0, 'sawn' => 0, 'beams' => 0, 'sawn_timber' => 0.0, 'round_wood' => 0.0];
+        $empty = ['stems' => 0, 'not_sawable' => 0, 'sawn' => 0, 'large' => 0, 'small' => 0, 'sawn_timber' => 0.0, 'round_wood' => 0.0];
         $classes = [];
         $withoutDiameter = 0;
         foreach ($items as $stem) {
@@ -284,9 +287,11 @@ final class KeyFigures
                 continue;
             }
             ++$classes[$from]['sawn'];
-            $classes[$from]['beams'] += \count($stemFigures->sawnTimber->pieces);
             foreach ($stemFigures->sawnTimber->pieces as $piece) {
                 $classes[$from]['sawn_timber'] += $piece->volume ?? 0.0;
+                if (null !== $piece->width && null !== $piece->height) {
+                    ++$classes[$from][min($piece->width, $piece->height) >= self::LARGE_BEAM_MIN_SIDE_CM ? 'large' : 'small'];
+                }
             }
             $classes[$from]['round_wood'] += $round->volume ?? 0.0;
         }
@@ -301,7 +306,8 @@ final class KeyFigures
                     'stems' => $class['stems'],
                     'not_sawable' => $class['not_sawable'],
                     'yield' => $class['round_wood'] > 0 ? $class['sawn_timber'] / $class['round_wood'] : null,
-                    'beams_per_stem' => $class['sawn'] > 0 ? $class['beams'] / $class['sawn'] : null,
+                    'beams_per_stem_large' => $class['sawn'] > 0 ? $class['large'] / $class['sawn'] : null,
+                    'beams_per_stem_small' => $class['sawn'] > 0 ? $class['small'] / $class['sawn'] : null,
                 ];
             }
         }
@@ -311,9 +317,10 @@ final class KeyFigures
                 ['term' => 'Stämme', 'text' => 'Alle bearbeiteten Stämme, also gesägt oder nicht sägbar.'],
                 ['term' => 'Durchmesser', 'text' => \sprintf('(%s + %s) ÷ 2, auf ganze cm abgerundet. Ist nur einer erfasst, zählt dieser.', $names['mid_diameter_max'], $names['mid_diameter_min'])],
                 ['term' => 'Klassen', 'text' => 'je 2 cm, z. B. 32–33 cm = 32 und 33 cm.'],
-                ['term' => 'Ausbeute', 'text' => 'Schnittholz ÷ Rundholz der gesägten Stämme der Klasse.'],
-                ['term' => 'Balken je Stamm', 'text' => 'Balken ÷ gesägte Stämme der Klasse. Ein als Ganzes gesägter Stamm zählt als 1 Balken.'],
-                ['term' => 'Nicht sägbar', 'text' => 'zählt nur bei der Anzahl, nicht bei Ausbeute und Balken je Stamm.'],
+                ['term' => 'Ausbeute', 'text' => 'Schnittholz ÷ Rundholz der gesägten Stämme der Klasse. Der Rest ist Verschnitt: Rinde, Schwarten, Späne.'],
+                ['term' => 'Balken je Stamm', 'text' => 'Große bzw. kleine Balken ÷ gesägte Stämme der Klasse. Ein als Ganzes gesägter Stamm zählt als 1 Balken.'],
+                ['term' => 'Groß und klein', 'text' => \sprintf('Grundlage ist %s: Ist die kleinere Seite mindestens %d cm, ist der Balken groß (z. B. 14×14), sonst klein (z. B. 10×14). Ein Balken ohne lesbaren Querschnitt zählt weder als groß noch als klein.', $names['sawn_cross_section'], self::LARGE_BEAM_MIN_SIDE_CM)],
+                ['term' => 'Nicht sägbar', 'text' => 'zählt nur bei der Anzahl der Stämme (in Klammern dahinter), nicht bei Ausbeute und Balken je Stamm.'],
             ],
             'rows' => $rows,
             'without_diameter' => $withoutDiameter,

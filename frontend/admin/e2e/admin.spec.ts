@@ -245,7 +245,7 @@ test.describe('dashboard: stems by diameter', () => {
       '36–37 cm',
       '34–35 cm',
       '32–33 cm',
-      /^30–31 cm\s*davon 1 nicht sägbar$/,
+      '30–31 cm',
       'ohne Durchmesser',
     ])
 
@@ -259,7 +259,7 @@ test.describe('dashboard: stems by diameter', () => {
     await expect(diameters(page).last()).toHaveText('ohne Durchmesser')
   })
 
-  test('stacks each row on a narrow screen: the bar below the diameter, yield and beams per stem named', async ({
+  test('stacks each row on a narrow screen: the bar below the diameter, the other figures named', async ({
     page,
   }) => {
     await page.setViewportSize({ width: 390, height: 800 })
@@ -268,11 +268,87 @@ test.describe('dashboard: stems by diameter', () => {
 
     const row = card(page).getByRole('row', { name: /^32–33 cm/ })
     const top = async (locator: Locator) => (await locator.boundingBox())!.y
-    expect(await top(row.getByRole('img', { name: '1 Stamm', exact: true }))).toBeGreaterThan(
-      await top(row.getByRole('rowheader')),
-    )
-    await expect(row.getByText('Ausbeute 26,1 %', { exact: true })).toBeVisible()
-    await expect(row.getByText('Balken je Stamm 1,0', { exact: true })).toBeVisible()
+    expect(
+      await top(row.getByRole('img', { name: 'Ausbeute 26,1 %', exact: true })),
+    ).toBeGreaterThan(await top(row.getByRole('rowheader')))
+    await expect(row.getByText('26,1 %', { exact: true })).toBeVisible()
+    await expect(row.getByText('1 Stamm', { exact: true })).toBeVisible()
+    await expect(
+      card(page)
+        .getByRole('row', { name: /^30–31 cm/ })
+        .getByText('1 Stamm (1 nicht sägbar)', { exact: true }),
+    ).toBeVisible()
+    await expect(
+      card(page)
+        .getByRole('row', { name: /^ohne Durchmesser/ })
+        .getByText('1 Stamm', { exact: true }),
+    ).toBeVisible()
+    await expect(row.getByText('14×14 je Stamm 1,0', { exact: true })).toBeVisible()
+    await expect(row.getByText('10×14 je Stamm 0,0', { exact: true })).toBeVisible()
+  })
+})
+
+test.describe('dashboard: stems by diameter, layout', () => {
+  const card = (page: Page) =>
+    page.getByRole('region', { name: 'Stämme nach Mittendurchmesser', exact: true })
+
+  test('shows the unsawable stems in brackets behind the count, the counts end on one edge', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1000, height: 800 })
+    await page.goto('/admin/')
+    await signIn(page, 'K7QM4XHT9RDP')
+
+    await expect(
+      card(page).getByRole('columnheader', { name: 'Stämme (nicht sägbar)' }),
+    ).toBeVisible()
+    await expect(
+      card(page).getByRole('img', { name: '1 Stamm, davon 1 nicht sägbar', exact: true }),
+    ).toHaveText('1(1)', { useInnerText: true })
+    const edges = await card(page)
+      .getByRole('img', { name: /^\d+ (Stamm|Stämme)(,|$)/ })
+      .evaluateAll((all) => all.map((element) => Math.round(element.getBoundingClientRect().right)))
+    expect(edges.length).toBeGreaterThan(3)
+    expect(new Set(edges).size).toBe(1)
+  })
+
+  test('is a table from 768px on with a bar of at least 120px, stacked below', async ({ page }) => {
+    const row = () => card(page).getByRole('row', { name: /^32–33 cm/ })
+    const bar = () => row().getByRole('img', { name: 'Ausbeute 26,1 %', exact: true })
+    await page.setViewportSize({ width: 768, height: 800 })
+    await page.goto('/admin/')
+    await signIn(page, 'K7QM4XHT9RDP')
+
+    expect((await bar().boundingBox())!.width).toBeGreaterThanOrEqual(120)
+    // Every header is at most two lines (44 px) and its words do not break, sorted (bold) or not; they end on one edge
+    const headings = card(page).locator('thead button')
+    const bottoms: number[] = []
+    for (const name of ['Durchmesser', 'Ausbeute', 'Stämme', 'Balken 14×14', 'Balken 10×14']) {
+      await card(page).getByRole('columnheader', { name }).getByRole('button').click()
+      const boxes = await headings.evaluateAll((all) =>
+        all.map((button) => {
+          const box = button.getBoundingClientRect()
+          const words = [...button.querySelectorAll('span.block')].map(
+            (span) => span.getBoundingClientRect().height,
+          )
+          return { height: box.height, bottom: Math.round(box.bottom), words }
+        }),
+      )
+      for (const box of boxes) {
+        expect(box.height).toBeLessThanOrEqual(44)
+        for (const height of box.words) expect(height).toBeLessThanOrEqual(20)
+      }
+      bottoms.push(...boxes.map((box) => box.bottom))
+    }
+    expect(new Set(bottoms).size).toBe(1)
+    await expect(card(page).getByText('je Stamm', { exact: true })).toHaveCount(2)
+    await expect(card(page).getByRole('columnheader', { name: 'Durchmesser' })).toBeVisible()
+    const rowTop = (await row().getByRole('rowheader').boundingBox())!.y
+    expect(Math.abs((await bar().boundingBox())!.y - rowTop)).toBeLessThan(20)
+
+    await page.setViewportSize({ width: 767, height: 800 })
+    await expect(card(page).getByRole('columnheader', { name: 'Durchmesser' })).toBeVisible()
+    expect((await bar().boundingBox())!.y).toBeGreaterThan(rowTop + 20)
   })
 })
 

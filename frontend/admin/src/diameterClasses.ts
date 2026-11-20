@@ -1,6 +1,7 @@
 import type { DiameterClass } from '@v29/shared/contract'
 
-export type DiameterColumn = 'diameter' | 'stems' | 'yield' | 'beams_per_stem'
+export type DiameterColumn =
+  'diameter' | 'yield' | 'stems' | 'not_sawable' | 'beams_per_stem_large' | 'beams_per_stem_small'
 export interface DiameterSort {
   column: DiameterColumn
   dir: 'asc' | 'desc'

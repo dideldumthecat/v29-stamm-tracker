@@ -12,7 +12,7 @@ use PHPUnit\Framework\TestCase;
 /** The numbers and the texts, on Measures alone: no database, no export, no HTTP. */
 class KeyFiguresTest extends TestCase
 {
-    private const NAMES = ['mid_diameter_max' => 'Durchmesser groß', 'mid_diameter_min' => 'Durchmesser klein', 'length' => 'Länge'];
+    private const NAMES = ['mid_diameter_max' => 'Durchmesser groß', 'mid_diameter_min' => 'Durchmesser klein', 'length' => 'Länge', 'sawn_cross_section' => 'Gesägter Querschnitt'];
 
     private KeyFigures $figures;
 
@@ -221,7 +221,7 @@ class KeyFiguresTest extends TestCase
     /**
      * @param list<Measures> $items
      *
-     * @return array<string, array{from_cm: int, to_cm: int, stems: int, not_sawable: int, yield: ?float, beams_per_stem: int|float|null}> rows by "from–to"
+     * @return array<string, array{from_cm: int, to_cm: int, stems: int, not_sawable: int, yield: ?float, beams_per_stem_large: int|float|null, beams_per_stem_small: int|float|null}> rows by "from–to"
      */
     private function classes(array $items): array
     {
@@ -270,20 +270,32 @@ class KeyFiguresTest extends TestCase
         ]);
 
         self::assertSame(['30–32', '32–34', '34–36', '36–38', '38–40'], array_keys($classes));
-        self::assertSame(['from_cm' => 30, 'to_cm' => 32, 'stems' => 1, 'not_sawable' => 1, 'yield' => null, 'beams_per_stem' => null], $classes['30–32']);
-        self::assertSame(['from_cm' => 34, 'to_cm' => 36, 'stems' => 0, 'not_sawable' => 0, 'yield' => null, 'beams_per_stem' => null], $classes['34–36']);
-        self::assertEquals([3, 1, 1], [$classes['32–34']['stems'], $classes['32–34']['not_sawable'], $classes['32–34']['beams_per_stem']]);
+        self::assertSame(['from_cm' => 30, 'to_cm' => 32, 'stems' => 1, 'not_sawable' => 1, 'yield' => null, 'beams_per_stem_large' => null, 'beams_per_stem_small' => null], $classes['30–32']);
+        self::assertSame(['from_cm' => 34, 'to_cm' => 36, 'stems' => 0, 'not_sawable' => 0, 'yield' => null, 'beams_per_stem_large' => null, 'beams_per_stem_small' => null], $classes['34–36']);
+        self::assertEquals([3, 1, 1, 0], [$classes['32–34']['stems'], $classes['32–34']['not_sawable'], $classes['32–34']['beams_per_stem_large'], $classes['32–34']['beams_per_stem_small']]);
         $round = static fn (float $diameter) => M_PI / 4 * $diameter * $diameter / 10000 * 4.1;
         self::assertEqualsWithDelta(2 * 0.147 * 0.147 * 4.1 / ($round(32) + $round(33)), $classes['32–34']['yield'], 1e-9, 'weighted by volume, without the unsawable stem');
-        self::assertEquals(2, $classes['38–40']['beams_per_stem']);
+        self::assertEquals([1, 1], [$classes['38–40']['beams_per_stem_large'], $classes['38–40']['beams_per_stem_small']], '14,7 × 14,7 is large, 10,5 × 14,7 small');
         self::assertEqualsWithDelta((0.147 * 0.147 + 0.105 * 0.147) / (0.40 * 0.39 * M_PI / 4), $classes['38–40']['yield'], 1e-9);
+    }
+
+    public function testBeamsAreLargeFromTwelveCmOnAndWithoutCrossSectionCountNowhere(): void
+    {
+        $classes = $this->classes([
+            self::stem('1', 40, 40),
+            self::beam('1', 'A', 12, 14),
+            self::beam('1', 'B', 14, 11.9),
+            self::beam('1', 'C', null, null), // no cross-section: neither large nor small
+        ]);
+
+        self::assertEquals([1, 1], [$classes['40–42']['beams_per_stem_large'], $classes['40–42']['beams_per_stem_small']]);
     }
 
     public function testTheNotesNameTheAttributes(): void
     {
-        $notes = $this->figures->diameterClasses([], ['mid_diameter_max' => 'Durchmesser groß', 'mid_diameter_min' => 'Durchmesser klein'])['notes'];
+        $notes = $this->figures->diameterClasses([], ['mid_diameter_max' => 'Durchmesser groß', 'mid_diameter_min' => 'Durchmesser klein', 'sawn_cross_section' => 'Gesägter Querschnitt'])['notes'];
 
-        self::assertSame(['Stämme', 'Durchmesser', 'Klassen', 'Ausbeute', 'Balken je Stamm', 'Nicht sägbar'], array_column($notes, 'term'));
+        self::assertSame(['Stämme', 'Durchmesser', 'Klassen', 'Ausbeute', 'Balken je Stamm', 'Groß und klein', 'Nicht sägbar'], array_column($notes, 'term'));
         self::assertSame('(Durchmesser groß + Durchmesser klein) ÷ 2, auf ganze cm abgerundet. Ist nur einer erfasst, zählt dieser.', $notes[1]['text']);
         self::assertSame('je 2 cm, z. B. 32–33 cm = 32 und 33 cm.', $notes[2]['text']);
     }

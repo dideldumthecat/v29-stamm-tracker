@@ -81,15 +81,19 @@
         },
         {
           "term": "Ausbeute",
-          "text": "Schnittholz ÷ Rundholz der gesägten Stämme der Klasse."
+          "text": "Schnittholz ÷ Rundholz der gesägten Stämme der Klasse. Der Rest ist Verschnitt: Rinde, Schwarten, Späne."
         },
         {
           "term": "Balken je Stamm",
-          "text": "Balken ÷ gesägte Stämme der Klasse. Ein als Ganzes gesägter Stamm zählt als 1 Balken."
+          "text": "Große bzw. kleine Balken ÷ gesägte Stämme der Klasse. Ein als Ganzes gesägter Stamm zählt als 1 Balken."
+        },
+        {
+          "term": "Groß und klein",
+          "text": "Grundlage ist Gesägter Querschnitt: Ist die kleinere Seite mindestens 12 cm, ist der Balken groß (z. B. 14×14), sonst klein (z. B. 10×14). Ein Balken ohne lesbaren Querschnitt zählt weder als groß noch als klein."
         },
         {
           "term": "Nicht sägbar",
-          "text": "zählt nur bei der Anzahl, nicht bei Ausbeute und Balken je Stamm."
+          "text": "zählt nur bei der Anzahl der Stämme (in Klammern dahinter), nicht bei Ausbeute und Balken je Stamm."
         }
       ],
       "rows": [
@@ -99,7 +103,8 @@
           "stems": 1,
           "not_sawable": 1,
           "yield": null,
-          "beams_per_stem": null
+          "beams_per_stem_large": null,
+          "beams_per_stem_small": null
         },
         {
           "from_cm": 32,
@@ -107,7 +112,8 @@
           "stems": 1,
           "not_sawable": 0,
           "yield": 0.26103826681387216,
-          "beams_per_stem": 1
+          "beams_per_stem_large": 1,
+          "beams_per_stem_small": 0
         },
         {
           "from_cm": 34,
@@ -115,7 +121,8 @@
           "stems": 0,
           "not_sawable": 0,
           "yield": null,
-          "beams_per_stem": null
+          "beams_per_stem_large": null,
+          "beams_per_stem_small": null
         },
         {
           "from_cm": 36,
@@ -123,7 +130,8 @@
           "stems": 0,
           "not_sawable": 0,
           "yield": null,
-          "beams_per_stem": null
+          "beams_per_stem_large": null,
+          "beams_per_stem_small": null
         },
         {
           "from_cm": 38,
@@ -131,7 +139,8 @@
           "stems": 1,
           "not_sawable": 0,
           "yield": 0.6046908422457612,
-          "beams_per_stem": 4
+          "beams_per_stem_large": 2,
+          "beams_per_stem_small": 2
         }
       ],
       "without_diameter": 1

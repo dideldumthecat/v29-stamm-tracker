@@ -133,7 +133,7 @@ describe('dashboard', () => {
     const diameters = (wrapper: VueWrapper) =>
       table(wrapper)
         .findAll('tbody th')
-        .map((th) => squeezed(th.text()).replace(/ davon.*/, ''))
+        .map((th) => squeezed(th.text()))
     const header = (wrapper: VueWrapper, label: string) =>
       table(wrapper)
         .findAll('thead th')
@@ -155,6 +155,7 @@ describe('dashboard', () => {
         'Klassen',
         'Ausbeute',
         'Balken je Stamm',
+        'Groß und klein',
         'Nicht sägbar',
       ])
       expect([...notes.querySelectorAll('dd')].map((dd) => dd.textContent)).toEqual(
@@ -165,33 +166,58 @@ describe('dashboard', () => {
       expect(popup()).toBeNull()
 
       expect(rows(wrapper)).toEqual([
-        '38–39 cm |  | 1 | Ausbeute 60,5 % | Balken je Stamm 4,0',
-        '36–37 cm |  | 0 | Ausbeute – | Balken je Stamm –',
-        '34–35 cm |  | 0 | Ausbeute – | Balken je Stamm –',
-        '32–33 cm |  | 1 | Ausbeute 26,1 % | Balken je Stamm 1,0',
-        '30–31 cm davon 1 nicht sägbar |  | 1 | Ausbeute – | Balken je Stamm –',
-        'ohne Durchmesser |  | 1 |  | ',
+        '38–39 cm | 60,5 % | 1 1 Stamm | 14×14 je Stamm 2,0 | 10×14 je Stamm 2,0',
+        '36–37 cm | Ausbeute – | 0 0 Stämme | 14×14 je Stamm – | 10×14 je Stamm –',
+        '34–35 cm | Ausbeute – | 0 0 Stämme | 14×14 je Stamm – | 10×14 je Stamm –',
+        '32–33 cm | 26,1 % | 1 1 Stamm | 14×14 je Stamm 1,0 | 10×14 je Stamm 0,0',
+        '30–31 cm | Ausbeute – | 1(1) 1 Stamm (1 nicht sägbar) | 14×14 je Stamm – | 10×14 je Stamm –',
+        'ohne Durchmesser | – | 11 Stamm |  | ',
       ])
+      expect(
+        table(wrapper)
+          .findAll('thead th')
+          .map((th) => th.text()),
+      ).toEqual([
+        'Durchmesser',
+        'Ausbeute',
+        'Stämme (nicht sägbar)',
+        'Balken 14×14 je Stamm',
+        'Balken 10×14 je Stamm',
+      ])
+      expect(table(wrapper).element.closest('section')!.querySelector('ul')!.textContent).toMatch(
+        /Schnittholz\s*Verschnitt \(Rinde, Schwarten, Späne\)/,
+      )
       expect(header(wrapper, 'Durchmesser').attributes('aria-sort')).toBe('descending')
       expect(header(wrapper, 'Ausbeute').attributes('aria-sort')).toBeUndefined()
     })
 
-    it('draws each bar relative to the largest row, with a text', async () => {
-      const { wrapper } = await open((api) =>
-        api.setDashboard({
-          ...fixture,
-          sections: [{ ...byDiameter, without_diameter: 2 }],
-        }),
-      )
+    it('names the stems and the unsawable ones among them for screen readers', async () => {
+      const { wrapper } = await open()
 
-      const bars = table(wrapper).findAll('[role=img][style]')
-      expect(bars.map((bar) => [bar.attributes('aria-label'), bar.attributes('style')])).toEqual([
-        ['1 Stamm', 'width: 50%;'],
-        ['0 Stämme', 'width: 0%;'],
-        ['0 Stämme', 'width: 0%;'],
-        ['1 Stamm', 'width: 50%;'],
-        ['1 Stamm', 'width: 50%;'],
-        ['2 Stämme', 'width: 100%;'],
+      const labels = table(wrapper)
+        .findAll('tbody tr:not(:last-child)')
+        .map((row) => row.get('td:nth-child(3) [role=img]').attributes('aria-label'))
+      expect(labels).toEqual([
+        '1 Stamm',
+        '0 Stämme',
+        '0 Stämme',
+        '1 Stamm',
+        '1 Stamm, davon 1 nicht sägbar',
+      ])
+    })
+
+    it('draws the dark part of each bar as wide as the percentage beside it, and none without a sawn stem', async () => {
+      const { wrapper } = await open()
+
+      const bars = table(wrapper).findAll('[aria-label^="Ausbeute"]')
+      expect(
+        bars.map((bar) => [
+          bar.attributes('aria-label'),
+          Number.parseFloat(bar.get('span').attributes('style')!.replace('width: ', '')).toFixed(1),
+        ]),
+      ).toEqual([
+        ['Ausbeute 60,5\u00a0%', '60.5'],
+        ['Ausbeute 26,1\u00a0%', '26.1'],
       ])
     })
 
@@ -210,8 +236,8 @@ describe('dashboard', () => {
       ])
 
       // another column starts descending; equal counts by diameter descending
-      await sortBy(wrapper, 'Stämme')
-      expect(header(wrapper, 'Stämme').attributes('aria-sort')).toBe('descending')
+      await sortBy(wrapper, 'Stämme (nicht sägbar)')
+      expect(header(wrapper, 'Stämme (nicht sägbar)').attributes('aria-sort')).toBe('descending')
       expect(header(wrapper, 'Durchmesser').attributes('aria-sort')).toBeUndefined()
       expect(diameters(wrapper)).toEqual([
         '38–39 cm',
@@ -221,7 +247,7 @@ describe('dashboard', () => {
         '34–35 cm',
         'ohne Durchmesser',
       ])
-      await sortBy(wrapper, 'Stämme')
+      await sortBy(wrapper, 'Stämme (nicht sägbar)')
       expect(diameters(wrapper)).toEqual([
         '36–37 cm',
         '34–35 cm',
@@ -252,24 +278,26 @@ describe('dashboard', () => {
         'ohne Durchmesser',
       ])
 
-      await sortBy(wrapper, 'Balken je Stamm')
-      expect(diameters(wrapper)).toEqual([
-        '38–39 cm',
-        '32–33 cm',
-        '36–37 cm',
-        '34–35 cm',
-        '30–31 cm',
-        'ohne Durchmesser',
-      ])
-      await sortBy(wrapper, 'Balken je Stamm')
-      expect(diameters(wrapper)).toEqual([
-        '32–33 cm',
-        '38–39 cm',
-        '36–37 cm',
-        '34–35 cm',
-        '30–31 cm',
-        'ohne Durchmesser',
-      ])
+      for (const label of ['Balken 14×14 je Stamm', 'Balken 10×14 je Stamm']) {
+        await sortBy(wrapper, label)
+        expect(diameters(wrapper)).toEqual([
+          '38–39 cm',
+          '32–33 cm',
+          '36–37 cm',
+          '34–35 cm',
+          '30–31 cm',
+          'ohne Durchmesser',
+        ])
+        await sortBy(wrapper, label)
+        expect(diameters(wrapper)).toEqual([
+          '32–33 cm',
+          '38–39 cm',
+          '36–37 cm',
+          '34–35 cm',
+          '30–31 cm',
+          'ohne Durchmesser',
+        ])
+      }
     })
 
     it('has no row without diameter if every stem has one', async () => {
