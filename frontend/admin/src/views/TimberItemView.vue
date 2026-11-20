@@ -12,7 +12,6 @@ import type {
 } from '@v29/shared/contract'
 import BeamRowLabel from '@v29/shared/BeamRowLabel.vue'
 import FormattedTag from '@v29/shared/FormattedTag.vue'
-import SawBladeIcon from '@v29/shared/SawBladeIcon.vue'
 
 import { formatDateTime, formatDayMonth, formatDayMonthTime, formatTime, yearOf } from '@/activity'
 import { ApiError, request } from '@/api/client'
@@ -23,6 +22,7 @@ import ItemPhotos from '@/components/ItemPhotos.vue'
 import KeyFigures from '@/components/KeyFigures.vue'
 import KeyValueRows from '@/components/KeyValueRows.vue'
 import LoadFailure from '@/components/LoadFailure.vue'
+import LoadingStatus from '@/components/LoadingStatus.vue'
 import StatusCard from '@/components/StatusCard.vue'
 import {
   beamsOf,
@@ -147,12 +147,7 @@ watch(() => route.params.tag, load, { immediate: true })
 
     <LoadFailure v-if="status === 'error'" :failure="failure" class="mt-2!" @retry="load" />
 
-    <StatusCard v-else-if="status === 'loading'" title="Moment" role="status" class="mt-2!">
-      <template #icon>
-        <SawBladeIcon :size="96" :stroke-width="1.5" spinning class="text-ink" aria-hidden="true" />
-      </template>
-      <template #text>{{ kind }} wird herausgesägt</template>
-    </StatusCard>
+    <LoadingStatus v-else-if="status === 'loading'" role="status" class="mt-2!" />
 
     <StatusCard
       v-else-if="status === 'missing' || !item"
@@ -245,11 +240,7 @@ watch(() => route.params.tag, load, { immediate: true })
             message="Die Kennzahlen konnten nicht geladen werden."
             @retry="loadKeyFigures()"
           />
-          <CardLoading
-            v-else-if="keyFigures === null"
-            heading="Kennzahlen"
-            label="Kennzahlen werden geladen"
-          />
+          <CardLoading v-else-if="keyFigures === null" heading="Kennzahlen" />
           <KeyFigures v-else :figures="keyFigures" />
 
           <section :class="card" aria-labelledby="values-heading">
@@ -285,11 +276,7 @@ watch(() => route.params.tag, load, { immediate: true })
             message="Der Verlauf konnte nicht geladen werden."
             @retry="loadHistory()"
           />
-          <CardLoading
-            v-else-if="historyEntries === null"
-            heading="Verlauf"
-            label="Verlauf wird geladen"
-          />
+          <CardLoading v-else-if="historyEntries === null" heading="Verlauf" />
           <details v-else class="group card">
             <summary
               class="flex cursor-pointer list-none items-center justify-between gap-3 p-4 text-lg font-bold sm:p-6 [&::-webkit-details-marker]:hidden"

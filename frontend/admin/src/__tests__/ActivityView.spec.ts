@@ -766,7 +766,7 @@ describe('activity page', () => {
     await setTags(wrapper, '128')
     const card = wrapper.get('[role=status]')
     expect(card.get('h2').text()).toBe('Moment')
-    expect(card.get('p').text()).toBe('Ergebnis wird zurechtgesägt')
+    expect(card.get('p').text()).toBe('Inhalt wird zurechtgesägt')
     expect(card.classes()).toContain('min-h-72')
     expect(card.classes()).not.toContain('card')
     expect(card.get('h2').classes()).toEqual(expect.arrayContaining(['text-display', 'font-bold']))

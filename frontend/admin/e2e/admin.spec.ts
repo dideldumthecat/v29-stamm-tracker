@@ -420,7 +420,7 @@ test.describe('activity', () => {
 
     const card = page.getByRole('status')
     await expect(card.getByRole('heading', { name: 'Moment', exact: true })).toBeVisible()
-    await expect(card.getByText('Ergebnis wird zurechtgesägt')).toBeVisible()
+    await expect(card.getByText('Inhalt wird zurechtgesägt')).toBeVisible()
     await expect(card).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
     await expect(card).toHaveCSS('border-top-width', '0px')
     await expect(card.locator('svg g')).not.toHaveCSS('animation-name', 'none')

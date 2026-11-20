@@ -195,7 +195,7 @@ describe('stem list', () => {
     await wrapper.get('form').trigger('submit')
     await flushPromises()
     await router.push('/stems')
-    expect(wrapper.get('[role="status"]').text()).toContain('Stämme werden zurechtgesägt')
+    expect(wrapper.get('[role="status"]').text()).toContain('Inhalt wird zurechtgesägt')
     await flushPromises()
     expect(api.calls).toContain('GET /api/snapshot')
     expect(wrapper.find('table').exists()).toBe(true)

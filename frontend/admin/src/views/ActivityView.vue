@@ -3,7 +3,6 @@ import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
 import { useRoute, useRouter, type LocationQueryRaw } from 'vue-router'
 import { ChevronDownIcon, LoaderCircleIcon, TreesIcon, XIcon } from '@lucide/vue'
 import type { ActivityEntry, ActivityResponse } from '@v29/shared/contract'
-import SawBladeIcon from '@v29/shared/SawBladeIcon.vue'
 
 import { completeDays, describePeriod, entriesText, groupByDay } from '@/activity'
 import { ApiError, request } from '@/api/client'
@@ -12,6 +11,7 @@ import FilterButton from '@/components/FilterButton.vue'
 import FilterChecklist from '@/components/FilterChecklist.vue'
 import FilterRange from '@/components/FilterRange.vue'
 import LoadFailure from '@/components/LoadFailure.vue'
+import LoadingStatus from '@/components/LoadingStatus.vue'
 import ResultsBar from '@/components/ResultsBar.vue'
 import StatusCard from '@/components/StatusCard.vue'
 import { useFilterBar } from '@/filterBar'
@@ -286,23 +286,7 @@ const barText = computed(() =>
     <div class="page-column">
       <LoadFailure v-if="status === 'error'" :failure="failure" @retry="load" />
 
-      <StatusCard
-        v-else-if="status === 'loading'"
-        title="Moment"
-        text-class="max-w-[32ch]"
-        role="status"
-      >
-        <template #icon>
-          <SawBladeIcon
-            :size="96"
-            :stroke-width="1.5"
-            spinning
-            class="text-ink"
-            aria-hidden="true"
-          />
-        </template>
-        <template #text>Ergebnis wird zurechtgesägt</template>
-      </StatusCard>
+      <LoadingStatus v-else-if="status === 'loading'" text-class="max-w-[32ch]" role="status" />
 
       <StatusCard
         v-else-if="status === 'ready' && !entries.length"

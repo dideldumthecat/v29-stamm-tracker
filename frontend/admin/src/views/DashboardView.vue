@@ -1,14 +1,13 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import type { DashboardResponse } from '@v29/shared/contract'
-import SawBladeIcon from '@v29/shared/SawBladeIcon.vue'
 
 import { formatDateTime } from '@/activity'
 import { ApiError, request } from '@/api/client'
 import DiameterClasses from '@/components/DiameterClasses.vue'
 import FigureInfo from '@/components/FigureInfo.vue'
 import LoadFailure from '@/components/LoadFailure.vue'
-import StatusCard from '@/components/StatusCard.vue'
+import LoadingStatus from '@/components/LoadingStatus.vue'
 import { formatTotal } from '@/keyFigures'
 
 /**
@@ -44,12 +43,7 @@ const openKey = ref<string | null>(null)
     </p>
 
     <LoadFailure v-if="status === 'error'" :failure="failure" @retry="load" />
-    <StatusCard v-else-if="status === 'loading'" title="Moment" role="status">
-      <template #icon>
-        <SawBladeIcon :size="96" :stroke-width="1.5" spinning class="text-ink" aria-hidden="true" />
-      </template>
-      <template #text>Kennzahlen werden zusammengesägt</template>
-    </StatusCard>
+    <LoadingStatus v-else-if="status === 'loading'" role="status" />
 
     <template v-for="section in status === 'ready' ? dashboard!.sections : []" :key="section.key">
       <DiameterClasses v-if="section.type === 'diameter_classes'" :section="section" />

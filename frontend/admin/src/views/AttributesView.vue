@@ -8,7 +8,6 @@ import {
   type RouteLocationNormalized,
 } from 'vue-router'
 import type { AdminAttribute, AdminAttributesResponse } from '@v29/shared/contract'
-import SawBladeIcon from '@v29/shared/SawBladeIcon.vue'
 import { CheckIcon, GripVerticalIcon, LockIcon, MousePointerClickIcon, PlusIcon } from '@lucide/vue'
 
 import { ApiError, request } from '@/api/client'
@@ -17,6 +16,7 @@ import AttributeSettings from '@/components/AttributeSettings.vue'
 import AttributeTypePicker from '@/components/AttributeTypePicker.vue'
 import DiscardDialog from '@/components/DiscardDialog.vue'
 import LoadFailure from '@/components/LoadFailure.vue'
+import LoadingStatus from '@/components/LoadingStatus.vue'
 import ResultsBar from '@/components/ResultsBar.vue'
 import StatusCard from '@/components/StatusCard.vue'
 import {
@@ -490,18 +490,7 @@ const viewButton = 'flex h-11 items-center rounded-lg border-2 px-3 text-base'
 
     <div class="page-column">
       <LoadFailure v-if="status === 'error'" :failure="failure" @retry="load" />
-      <StatusCard v-else-if="status === 'loading'" title="Moment" role="status">
-        <template #icon>
-          <SawBladeIcon
-            :size="96"
-            :stroke-width="1.5"
-            spinning
-            class="text-ink"
-            aria-hidden="true"
-          />
-        </template>
-        <template #text>Merkmale werden zurechtgesägt</template>
-      </StatusCard>
+      <LoadingStatus v-else-if="status === 'loading'" role="status" />
 
       <div v-else class="mt-2 grid items-start gap-6 lg:grid-cols-[440px_minmax(0,1fr)]">
         <div ref="left" class="relative w-full max-w-[440px] max-lg:mx-auto">

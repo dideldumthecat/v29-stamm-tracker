@@ -9,9 +9,9 @@ describe('CardLoading', () => {
 
   it('shows the saw blade only after 200 ms and announces the state to screen readers', async () => {
     const wrapper = mount(CardLoading, {
-      props: { heading: 'Verlauf', label: 'Verlauf wird geladen' },
+      props: { heading: 'Verlauf' },
     })
-    expect(wrapper.get('[role=status] .sr-only').text()).toBe('Verlauf wird geladen')
+    expect(wrapper.get('[role=status] .sr-only').text()).toBe('Inhalt wird zurechtgesägt')
     expect(wrapper.find('svg').exists()).toBe(false)
 
     await vi.advanceTimersByTimeAsync(199)

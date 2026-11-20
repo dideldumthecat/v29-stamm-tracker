@@ -12,11 +12,11 @@ import {
 } from '@lucide/vue'
 import type { ItemKind, Snapshot } from '@v29/shared/contract'
 import FormattedTag from '@v29/shared/FormattedTag.vue'
-import SawBladeIcon from '@v29/shared/SawBladeIcon.vue'
 
 import { ApiError, request } from '@/api/client'
 import ColumnFilterButton from '@/components/ColumnFilterButton.vue'
 import LoadFailure from '@/components/LoadFailure.vue'
+import LoadingStatus from '@/components/LoadingStatus.vue'
 import ResultsBar from '@/components/ResultsBar.vue'
 import StatusCard from '@/components/StatusCard.vue'
 import { itemRoute } from '@/detail'
@@ -249,25 +249,7 @@ async function removeFilter(id: string) {
       <div class="page-column">
         <LoadFailure v-if="status === 'error'" :failure="failure" @retry="load" />
 
-        <StatusCard
-          v-else-if="status === 'loading'"
-          title="Moment"
-          text-class="max-w-[32ch]"
-          role="status"
-        >
-          <template #icon>
-            <SawBladeIcon
-              :size="96"
-              :stroke-width="1.5"
-              spinning
-              class="text-ink"
-              aria-hidden="true"
-            />
-          </template>
-          <template #text
-            >{{ kind === 'stem' ? 'Stämme' : 'Balken' }} werden zurechtgesägt</template
-          >
-        </StatusCard>
+        <LoadingStatus v-else-if="status === 'loading'" text-class="max-w-[32ch]" role="status" />
 
         <StatusCard
           v-else-if="!rows.length"

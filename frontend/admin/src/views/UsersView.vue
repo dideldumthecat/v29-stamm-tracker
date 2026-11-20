@@ -6,15 +6,14 @@ import type {
   AdminUserResponse,
   AdminUsersResponse,
 } from '@v29/shared/contract'
-import SawBladeIcon from '@v29/shared/SawBladeIcon.vue'
 import { CheckIcon, CopyIcon, PlusIcon, TriangleAlertIcon } from '@lucide/vue'
 
 import { ApiError, request } from '@/api/client'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import LoadFailure from '@/components/LoadFailure.vue'
+import LoadingStatus from '@/components/LoadingStatus.vue'
 import ResultsBar from '@/components/ResultsBar.vue'
 import SelectField from '@/components/SelectField.vue'
-import StatusCard from '@/components/StatusCard.vue'
 import UserTable from '@/components/UserTable.vue'
 import { countUsers, isBlocked, ROLE_LABELS, userErrorsOf } from '@/users'
 
@@ -247,18 +246,7 @@ const label = 'text-caption font-semibold text-mute'
       </p>
 
       <LoadFailure v-if="status === 'error'" :failure="failure" @retry="load" />
-      <StatusCard v-else-if="status === 'loading'" title="Moment" role="status">
-        <template #icon>
-          <SawBladeIcon
-            :size="96"
-            :stroke-width="1.5"
-            spinning
-            class="text-ink"
-            aria-hidden="true"
-          />
-        </template>
-        <template #text>Nutzer werden zurechtgesägt</template>
-      </StatusCard>
+      <LoadingStatus v-else-if="status === 'loading'" role="status" />
     </div>
 
     <ResultsBar
