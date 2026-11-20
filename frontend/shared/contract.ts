@@ -139,6 +139,36 @@ export interface KeyFigure {
   note: string | null
 }
 
+// --- GET /api/admin/dashboard ------------------------------------------------
+
+// GET /api/admin/dashboard – roles admin and superadmin, otherwise 403
+export interface DashboardResponse {
+  /** Server time of the newest event (received_at) or photo upload (uploaded_at), whichever is later; null = neither */
+  last_sync_at: string | null
+  /** In display order; today only "sawing". Later work steps (sorting …) come as further sections – the administration renders sections generically, without knowing their keys */
+  sections: DashboardSection[]
+}
+
+export interface DashboardSection {
+  /** Stable, e.g. "sawing" */
+  key: string
+  /** "Sägen" */
+  label: string
+  figures: DashboardFigure[]
+}
+
+export interface DashboardFigure {
+  key: string
+  label: string
+  value: number | null
+  /** null = count */
+  unit: 'fm' | 'm³' | '%' | null
+  /** Content of the info button, same meaning as in KeyFigure */
+  formula: string
+  inserted: string | null
+  note: string | null
+}
+
 // --- /api/admin/users --------------------------------------------------------
 // User management in the administration (roles admin and superadmin, otherwise 403). Users are never deleted, only blocked (their events refer to them).
 // Rules, checked by the server (403 if broken, the administration hides what is not allowed; the flags below say what the acting user may do):

@@ -1,4 +1,4 @@
-import type { KeyFigure } from '@v29/shared/contract'
+import type { DashboardFigure, KeyFigure } from '@v29/shared/contract'
 
 const volume = new Intl.NumberFormat('de-DE', {
   minimumFractionDigits: 3,
@@ -18,4 +18,15 @@ export function formatFigure(figure: KeyFigure): string | null {
   return figure.unit === '%'
     ? `${formatPercent(figure.value)} %`
     : `${formatVolume(figure.value)} ${figure.unit}`
+}
+
+const count = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 0 })
+const total = new Intl.NumberFormat('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const share = new Intl.NumberFormat('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+
+/** The number of a dashboard figure without its unit: a count "1.300", a volume "15,66", a share "40,5"; null if not calculable. */
+export function formatTotal(figure: DashboardFigure): string | null {
+  if (figure.value === null) return null
+  if (figure.unit === null) return count.format(figure.value)
+  return figure.unit === '%' ? share.format(figure.value * 100) : total.format(figure.value)
 }

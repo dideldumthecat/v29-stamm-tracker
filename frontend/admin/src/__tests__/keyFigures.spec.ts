@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import type { KeyFigure } from '@v29/shared/contract'
+import type { DashboardFigure, KeyFigure } from '@v29/shared/contract'
 
-import { formatFigure, formatPercent, formatVolume } from '@/keyFigures'
+import { formatFigure, formatPercent, formatTotal, formatVolume } from '@/keyFigures'
 
 const figure = (value: number | null, unit: KeyFigure['unit']): KeyFigure => ({
   key: unit === '%' ? 'yield' : 'round_wood',
@@ -33,5 +33,18 @@ describe('key figure formatting', () => {
     expect(formatFigure(figure(0.30376, 'm³'))).toBe('0,304 m³')
     expect(formatFigure(figure(0.6047, '%'))).toBe('60 %')
     expect(formatFigure(figure(null, 'm³'))).toBeNull()
+  })
+})
+
+describe('dashboard figure formatting', () => {
+  const total = (value: number | null, unit: DashboardFigure['unit']) =>
+    formatTotal({ key: 'x', label: 'x', value, unit, formula: '', inserted: null, note: null })
+
+  it('writes counts whole, volumes with two decimals and shares as percent with one', () => {
+    expect(total(1300, null)).toBe('1.300')
+    expect(total(15.65725, 'fm')).toBe('15,66')
+    expect(total(6.341, 'm³')).toBe('6,34')
+    expect(total(0.404988, '%')).toBe('40,5')
+    expect(total(null, '%')).toBeNull()
   })
 })

@@ -20,6 +20,7 @@ final readonly class Measures
         public ?float $height,
         public bool $crossSectionRecorded,
         public bool $sawnMarked,
+        public bool $unsawableMarked = false,
     ) {
     }
 }

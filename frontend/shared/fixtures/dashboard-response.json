@@ -1,0 +1,65 @@
+{
+  "last_sync_at": "2026-11-19T10:54:00.250Z",
+  "sections": [
+    {
+      "key": "sawing",
+      "label": "Sägen",
+      "figures": [
+        {
+          "key": "stems_total",
+          "label": "Stämme gesamt",
+          "value": 5,
+          "unit": null,
+          "formula": "Alle Stämme ohne Balken, entfernte nicht mitgezählt",
+          "inserted": null,
+          "note": null
+        },
+        {
+          "key": "stems_processed",
+          "label": "Stämme bearbeitet",
+          "value": 4,
+          "unit": null,
+          "formula": "Als gesägt zählt ein Stamm, wenn Gesägt angehakt ist, Balken vorhanden sind oder Gesägter Querschnitt erfasst ist. Bearbeitet sind außerdem Stämme mit Häkchen bei Nicht sägbar.",
+          "inserted": "3 gesägt + 1 nicht sägbar",
+          "note": null
+        },
+        {
+          "key": "stems_open",
+          "label": "Stämme nicht bearbeitet",
+          "value": 1,
+          "unit": null,
+          "formula": "Stämme gesamt − Stämme bearbeitet",
+          "inserted": "5 − 4",
+          "note": null
+        },
+        {
+          "key": "round_wood",
+          "label": "Rundholz bearbeitet",
+          "value": 1.1315545499332393,
+          "unit": "fm",
+          "formula": "Summe über alle bearbeiteten Stämme, je Stamm π ÷ 4 × Durchmesser groß × Durchmesser klein × Länge",
+          "inserted": "0,84 fm gesägt + 0,29 fm nicht sägbar",
+          "note": "Vorläufige Formel: Durchmesser mit Rinde, kein Abzug. 1 bearbeiteter Stamm ohne Durchmesser oder Länge fehlt in der Summe."
+        },
+        {
+          "key": "sawn_timber",
+          "label": "Schnittholz",
+          "value": 0.4556411999999999,
+          "unit": "m³",
+          "formula": "Summe über alle Stücke gesägter Stämme (Balken oder der als Ganzes gesägte Stamm), je Stück Breite × Höhe × Länge. Als gesägt zählt ein Stamm, wenn Gesägt angehakt ist, Balken vorhanden sind oder Gesägter Querschnitt erfasst ist.",
+          "inserted": "0,30 m³ Balken + 0,15 m³ als Ganzes gesägte Stämme",
+          "note": null
+        },
+        {
+          "key": "yield",
+          "label": "Ausbeute",
+          "value": 0.5413070278711098,
+          "unit": "%",
+          "formula": "Schnittholz ÷ Rundholz der gesägten Stämme",
+          "inserted": "0,46 m³ ÷ 0,84 fm",
+          "note": "Nur gesägte Stämme gehen ein. Als gesägt zählt ein Stamm, wenn Gesägt angehakt ist, Balken vorhanden sind oder Gesägter Querschnitt erfasst ist. Stämme mit Häkchen bei Nicht sägbar zählen nicht."
+        }
+      ]
+    }
+  ]
+}

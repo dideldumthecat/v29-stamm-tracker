@@ -54,7 +54,12 @@ async function onSignOut() {
       class="sticky left-0 z-50 w-[100cqw] bg-ink text-paper **:focus-visible:outline-paper lg:top-0"
     >
       <div class="page-column flex min-h-[72px] flex-wrap items-center gap-x-4 gap-y-2 py-3">
-        <div class="mr-auto flex items-center gap-3">
+        <!-- Logo, title and name lead to the dashboard; the name of the link says where it goes, starting with the visible title -->
+        <RouterLink
+          :to="{ name: 'dashboard' }"
+          aria-label="V29 Stamm-Tracker – Dashboard"
+          class="mr-auto flex items-center gap-3 rounded-lg"
+        >
           <!-- 42 = heading line (24) + gap (2) + name line (16), as in the app header -->
           <V29Logo :height="42" />
           <div class="flex flex-col gap-0.5">
@@ -64,7 +69,7 @@ async function onSignOut() {
             <!-- paper at 85 % on ink is about #dadada, contrast ≈ 14:1 -->
             <div class="text-xs text-paper/85">{{ user.name }}</div>
           </div>
-        </div>
+        </RouterLink>
         <nav
           aria-label="Hauptnavigation"
           class="flex flex-wrap gap-1 max-lg:order-last max-lg:basis-full"

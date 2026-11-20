@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka-ui'
-import { InfoIcon } from '@lucide/vue'
 import type { KeyFigure } from '@v29/shared/contract'
 
+import FigureInfo from '@/components/FigureInfo.vue'
 import { formatFigure, formatPercent } from '@/keyFigures'
 
 /**
@@ -46,46 +45,17 @@ const openKey = ref<string | null>(null)
               figure.source
             }}</span>
           </p>
-          <PopoverRoot
+          <FigureInfo
             v-if="figure.value !== null"
             :open="openKey === figure.key"
+            :label="figure.label"
+            :formula="figure.formula"
+            :inserted="figure.inserted"
+            :result="formatFigure(figure)!"
+            :note="figure.note"
+            class="absolute top-1/2 -right-[13px] -translate-y-1/2"
             @update:open="(open: boolean) => (openKey = open ? figure.key : null)"
-          >
-            <PopoverTrigger
-              :aria-label="`Formel für ${figure.label} anzeigen`"
-              class="absolute top-1/2 -right-[13px] flex size-11 -translate-y-1/2 items-center justify-center text-mute data-[state=open]:text-ink"
-            >
-              <InfoIcon :size="18" aria-hidden="true" />
-            </PopoverTrigger>
-            <PopoverPortal>
-              <PopoverContent
-                side="bottom"
-                align="end"
-                :side-offset="4"
-                :collision-padding="8"
-                class="z-40 w-[372px] max-w-[calc(100vw-2rem)] rounded-lg border border-ink bg-paper p-4 text-ink"
-              >
-                <h3 class="text-[15px] font-bold">So wird {{ figure.label }} berechnet</h3>
-                <dl class="mt-3 space-y-2 text-sm">
-                  <div class="grid grid-cols-[96px_minmax(0,1fr)] gap-x-3">
-                    <dt class="font-semibold text-mute">Formel</dt>
-                    <dd class="wrap-anywhere">{{ figure.formula }}</dd>
-                  </div>
-                  <div class="grid grid-cols-[96px_minmax(0,1fr)] gap-x-3">
-                    <dt class="font-semibold text-mute">Eingesetzt</dt>
-                    <dd class="wrap-anywhere">{{ figure.inserted }}</dd>
-                  </div>
-                  <div class="grid grid-cols-[96px_minmax(0,1fr)] gap-x-3">
-                    <dt class="font-semibold text-mute">Ergebnis</dt>
-                    <dd class="font-bold tabular-nums">{{ formatFigure(figure) }}</dd>
-                  </div>
-                </dl>
-                <p v-if="figure.note" class="mt-3 border-t border-soft pt-3 text-caption text-mute">
-                  {{ figure.note }}
-                </p>
-              </PopoverContent>
-            </PopoverPortal>
-          </PopoverRoot>
+          />
         </dd>
       </div>
     </dl>

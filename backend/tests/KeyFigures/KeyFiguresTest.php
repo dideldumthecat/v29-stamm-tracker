@@ -66,6 +66,22 @@ class KeyFiguresTest extends TestCase
         self::assertSame(['%', 'Schnittholz ÷ Rundholz', 'Schnittholz ÷ Rundholz', '0,304 m³ ÷ 0,502 fm'], [$card['yield']->unit, $card['yield']->source, $card['yield']->formula, $card['yield']->inserted]);
     }
 
+    /** @return iterable<string, array{list<Measures>, bool}> */
+    public static function sawnCases(): iterable
+    {
+        yield 'only the checkmark' => [[self::stem('1', sawnMarked: true)], true];
+        yield 'only a beam' => [[self::stem('1'), self::beam('1', 'A')], true];
+        yield 'only a cross-section on the stem' => [[self::stem('1', width: 14.7, height: 14.7)], true];
+        yield 'none of them' => [[self::stem('1', 40, 40)], false];
+    }
+
+    /** @param list<Measures> $items */
+    #[\PHPUnit\Framework\Attributes\DataProvider('sawnCases')]
+    public function testSawnIsTheCheckmarkABeamOrACrossSection(array $items, bool $sawn): void
+    {
+        self::assertSame($sawn, $this->stemFigures($items, '1')->isSawn());
+    }
+
     public function testOneDiameterCountsForBothAndSaysSo(): void
     {
         foreach ([self::stem('1', 40, null), self::stem('1', null, 40), self::stem('1', 40, 0), self::stem('1', 0, 40)] as $stem) {

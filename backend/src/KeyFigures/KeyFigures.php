@@ -4,16 +4,19 @@ namespace App\KeyFigures;
 
 /**
  * The one place with the formulas for round wood, sawn timber and yield. The export (TimberReport), the key figures of the
- * detail view and, later, the lists and the dashboard all use it.
+ * detail view, the dashboard and, later, the lists all use it.
  *
  * Two layers: roundWood(), piece() and ofStems() calculate and say what is missing (as Missing, not as text);
- * stemCard() and beamCard() write the texts for the detail view from that result, each right beside its formula.
+ * stemCard() and beamCard() write the texts for the detail view from that result, each right beside its formula,
+ * sawing() adds the results up for the dashboard and writes its texts the same way.
  * It works on Measures that are already loaded: nothing here asks the database, so one stem or all of them cost the same.
  *
  * Round wood is provisional until V29 confirms the formula: π ÷ 4 × larger diameter × smaller diameter × length, with bark.
  */
 final class KeyFigures
 {
+    private const PRELIMINARY = 'Vorläufige Formel: Durchmesser mit Rinde, kein Abzug.';
+
     // --- Numbers ---------------------------------------------------------------------------------
 
     /** Ellipse from both diameters; with only one recorded it counts for both (the stem is taken as round). */
@@ -64,9 +67,11 @@ final class KeyFigures
             }
             $beams = $beamsOf[$stem->id] ?? [];
             usort($beams, static fn (Measures $a, Measures $b) => ($a->tag ?? "\xff") <=> ($b->tag ?? "\xff"));
-            // A stem without beams but with a cross-section or the checkmark "sawn" was sawn whole: it is its own piece.
-            $whole = [] === $beams && ($stem->crossSectionRecorded || $stem->sawnMarked);
-            $sawn = [] === $beams && !$whole ? null : $this->sawnTimber(array_map($this->piece(...), $whole ? [$stem] : $beams), $whole);
+            // The one rule for "sawn" (dashboard, export, detail view; StemFigures::isSawn()): the checkmark, a beam (the items hold no voided ones)
+            // or a cross-section recorded on the stem. Calculated only, nothing is written. Without beams the stem was sawn whole: it is its own piece.
+            $isSawn = $stem->sawnMarked || [] !== $beams || $stem->crossSectionRecorded;
+            $whole = $isSawn && [] === $beams;
+            $sawn = $isSawn ? $this->sawnTimber(array_map($this->piece(...), $whole ? [$stem] : $beams), $whole) : null;
             $round = $this->roundWood($stem);
             $yield = null === $sawn || null === $sawn->volume || null === $round->volume ? null : $sawn->volume / $round->volume;
             $yieldMissing = null === $sawn || null !== $yield ? [] : array_values(array_filter([null === $sawn->volume ? Missing::SawnTimber : null, null === $round->volume ? Missing::RoundWood : null]));
@@ -109,9 +114,9 @@ final class KeyFigures
                 $round->oneDiameter => \sprintf('aus einem Durchmesser (%s cm) und %s m', self::cm($round->diameterMax), self::meters($round->length)),
                 default => \sprintf('aus %s × %s cm und %s m', self::cm($round->diameterMax), self::cm($round->diameterMin), self::meters($round->length)),
             },
-            \sprintf('π ÷ 4 × %s × %s × %s', $names['mid_diameter_max'], $names['mid_diameter_min'], $names['length']),
+            self::roundWoodFormula($names),
             null === $round->volume ? null : \sprintf('%s × %s m × %s m × %s m', self::number(M_PI / 4, 3), self::meters($round->diameterMax / 100), self::meters($round->diameterMin / 100), self::meters($round->length)),
-            'Vorläufige Formel: Durchmesser mit Rinde, kein Abzug.'.($round->oneDiameter ? ' Nur ein Durchmesser erfasst: Der Stamm wird als kreisrund gerechnet.' : ''),
+            self::PRELIMINARY.($round->oneDiameter ? ' Nur ein Durchmesser erfasst: Der Stamm wird als kreisrund gerechnet.' : ''),
         )];
         if (null === $sawn = $stem->sawnTimber) {
             return $figures;
@@ -162,6 +167,97 @@ final class KeyFigures
             null === $piece->volume ? null : self::pieceInserted($piece),
             null,
         )];
+    }
+
+    // --- Totals for the dashboard ------------------------------------------------------------------
+
+    /**
+     * The section "Sägen". A stem is processed if it is sawn (StemFigures::isSawn(), the rule of ofStems()) or unsawable.
+     * Round wood adds up processed stems, sawn timber every piece of sawn stems (beams, or the stem sawn whole),
+     * the yield divides it by the round wood of sawn stems only.
+     * Items without a calculable volume are left out of a sum; the note says how many.
+     *
+     * @param list<Measures>        $items all stems and beams that are not voided
+     * @param array<string, string> $names attribute names by key, with the optional "unsawable"
+     *
+     * @return list<DashboardFigure>
+     */
+    public function sawing(array $items, array $names): array
+    {
+        $unsawableName = $names['unsawable'] ?? throw new \RuntimeException('The dashboard needs the attribute with the key unsawable.');
+        $figures = $this->ofStems($items);
+        $stems = $sawnStems = $unsawableStems = $noRoundWood = $noSawnTimber = 0;
+        $roundSawn = $roundUnsawable = $beams = $wholeStems = 0.0;
+        foreach ($items as $stem) {
+            if (null !== $stem->parentId) {
+                continue;
+            }
+            ++$stems;
+            $sawnTimber = $figures[$stem->id]->sawnTimber;
+            // A stem both sawn and unsawable (hidden_when, not enforced by the server) counts as sawn.
+            $sawn = $figures[$stem->id]->isSawn();
+            if (!$sawn && !$stem->unsawableMarked) {
+                continue;
+            }
+            $sawn ? ++$sawnStems : ++$unsawableStems;
+            foreach ($sawnTimber->pieces ?? [] as $piece) {
+                if (null === $piece->volume) {
+                    ++$noSawnTimber;
+                } elseif ($sawnTimber->wholeStem) {
+                    $wholeStems += $piece->volume;
+                } else {
+                    $beams += $piece->volume;
+                }
+            }
+            $round = $figures[$stem->id]->roundWood->volume;
+            if (null === $round) {
+                ++$noRoundWood;
+            } elseif ($sawn) {
+                $roundSawn += $round;
+            } else {
+                $roundUnsawable += $round;
+            }
+        }
+        $processed = $sawnStems + $unsawableStems;
+        $sawnTimber = $beams + $wholeStems;
+        // "gesägt", "nicht sägbar": the states in the short form of the sums, named as in the database
+        $sawnState = mb_strtolower($names['sawn']);
+        $unsawableState = mb_strtolower($unsawableName);
+        $sawnRule = \sprintf('Als gesägt zählt ein Stamm, wenn %s angehakt ist, Balken vorhanden sind oder %s erfasst ist.', $names['sawn'], $names['sawn_cross_section']);
+
+        return [
+            new DashboardFigure('stems_total', 'Stämme gesamt', $stems, null, 'Alle Stämme ohne Balken, entfernte nicht mitgezählt', null, null),
+            new DashboardFigure('stems_processed', 'Stämme bearbeitet', $processed, null, \sprintf('%s Bearbeitet sind außerdem Stämme mit Häkchen bei %s.', $sawnRule, $unsawableName),
+                \sprintf('%d %s + %d %s', $sawnStems, $sawnState, $unsawableStems, $unsawableState), null),
+            new DashboardFigure('stems_open', 'Stämme nicht bearbeitet', $stems - $processed, null, 'Stämme gesamt − Stämme bearbeitet', \sprintf('%d − %d', $stems, $processed), null),
+            new DashboardFigure('round_wood', 'Rundholz bearbeitet', $roundSawn + $roundUnsawable, 'fm',
+                \sprintf('Summe über alle bearbeiteten Stämme, je Stamm %s', self::roundWoodFormula($names)),
+                \sprintf('%s fm %s + %s fm %s', self::number($roundSawn, 2), $sawnState, self::number($roundUnsawable, 2), $unsawableState),
+                self::PRELIMINARY.self::leftOut($noRoundWood, 'bearbeiteter Stamm', 'bearbeitete Stämme', 'Durchmesser oder Länge')),
+            new DashboardFigure('sawn_timber', 'Schnittholz', $sawnTimber, 'm³',
+                \sprintf('Summe über alle Stücke gesägter Stämme (Balken oder der als Ganzes gesägte Stamm), je Stück %s. %s', self::pieceFormula($names), $sawnRule),
+                \sprintf('%s m³ Balken + %s m³ als Ganzes gesägte Stämme', self::number($beams, 2), self::number($wholeStems, 2)),
+                ltrim(self::leftOut($noSawnTimber, 'Stück', 'Stücke', 'Querschnitt oder Länge')) ?: null),
+            new DashboardFigure('yield', 'Ausbeute', $roundSawn > 0 ? $sawnTimber / $roundSawn : null, '%', 'Schnittholz ÷ Rundholz der gesägten Stämme',
+                $roundSawn > 0 ? \sprintf('%s m³ ÷ %s fm', self::number($sawnTimber, 2), self::number($roundSawn, 2)) : null,
+                \sprintf('Nur gesägte Stämme gehen ein. %s Stämme mit Häkchen bei %s zählen nicht.', $sawnRule, $unsawableName)),
+        ];
+    }
+
+    /** " 3 bearbeitete Stämme ohne Durchmesser oder Länge fehlen in der Summe."; empty if none. */
+    private static function leftOut(int $count, string $one, string $many, string $what): string
+    {
+        return match ($count) {
+            0 => '',
+            1 => " 1 $one ohne $what fehlt in der Summe.",
+            default => " $count $many ohne $what fehlen in der Summe.",
+        };
+    }
+
+    /** @param array<string, string> $names */
+    private static function roundWoodFormula(array $names): string
+    {
+        return \sprintf('π ÷ 4 × %s × %s × %s', $names['mid_diameter_max'], $names['mid_diameter_min'], $names['length']);
     }
 
     /** @param array<string, string> $names */

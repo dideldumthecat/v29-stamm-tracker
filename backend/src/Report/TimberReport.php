@@ -93,7 +93,7 @@ final class TimberReport
         $sawnPieces = [];
         foreach ($stems as $stem) {
             $id = $stem->id->toRfc4122();
-            $this->pieces[$id] = $this->beamsOf[$id] ?? (null !== $this->figures[$id]->sawnTimber ? [$stem] : []);
+            $this->pieces[$id] = $this->beamsOf[$id] ?? ($this->figures[$id]->isSawn() ? [$stem] : []);
             array_push($sawnPieces, ...$this->pieces[$id]);
         }
         usort($sawnPieces, fn (TimberItem $a, TimberItem $b) => $this->sortKey($a) <=> $this->sortKey($b));
@@ -167,7 +167,7 @@ final class TimberReport
         $columns = [['Stamm', null, 'Plakettennummer des Stamms', fn (TimberItem $stem) => self::formatTag($stem->tagNumber)]];
         foreach ($this->listedAttributes(['sawn_cross_section', 'notes', 'photos']) as $attribute) {
             $columns[] = match ($attribute->key) {
-                'sawn' => [$attribute->name, null, \sprintf('Abgeleitet, nicht der erfasste Wert: ja, wenn der Stamm Balken hat, einen „%s“ hat oder „%s“ = ja erfasst ist', $this->key['sawn_cross_section']->name, $attribute->name), fn (TimberItem $stem) => null !== $this->figures[$stem->id->toRfc4122()]->sawnTimber ? 'ja' : 'nein'],
+                'sawn' => [$attribute->name, null, \sprintf('Abgeleitet, nicht der erfasste Wert: ja, wenn der Stamm Balken hat, einen „%s“ hat oder „%s“ = ja erfasst ist', $this->key['sawn_cross_section']->name, $attribute->name), fn (TimberItem $stem) => $this->figures[$stem->id->toRfc4122()]->isSawn() ? 'ja' : 'nein'],
                 default => $this->attributeColumn($attribute, false),
             };
         }

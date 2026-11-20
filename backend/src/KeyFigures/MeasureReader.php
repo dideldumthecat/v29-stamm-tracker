@@ -64,8 +64,16 @@ final class MeasureReader
             $width,
             $height,
             [] !== ($values[$this->attributes['sawn_cross_section']->id->toRfc4122()] ?? []),
-            (bool) ($values[$this->attributes['sawn']->id->toRfc4122()][0]['value'] ?? false),
+            $this->marked($values, 'sawn'),
+            // Optional: only the dashboard asks (it checks that the attribute exists), the export and the detail view work without it.
+            isset($this->attributes['unsawable']) && $this->marked($values, 'unsawable'),
         );
+    }
+
+    /** @param array<string, list<array{value: bool|int|float|string, recorded_at: string, user_id: string, event_id: string}>> $values */
+    private function marked(array $values, string $key): bool
+    {
+        return (bool) ($values[$this->attributes[$key]->id->toRfc4122()][0]['value'] ?? false);
     }
 
     /**

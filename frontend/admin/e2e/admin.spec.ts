@@ -1,5 +1,6 @@
 import { test, expect, type Locator, type Page, type Route } from '@playwright/test'
 
+import dashboardFixture from '@v29/shared/fixtures/dashboard-response.json' with { type: 'json' }
 import keyFiguresFixture from '@v29/shared/fixtures/key-figures-response.json' with { type: 'json' }
 
 import { activityAnswer } from '../src/__tests__/fakeActivity'
@@ -48,6 +49,9 @@ async function fakeApi(page: Page) {
     if (call === 'GET /api/snapshot') {
       return role ? route.fulfill({ json: snapshotFixture }) : route.fulfill({ status: 401 })
     }
+    if (call === 'GET /api/admin/dashboard') {
+      return role ? route.fulfill({ json: dashboardFixture }) : route.fulfill({ status: 401 })
+    }
     if (/^GET \/api\/admin\/timber-items\/[^/]+\/key-figures$/.test(call)) {
       return role ? route.fulfill({ json: keyFiguresFixture }) : route.fulfill({ status: 401 })
     }
@@ -81,7 +85,7 @@ async function signIn(page: Page, code: string) {
 test.beforeEach(async ({ page }) => fakeApi(page))
 
 for (const [path, landing, heading] of [
-  ['/admin/', '/admin/activity', 'Aktivität'],
+  ['/admin/', '/admin/', 'Dashboard'],
   ['/admin/x', '/admin/x', 'V29 Stamm-Tracker – Administration'],
 ]) {
   test(`${path} leads to the sign-in and, after signing in, back to the page`, async ({ page }) => {
@@ -101,7 +105,7 @@ test('no connection at the start: a retry instead of the sign-in, then the page 
 }) => {
   await page.goto('/admin/login')
   await signIn(page, 'K7QM4XHT9RDP')
-  await expect(page.locator('h1')).toHaveText('Aktivität')
+  await expect(page.locator('h1')).toHaveText('Dashboard')
 
   // the last route handler wins: the call to /admin/me gets no answer until the handler is removed
   const noAnswer = (route: Route) => route.abort()
@@ -133,11 +137,20 @@ test('the frame: active navigation item, credit, and one 1280px column from head
   await expect(page.getByRole('link', { name: 'Alexander Summa', exact: true })).toBeVisible()
   await signIn(page, 'K7QM4XHT9RDP')
 
-  await expect(page.getByRole('navigation').getByRole('link')).toHaveCount(3)
+  // the sign-in lands on the dashboard, which has no navigation item
+  await expect(page.locator('h1')).toHaveText('Dashboard')
+  const navigation = page.getByRole('navigation')
+  await expect(navigation.getByRole('link')).toHaveCount(3)
+  await expect(navigation.locator('[aria-current]')).toHaveCount(0)
+  await navigation.getByRole('link', { name: 'Aktivität', exact: true }).click()
   await expect(page.getByRole('link', { name: 'Aktivität', exact: true })).toHaveAttribute(
     'aria-current',
     'page',
   )
+  // logo and title lead back
+  await page.getByRole('link', { name: 'V29 Stamm-Tracker – Dashboard', exact: true }).click()
+  await expect(page).toHaveURL(/\/admin\/$/)
+  await expect(page.locator('h1')).toHaveText('Dashboard')
   const left = (locator: Locator) =>
     locator.first().evaluate((element) => element.getBoundingClientRect().left)
   // header brand, page heading and footer credit start on the same line: (1920 - 1280) / 2 + 32

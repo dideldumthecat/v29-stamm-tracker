@@ -486,7 +486,10 @@ describe('activity page', () => {
   })
 
   it('shows "Waldesruh" for a filter the server cannot read, with the button that clears it', async () => {
-    const { api, router, wrapper } = await open('/activity?tags=bad')
+    // the activity first, then the unreadable filter on the same page
+    const { api, router, wrapper } = await open()
+    await router.push('/activity?tags=bad')
+    await flushPromises()
 
     expect(wrapper.find('[role=alert]').exists()).toBe(false)
     expect(wrapper.get('h2').text()).toBe('Waldesruh')

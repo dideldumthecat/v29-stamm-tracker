@@ -5,6 +5,7 @@ import { connectionLost, loadUser, user } from '@/auth'
 import { itemRoute, normalizeTag } from '@/detail'
 import ActivityView from '@/views/ActivityView.vue'
 import AttributesView from '@/views/AttributesView.vue'
+import DashboardView from '@/views/DashboardView.vue'
 import LoginView from '@/views/LoginView.vue'
 import TimberItemsView from '@/views/TimberItemsView.vue'
 import TimberItemView from '@/views/TimberItemView.vue'
@@ -17,7 +18,7 @@ export function createAdminRouter(history: RouterHistory = createWebHistory('/ad
     history,
     routes: [
       { path: '/login', name: 'login', component: LoginView },
-      { path: '/', redirect: { name: 'activity' } },
+      { path: '/', name: 'dashboard', component: DashboardView },
       { path: '/activity', name: 'activity', component: ActivityView },
       { path: '/attributes', name: 'attributes', component: AttributesView },
       { path: '/users', name: 'users', component: UsersView },

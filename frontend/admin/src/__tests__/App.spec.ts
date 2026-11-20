@@ -61,15 +61,16 @@ describe('router guard', () => {
     const { router, wrapper } = await start('/login?redirect=//evil.example')
     await signIn(wrapper, ADMIN)
 
-    expect(router.currentRoute.value.fullPath).toBe('/activity')
+    expect(router.currentRoute.value.fullPath).toBe('/')
   })
 
-  it('opens the activity for "/" and shows the placeholder for an unknown path', async () => {
+  it('opens the dashboard for "/" and shows the placeholder for an unknown path', async () => {
     fakeApi(CODES)
     const { router, wrapper } = await start('/login')
     await signIn(wrapper, ADMIN)
     await router.push('/')
-    expect(router.currentRoute.value.name).toBe('activity')
+    expect(router.currentRoute.value.name).toBe('dashboard')
+    expect(wrapper.get('h1').text()).toBe('Dashboard')
 
     await router.push('/gibt-es-nicht')
     expect(wrapper.get('h1').text()).toBe('V29 Stamm-Tracker – Administration')
@@ -197,7 +198,7 @@ describe('frame', () => {
     fakeApi(CODES)
     const { router, wrapper } = await start('/login')
     await signIn(wrapper, ADMIN)
-    await router.push('/')
+    await router.push('/activity')
 
     expect(wrapper.findAll('nav a').map((link) => link.text())).toEqual([
       'Stämme',
@@ -209,6 +210,18 @@ describe('frame', () => {
 
     await router.push('/x')
     expect(wrapper.find('nav [aria-current]').exists()).toBe(false)
+  })
+
+  it('leads to the dashboard with logo and title', async () => {
+    fakeApi(CODES)
+    const { router, wrapper } = await start('/login')
+    await signIn(wrapper, ADMIN)
+    await router.push('/activity')
+
+    await wrapper.get('header a[aria-label="V29 Stamm-Tracker – Dashboard"]').trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.name).toBe('dashboard')
   })
 
   it('keeps the sign-out button with the name "Abmelden" and shows an error if it fails', async () => {
