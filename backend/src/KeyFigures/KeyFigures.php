@@ -103,7 +103,7 @@ final class KeyFigures
     {
         $round = $stem->roundWood;
         $figures = [new KeyFigure(
-            'round_wood', 'Rundholz', $round->volume, 'm³',
+            'round_wood', 'Rundholz', $round->volume, 'fm',
             match (true) {
                 null === $round->volume => self::lacks($round->missing),
                 $round->oneDiameter => \sprintf('aus einem Durchmesser (%s cm) und %s m', self::cm($round->diameterMax), self::meters($round->length)),
@@ -139,7 +139,7 @@ final class KeyFigures
             'yield', 'Ausbeute', $stem->yield, '%',
             null === $stem->yield ? self::lacks($stem->yieldMissing) : 'Schnittholz ÷ Rundholz',
             'Schnittholz ÷ Rundholz',
-            null === $stem->yield ? null : \sprintf('%s m³ ÷ %s m³', self::number($sawn->volume, 3), self::number($round->volume, 3)),
+            null === $stem->yield ? null : \sprintf('%s m³ ÷ %s fm', self::number($sawn->volume, 3), self::number($round->volume, 3)),
             null,
         );
 

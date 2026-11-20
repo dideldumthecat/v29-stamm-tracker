@@ -321,7 +321,7 @@ describe('key figures', () => {
       api.calls.some((call) => /^GET \/api\/admin\/timber-items\/[^/]+\/key-figures$/.test(call)),
     ).toBe(true)
     expect(rows(wrapper)).toEqual([
-      'Rundholz0,502 m³aus 40 × 39 cm und 4,10 m',
+      'Rundholz0,502 fmaus 40 × 39 cm und 4,10 m',
       'Schnittholz0,304 m³Summe der 4 Balken',
       'Ausbeute60 % Schnittholz ÷ Rundholz',
     ])
@@ -342,7 +342,7 @@ describe('key figures', () => {
       'So wird Rundholz berechnet' +
         'Formelπ ÷ 4 × Durchmesser groß × Durchmesser klein × Länge' +
         'Eingesetzt0,785 × 0,40 m × 0,39 m × 4,10 m' +
-        'Ergebnis0,502 m³' +
+        'Ergebnis0,502 fm' +
         'Vorläufige Formel: Durchmesser mit Rinde, kein Abzug.',
     )
 

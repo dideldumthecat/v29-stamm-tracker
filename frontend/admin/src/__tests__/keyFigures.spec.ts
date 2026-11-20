@@ -29,7 +29,8 @@ describe('key figure formatting', () => {
   })
 
   it('joins value and unit with a no-break space, and has nothing for a figure that cannot be calculated', () => {
-    expect(formatFigure(figure(0.50234, 'm³'))).toBe('0,502 m³')
+    expect(formatFigure(figure(0.50234, 'fm'))).toBe('0,502 fm')
+    expect(formatFigure(figure(0.30376, 'm³'))).toBe('0,304 m³')
     expect(formatFigure(figure(0.6047, '%'))).toBe('60 %')
     expect(formatFigure(figure(null, 'm³'))).toBeNull()
   })

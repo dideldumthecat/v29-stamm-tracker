@@ -60,10 +60,10 @@ class KeyFiguresTest extends TestCase
 
         $card = self::byKey($this->figures->stemCard($result, self::NAMES));
         self::assertSame(['round_wood', 'sawn_timber', 'yield'], array_keys($card));
-        self::assertSame(['Rundholz', 'm³', 'aus 40 × 39 cm und 4,10 m', 'π ÷ 4 × Durchmesser groß × Durchmesser klein × Länge', '0,785 × 0,40 m × 0,39 m × 4,10 m'], [$card['round_wood']->label, $card['round_wood']->unit, $card['round_wood']->source, $card['round_wood']->formula, $card['round_wood']->inserted]);
+        self::assertSame(['Rundholz', 'fm', 'aus 40 × 39 cm und 4,10 m', 'π ÷ 4 × Durchmesser groß × Durchmesser klein × Länge', '0,785 × 0,40 m × 0,39 m × 4,10 m'], [$card['round_wood']->label, $card['round_wood']->unit, $card['round_wood']->source, $card['round_wood']->formula, $card['round_wood']->inserted]);
         self::assertSame('Vorläufige Formel: Durchmesser mit Rinde, kein Abzug.', $card['round_wood']->note);
         self::assertSame(['Summe der 4 Balken', 'Summe des Schnittholzes aller Balken', '0,089 + 0,089 + 0,063 + 0,063 m³'], [$card['sawn_timber']->source, $card['sawn_timber']->formula, $card['sawn_timber']->inserted]);
-        self::assertSame(['%', 'Schnittholz ÷ Rundholz', 'Schnittholz ÷ Rundholz', '0,304 m³ ÷ 0,502 m³'], [$card['yield']->unit, $card['yield']->source, $card['yield']->formula, $card['yield']->inserted]);
+        self::assertSame(['%', 'Schnittholz ÷ Rundholz', 'Schnittholz ÷ Rundholz', '0,304 m³ ÷ 0,502 fm'], [$card['yield']->unit, $card['yield']->source, $card['yield']->formula, $card['yield']->inserted]);
     }
 
     public function testOneDiameterCountsForBothAndSaysSo(): void

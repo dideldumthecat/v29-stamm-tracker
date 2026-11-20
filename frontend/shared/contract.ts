@@ -126,9 +126,9 @@ export interface KeyFigure {
   key: 'round_wood' | 'sawn_timber' | 'yield'
   /** "Rundholz", "Schnittholz", "Ausbeute" */
   label: string
-  /** m³, or the share 0–1 for the yield; null = not calculable. */
+  /** fm (round wood) or m³ (sawn timber; 1 fm = 1 m³), or the share 0–1 for the yield; null = not calculable. */
   value: number | null
-  unit: 'm³' | '%'
+  unit: 'fm' | 'm³' | '%'
   /** The small line under the value, e.g. "aus 40 × 39 cm und 4,10 m"; with value null it says what is missing. */
   source: string
   /** "π ÷ 4 × Durchmesser groß × Durchmesser klein × Länge" (attribute names as in the database) */

@@ -780,7 +780,7 @@ test.describe('detail view', () => {
     const card = page.locator('section', {
       has: page.getByRole('heading', { name: 'Kennzahlen', exact: true }),
     })
-    await expect(card).toContainText('0,502 m³')
+    await expect(card).toContainText('0,502 fm')
     await expect(card).toContainText('aus 40 × 39 cm und 4,10 m')
     await expect(card).toContainText('60 %')
 

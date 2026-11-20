@@ -4,7 +4,7 @@
       "key": "round_wood",
       "label": "Rundholz",
       "value": 0.5023406653090078,
-      "unit": "m³",
+      "unit": "fm",
       "source": "aus 40 × 39 cm und 4,10 m",
       "formula": "π ÷ 4 × Durchmesser groß × Durchmesser klein × Länge",
       "inserted": "0,785 × 0,40 m × 0,39 m × 4,10 m",
@@ -27,7 +27,7 @@
       "unit": "%",
       "source": "Schnittholz ÷ Rundholz",
       "formula": "Schnittholz ÷ Rundholz",
-      "inserted": "0,304 m³ ÷ 0,502 m³",
+      "inserted": "0,304 m³ ÷ 0,502 fm",
       "note": null
     }
   ]
