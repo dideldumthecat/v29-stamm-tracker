@@ -10,7 +10,6 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Uid\Uuid;
@@ -18,6 +17,8 @@ use Symfony\Component\Uid\Uuid;
 /** AdminUsersResponse, AdminUserInput and AdminInviteResponse in frontend/shared/contract.ts. The role check for /api/admin/ happens in AuthenticateListener, the rules of who may do what in UserAdmin. */
 final class UserAdminController extends AbstractController
 {
+    use JsonBody;
+
     public function __construct(
         private readonly UserAdmin $users,
         private readonly EntityManagerInterface $em,
@@ -78,17 +79,6 @@ final class UserAdminController extends AbstractController
     private function find(string $id): User
     {
         return (Uuid::isValid($id) ? $this->em->find(User::class, Uuid::fromString($id)) : null) ?? throw new NotFoundHttpException('No such user.');
-    }
-
-    /** @return array<mixed> */
-    private function body(Request $request): array
-    {
-        $body = json_decode($request->getContent(), true);
-        if (!\is_array($body) || (array_is_list($body) && [] !== $body)) {
-            throw new BadRequestHttpException('The body must be a JSON object.');
-        }
-
-        return $body;
     }
 
     /** @param callable(): JsonResponse $action */

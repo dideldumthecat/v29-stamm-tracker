@@ -10,7 +10,6 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Uid\Uuid;
@@ -18,6 +17,8 @@ use Symfony\Component\Uid\Uuid;
 /** AdminAttributesResponse, AdminAttributeInput and AttributeErrorsResponse in frontend/shared/contract.ts. The role check for /api/admin/ happens in AuthenticateListener. */
 final class AttributeAdminController extends AbstractController
 {
+    use JsonBody;
+
     public function __construct(private readonly AttributeEditor $editor, private readonly EntityManagerInterface $em)
     {
     }
@@ -57,17 +58,6 @@ final class AttributeAdminController extends AbstractController
 
             return $this->json($this->editor->one($attribute));
         });
-    }
-
-    /** @return array<mixed> */
-    private function body(Request $request): array
-    {
-        $body = json_decode($request->getContent(), true);
-        if (!\is_array($body) || (array_is_list($body) && [] !== $body)) {
-            throw new BadRequestHttpException('The body must be a JSON object.');
-        }
-
-        return $body;
     }
 
     /** @param callable(): JsonResponse $action */
