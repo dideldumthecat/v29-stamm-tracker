@@ -34,6 +34,9 @@
   --color-lockline: #b0b0b0; /* locked field border */
   --color-desk: #e4e4e2; /* area beside the app column (desktop) */
   --color-disabled: #cccccc;
+  --color-beam-large: #595959; /* large beams in the weekly chart of the dashboard */
+  --color-beam-small: #8f8f8f; /* small beams in the weekly chart of the dashboard */
+  --color-beam-small-text: #767676; /* the number of small beams above a column: the column grey is too light for text */
   --color-alert: #b42318; /* only errors and warnings, never an accent */
 
   --font-sans: 'Roboto Variable', 'Helvetica Neue', Helvetica, Arial, sans-serif;

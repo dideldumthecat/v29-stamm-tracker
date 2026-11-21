@@ -4,9 +4,12 @@ namespace App\KeyFigures;
 
 use App\Entity\Attribute;
 use App\Entity\AttributeOption;
+use App\Entity\EventType;
 use App\Entity\TimberItem;
 use App\Entity\TimberItemState;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\Uid\Uuid;
 
 /** Reads the measures of items from the projections, whose values are already effective (own, or inherited from the stem). */
 final class MeasureLoader
@@ -41,6 +44,37 @@ final class MeasureLoader
         }
         $reader = new MeasureReader($attributes, $options);
 
-        return [array_map(static fn (TimberItem $item) => $reader->read($item, $values[$item->id->toRfc4122()] ?? []), $items), $reader->names()];
+        $firstSawn = $this->firstSawn($items, $attributes['sawn']);
+
+        return [array_map(static fn (TimberItem $item) => $reader->read($item, $values[$item->id->toRfc4122()] ?? [], $firstSawn[$item->id->toRfc4122()] ?? null), $items), $reader->names()];
+    }
+
+    /**
+     * Device time of the first recording of "sawn" as yes, per item id. The projection keeps only the latest value, so this reads the events.
+     * A voided recording does not count (as in the projection). JSON_VALUE gives a boolean as 'true' or '1' depending on the MariaDB version.
+     *
+     * @param list<TimberItem> $items
+     *
+     * @return array<string, \DateTimeImmutable>
+     */
+    private function firstSawn(array $items, Attribute $sawn): array
+    {
+        if ([] === $items) {
+            return [];
+        }
+        $rows = $this->em->getConnection()->fetchAllKeyValue(
+            'SELECT e.timber_item_id, MIN(e.recorded_at) FROM timber_item_events e
+              WHERE e.type = ? AND e.timber_item_id IN (?) AND JSON_VALUE(e.data, ?) = ? AND JSON_VALUE(e.data, ?) IN (?, ?)
+                AND NOT EXISTS (SELECT 1 FROM timber_item_events v WHERE v.type = ? AND v.reference_id = e.id)
+              GROUP BY e.timber_item_id',
+            [EventType::AttributeRecorded->value, array_map(static fn (TimberItem $item) => $item->id->toBinary(), $items), '$.attribute_id', $sawn->id->toRfc4122(), '$.value', 'true', '1', EventType::Voided->value],
+            [1 => ArrayParameterType::BINARY],
+        );
+        $first = [];
+        foreach ($rows as $id => $at) {
+            $first[Uuid::fromBinary($id)->toRfc4122()] = new \DateTimeImmutable($at, new \DateTimeZone('UTC'));
+        }
+
+        return $first;
     }
 }

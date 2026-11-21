@@ -21,6 +21,12 @@ final readonly class Measures
         public bool $crossSectionRecorded,
         public bool $sawnMarked,
         public bool $unsawableMarked = false,
+        /** Stems: the option of the attribute "source" (the pile); null if none recorded or the attribute does not exist. */
+        public ?string $pileId = null,
+        /** Device time the item was created. */
+        public ?\DateTimeImmutable $createdAt = null,
+        /** Stems: device time "sawn" was first recorded as yes, without one the time the cross-section was recorded; null if neither. */
+        public ?\DateTimeImmutable $sawnAt = null,
     ) {
     }
 }

@@ -144,6 +144,281 @@
         }
       ],
       "without_diameter": 1
+    },
+    {
+      "type": "pile",
+      "key": "pile-0199a000-0000-7000-8000-00000000a001",
+      "label": "Polter 2601-010145 (Krummes F)",
+      "notes": [
+        {
+          "term": "Stämme",
+          "text": "Alle Stämme, bei denen Polternummer auf diesen Polter steht, ohne Balken und ohne entfernte."
+        },
+        {
+          "term": "Fortschritt",
+          "text": "(gesägt + nicht sägbar) ÷ Stämme. Als gesägt zählt ein Stamm, wenn Gesägt angehakt ist, Balken vorhanden sind oder Gesägter Querschnitt erfasst ist. Nicht sägbar ist ein Stamm mit Häkchen bei Nicht sägbar, der nicht gesägt ist."
+        },
+        {
+          "term": "Ausbeute",
+          "text": "Schnittholz ÷ Rundholz der gesägten Stämme, gerechnet wie bei den Kennzahlen: Rundholz je Stamm π ÷ 4 × Durchmesser groß × Durchmesser klein × Länge, Schnittholz je Stück Breite × Höhe × Länge. Nicht sägbare Stämme gehen nicht ein, Stämme ohne Durchmesser oder Länge fehlen im Rundholz."
+        },
+        {
+          "term": "Verschnitt",
+          "text": "Rundholz − Schnittholz der gesägten Stämme: Rinde, Schwarten, Späne."
+        },
+        {
+          "term": "Balken pro Woche",
+          "text": "Gesägte Balken je Kalenderwoche (Montag bis Sonntag, Zeitzone Europe/Berlin), von der ersten Woche mit einem gesägten Balken bis zur aktuellen; Wochen ohne Balken zählen 0. Ein Balken zählt in der Woche, in der er angelegt wurde. Ein als Ganzes gesägter Stamm zählt als ein Balken in der Woche, in der das Merkmal Gesägt zum ersten Mal auf Ja gesetzt wurde; ohne eine solche Erfassung zählt die Woche, in der das Merkmal Gesägter Querschnitt erfasst wurde."
+        },
+        {
+          "term": "Groß und klein",
+          "text": "Grundlage ist Gesägter Querschnitt: Ist die kleinere Seite mindestens 12 cm, ist der Balken groß (Balken 14×14), sonst klein (Balken 10×14). Ein Balken ohne lesbaren Querschnitt zählt weder als groß noch als klein."
+        },
+        {
+          "term": "Durchschnitt",
+          "text": "Balken ÷ Wochen, nur über die abgeschlossenen Wochen; die aktuelle Woche zählt nicht mit."
+        }
+      ],
+      "stems": 7,
+      "stacked_volume": 51.52,
+      "latitude": 51.3132,
+      "longitude": 12.3715,
+      "progress": {
+        "sawn": 5,
+        "not_sawable": 1,
+        "open": 1
+      },
+      "yield": {
+        "ratio": 0.4229008738490924,
+        "sawn_timber_m3": 1.2909833999999998,
+        "waste_fm": 1.7617021814932017,
+        "round_wood_fm": 3.0526855814932015
+      },
+      "size_labels": {
+        "large": "Balken 14×14",
+        "small": "Balken 10×14"
+      },
+      "weeks": [
+        {
+          "week_start": "2026-10-19",
+          "large": 2,
+          "small": 2
+        },
+        {
+          "week_start": "2026-10-26",
+          "large": 3,
+          "small": 1
+        },
+        {
+          "week_start": "2026-11-02",
+          "large": 1,
+          "small": 0
+        },
+        {
+          "week_start": "2026-11-09",
+          "large": 4,
+          "small": 0
+        },
+        {
+          "week_start": "2026-11-16",
+          "large": 1,
+          "small": 2
+        }
+      ],
+      "average_per_week": 3.25
+    },
+    {
+      "type": "pile",
+      "key": "pile-0199a000-0000-7000-8000-00000000a002",
+      "label": "Polter 2601-010160 (Waldweg Nord)",
+      "notes": [
+        {
+          "term": "Stämme",
+          "text": "Alle Stämme, bei denen Polternummer auf diesen Polter steht, ohne Balken und ohne entfernte."
+        },
+        {
+          "term": "Fortschritt",
+          "text": "(gesägt + nicht sägbar) ÷ Stämme. Als gesägt zählt ein Stamm, wenn Gesägt angehakt ist, Balken vorhanden sind oder Gesägter Querschnitt erfasst ist. Nicht sägbar ist ein Stamm mit Häkchen bei Nicht sägbar, der nicht gesägt ist."
+        },
+        {
+          "term": "Ausbeute",
+          "text": "Schnittholz ÷ Rundholz der gesägten Stämme, gerechnet wie bei den Kennzahlen: Rundholz je Stamm π ÷ 4 × Durchmesser groß × Durchmesser klein × Länge, Schnittholz je Stück Breite × Höhe × Länge. Nicht sägbare Stämme gehen nicht ein, Stämme ohne Durchmesser oder Länge fehlen im Rundholz."
+        },
+        {
+          "term": "Verschnitt",
+          "text": "Rundholz − Schnittholz der gesägten Stämme: Rinde, Schwarten, Späne."
+        },
+        {
+          "term": "Balken pro Woche",
+          "text": "Gesägte Balken je Kalenderwoche (Montag bis Sonntag, Zeitzone Europe/Berlin), von der ersten Woche mit einem gesägten Balken bis zur aktuellen; Wochen ohne Balken zählen 0. Ein Balken zählt in der Woche, in der er angelegt wurde. Ein als Ganzes gesägter Stamm zählt als ein Balken in der Woche, in der das Merkmal Gesägt zum ersten Mal auf Ja gesetzt wurde; ohne eine solche Erfassung zählt die Woche, in der das Merkmal Gesägter Querschnitt erfasst wurde."
+        },
+        {
+          "term": "Groß und klein",
+          "text": "Grundlage ist Gesägter Querschnitt: Ist die kleinere Seite mindestens 12 cm, ist der Balken groß (Balken 14×14), sonst klein (Balken 10×14). Ein Balken ohne lesbaren Querschnitt zählt weder als groß noch als klein."
+        },
+        {
+          "term": "Durchschnitt",
+          "text": "Balken ÷ Wochen, nur über die abgeschlossenen Wochen; die aktuelle Woche zählt nicht mit."
+        }
+      ],
+      "stems": 27,
+      "stacked_volume": 130,
+      "latitude": 51.3201,
+      "longitude": 12.4023,
+      "progress": {
+        "sawn": 26,
+        "not_sawable": 1,
+        "open": 0
+      },
+      "yield": {
+        "ratio": 0.47107859806266905,
+        "sawn_timber_m3": 7.809183899999984,
+        "waste_fm": 8.768058055197276,
+        "round_wood_fm": 16.57724195519726
+      },
+      "size_labels": {
+        "large": "Balken 14×14",
+        "small": "Balken 10×14"
+      },
+      "weeks": [
+        {
+          "week_start": "2026-08-03",
+          "large": 2,
+          "small": 0
+        },
+        {
+          "week_start": "2026-08-10",
+          "large": 7,
+          "small": 3
+        },
+        {
+          "week_start": "2026-08-17",
+          "large": 5,
+          "small": 2
+        },
+        {
+          "week_start": "2026-08-24",
+          "large": 3,
+          "small": 1
+        },
+        {
+          "week_start": "2026-08-31",
+          "large": 0,
+          "small": 0
+        },
+        {
+          "week_start": "2026-09-07",
+          "large": 6,
+          "small": 3
+        },
+        {
+          "week_start": "2026-09-14",
+          "large": 4,
+          "small": 2
+        },
+        {
+          "week_start": "2026-09-21",
+          "large": 2,
+          "small": 1
+        },
+        {
+          "week_start": "2026-09-28",
+          "large": 7,
+          "small": 0
+        },
+        {
+          "week_start": "2026-10-05",
+          "large": 5,
+          "small": 3
+        },
+        {
+          "week_start": "2026-10-12",
+          "large": 3,
+          "small": 2
+        },
+        {
+          "week_start": "2026-10-19",
+          "large": 8,
+          "small": 1
+        },
+        {
+          "week_start": "2026-10-26",
+          "large": 6,
+          "small": 0
+        },
+        {
+          "week_start": "2026-11-02",
+          "large": 4,
+          "small": 3
+        },
+        {
+          "week_start": "2026-11-09",
+          "large": 2,
+          "small": 2
+        },
+        {
+          "week_start": "2026-11-16",
+          "large": 7,
+          "small": 1
+        }
+      ],
+      "average_per_week": 5.8
+    },
+    {
+      "type": "pile",
+      "key": "pile-0199a000-0000-7000-8000-00000000a003",
+      "label": "Polter 2601-010170 (Lindenallee)",
+      "notes": [
+        {
+          "term": "Stämme",
+          "text": "Alle Stämme, bei denen Polternummer auf diesen Polter steht, ohne Balken und ohne entfernte."
+        },
+        {
+          "term": "Fortschritt",
+          "text": "(gesägt + nicht sägbar) ÷ Stämme. Als gesägt zählt ein Stamm, wenn Gesägt angehakt ist, Balken vorhanden sind oder Gesägter Querschnitt erfasst ist. Nicht sägbar ist ein Stamm mit Häkchen bei Nicht sägbar, der nicht gesägt ist."
+        },
+        {
+          "term": "Ausbeute",
+          "text": "Schnittholz ÷ Rundholz der gesägten Stämme, gerechnet wie bei den Kennzahlen: Rundholz je Stamm π ÷ 4 × Durchmesser groß × Durchmesser klein × Länge, Schnittholz je Stück Breite × Höhe × Länge. Nicht sägbare Stämme gehen nicht ein, Stämme ohne Durchmesser oder Länge fehlen im Rundholz."
+        },
+        {
+          "term": "Verschnitt",
+          "text": "Rundholz − Schnittholz der gesägten Stämme: Rinde, Schwarten, Späne."
+        },
+        {
+          "term": "Balken pro Woche",
+          "text": "Gesägte Balken je Kalenderwoche (Montag bis Sonntag, Zeitzone Europe/Berlin), von der ersten Woche mit einem gesägten Balken bis zur aktuellen; Wochen ohne Balken zählen 0. Ein Balken zählt in der Woche, in der er angelegt wurde. Ein als Ganzes gesägter Stamm zählt als ein Balken in der Woche, in der das Merkmal Gesägt zum ersten Mal auf Ja gesetzt wurde; ohne eine solche Erfassung zählt die Woche, in der das Merkmal Gesägter Querschnitt erfasst wurde."
+        },
+        {
+          "term": "Groß und klein",
+          "text": "Grundlage ist Gesägter Querschnitt: Ist die kleinere Seite mindestens 12 cm, ist der Balken groß (Balken 14×14), sonst klein (Balken 10×14). Ein Balken ohne lesbaren Querschnitt zählt weder als groß noch als klein."
+        },
+        {
+          "term": "Durchschnitt",
+          "text": "Balken ÷ Wochen, nur über die abgeschlossenen Wochen; die aktuelle Woche zählt nicht mit."
+        }
+      ],
+      "stems": 2,
+      "stacked_volume": null,
+      "latitude": null,
+      "longitude": null,
+      "progress": {
+        "sawn": 0,
+        "not_sawable": 0,
+        "open": 2
+      },
+      "yield": {
+        "ratio": null,
+        "sawn_timber_m3": null,
+        "waste_fm": null,
+        "round_wood_fm": null
+      },
+      "size_labels": {
+        "large": "Balken 14×14",
+        "small": "Balken 10×14"
+      },
+      "weeks": [],
+      "average_per_week": null
     }
   ]
 }

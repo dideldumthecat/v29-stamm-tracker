@@ -8,6 +8,7 @@ import DiameterClasses from '@/components/DiameterClasses.vue'
 import FigureInfo from '@/components/FigureInfo.vue'
 import LoadFailure from '@/components/LoadFailure.vue'
 import LoadingStatus from '@/components/LoadingStatus.vue'
+import PileCard from '@/components/PileCard.vue'
 import { formatTotal } from '@/keyFigures'
 
 /**
@@ -47,6 +48,7 @@ const openKey = ref<string | null>(null)
 
     <template v-for="section in status === 'ready' ? dashboard!.sections : []" :key="section.key">
       <DiameterClasses v-if="section.type === 'diameter_classes'" :section="section" />
+      <PileCard v-else-if="section.type === 'pile'" :section="section" />
       <section v-else class="mt-6 card p-4 sm:p-6" :aria-labelledby="`section-${section.key}`">
         <h2 :id="`section-${section.key}`" class="text-lg font-bold">{{ section.label }}</h2>
         <dl class="mt-4 grid gap-y-6 sm:grid-cols-3">

@@ -16,7 +16,9 @@ namespace App\KeyFigures;
 final class KeyFigures
 {
     /** Wanted format 14×14 is large, 10×14 small: the shorter side in cm decides. */
-    private const LARGE_BEAM_MIN_SIDE_CM = 12;
+    public const LARGE_BEAM_MIN_SIDE_CM = 12;
+    public const LARGE_BEAM_LABEL = 'Balken 14×14';
+    public const SMALL_BEAM_LABEL = 'Balken 10×14';
     private const PRELIMINARY = 'Vorläufige Formel: Durchmesser mit Rinde, kein Abzug.';
 
     // --- Numbers ---------------------------------------------------------------------------------
@@ -364,13 +366,13 @@ final class KeyFigures
     }
 
     /** @param array<string, string> $names */
-    private static function roundWoodFormula(array $names): string
+    public static function roundWoodFormula(array $names): string
     {
         return \sprintf('π ÷ 4 × %s × %s × %s', $names['mid_diameter_max'], $names['mid_diameter_min'], $names['length']);
     }
 
     /** @param array<string, string> $names */
-    private static function pieceFormula(array $names): string
+    public static function pieceFormula(array $names): string
     {
         return 'Breite × Höhe × '.$names['length'];
     }

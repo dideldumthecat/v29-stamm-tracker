@@ -27,6 +27,9 @@ const oneDecimal = new Intl.NumberFormat('de-DE', {
   maximumFractionDigits: 1,
 })
 
+/** Two decimals, German comma: 6.341 → "6,34". Volumes of the dashboard. */
+export const formatTwoDecimals = (value: number) => total.format(value)
+
 /** One decimal, German comma: 40.5 → "40,5". Shares of the dashboard (as percent) and its beams per stem. */
 export const formatOneDecimal = (value: number) => oneDecimal.format(value)
 
@@ -34,5 +37,7 @@ export const formatOneDecimal = (value: number) => oneDecimal.format(value)
 export function formatTotal(figure: DashboardFigure): string | null {
   if (figure.value === null) return null
   if (figure.unit === null) return count.format(figure.value)
-  return figure.unit === '%' ? formatOneDecimal(figure.value * 100) : total.format(figure.value)
+  return figure.unit === '%'
+    ? formatOneDecimal(figure.value * 100)
+    : formatTwoDecimals(figure.value)
 }

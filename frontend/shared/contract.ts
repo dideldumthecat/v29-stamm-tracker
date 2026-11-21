@@ -150,7 +150,8 @@ export interface DashboardResponse {
 }
 
 /** The type says how the administration renders a section; within a type it knows no key. */
-export type DashboardSection = DashboardFiguresSection | DashboardDiameterSection
+export type DashboardSection =
+  DashboardFiguresSection | DashboardDiameterSection | DashboardPileSection
 
 export interface DashboardFiguresSection {
   type: 'figures'
@@ -173,6 +174,37 @@ export interface DashboardDiameterSection {
   rows: DiameterClass[]
   /** Processed stems without any diameter: not in a class */
   without_diameter: number
+}
+
+/** One card per pile with at least one stem (inactive options too), after the other sections, in the order of the options. */
+export interface DashboardPileSection {
+  type: 'pile'
+  /** "pile-" + option id */
+  key: string
+  /** "Polter 2601-010145 (Krummes F)"; without master data the option label */
+  label: string
+  /** The whole calculation, one term each; the texts carry the attribute names from the database */
+  notes: { term: string; text: string }[]
+  stems: number
+  /** Raummeter of the pile, null = not entered */
+  stacked_volume: number | null
+  latitude: number | null
+  longitude: number | null
+  /** Stems: sawn (as in the section "sawing"), unsawable and not sawn, the rest */
+  progress: { sawn: number; not_sawable: number; open: number }
+  /** null values without a sawn stem; same definitions as the section "sawing" */
+  yield: {
+    ratio: number | null
+    sawn_timber_m3: number | null
+    waste_fm: number | null
+    round_wood_fm: number | null
+  }
+  /** Labels of the two sizes, e.g. "Balken 14×14", "Balken 10×14" (large: shorter side of the cross-section ≥ 12 cm) */
+  size_labels: { large: string; small: string }
+  /** Monday of the ISO week (YYYY-MM-DD, Europe/Berlin), ascending, from the first week with a sawn beam to the current week (the last entry), empty weeks with 0; empty without a sawn beam */
+  weeks: { week_start: string; large: number; small: number }[]
+  /** Mean beams per week over the completed weeks (the current one does not count); null if none */
+  average_per_week: number | null
 }
 
 export interface DiameterClass {

@@ -43,8 +43,11 @@ final class MeasureReader
         return array_values($this->unreadable);
     }
 
-    /** @param array<string, list<array{value: bool|int|float|string, recorded_at: string, user_id: string, event_id: string}>> $values records by attribute id */
-    public function read(TimberItem $item, array $values): Measures
+    /**
+     * @param array<string, list<array{value: bool|int|float|string, recorded_at: string, user_id: string, event_id: string}>> $values    records by attribute id
+     * @param ?\DateTimeImmutable                                                                                              $firstSawn when "sawn" was first recorded as yes (the values hold only the latest), see MeasureLoader
+     */
+    public function read(TimberItem $item, array $values, ?\DateTimeImmutable $firstSawn = null): Measures
     {
         $number = fn (string $key, int $count): ?array => $this->numbers($item, $values, $this->attributes[$key], $count);
         // Only stems have diameters; a beam that inherited them is not asked.
@@ -67,7 +70,31 @@ final class MeasureReader
             $this->marked($values, 'sawn'),
             // Optional: only the dashboard asks (it checks that the attribute exists), the export and the detail view work without it.
             isset($this->attributes['unsawable']) && $this->marked($values, 'unsawable'),
+            // Optional as well: only the pile cards of the dashboard ask.
+            $isStem ? $this->pileId($values) : null,
+            \DateTimeImmutable::createFromInterface($item->createdAt),
+            $isStem ? $firstSawn ?? $this->crossSectionAt($values) : null,
         );
+    }
+
+    /** @param array<string, list<array{value: bool|int|float|string, recorded_at: string, user_id: string, event_id: string}>> $values */
+    private function pileId(array $values): ?string
+    {
+        $value = isset($this->attributes['source']) ? $values[$this->attributes['source']->id->toRfc4122()][0]['value'] ?? null : null;
+
+        return \is_string($value) ? $value : null;
+    }
+
+    /**
+     * When the cross-section of the stem was recorded: the time a stem sawn whole counts for if "sawn" was never recorded as yes.
+     *
+     * @param array<string, list<array{value: bool|int|float|string, recorded_at: string, user_id: string, event_id: string}>> $values
+     */
+    private function crossSectionAt(array $values): ?\DateTimeImmutable
+    {
+        $at = $values[$this->attributes['sawn_cross_section']->id->toRfc4122()][0]['recorded_at'] ?? null;
+
+        return null === $at ? null : new \DateTimeImmutable($at);
     }
 
     /** @param array<string, list<array{value: bool|int|float|string, recorded_at: string, user_id: string, event_id: string}>> $values */

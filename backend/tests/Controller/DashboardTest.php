@@ -8,9 +8,15 @@ use App\Entity\AttributeOption;
 use App\Entity\AttributeType;
 use App\Entity\EventType;
 use App\Entity\Photo;
+use App\Entity\Pile;
 use App\Entity\TimberItemEvent;
 use App\Entity\User;
 use App\Entity\UserRole;
+use App\KeyFigures\Dashboard;
+use App\KeyFigures\KeyFigures;
+use App\KeyFigures\MeasureLoader;
+use App\KeyFigures\PileSections;
+use App\Pile\PileEditor;
 use App\Projection\TimberItemProjector;
 use App\Report\TimberReport;
 use Doctrine\ORM\EntityManagerInterface;
@@ -52,6 +58,7 @@ class DashboardTest extends WebTestCase
             ['Gesägt', 'sawn', AttributeType::Boolean, []],
             ['Nicht sägbar', 'unsawable', AttributeType::Boolean, []],
             ['Gesägter Querschnitt', 'sawn_cross_section', AttributeType::Choice, ['14,7 x 14,7 cm', '10,5 x 14,7 cm']],
+            ['Polternummer', 'source', AttributeType::Choice, []],
             ['Notiz', 'notes', AttributeType::Text, []],
             ['Fotos', 'photos', AttributeType::Photo, []],
         ];
@@ -73,21 +80,21 @@ class DashboardTest extends WebTestCase
         $this->em->persist(new TimberItemEvent(Uuid::v7(), $this->items[$tag], $type, $data, $when, $this->user, null, $when));
     }
 
-    private function item(string $tag, ?string $stem = null): Uuid
+    private function item(string $tag, ?string $stem = null, string $at = '2026-11-18 08:00:00'): Uuid
     {
         $this->items[$tag] = $id = Uuid::v7();
-        $this->event($tag, EventType::Created, ['parent_id' => $stem ? $this->items[$stem]->toRfc4122() : null], '2026-11-18 08:00:00');
-        $this->event($tag, EventType::TagAssigned, ['tag_number' => $tag], '2026-11-18 08:00:00');
+        $this->event($tag, EventType::Created, ['parent_id' => $stem ? $this->items[$stem]->toRfc4122() : null], $at);
+        $this->event($tag, EventType::TagAssigned, ['tag_number' => $tag], $at);
 
         return $id;
     }
 
     /** @param array<string, mixed> $values by key; an option is given by its label */
-    private function stem(string $tag, array $values): void
+    private function stem(string $tag, array $values, string $at = '2026-11-18 08:00:00'): void
     {
-        $this->item($tag);
+        $this->item($tag, at: $at);
         foreach ($values as $key => $value) {
-            $this->event($tag, EventType::AttributeRecorded, ['attribute_id' => $this->attribute[$key]->id->toRfc4122(), 'value' => $this->option[$value] ?? $value], '2026-11-18 08:00:00');
+            $this->event($tag, EventType::AttributeRecorded, ['attribute_id' => $this->attribute[$key]->id->toRfc4122(), 'value' => $this->option[$value] ?? $value], $at);
         }
     }
 
@@ -110,6 +117,12 @@ class DashboardTest extends WebTestCase
         // Voided: counts nowhere; its void is the newest event
         $this->stem('109', ['mid_diameter_max' => 50, 'mid_diameter_min' => 50, 'length' => '4,10 m', 'sawn' => true, 'sawn_cross_section' => '14,7 x 14,7 cm']);
         $this->event('109', EventType::Voided, []);
+    }
+
+    /** @return array<string, mixed> */
+    private static function fixture(): array
+    {
+        return json_decode(file_get_contents(__DIR__.'/../../../frontend/shared/fixtures/dashboard-response.json'), true, flags: \JSON_THROW_ON_ERROR);
     }
 
     /** @return array<string, mixed> */
@@ -147,7 +160,9 @@ class DashboardTest extends WebTestCase
 
         $response = $this->dashboard();
 
-        self::assertEqualsWithDelta(json_decode(file_get_contents(__DIR__.'/../../../frontend/shared/fixtures/dashboard-response.json'), true, flags: \JSON_THROW_ON_ERROR), $response, 1e-9);
+        $fixture = self::fixture();
+        self::assertSame($fixture['last_sync_at'], $response['last_sync_at']);
+        self::assertEqualsWithDelta(\array_slice($fixture['sections'], 0, 2), $response['sections'], 1e-9, 'no stem has a pile: no pile cards');
         $figures = self::sawing($response);
         self::assertSame([5, 4, 1], [$figures['stems_total']['value'], $figures['stems_processed']['value'], $figures['stems_open']['value']]);
         $roundSawn = M_PI / 4 * (0.40 * 0.39 + 0.34 * 0.31) * 4.1;
@@ -251,5 +266,144 @@ class DashboardTest extends WebTestCase
         $this->dashboard('Kerstin', 403);
         $this->dashboard('Ada');
         $this->dashboard('Alexander');
+    }
+
+    private function pile(string $id, string $label, int $order, string $number, ?string $location, ?string $latitude, ?string $longitude, ?string $volume): void
+    {
+        $this->em->persist($option = new AttributeOption($this->attribute['source'], $label, $order, id: Uuid::fromString($id)));
+        $this->option[$label] = $option->id->toRfc4122();
+        $this->em->persist(new Pile($option, $number, $location, $latitude, $longitude, $volume));
+    }
+
+    /** A stem of 45 × 44 cm and 4,10 m (0,652 fm) on a pile, with beams created in the week starting on $monday: [section, count] each. */
+    private function sawnStem(string $tag, string $pile, string $monday, int $large, int $small): void
+    {
+        $at = "$monday 10:00:00";
+        $this->stem($tag, ['mid_diameter_max' => 45, 'mid_diameter_min' => 44, 'length' => '4,10 m', 'source' => $pile], $at);
+        foreach (range('A', chr(ord('A') + $large + $small - 1)) as $index => $letter) {
+            $this->item("$tag-$letter", $tag, $at);
+            $this->event("$tag-$letter", EventType::AttributeRecorded, ['attribute_id' => $this->attribute['sawn_cross_section']->id->toRfc4122(), 'value' => $this->option[$index < $large ? '14,7 x 14,7 cm' : '10,5 x 14,7 cm']], $at);
+        }
+    }
+
+    /** @return array<string, mixed> */
+    private function piles(): array
+    {
+        $a = '2601-010145 (Krummes F)';
+        $b = '2601-010160 (Waldweg Nord)';
+        $c = '2601-010170 (Lindenallee)';
+        $this->pile('0199a000-0000-7000-8000-00000000a001', $a, 10, '2601-010145', 'Krummes F', '51.313200', '12.371500', '51.52');
+        $this->pile('0199a000-0000-7000-8000-00000000a002', $b, 20, '2601-010160', 'Waldweg Nord', '51.320100', '12.402300', '130.00');
+        $this->pile('0199a000-0000-7000-8000-00000000a003', $c, 30, '2601-010170', 'Lindenallee', null, null, null);
+
+        // A: five weeks, one of them empty; one stem sawn whole, one unsawable, one open
+        $this->sawnStem('201', $a, '2026-10-19', 2, 2);
+        $this->sawnStem('202', $a, '2026-10-26', 3, 1);
+        $this->sawnStem('203', $a, '2026-11-09', 4, 0);
+        $this->sawnStem('204', $a, '2026-11-16', 1, 2);
+        $this->stem('205', ['mid_diameter_max' => 40, 'mid_diameter_min' => 39, 'length' => '4,10 m', 'source' => $a, 'sawn' => true, 'sawn_cross_section' => '14,7 x 14,7 cm'], '2026-11-04 09:00:00');
+        $this->stem('206', ['mid_diameter_max' => 30, 'mid_diameter_min' => 30, 'length' => '4,10 m', 'source' => $a, 'unsawable' => true]);
+        $this->stem('207', ['mid_diameter_max' => 50, 'mid_diameter_min' => 50, 'length' => '4,10 m', 'source' => $a]);
+
+        // B: sixteen weeks from 3 Aug, more than fit in a row; two stems of up to four beams each per week, one week without a beam
+        $number = 300;
+        for ($week = 0; $week < 16; ++$week) {
+            $monday = (new \DateTimeImmutable('2026-08-03'))->modify("+$week weeks")->format('Y-m-d');
+            [$large, $small] = 4 === $week ? [0, 0] : [2 + ($week * 5) % 7, ($week * 3) % 4];
+            $first = min(4, $large + $small);
+            if ($first > 0) {
+                $this->sawnStem((string) ++$number, $b, $monday, min($large, 4), $first - min($large, 4));
+            }
+            if ($large + $small > 4) {
+                $this->sawnStem((string) ++$number, $b, $monday, $large - min($large, 4), $small - ($first - min($large, 4)));
+            }
+        }
+        $this->stem('390', ['mid_diameter_max' => 30, 'mid_diameter_min' => 30, 'length' => '4,10 m', 'source' => $b, 'unsawable' => true]);
+
+        // C: nothing processed yet
+        $this->stem('401', ['mid_diameter_max' => 38, 'mid_diameter_min' => 38, 'length' => '4,10 m', 'source' => $c]);
+        $this->stem('402', ['mid_diameter_max' => 42, 'mid_diameter_min' => 41, 'length' => '4,10 m', 'source' => $c]);
+        // Without a pile: on no card
+        $this->stem('410', ['mid_diameter_max' => 42, 'mid_diameter_min' => 41, 'length' => '4,10 m', 'sawn' => true, 'sawn_cross_section' => '14,7 x 14,7 cm']);
+
+        return $this->build();
+    }
+
+    /** @return array<string, mixed> the dashboard on Saturday 21 Nov 2026 (the current week is KW 47, from Monday 16 Nov) */
+    private function build(): array
+    {
+        $this->em->flush();
+        $projector = self::getContainer()->get(TimberItemProjector::class);
+        foreach ($this->items as $item) {
+            $projector->project($item);
+        }
+        $this->em->clear();
+        $kf = new KeyFigures();
+        $dashboard = new Dashboard($this->em, new MeasureLoader($this->em), $kf, new PileEditor($this->em), new PileSections($kf));
+
+        return $dashboard->build(new \DateTimeImmutable('2026-11-21 12:00:00 Europe/Berlin'));
+    }
+
+    public function testPileCardsMatchTheFixture(): void
+    {
+        $sections = $this->piles()['sections'];
+
+        self::assertEqualsWithDelta(\array_slice(self::fixture()['sections'], 2), \array_slice($sections, 2), 1e-9);
+        self::assertSame(['Polter 2601-010145 (Krummes F)', 'Polter 2601-010160 (Waldweg Nord)', 'Polter 2601-010170 (Lindenallee)'], array_column(\array_slice($sections, 2), 'label'));
+        self::assertSame([5, 16, 0], array_map(static fn (array $pile) => \count($pile['weeks']), \array_slice($sections, 2)));
+        self::assertStringNotContainsString('„', json_encode($sections, \JSON_UNESCAPED_UNICODE));
+    }
+
+    /**
+     * @param list<array{string, string, mixed}> $events when (UTC), the attribute key and the value, in the order they reach the server
+     *
+     * @return list<array{string, int, int}> the weeks of the only pile: start, large, small
+     */
+    private function weeksOfAStemSawnWhole(array $events): array
+    {
+        $this->pile('0199a000-0000-7000-8000-00000000a001', 'P', 10, '1', null, null, null, null);
+        $this->stem('501', ['mid_diameter_max' => 40, 'mid_diameter_min' => 40, 'length' => '4,10 m', 'source' => 'P'], '2026-10-01 08:00:00');
+        foreach ($events as [$at, $key, $value]) {
+            $this->event('501', EventType::AttributeRecorded, ['attribute_id' => $this->attribute[$key]->id->toRfc4122(), 'value' => $this->option[$value] ?? $value], $at);
+        }
+
+        $pile = $this->build()['sections'][2];
+
+        return array_map(static fn (array $week) => [$week['week_start'], $week['large'], $week['small']], $pile['weeks']);
+    }
+
+    public function testAStemSawnWholeCountsInTheWeekSawnWasFirstSetToYes(): void
+    {
+        // KW 45 yes, KW 47 yes again; the cross-section comes in KW 47 as well
+        $weeks = $this->weeksOfAStemSawnWhole([
+            ['2026-11-03 09:00:00', 'sawn', true],
+            ['2026-11-17 09:00:00', 'sawn', true],
+            ['2026-11-17 09:05:00', 'sawn_cross_section', '14,7 x 14,7 cm'],
+        ]);
+
+        self::assertSame([['2026-11-02', 1, 0], ['2026-11-09', 0, 0], ['2026-11-16', 0, 0]], $weeks);
+    }
+
+    public function testALaterNoDoesNotMoveTheWeekOfTheFirstYes(): void
+    {
+        // KW 45 yes, KW 46 no, KW 47 yes
+        $weeks = $this->weeksOfAStemSawnWhole([
+            ['2026-11-03 09:00:00', 'sawn', true],
+            ['2026-11-10 09:00:00', 'sawn', false],
+            ['2026-11-17 09:00:00', 'sawn', true],
+            ['2026-11-17 09:05:00', 'sawn_cross_section', '10,5 x 14,7 cm'],
+        ]);
+
+        self::assertSame([['2026-11-02', 0, 1], ['2026-11-09', 0, 0], ['2026-11-16', 0, 0]], $weeks);
+    }
+
+    public function testWithoutAYesTheWeekIsTheOneOfTheCrossSection(): void
+    {
+        $weeks = $this->weeksOfAStemSawnWhole([
+            ['2026-11-03 09:00:00', 'sawn', false],
+            ['2026-11-10 09:00:00', 'sawn_cross_section', '14,7 x 14,7 cm'],
+        ]);
+
+        self::assertSame([['2026-11-09', 1, 0], ['2026-11-16', 0, 0]], $weeks);
     }
 }

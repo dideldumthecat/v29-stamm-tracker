@@ -52,3 +52,18 @@
     cursor: pointer;
   }
 }
+
+/* Stems that cannot be sawn (pile cards of the dashboard): grey diagonal stripes, 2 px grey on 3 px white, a thin grey edge,
+   so that they are not taken for the plain grey of the open ones. */
+@utility bg-hatched {
+  background-color: #fff;
+  background-image: repeating-linear-gradient(135deg, #b3b3b3 0 2px, #fff 2px 5px);
+  border: 1px solid #b3b3b3;
+}
+
+/* Text with a white edge behind the letters (stroke first, then the fill over it): the 8 px stroke shows 4 px outside. */
+@utility text-halo {
+  paint-order: stroke fill;
+  -webkit-text-stroke: 8px var(--color-paper);
+  stroke-linejoin: round;
+}

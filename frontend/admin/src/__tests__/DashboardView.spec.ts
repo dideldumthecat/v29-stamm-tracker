@@ -80,6 +80,9 @@ describe('dashboard', () => {
     expect(wrapper.findAll('h2').map((h2) => h2.text())).toEqual([
       'Kennzahlen: Sägen',
       'Stämme nach Mittendurchmesser',
+      'Polter 2601-010145 (Krummes F)',
+      'Polter 2601-010160 (Waldweg Nord)',
+      'Polter 2601-010170 (Lindenallee)',
       'Sortieren',
     ])
     expect(cells(wrapper, 'Sortieren')).toEqual(['Sortiert 1.300', 'Ausbeute –'])
