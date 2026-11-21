@@ -105,22 +105,30 @@ class PileMigrationTest extends KernelTestCase
         self::assertSame([], $this->labels());
     }
 
-    public function testChangesNothingOnAnEmptyDatabase(): void
+    public function testCreatesTheAttributeOnAnEmptyDatabase(): void
     {
         $this->em->remove($this->source);
 
         $this->migrate();
 
-        self::assertSame([], $this->em->getRepository(Attribute::class)->findAll());
+        $attributes = $this->em->getRepository(Attribute::class)->findAll();
+        self::assertCount(1, $attributes);
+        self::assertSame('source', $attributes[0]->key);
+        self::assertSame('Polternummer', $attributes[0]->name);
+        self::assertSame(AttributeType::Choice, $attributes[0]->type);
+        self::assertSame(['stem'], $attributes[0]->appliesTo);
+        self::assertTrue($attributes[0]->isInheritable);
+        self::assertSame([], $this->em->getRepository(AttributeOption::class)->findAll());
     }
 
-    public function testAbortsWithAttributesButNoPolternummer(): void
+    public function testCreatesTheAttributeNextToOthers(): void
     {
         $this->source->name = 'Holzart';
 
-        $this->expectException(AbortMigration::class);
-        $this->expectExceptionMessage('no attribute named "Polternummer"');
         $this->migrate();
+
+        $keys = array_map(static fn (Attribute $a) => $a->key, $this->em->getRepository(Attribute::class)->findAll());
+        self::assertEqualsCanonicalizing([null, 'source'], $keys);
     }
 
     public function testAbortsWhenTheProjectionMentionsAnOptionNoEventDoes(): void

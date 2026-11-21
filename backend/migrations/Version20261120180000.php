@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace DoctrineMigrations;
 
+use App\Entity\AttributeType;
 use App\Migration\AttributeMigration;
 use Doctrine\DBAL\Schema\Schema;
 use Symfony\Component\Uid\Uuid;
@@ -15,7 +16,7 @@ use Symfony\Component\Uid\Uuid;
  * The only place where options are deleted ("options are never deleted" everywhere else): the production data holds placeholder options (02 to 10)
  * that no stem refers to and that would show up as piles without data. An option stays as soon as any event mentions its id, voided events included;
  * it aborts if the projection mentions an option that no event does (the projection is built from the events, so the two must agree).
- * Without any attribute (an empty database) the table is all it creates; with attributes but none named "Polternummer" it aborts.
+ * A database without "Polternummer" (CI, a new test database) gets the attribute without options, like the one V29 created by hand: stem only, inherited by beams.
  */
 final class Version20261120180000 extends AttributeMigration
 {
@@ -31,8 +32,11 @@ final class Version20261120180000 extends AttributeMigration
 
         $attributeId = $this->connection->fetchOne('SELECT id FROM attributes WHERE `key` = ? OR name = ?', ['source', 'Polternummer']);
         if (false === $attributeId) {
-            // Only a database without any attribute (CI, a new test database) has none to give the key
-            $this->abortIf((bool) $this->connection->fetchOne('SELECT 1 FROM attributes LIMIT 1'), 'There is no attribute named "Polternummer" to give the key "source".');
+            // Not addAttribute(): it insists on options for a choice, and the piles are what fills this one
+            $this->addSql(
+                'INSERT INTO attributes (id, name, type, description, unit, is_series, is_inheritable, sort_order, active, `key`, applies_to, hidden_when) VALUES (?, ?, ?, ?, NULL, 0, 1, ?, 1, ?, ?, ?)',
+                [Uuid::v7()->toBinary(), 'Polternummer', AttributeType::Choice->value, '', 10 + (int) $this->connection->fetchOne('SELECT COALESCE(MAX(sort_order), 0) FROM attributes'), 'source', '["stem"]', '[]'],
+            );
 
             return;
         }
