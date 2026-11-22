@@ -13,6 +13,8 @@ const props = defineProps<{
   tagNumber: string
   // Opening a beam leaves the screen, so unsaved changes need an answer first.
   isDirty: boolean
+  // The mid diameters are missing: adding a beam sets "Gesägt", which needs them. The button stays tappable to say so.
+  blocked: boolean
 }>()
 
 // Beams added but not saved yet; they are created together with the stem on save.
@@ -24,6 +26,7 @@ const emit = defineEmits<{
   remove: [beam: TimberItem]
   // The first tap on a stem without beams: it splits the stem (two beams, like "Ja, mehrere Balken").
   split: []
+  blocked: []
 }>()
 
 const store = useTimberItemStore()
@@ -48,7 +51,9 @@ const rows = computed(() =>
 
 // Nothing is saved or created here: the beam joins the draft and is created with "Speichern".
 function onAdd() {
-  if (rows.value.length === 0) {
+  if (props.blocked) {
+    emit('blocked')
+  } else if (rows.value.length === 0) {
     emit('split')
   } else if (nextBeam.value) {
     draftBeams.value = [...draftBeams.value, nextBeam.value]

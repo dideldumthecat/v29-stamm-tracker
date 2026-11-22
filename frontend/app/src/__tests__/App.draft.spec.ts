@@ -644,4 +644,96 @@ describe('App', () => {
       expect(router.currentRoute.value.name).toBe('start')
     })
   })
+
+  describe('mid diameters before "Gesägt"', () => {
+    // The shared fixture has no diameters: add them, like the e2e test does.
+    function addDiameters() {
+      const store = useTimberItemStore()
+      const sawn = store.attributes.find((attribute) => attribute.key === 'sawn')!
+      const base = store.attributes.find((attribute) => attribute.type === 'number')!
+      for (const [key, name, order] of [
+        ['mid_diameter_max', 'Durchmesser groß', -2],
+        ['mid_diameter_min', 'Durchmesser klein', -1],
+      ] as const) {
+        store.attributes.push({
+          ...base,
+          id: key,
+          key,
+          name,
+          is_series: false,
+          applies_to: ['stem'],
+          hidden_when: [],
+          sort_order: sawn.sort_order + order,
+        })
+      }
+    }
+    const sawnButton = (wrapper: Awaited<ReturnType<typeof mountAt>>['wrapper']) =>
+      wrapper.findAll('button[aria-pressed]').find((button) => button.text() === 'Gesägt')!
+    const dialog = () => document.body.querySelector('[role="dialog"]')?.textContent ?? ''
+    const diameter = (wrapper: Awaited<ReturnType<typeof mountAt>>['wrapper'], key: string) =>
+      wrapper.find(`[data-field="${key}"] input`)
+
+    it('explains instead of ticking, asking or adding beams, then focuses the first empty diameter', async () => {
+      addDiameters()
+      const { wrapper } = await mountAt('/timber-item/456')
+      const focus = vi.spyOn(HTMLElement.prototype, 'focus')
+
+      await sawnButton(wrapper).trigger('click')
+      expect(dialog()).toContain('Erst Mittendurchmesser erfassen')
+      expect(dialog()).toContain('Bitte zuerst beide Mittendurchmesser eintragen')
+      expect(dialog()).not.toContain('Stamm aufgeteilt?')
+      expect(sawnButton(wrapper).attributes('aria-pressed')).toBe('false')
+      buttonByText(/^OK$/).click()
+      await flushPromises()
+      expect(focus.mock.contexts[focus.mock.contexts.length - 1]).toBe(
+        diameter(wrapper, 'mid_diameter_max').element,
+      )
+
+      await diameter(wrapper, 'mid_diameter_max').setValue('30')
+      buttonByText(/Balken A und B hinzufügen/).click()
+      await flushPromises()
+      expect(dialog()).toContain('Erst Mittendurchmesser erfassen')
+      expect(wrapper.text()).not.toContain('nicht gespeichert')
+      buttonByText(/^OK$/).click()
+      await flushPromises()
+      expect(focus.mock.contexts[focus.mock.contexts.length - 1]).toBe(
+        diameter(wrapper, 'mid_diameter_min').element,
+      )
+      focus.mockRestore()
+
+      await diameter(wrapper, 'mid_diameter_min').setValue('25')
+      await sawnButton(wrapper).trigger('click')
+      expect(dialog()).toContain('Stamm aufgeteilt?')
+    })
+
+    it('blocks the save when a diameter is cleared after ticking, and the error goes on input', async () => {
+      addDiameters()
+      const { wrapper } = await mountAt('/timber-item/456')
+      await diameter(wrapper, 'mid_diameter_max').setValue('30')
+      await diameter(wrapper, 'mid_diameter_min').setValue('25')
+      await sawnButton(wrapper).trigger('click')
+      buttonByText(/Nein, nicht aufgeteilt/).click()
+      await flushPromises()
+
+      await diameter(wrapper, 'mid_diameter_min').setValue('')
+      await wrapper.find('button.bg-ink.text-lg').trigger('click')
+      expect(wrapper.find('[role="alert"]').text()).toBe('Pflichtfeld bei gesägten Stämmen')
+
+      await diameter(wrapper, 'mid_diameter_min').setValue('25')
+      expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+    })
+
+    it('leaves unticking "Gesägt" and removing beams possible without diameters', async () => {
+      const { wrapper } = await mountAt('/timber-item/456')
+      await splitIntoBeams()
+      addDiameters()
+      await flushPromises()
+      document.body.querySelector<HTMLElement>('button[aria-label$="-A entfernen"]')!.click()
+      await flushPromises()
+      expect(wrapper.text()).toContain('Balken (1)')
+      await sawnButton(wrapper).trigger('click')
+      await flushPromises()
+      expect(dialog()).toContain('Balken verwerfen?')
+    })
+  })
 })

@@ -61,6 +61,9 @@ const {
   hasSavedBeams,
   canSplit,
   isAskingSplit,
+  isAskingDiameters,
+  blockedByDiameters,
+  firstEmptyDiameter,
   pendingBeamDiscard,
   setField,
   chooseSplit,
@@ -122,6 +125,17 @@ async function onChooseSplit(choice: SplitChoice) {
 function onSplit() {
   setAnchor(null)
   chooseSplit('split')
+}
+
+// After "OK": the first empty diameter gets the cursor, and the screen scrolls to it.
+async function onDiametersOk() {
+  isAskingDiameters.value = false
+  await nextTick()
+  const input = screen.value?.querySelector<HTMLInputElement>(
+    `[data-field="${firstEmptyDiameter.value}"] input`,
+  )
+  input?.focus()
+  input?.scrollIntoView({ block: 'center' })
 }
 
 async function saveDraft(): Promise<TimberItem | null> {
@@ -200,7 +214,7 @@ let isLeaveConfirmed = false
 // Parent ↔ beam stays on the same route, which counts as an update, not a leave.
 function guardLeave(to: { fullPath: string }) {
   // The split question takes no way out but its own buttons, the back gesture included.
-  if (isAskingSplit.value) {
+  if (isAskingSplit.value || isAskingDiameters.value) {
     return false
   }
   if (isLeaveConfirmed || !isDirty.value) {
@@ -262,9 +276,11 @@ function onDiscard() {
         :stem="item"
         :tag-number="tagNumber"
         :is-dirty="isDirty"
+        :blocked="blockedByDiameters"
         @save-first="beamToOpen = $event"
         @remove="beamToRemove = $event"
         @split="onSplit"
+        @blocked="isAskingDiameters = true"
       />
     </div>
 
@@ -374,6 +390,15 @@ function onDiscard() {
       @safe="isAskingSplit = false"
       @choose="onChooseSplit($event as SplitChoice)"
     />
+
+    <ConfirmSheet
+      v-if="isAskingDiameters"
+      title="Erst Mittendurchmesser erfassen"
+      safe-label="OK"
+      @safe="onDiametersOk"
+    >
+      <p>Bitte zuerst beide Mittendurchmesser eintragen, dann „Gesägt“ setzen.</p>
+    </ConfirmSheet>
 
     <ConfirmSheet
       v-if="pendingBeamDiscard"

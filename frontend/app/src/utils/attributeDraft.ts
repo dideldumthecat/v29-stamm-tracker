@@ -22,6 +22,7 @@ export interface CollectedDraft {
 
 export const NUMBER_ERROR = 'Bitte eine Zahl eingeben, zum Beispiel 34,5.'
 export const DIAMETER_PAIR_ERROR = 'Bitte auch diesen Durchmesser eintragen'
+export const SAWN_DIAMETER_ERROR = 'Pflichtfeld bei gesägten Stämmen'
 export const MONTH_ERROR = 'Bitte Jahr und Monat als JJJJ-MM eingeben, zum Beispiel 2026-10.'
 
 /**
@@ -143,6 +144,33 @@ export function missingDiameterErrors(
     return {}
   }
   return { [ids[filled[0] ? 1 : 0]!]: DIAMETER_PAIR_ERROR }
+}
+
+/**
+ * Ids of the mid diameters that have no valid value yet, in the order of `MID_DIAMETER_KEYS`: typed in the draft,
+ * added to a series, or recorded. Empty input never clears a recorded value, so a recorded one always counts.
+ * Empty if either attribute is missing or inactive (the rule is skipped, like `missingDiameterErrors`).
+ */
+export function emptyDiameterIds(
+  attributes: Attribute[],
+  input: Record<string, DraftInput | undefined>,
+  added: Record<string, AttributeValue[]>,
+  recorded: Record<string, AttributeValueRecord[]> | undefined,
+): string[] {
+  const ids = MID_DIAMETER_KEYS.map(
+    (key) => attributes.find((attribute) => attribute.key === key && attribute.active)?.id,
+  )
+  if (ids.some((id) => id === undefined)) {
+    return []
+  }
+  return (ids as string[]).filter((id) => {
+    const typed = input[id]
+    return !(
+      (typeof typed === 'string' && parseNumber(typed) !== null) ||
+      (added[id]?.length ?? 0) > 0 ||
+      (recorded?.[id]?.length ?? 0) > 0
+    )
+  })
 }
 
 /**

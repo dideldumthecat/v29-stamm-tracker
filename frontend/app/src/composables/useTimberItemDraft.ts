@@ -3,9 +3,11 @@ import type { AttributeValue } from '@v29/shared/contract'
 import { useTimberItemStore, type Attribute, type TimberItem } from '@/stores/timberItems'
 import {
   collectDraft,
+  emptyDiameterIds,
   formatPhotoCount,
   formatValueLine,
   missingDiameterErrors,
+  SAWN_DIAMETER_ERROR,
   type DraftInput,
 } from '@/utils/attributeDraft'
 import { attachPhotos, takenAtOfFile } from '@/utils/photo'
@@ -159,6 +161,21 @@ export function useTimberItemDraft(item: Ref<TimberItem | undefined>, tagNumber:
     collectDraft(store.attributes.filter(appliesNow), draft.value, added.value, item.value?.values),
   )
   const changes = computed(() => collected.value.changes)
+  // The mid diameters are measured on the round wood, so a stem counts as sawn only with both (see `setField`, `blockedByDiameters`).
+  const emptyDiameters = computed(() =>
+    emptyDiameterIds(
+      store.attributes.filter(appliesNow),
+      draft.value,
+      added.value,
+      item.value?.values,
+    ),
+  )
+  // Cleared again after ticking "Gesägt". Only the draft's tick counts: a stem recorded as sawn stays saveable without them.
+  const sawnWithoutDiameters = computed(() =>
+    !isBeam.value && sawnId.value !== '' && draft.value[sawnId.value] === true
+      ? Object.fromEntries(emptyDiameters.value.map((id) => [id, SAWN_DIAMETER_ERROR]))
+      : {},
+  )
   // Blocks the save like invalid input, but is no unsaved input itself (not in `isDirty`, not in the leave dialog).
   const blockingErrors = computed(() => ({
     ...missingDiameterErrors(
@@ -166,6 +183,7 @@ export function useTimberItemDraft(item: Ref<TimberItem | undefined>, tagNumber:
       collected.value,
       item.value?.values,
     ),
+    ...sawnWithoutDiameters.value,
     ...collected.value.errors,
   }))
   // Invalid input counts as unsaved, so the leave dialog still protects it.
@@ -191,13 +209,25 @@ export function useTimberItemDraft(item: Ref<TimberItem | undefined>, tagNumber:
   // "Gesägt" was ticked on a stem: it only counts with the answer whether the stem was split. The screen asks at once;
   // until then the tick is not in the draft, so cancelling leaves nothing behind.
   const isAskingSplit = ref(false)
+  // "Gesägt" or a beam was tapped on a stem without both mid diameters; the screen explains and then focuses the first empty one.
+  const isAskingDiameters = ref(false)
+  // Beams are cut from stems only, so beams are never blocked.
+  const blockedByDiameters = computed(
+    () => !isBeam.value && sawnId.value !== '' && emptyDiameters.value.length > 0,
+  )
+  // The first empty diameter, for the screen to focus after the dialog.
+  const firstEmptyDiameter = computed(() => emptyDiameters.value[0])
   // Unticking "Gesägt" would throw the draft beams away; the screen asks first.
   const pendingBeamDiscard = ref(false)
 
   function setField(attribute: Attribute, input: DraftInput | undefined) {
     if (attribute.id === sawnId.value && !isBeam.value) {
       if (input === true) {
-        isAskingSplit.value = true
+        if (blockedByDiameters.value) {
+          isAskingDiameters.value = true
+        } else {
+          isAskingSplit.value = true
+        }
         return
       }
       if (draftBeams.value.length > 0) {
@@ -385,6 +415,9 @@ export function useTimberItemDraft(item: Ref<TimberItem | undefined>, tagNumber:
     canSplit,
     splitChoice,
     isAskingSplit,
+    isAskingDiameters,
+    blockedByDiameters,
+    firstEmptyDiameter,
     pendingBeamDiscard,
     setField,
     chooseSplit,

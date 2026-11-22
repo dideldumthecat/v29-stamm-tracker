@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest'
 import type { Attribute, AttributeType, AttributeValueRecord } from '@v29/shared/contract'
-import { collectDraft, missingDiameterErrors, parseNumber } from '@/utils/attributeDraft'
+import {
+  collectDraft,
+  emptyDiameterIds,
+  missingDiameterErrors,
+  parseNumber,
+} from '@/utils/attributeDraft'
 
 function attribute(id: string, type: AttributeType, overrides: Partial<Attribute> = {}): Attribute {
   return {
@@ -183,5 +188,50 @@ describe('missingDiameterErrors', () => {
     expect(
       missingDiameterErrors(only, collectDraft(only, { max: '30' }, {}, undefined), undefined),
     ).toEqual({})
+  })
+})
+
+describe('emptyDiameterIds', () => {
+  const max = attribute('max', 'number', { key: 'mid_diameter_max', applies_to: ['stem'] })
+  const min = attribute('min', 'number', { key: 'mid_diameter_min', applies_to: ['stem'] })
+  const all = [max, min]
+  const check = (
+    input: Record<string, string>,
+    recorded?: Record<string, AttributeValueRecord[]>,
+    attributes = all,
+  ) => emptyDiameterIds(attributes, input, {}, recorded)
+
+  it('is empty when both are typed in the draft', () => {
+    expect(check({ max: '30', min: '25,5' })).toEqual([])
+  })
+
+  it('is empty when both are recorded', () => {
+    expect(check({}, { max: record(30), min: record(25) })).toEqual([])
+  })
+
+  it('takes one from the draft and one from the record', () => {
+    expect(check({ max: '30' }, { min: record(25) })).toEqual([])
+  })
+
+  it('lists the missing ones in order of the keys', () => {
+    expect(check({ min: '25' })).toEqual(['max'])
+    expect(check({})).toEqual(['max', 'min'])
+  })
+
+  it('lists a diameter cleared again or typed invalidly', () => {
+    expect(check({ max: '', min: 'abc' })).toEqual(['max', 'min'])
+  })
+
+  it('keeps a recorded diameter when the input is cleared (empty input never clears it)', () => {
+    expect(check({ max: '' }, { max: record(30), min: record(25) })).toEqual([])
+  })
+
+  it('counts values added to a series', () => {
+    expect(emptyDiameterIds(all, {}, { max: [30], min: [25] }, undefined)).toEqual([])
+  })
+
+  it('skips the rule if an attribute is missing or inactive', () => {
+    expect(check({}, undefined, [max])).toEqual([])
+    expect(check({}, undefined, [max, { ...min, active: false }])).toEqual([])
   })
 })

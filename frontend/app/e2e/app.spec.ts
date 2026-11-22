@@ -317,8 +317,8 @@ test('invalid input keeps the item open and shows the error', async ({ page }) =
   await expect(page.locator('h1')).toContainText('STAMM')
 })
 
-// The two mid diameters are saved only as a pair; the shared fixture has neither, so the fake API adds them (and a stem with just one).
-test('a mid diameter alone blocks the save until its partner is filled', async ({ page }) => {
+// The shared fixture has neither mid diameter, so the fake API adds them.
+async function addMidDiameters(page: Page) {
   const diameter = (key: string, name: string, sort_order: number) => ({
     id: `e2e-${key}`,
     key,
@@ -344,6 +344,11 @@ test('a mid diameter alone blocks the save until its partner is filled', async (
     (value) => localStorage.setItem('fake-api-extra', value),
     JSON.stringify(extra),
   )
+}
+
+// The two mid diameters are saved only as a pair.
+test('a mid diameter alone blocks the save until its partner is filled', async ({ page }) => {
+  await addMidDiameters(page)
   await page.goto('/timber-item/43')
   await page.getByLabel('Stammmittendurchmesser groß', { exact: true }).fill('30')
   await page.getByRole('button', { name: 'Stamm anlegen & schließen', exact: true }).click()
@@ -354,6 +359,33 @@ test('a mid diameter alone blocks the save until its partner is filled', async (
   await expect(page.getByRole('alert')).toHaveCount(0)
   await page.getByRole('button', { name: 'Stamm anlegen & schließen', exact: true }).click()
   await expect(page.getByText('Stamm 00043 gespeichert')).toBeVisible()
+})
+
+// The diameters are measured on the round wood, so "Gesägt" and beams wait for them.
+test('"Gesägt" and beams need both mid diameters first', async ({ page }) => {
+  await addMidDiameters(page)
+  await page.goto('/timber-item/43')
+  const dialog = page.getByRole('dialog')
+
+  await page.getByRole('button', { name: 'Gesägt', exact: true }).click()
+  await expect(
+    dialog.getByRole('heading', { name: 'Erst Mittendurchmesser erfassen' }),
+  ).toBeVisible()
+  await dialog.getByRole('button', { name: 'OK', exact: true }).click()
+  await expect(page.getByLabel('Stammmittendurchmesser groß', { exact: true })).toBeFocused()
+  await expect(page.getByRole('button', { name: 'Gesägt', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  )
+
+  await page.getByLabel('Stammmittendurchmesser groß', { exact: true }).fill('30')
+  await page.getByRole('button', { name: 'Balken A und B hinzufügen', exact: true }).click()
+  await dialog.getByRole('button', { name: 'OK', exact: true }).click()
+  await expect(page.getByLabel('Stammmittendurchmesser klein', { exact: true })).toBeFocused()
+
+  await page.getByLabel('Stammmittendurchmesser klein', { exact: true }).fill('25')
+  await page.getByRole('button', { name: 'Balken A und B hinzufügen', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Balken (2)' })).toBeVisible()
 })
 
 const SIGNED_OUT = () => localStorage.setItem('fake-api', 'signed-out')
