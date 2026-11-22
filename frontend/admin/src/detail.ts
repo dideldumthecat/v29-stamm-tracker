@@ -79,7 +79,7 @@ export interface ItemParts {
 }
 
 /** The kinds a saved item counts as, by the rule of the app: a stem without beams that is "Gesägt: ja" was sawn whole and is a beam as well. */
-function kindsOf(item: TimberItem, attributes: Attribute[]): ItemKind[] {
+export function kindsOf(item: TimberItem, attributes: Attribute[]): ItemKind[] {
   const sawnId = attributes.find((attribute) => attribute.key === SAWN_KEY)?.id
   const sawn = !!sawnId && item.values[sawnId]?.slice(-1)[0]?.value === true
   const choice = splitChoiceOf({

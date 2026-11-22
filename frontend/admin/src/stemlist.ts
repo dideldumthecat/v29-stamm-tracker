@@ -1,5 +1,5 @@
 import type { LocationQueryRaw } from 'vue-router'
-import { bySortOrder, currentValue, isInheritedValue, SAWN_KEY } from '@v29/shared/attributes'
+import { bySortOrder, currentValue, isInheritedValue } from '@v29/shared/attributes'
 import type {
   Attribute,
   AttributeValueRecord,
@@ -9,7 +9,7 @@ import type {
 } from '@v29/shared/contract'
 
 import { dayKey, formatDayMonthUnlessThisYear } from '@/activity'
-import { formatRecorded, latestOwnRecord } from '@/detail'
+import { formatRecorded, kindsOf, latestOwnRecord } from '@/detail'
 import {
   countText,
   filterType,
@@ -119,13 +119,12 @@ function rawRows(snapshot: Snapshot, kind: ItemKind): RawRow[] {
   for (const item of snapshot.timber_items) {
     if (item.parent_id) beams.set(item.parent_id, [...(beams.get(item.parent_id) ?? []), item])
   }
-  const sawn = snapshot.attributes.find((attribute) => attribute.key === SAWN_KEY)
-  // Beams, and stems that are sawn whole: no beams of their own and "Gesägt: ja" (a split stem is not a beam)
-  const isBeam = (item: TimberItem) =>
-    item.parent_id !== null ||
-    (!beams.has(item.id) && !!sawn && item.values[sawn.id]?.slice(-1)[0]?.value === true)
   return snapshot.timber_items
-    .filter((item) => (kind === 'stem' ? item.parent_id === null : isBeam(item)))
+    .filter((item) =>
+      kind === 'stem'
+        ? item.parent_id === null
+        : kindsOf(item, snapshot.attributes).includes('beam'),
+    )
     .map((item) => {
       const parent = item.parent_id ? byId.get(item.parent_id) : undefined
       // Like the detail view: the person of the latest own recording, without one the person who created the item
