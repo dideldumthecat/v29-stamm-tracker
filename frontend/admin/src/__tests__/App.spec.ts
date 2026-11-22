@@ -202,9 +202,9 @@ describe('frame', () => {
 
     expect(wrapper.findAll('nav a').map((link) => link.text())).toEqual([
       'Dashboard',
+      'Aktivität',
       'Stämme',
       'Balken',
-      'Aktivität',
     ])
     const current = wrapper.get('nav [aria-current=page]')
     expect(current.text()).toBe('Aktivität')

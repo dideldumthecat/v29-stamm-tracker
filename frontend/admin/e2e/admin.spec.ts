@@ -1026,7 +1026,7 @@ test.describe('stem list', () => {
     await page.goto('/admin/activity')
     await signIn(page, 'K7QM4XHT9RDP')
     const links = page.getByRole('navigation').getByRole('link')
-    await expect(links).toHaveText(['Dashboard', 'Stämme', 'Balken', 'Aktivität'])
+    await expect(links).toHaveText(['Dashboard', 'Aktivität', 'Stämme', 'Balken'])
     await links.filter({ hasText: 'Balken' }).click()
     await expect(page).toHaveURL(/\/admin\/beams$/)
     await expect(page.locator('h1')).toHaveText('Balken')

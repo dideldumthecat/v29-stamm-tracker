@@ -10,12 +10,12 @@ import AdminMenu from '@/components/AdminMenu.vue'
 import LoadFailure from '@/components/LoadFailure.vue'
 import { useSizeVariable } from '@/sizeVariable'
 
-// Only pages that exist, one line each, in the order of the design: Dashboard, Stämme, Balken, Merkmale, Nutzer, Aktivität.
+// Only pages that exist, one line each, in the order of the design: Dashboard, Aktivität, Stämme, Balken, Merkmale, Nutzer.
 const navigation = [
   { label: 'Dashboard', to: { name: 'dashboard' } },
+  { label: 'Aktivität', to: { name: 'activity' } },
   { label: 'Stämme', to: { name: 'stems' } },
   { label: 'Balken', to: { name: 'beams' } },
-  { label: 'Aktivität', to: { name: 'activity' } },
 ]
 
 const route = useRoute()
