@@ -101,7 +101,7 @@ class DashboardTest extends WebTestCase
     private function everyKindOfStem(): void
     {
         // Split, the checkmark forgotten: round wood 0,502 fm, four beams 0,304 m³ (the worked example of the detail view)
-        $this->stem('104', ['mid_diameter_max' => 40, 'mid_diameter_min' => 39, 'length' => '4,10 m']);
+        $this->stem('104', ['mid_diameter_max' => 40, 'mid_diameter_min' => 38, 'length' => '4,10 m']);
         foreach (['A' => '14,7 x 14,7 cm', 'B' => '14,7 x 14,7 cm', 'C' => '10,5 x 14,7 cm', 'D' => '10,5 x 14,7 cm'] as $letter => $section) {
             $this->item("104-$letter", '104');
             $this->event("104-$letter", EventType::AttributeRecorded, ['attribute_id' => $this->attribute['sawn_cross_section']->id->toRfc4122(), 'value' => $this->option[$section]], '2026-11-18 08:00:00');
@@ -165,7 +165,7 @@ class DashboardTest extends WebTestCase
         self::assertEqualsWithDelta(\array_slice($fixture['sections'], 0, 2), $response['sections'], 1e-9, 'no stem has a pile: no pile cards');
         $figures = self::sawing($response);
         self::assertSame([5, 4, 1], [$figures['stems_total']['value'], $figures['stems_processed']['value'], $figures['stems_open']['value']]);
-        $roundSawn = M_PI / 4 * (0.40 * 0.39 + 0.34 * 0.31) * 4.1;
+        $roundSawn = M_PI / 4 * (0.40 * 0.38 + 0.34 * 0.31) * 4.1;
         $roundUnsawable = M_PI / 4 * 0.30 * 0.30 * 4.1;
         $sawnTimber = (2 * 0.147 * 0.147 + 2 * 0.105 * 0.147 + 0.147 * 0.147 + 0.105 * 0.147) * 4.1;
         self::assertEqualsWithDelta($roundSawn + $roundUnsawable, $figures['round_wood']['value'], 1e-9);
@@ -174,7 +174,7 @@ class DashboardTest extends WebTestCase
         self::assertSame('3 gesägt + 1 nicht sägbar', $figures['stems_processed']['inserted'], 'the beams make 104 sawn');
         self::assertSame('Als gesägt zählt ein Stamm, wenn Gesägt angehakt ist, Balken vorhanden sind oder Gesägter Querschnitt erfasst ist. Bearbeitet sind außerdem Stämme mit Häkchen bei Nicht sägbar.', $figures['stems_processed']['formula']);
         self::assertStringNotContainsString('„', json_encode($response, \JSON_UNESCAPED_UNICODE), 'no quotation marks in the texts');
-        self::assertSame('0,84 fm gesägt + 0,29 fm nicht sägbar', $figures['round_wood']['inserted']);
+        self::assertSame('0,83 fm gesägt + 0,29 fm nicht sägbar', $figures['round_wood']['inserted']);
         self::assertStringContainsString('1 bearbeiteter Stamm ohne Durchmesser oder Länge fehlt in der Summe.', $figures['round_wood']['note']);
     }
 

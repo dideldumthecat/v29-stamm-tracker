@@ -36,10 +36,10 @@
         {
           "key": "round_wood",
           "label": "Rundholz bearbeitet",
-          "value": 1.1315545499332393,
+          "value": 1.1186740200535215,
           "unit": "fm",
           "formula": "Summe über alle bearbeiteten Stämme, je Stamm π ÷ 4 × Durchmesser groß × Durchmesser klein × Länge",
-          "inserted": "0,84 fm gesägt + 0,29 fm nicht sägbar",
+          "inserted": "0,83 fm gesägt + 0,29 fm nicht sägbar",
           "note": "Vorläufige Formel: Durchmesser mit Rinde, kein Abzug. 1 bearbeiteter Stamm ohne Durchmesser oder Länge fehlt in der Summe."
         },
         {
@@ -54,10 +54,10 @@
         {
           "key": "yield",
           "label": "Ausbeute",
-          "value": 0.5413070278711098,
+          "value": 0.5497189474961465,
           "unit": "%",
           "formula": "Schnittholz ÷ Rundholz der gesägten Stämme",
-          "inserted": "0,46 m³ ÷ 0,84 fm",
+          "inserted": "0,46 m³ ÷ 0,83 fm",
           "note": "Nur gesägte Stämme gehen ein. Als gesägt zählt ein Stamm, wenn Gesägt angehakt ist, Balken vorhanden sind oder Gesägter Querschnitt erfasst ist. Stämme mit Häkchen bei Nicht sägbar zählen nicht."
         }
       ]
@@ -73,7 +73,7 @@
         },
         {
           "term": "Durchmesser",
-          "text": "(Durchmesser groß + Durchmesser klein) ÷ 2, auf ganze cm abgerundet. Ist nur einer erfasst, zählt dieser."
+          "text": "(Durchmesser groß + Durchmesser klein) ÷ 2, auf ganze cm kaufmännisch gerundet (ab ,5 aufgerundet). Ist nur einer erfasst, zählt dieser."
         },
         {
           "term": "Klassen",
@@ -138,7 +138,7 @@
           "to_cm": 40,
           "stems": 1,
           "not_sawable": 0,
-          "yield": 0.6046908422457612,
+          "yield": 0.6206037591469654,
           "beams_per_stem_large": 2,
           "beams_per_stem_small": 2
         }

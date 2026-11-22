@@ -232,20 +232,25 @@ class KeyFiguresTest extends TestCase
 
     public function testClassBoundaries(): void
     {
-        self::assertSame(['32–34'], array_keys($this->classes([self::unsawable('1', 33.9, 33.9)])));
+        self::assertSame(['32–34'], array_keys($this->classes([self::unsawable('1', 33.4, 33.4)])));
         self::assertSame(['34–36'], array_keys($this->classes([self::unsawable('1', 34.0, 34.0)])));
     }
 
-    public function testTheMeanIsRoundedDown(): void
+    public function testTheMeanIsRoundedHalfUp(): void
     {
-        // (35 + 32) ÷ 2 = 33,5 → 33 → 32–34; (34,7 + 33,3) ÷ 2 = 34 exactly, not 33,999…
-        self::assertSame(['32–34'], array_keys($this->classes([self::unsawable('1', 35, 32)])));
+        // (31 + 32) ÷ 2 = 31,5 → 32 → 32–34 (the boundary is crossed); (35 + 32) ÷ 2 = 33,5 → 34 → 34–36
+        self::assertSame(['32–34'], array_keys($this->classes([self::unsawable('1', 31, 32)])));
+        self::assertSame(['34–36'], array_keys($this->classes([self::unsawable('1', 35, 32)])));
+        // Below .5 stays down: (33 + 32) ÷ 2 = 32,5 is up, (32,4 + 32,4) ÷ 2 = 32,4 is not
+        self::assertSame(['32–34'], array_keys($this->classes([self::unsawable('1', 32.4, 32.4)])));
+        // Whole means unchanged; (34,7 + 33,3) ÷ 2 = 34 exactly, not 33,999…
         self::assertSame(['34–36'], array_keys($this->classes([self::unsawable('1', 34.7, 33.3)])));
     }
 
     public function testOneDiameterCountsAlone(): void
     {
         self::assertSame(['30–32'], array_keys($this->classes([self::unsawable('1', 31)])));
+        self::assertSame(['32–34'], array_keys($this->classes([self::unsawable('1', 31.5)])), 'rounded half up like a mean');
         self::assertSame(['30–32'], array_keys($this->classes([self::unsawable('1', 0, 31)])), '0 is not measured');
     }
 
@@ -260,7 +265,7 @@ class KeyFiguresTest extends TestCase
     public function testRangeWithEmptyClassesAndPerClassFigures(): void
     {
         $classes = $this->classes([
-            self::stem('1', 40, 39), // sawn by its two beams
+            self::stem('1', 40, 38), // sawn by its two beams
             self::beam('1', 'A', 14.7, 14.7),
             self::beam('1', 'B', 10.5, 14.7),
             self::stem('2', 32, 32, sawnMarked: true, width: 14.7, height: 14.7), // sawn whole: one beam
@@ -276,7 +281,7 @@ class KeyFiguresTest extends TestCase
         $round = static fn (float $diameter) => M_PI / 4 * $diameter * $diameter / 10000 * 4.1;
         self::assertEqualsWithDelta(2 * 0.147 * 0.147 * 4.1 / ($round(32) + $round(33)), $classes['32–34']['yield'], 1e-9, 'weighted by volume, without the unsawable stem');
         self::assertEquals([1, 1], [$classes['38–40']['beams_per_stem_large'], $classes['38–40']['beams_per_stem_small']], '14,7 × 14,7 is large, 10,5 × 14,7 small');
-        self::assertEqualsWithDelta((0.147 * 0.147 + 0.105 * 0.147) / (0.40 * 0.39 * M_PI / 4), $classes['38–40']['yield'], 1e-9);
+        self::assertEqualsWithDelta((0.147 * 0.147 + 0.105 * 0.147) / (0.40 * 0.38 * M_PI / 4), $classes['38–40']['yield'], 1e-9);
     }
 
     public function testBeamsAreLargeFromTwelveCmOnAndWithoutCrossSectionCountNowhere(): void
@@ -296,7 +301,7 @@ class KeyFiguresTest extends TestCase
         $notes = $this->figures->diameterClasses([], ['mid_diameter_max' => 'Durchmesser groß', 'mid_diameter_min' => 'Durchmesser klein', 'sawn_cross_section' => 'Gesägter Querschnitt'])['notes'];
 
         self::assertSame(['Stämme', 'Durchmesser', 'Klassen', 'Ausbeute', 'Balken je Stamm', 'Groß und klein', 'Nicht sägbar'], array_column($notes, 'term'));
-        self::assertSame('(Durchmesser groß + Durchmesser klein) ÷ 2, auf ganze cm abgerundet. Ist nur einer erfasst, zählt dieser.', $notes[1]['text']);
+        self::assertSame('(Durchmesser groß + Durchmesser klein) ÷ 2, auf ganze cm kaufmännisch gerundet (ab ,5 aufgerundet). Ist nur einer erfasst, zählt dieser.', $notes[1]['text']);
         self::assertSame('je 2 cm, z. B. 32–33 cm = 32 und 33 cm.', $notes[2]['text']);
     }
 }

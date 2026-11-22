@@ -208,7 +208,7 @@ export interface DashboardPileSection {
 }
 
 export interface DiameterClass {
-  /** A class holds two whole cm (the class diameter is rounded down): 32 and 33 cm are from_cm 32, to_cm 34, shown as "32–33 cm" */
+  /** A class holds two whole cm (the class diameter is rounded commercially, half up): 32 and 33 cm are from_cm 32, to_cm 34, shown as "32–33 cm" */
   from_cm: number
   /** Not in the class (half-open interval from_cm ≤ d < to_cm): the next class starts here */
   to_cm: number

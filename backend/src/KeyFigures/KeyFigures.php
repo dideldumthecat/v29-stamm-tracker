@@ -263,7 +263,7 @@ final class KeyFigures
 
     /**
      * The section "Stämme nach Mittendurchmesser": processed stems (as in sawing()) in classes of two whole cm (32 and 33 cm: from_cm 32, to_cm 34).
-     * The class diameter is the mean of both diameters rounded down to whole cm, or the one recorded (RoundWood holds it twice then).
+     * The class diameter is the mean of both diameters rounded commercially to whole cm (half up: 32.5 → 33, V29's choice, not the forestry convention of rounding down), or the one recorded (RoundWood holds it twice then).
      * Classes run from the smallest to the largest one with a stem, empty ones in between included. Yield and beams per stem count
      * sawn stems only, missing volumes are left out as in sawing(); a stem sawn whole is one beam.
      * Beams are large or small by the shorter side of their cross-section; one without a readable cross-section counts in neither.
@@ -293,8 +293,8 @@ final class KeyFigures
                 ++$withoutDiameter;
                 continue;
             }
-            // Rounded first, so that 33.3 + 34.7 lands on 34 and not on 33.99999…
-            $from = intdiv((int) floor(round(($round->diameterMax + $round->diameterMin) / 2, 6)), 2) * 2;
+            // Rounded to 6 places first, so that float noise does not turn 32.5 into 32.4999…; PHP's round() is half up
+            $from = intdiv((int) round(round(($round->diameterMax + $round->diameterMin) / 2, 6)), 2) * 2;
             $classes[$from] ??= $empty;
             ++$classes[$from]['stems'];
             if (!$sawn) {
@@ -330,7 +330,7 @@ final class KeyFigures
         return [
             'notes' => [
                 ['term' => 'Stämme', 'text' => 'Alle bearbeiteten Stämme, also gesägt oder nicht sägbar.'],
-                ['term' => 'Durchmesser', 'text' => \sprintf('(%s + %s) ÷ 2, auf ganze cm abgerundet. Ist nur einer erfasst, zählt dieser.', $names['mid_diameter_max'], $names['mid_diameter_min'])],
+                ['term' => 'Durchmesser', 'text' => \sprintf('(%s + %s) ÷ 2, auf ganze cm kaufmännisch gerundet (ab ,5 aufgerundet). Ist nur einer erfasst, zählt dieser.', $names['mid_diameter_max'], $names['mid_diameter_min'])],
                 ['term' => 'Klassen', 'text' => 'je 2 cm, z. B. 32–33 cm = 32 und 33 cm.'],
                 ['term' => 'Ausbeute', 'text' => 'Schnittholz ÷ Rundholz der gesägten Stämme der Klasse. Der Rest ist Verschnitt: Rinde, Schwarten, Späne.'],
                 ['term' => 'Balken je Stamm', 'text' => 'Große bzw. kleine Balken ÷ gesägte Stämme der Klasse. Ein als Ganzes gesägter Stamm zählt als 1 Balken.'],

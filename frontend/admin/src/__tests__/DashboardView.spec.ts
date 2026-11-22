@@ -57,9 +57,9 @@ describe('dashboard', () => {
       'Stämme gesamt 5',
       'Stämme bearbeitet 4',
       'Stämme nicht bearbeitet 1',
-      'Rundholz bearbeitet 1,13fm',
+      'Rundholz bearbeitet 1,12fm',
       'Schnittholz 0,46m³',
-      'Ausbeute 54,1%',
+      'Ausbeute 55,0%',
     ])
   })
 
@@ -97,8 +97,8 @@ describe('dashboard', () => {
     expect(squeezed(popup()!.textContent!)).toBe(
       'So wird Ausbeute berechnet' +
         'FormelSchnittholz ÷ Rundholz der gesägten Stämme' +
-        'Eingesetzt0,46 m³ ÷ 0,84 fm' +
-        'Ergebnis54,1 %' +
+        'Eingesetzt0,46 m³ ÷ 0,83 fm' +
+        'Ergebnis55,0 %' +
         'Nur gesägte Stämme gehen ein. Als gesägt zählt ein Stamm, wenn Gesägt angehakt ist, Balken vorhanden sind oder Gesägter Querschnitt erfasst ist. Stämme mit Häkchen bei Nicht sägbar zählen nicht.',
     )
 
@@ -169,7 +169,7 @@ describe('dashboard', () => {
       expect(popup()).toBeNull()
 
       expect(rows(wrapper)).toEqual([
-        '38–39 cm | 60,5 % | 1 1 Stamm | 14×14 je Stamm 2,0 | 10×14 je Stamm 2,0',
+        '38–39 cm | 62,1 % | 1 1 Stamm | 14×14 je Stamm 2,0 | 10×14 je Stamm 2,0',
         '36–37 cm | Ausbeute – | 0 0 Stämme | 14×14 je Stamm – | 10×14 je Stamm –',
         '34–35 cm | Ausbeute – | 0 0 Stämme | 14×14 je Stamm – | 10×14 je Stamm –',
         '32–33 cm | 26,1 % | 1 1 Stamm | 14×14 je Stamm 1,0 | 10×14 je Stamm 0,0',
@@ -219,7 +219,7 @@ describe('dashboard', () => {
           Number.parseFloat(bar.get('span').attributes('style')!.replace('width: ', '')).toFixed(1),
         ]),
       ).toEqual([
-        ['Ausbeute 60,5\u00a0%', '60.5'],
+        ['Ausbeute 62,1\u00a0%', '62.1'],
         ['Ausbeute 26,1\u00a0%', '26.1'],
       ])
     })
