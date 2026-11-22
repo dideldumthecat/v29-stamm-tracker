@@ -12,6 +12,7 @@ use App\KeyFigures\KeyFigures;
 use App\KeyFigures\MeasureReader;
 use App\KeyFigures\Measures;
 use App\KeyFigures\StemFigures;
+use App\KeyFigures\StemPieces;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Uid\Uuid;
 
@@ -46,8 +47,6 @@ final class TimberReport
     private array $tags = [];
     /** @var array<string, list<TimberItem>> pieces of sawn timber by stem id: its beams, or the stem itself if sawn whole */
     private array $pieces = [];
-    /** @var array<string, list<TimberItem>> */
-    private array $beamsOf = [];
     /** @var array<string, true> ids of attributes that at least one listed item has a value for */
     private array $used = [];
     /** @var array<string, Measures> by item id */
@@ -68,7 +67,7 @@ final class TimberReport
     public function build(\DateTimeImmutable $now): Report
     {
         $this->berlin = new \DateTimeZone('Europe/Berlin');
-        $this->warnings = $this->measures = $this->figures = $this->pieces = $this->beamsOf = $this->used = [];
+        $this->warnings = $this->measures = $this->figures = $this->pieces = $this->used = [];
         $this->load();
 
         $items = $this->em->getRepository(TimberItem::class)->findBy(['voidedAt' => null]);
@@ -81,19 +80,21 @@ final class TimberReport
             foreach ($this->values[$item->id->toRfc4122()] ?? [] as $attributeId => $_) {
                 $this->used[$attributeId] = true;
             }
-            if ($item->parentId) {
-                $this->beamsOf[$item->parentId->toRfc4122()][] = $item;
-            }
         }
         foreach ($reader->unreadable() as $unreadable) {
             $warning = \sprintf('Unreadable value left empty: %s, %s, "%s"', self::formatTag($unreadable['tag']) ?? $unreadable['item'], $unreadable['attribute'], $unreadable['text']);
             $this->warnings[$warning] = $warning;
         }
         $this->figures = $this->keyFigures->ofStems(array_values($this->measures));
+        $stemPieces = new StemPieces(array_values($this->measures));
+        $itemsById = [];
+        foreach ($items as $item) {
+            $itemsById[$item->id->toRfc4122()] = $item;
+        }
         $sawnPieces = [];
         foreach ($stems as $stem) {
             $id = $stem->id->toRfc4122();
-            $this->pieces[$id] = $this->beamsOf[$id] ?? ($this->figures[$id]->isSawn() ? [$stem] : []);
+            $this->pieces[$id] = array_map(static fn (Measures $piece) => $itemsById[$piece->id], $stemPieces->piecesOf($id));
             array_push($sawnPieces, ...$this->pieces[$id]);
         }
         usort($sawnPieces, fn (TimberItem $a, TimberItem $b) => $this->sortKey($a) <=> $this->sortKey($b));

@@ -27,12 +27,11 @@ final class PileSections
      */
     public function build(array $items, array $piles, array $names, \DateTimeImmutable $now): array
     {
-        $stemsOf = $beamsOf = [];
-        foreach ($items as $item) {
-            if (null !== $item->parentId) {
-                $beamsOf[$item->parentId][] = $item;
-            } elseif (null !== $item->pileId) {
-                $stemsOf[$item->pileId][] = $item;
+        $pieces = new StemPieces($items);
+        $stemsOf = [];
+        foreach ($pieces->stems() as $stem) {
+            if (null !== $stem->pileId) {
+                $stemsOf[$stem->pileId][] = $stem;
             }
         }
 
@@ -44,11 +43,11 @@ final class PileSections
             }
             $own = $stems;
             foreach ($stems as $stem) {
-                array_push($own, ...($beamsOf[$stem->id] ?? []));
+                array_push($own, ...$pieces->beamsOf($stem->id));
             }
             $figures = $this->figures->ofStems($own);
             $totals = $this->figures->totals($own, $figures);
-            [$weeks, $average] = $this->weeks($stems, $beamsOf, $figures, $now);
+            [$weeks, $average] = $this->weeks($stems, $pieces, $figures, $now);
             $sawnTimber = $totals->sawnTimber();
 
             $sections[] = [
@@ -82,13 +81,12 @@ final class PileSections
      * A date after the current week (a device with the wrong clock) counts in the current week. The average leaves the current week out.
      * A beam without a readable cross-section opens its week but counts as neither large nor small.
      *
-     * @param list<Measures>                $stems
-     * @param array<string, list<Measures>> $beamsOf by stem id
-     * @param array<string, StemFigures>    $figures
+     * @param list<Measures>             $stems
+     * @param array<string, StemFigures> $figures
      *
      * @return array{list<array{week_start: string, large: int, small: int}>, ?float}
      */
-    private function weeks(array $stems, array $beamsOf, array $figures, \DateTimeImmutable $now): array
+    private function weeks(array $stems, StemPieces $pieces, array $figures, \DateTimeImmutable $now): array
     {
         $current = self::monday($now);
         $counts = [];
@@ -111,7 +109,7 @@ final class PileSections
                 $add($stem->sawnAt, KeyFigures::beamSize($sawn->pieces[0]));
                 continue;
             }
-            foreach ($beamsOf[$stem->id] ?? [] as $beam) {
+            foreach ($pieces->beamsOf($stem->id) as $beam) {
                 $add($beam->createdAt, KeyFigures::beamSize($this->figures->piece($beam)));
             }
         }

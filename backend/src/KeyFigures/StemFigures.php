@@ -17,7 +17,7 @@ final readonly class StemFigures
     ) {
     }
 
-    /** The checkmark "sawn", a beam or a cross-section on the stem: decided in KeyFigures::ofStems(). */
+    /** The checkmark "sawn", a beam or a cross-section on the stem: decided in StemPieces::isSawn(). */
     public function isSawn(): bool
     {
         return null !== $this->sawnTimber;

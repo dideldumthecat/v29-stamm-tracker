@@ -57,25 +57,12 @@ final class KeyFigures
      */
     public function ofStems(array $items): array
     {
-        $beamsOf = [];
-        foreach ($items as $item) {
-            if (null !== $item->parentId) {
-                $beamsOf[$item->parentId][] = $item;
-            }
-        }
-
+        $pieces = new StemPieces($items);
         $figures = [];
-        foreach ($items as $stem) {
-            if (null !== $stem->parentId) {
-                continue;
-            }
-            $beams = $beamsOf[$stem->id] ?? [];
-            usort($beams, static fn (Measures $a, Measures $b) => ($a->tag ?? "\xff") <=> ($b->tag ?? "\xff"));
-            // The one rule for "sawn" (dashboard, export, detail view; StemFigures::isSawn()): the checkmark, a beam (the items hold no voided ones)
-            // or a cross-section recorded on the stem. Calculated only, nothing is written. Without beams the stem was sawn whole: it is its own piece.
-            $isSawn = $stem->sawnMarked || [] !== $beams || $stem->crossSectionRecorded;
-            $whole = $isSawn && [] === $beams;
-            $sawn = $isSawn ? $this->sawnTimber(array_map($this->piece(...), $whole ? [$stem] : $beams), $whole) : null;
+        foreach ($pieces->stems() as $stem) {
+            $sawn = $pieces->isSawn($stem->id)
+                ? $this->sawnTimber(array_map($this->piece(...), $pieces->piecesOf($stem->id)), $pieces->isSawnWhole($stem->id))
+                : null;
             $round = $this->roundWood($stem);
             $yield = null === $sawn || null === $sawn->volume || null === $round->volume ? null : $sawn->volume / $round->volume;
             $yieldMissing = null === $sawn || null !== $yield ? [] : array_values(array_filter([null === $sawn->volume ? Missing::SawnTimber : null, null === $round->volume ? Missing::RoundWood : null]));
