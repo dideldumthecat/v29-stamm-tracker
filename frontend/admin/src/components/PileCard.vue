@@ -30,7 +30,7 @@ const figures = computed(() => {
       label: labels.large,
       value: beams.large,
       unit: 'Stück',
-      surface: 'border-transparent bg-beam-large',
+      surface: 'border-transparent bg-beam-large text-paper',
     },
     {
       key: 'small',
