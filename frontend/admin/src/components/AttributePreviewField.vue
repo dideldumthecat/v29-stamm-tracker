@@ -62,8 +62,7 @@ const input =
             :class="inherited ? 'border-lockline' : 'border-ink bg-paper'"
           ></span>
           <span class="min-w-0 flex-1">
-            <span :class="!attribute.active && 'line-through'">{{ attribute.name }}</span
-            ><LockIcon
+            <span :class="!attribute.active && 'line-through'">{{ attribute.name }}</span><LockIcon
               v-if="attribute.is_system"
               :size="16"
               class="ml-1.5 inline-block align-[-2px]"

@@ -37,8 +37,7 @@ const openKey = ref<string | null>(null)
               >–</span
             >
             <span v-else-if="figure.key === 'yield'" class="block text-mute tabular-nums">
-              <span class="text-[22px] leading-7">{{ formatPercent(figure.value) }}</span
-              >&nbsp;%
+              <span class="text-[22px] leading-7">{{ formatPercent(figure.value) }}</span>&nbsp;%
             </span>
             <span v-else class="block text-ink tabular-nums">{{ formatFigure(figure) }}</span>
             <span class="mt-meta block text-caption wrap-anywhere text-mute">{{

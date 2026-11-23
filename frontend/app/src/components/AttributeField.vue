@@ -45,8 +45,7 @@ const isLocked = computed(() => props.record !== undefined && (props.readonly ||
     class="flex flex-col gap-2.5 border-t border-line bg-locked py-section px-gutter text-mute *:max-w-full *:min-w-0"
   >
     <span class="flex items-baseline gap-2 text-label font-bold">
-      <span :class="{ 'line-through': inactive }">{{ name }}</span
-      ><InactiveHint v-if="inactive"
+      <span :class="{ 'line-through': inactive }">{{ name }}</span><InactiveHint v-if="inactive"
     /></span>
     <p v-if="description && descriptionAbove" class="text-sm leading-copy text-body">
       {{ description }}

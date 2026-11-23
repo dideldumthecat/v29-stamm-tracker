@@ -56,8 +56,9 @@ function toggle() {
           </span>
           <span v-else class="size-[30px] rounded-md border-2 border-lockline"></span>
           <span class="min-w-0 flex-1">
-            <span :class="{ 'line-through': !attribute.active }">{{ attribute.name }}</span
-            >{{ current?.value ? '' : ': Nein' }}
+            <span :class="{ 'line-through': !attribute.active }">{{ attribute.name }}</span>{{
+              current?.value ? '' : ': Nein'
+            }}
             <InactiveHint v-if="!attribute.active" class="block"
           /></span>
           <button
