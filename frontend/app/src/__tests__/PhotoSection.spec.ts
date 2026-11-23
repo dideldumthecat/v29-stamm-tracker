@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest'
+import { afterEach, describe, it, expect, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { loadDiagnostics } from '@/persistence/database'
 import PhotoSection from '@/components/PhotoSection.vue'
 import type { Attribute, StoredPhoto } from '@/stores/timberItems'
 
@@ -112,5 +113,41 @@ describe('photo section', () => {
       expect(buttons).toHaveLength(2)
       expect(buttons.every((button) => button.attributes('disabled') !== undefined)).toBe(true)
     }
+  })
+
+  describe('a change after the screen was left', () => {
+    afterEach(() => vi.restoreAllMocks())
+
+    it('neither throws nor reports photos to the draft, but leaves a diagnostics warning', async () => {
+      const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const crashed = vi.fn()
+      window.addEventListener('error', crashed)
+
+      const wrapper = mountSection()
+      const gallery = wrapper.findAll('input')[1]!.element
+      await wrapper.findAll('button')[1]!.trigger('click')
+      wrapper.unmount()
+
+      // Vue keeps the listener on the detached input; iOS may answer this late.
+      const files = [
+        new File(['x'], 'a.jpg', { type: 'image/jpeg' }),
+        new File(['y'], 'b.jpg', { type: 'image/jpeg' }),
+      ]
+      Object.defineProperty(gallery, 'files', { value: files, configurable: true })
+      gallery.dispatchEvent(new Event('change'))
+      window.removeEventListener('error', crashed)
+
+      expect(crashed).not.toHaveBeenCalled()
+      expect(logged).not.toHaveBeenCalled()
+      expect(wrapper.emitted('add')).toBeUndefined()
+      await vi.waitFor(async () => expect(await loadDiagnostics()).toHaveLength(1))
+      const [entry] = await loadDiagnostics()
+      expect(entry).toMatchObject({
+        level: 'warning',
+        kind: 'photo',
+        context: { source: 'gallery', files: 2 },
+      })
+      expect(entry!.context.ms_since_open).toBeGreaterThanOrEqual(0)
+    })
   })
 })

@@ -2,6 +2,7 @@
 import { computed, onUnmounted, useTemplateRef, watch } from 'vue'
 import { CameraIcon, ImagesIcon, LoaderCircleIcon, XIcon } from '@lucide/vue'
 import type { Attribute, StoredPhoto } from '@/stores/timberItems'
+import { record } from '@/diagnostics/record'
 import { plural } from '@/utils/plural'
 
 type Preview = Pick<StoredPhoto, 'id' | 'blob'>
@@ -31,19 +32,35 @@ const emit = defineEmits<{
 const camera = useTemplateRef<HTMLInputElement>('camera')
 const gallery = useTemplateRef<HTMLInputElement>('gallery')
 
+let openedAt: number | undefined
+let unmounted = false
+
 function open(input: HTMLInputElement | null) {
+  openedAt = Date.now()
   emit('picker', true)
   input?.click()
 }
 
-function onChange(input: HTMLInputElement | null, source: 'camera' | 'gallery') {
-  emit('picker', false)
-  const files = [...(input?.files ?? [])]
-  if (files.length > 0) {
-    emit('add', files, source)
+// The input comes from the event, not from a template ref: Vue keeps the listener on the detached input, so
+// a `change` that iOS delivers after the screen was left (slow HEIC conversion, iCloud download) still arrives.
+function onChange(event: Event, source: 'camera' | 'gallery') {
+  const input = event.target as HTMLInputElement
+  const files = [...(input.files ?? [])]
+  if (unmounted) {
+    // The draft is gone, so there is nobody to take the photos; this entry is the only trace of the case.
+    void record('warning', 'photo', 'Photos chosen after the screen was left', {
+      source,
+      files: files.length,
+      ms_since_open: openedAt === undefined ? undefined : Date.now() - openedAt,
+    })
+  } else {
+    emit('picker', false)
+    if (files.length > 0) {
+      emit('add', files, source)
+    }
   }
   // Reset, so choosing the same file again fires `change` again.
-  input!.value = ''
+  input.value = ''
 }
 
 // Object URLs live as long as the photo is shown, then they are released.
@@ -65,7 +82,10 @@ watch(
     }
   },
 )
-onUnmounted(() => urls.forEach((url) => URL.revokeObjectURL(url)))
+onUnmounted(() => {
+  unmounted = true
+  urls.forEach((url) => URL.revokeObjectURL(url))
+})
 
 // Only a stack and no previews: one row, buttons to the right of the stack.
 const beside = computed(() => props.uploadedCount > 0 && props.pending.length === 0)
@@ -93,7 +113,7 @@ const captureButton =
         accept="image/*"
         capture="environment"
         class="hidden"
-        @change="onChange(camera, 'camera')"
+        @change="onChange($event, 'camera')"
         @cancel="emit('picker', false)"
       />
       <input
@@ -102,7 +122,7 @@ const captureButton =
         accept="image/*"
         multiple
         class="hidden"
-        @change="onChange(gallery, 'gallery')"
+        @change="onChange($event, 'gallery')"
         @cancel="emit('picker', false)"
       />
     </template>
