@@ -1048,7 +1048,7 @@ test.describe('stem list', () => {
     await expect(page).toHaveURL(/\/admin\/beams\?tags=104-B$/)
 
     // the list of stems has its own filter state
-    await links.nth(1).click()
+    await links.nth(2).click()
     await expect(page).toHaveURL(/\/admin\/stems$/)
     await expect(page.getByText('4 Stämme', { exact: true })).toBeVisible()
 
