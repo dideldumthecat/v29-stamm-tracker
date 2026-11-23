@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import type { DashboardPileSection } from '@v29/shared/contract'
+import { ChevronLeftIcon, ChevronRightIcon } from '@lucide/vue'
+import type { PileCardSection } from '@v29/shared/contract'
 
 import { formatOneDecimal } from '@/keyFigures'
 import { axisSteps, chartDescription, weekLabel, weekTotal } from '@/pileCard'
@@ -8,17 +9,25 @@ import { useScrollStart } from '@/scrollEnd'
 
 /**
  * "Gesägte Balken pro Woche" of a pile card: stacked columns (large below, small above, the sum above them) with a fixed axis.
- * Only the columns scroll, sideways, starting at the current week (the last one); the grid lines and the average stay put across the
+ * Only the columns scroll, sideways, starting at the current week (the last one), with two arrows above them; the grid lines and the average stay put across the
  * whole width. Everything is drawn from the numbers of the server, the average included.
  */
-const props = defineProps<{ section: DashboardPileSection }>()
+const props = defineProps<{ section: PileCardSection }>()
 
 /** The height of the area of the columns in px, and the room above it for the two lines (sum, large / small) of the tallest column. */
 const PLOT = 160
 const HEADROOM = 44
 
 const scroller = ref<HTMLElement | null>(null)
-const { hiddenLeft } = useScrollStart(scroller)
+const { hiddenLeft, hiddenRight } = useScrollStart(scroller)
+function scrollChart(direction: -1 | 1) {
+  // The optional call is for jsdom, which has no matchMedia
+  const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+  scroller.value?.scrollBy({
+    left: direction * scroller.value.clientWidth * 0.6,
+    behavior: reduced ? 'auto' : 'smooth',
+  })
+}
 
 const axis = computed(() => axisSteps(Math.max(...props.section.weeks.map(weekTotal))))
 /** Distance of a value from the bottom of the area of the columns, in px. */
@@ -30,34 +39,57 @@ const DASHES = '6 4'
 
 <template>
   <div class="mt-6 border-t border-soft pt-6">
-    <div class="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
-      <h3 class="text-label font-bold">Gesägte Balken pro Woche</h3>
-      <ul class="flex flex-wrap gap-x-4 gap-y-1 text-sm text-mute">
-        <li class="flex items-center gap-2">
-          <span class="size-3 rounded-xs bg-beam-large" aria-hidden="true" />{{
-            section.size_labels.large
-          }}
-        </li>
-        <li class="flex items-center gap-2">
-          <span class="size-3 rounded-xs bg-beam-small" aria-hidden="true" />{{
-            section.size_labels.small
-          }}
-        </li>
-        <li v-if="average !== null" class="flex items-center gap-2">
-          <svg width="24" height="4" aria-hidden="true">
-            <line
-              x1="0"
-              y1="2"
-              x2="24"
-              y2="2"
-              class="stroke-ink"
-              stroke-width="1.5"
-              :stroke-dasharray="DASHES"
-            />
-          </svg>
-          Ø {{ formatOneDecimal(average) }} pro Woche
-        </li>
-      </ul>
+    <div class="flex items-center justify-between gap-x-6">
+      <div>
+        <h3 class="text-label font-bold">Gesägte Balken pro Woche</h3>
+        <ul class="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-sm text-mute">
+          <li class="flex items-center gap-2">
+            <span class="size-3 rounded-xs bg-beam-large" aria-hidden="true" />{{
+              section.size_labels.large
+            }}
+          </li>
+          <li class="flex items-center gap-2">
+            <span class="size-3 rounded-xs bg-beam-small" aria-hidden="true" />{{
+              section.size_labels.small
+            }}
+          </li>
+          <li v-if="average !== null" class="flex items-center gap-2">
+            <svg width="24" height="4" aria-hidden="true">
+              <line
+                x1="0"
+                y1="2"
+                x2="24"
+                y2="2"
+                class="stroke-ink"
+                stroke-width="1.5"
+                :stroke-dasharray="DASHES"
+              />
+            </svg>
+            Ø {{ formatOneDecimal(average) }} pro Woche
+          </li>
+        </ul>
+      </div>
+      <!-- Only for columns that do not fit; an arrow is disabled where there is nothing more to see (as the arrows of the stem list) -->
+      <div v-if="hiddenLeft || hiddenRight" class="flex shrink-0 gap-2">
+        <button
+          type="button"
+          class="flex size-11 items-center justify-center rounded-lg border-2 border-ink bg-paper disabled:border-line disabled:text-dim"
+          aria-label="Diagramm nach links scrollen"
+          :disabled="!hiddenLeft"
+          @click="scrollChart(-1)"
+        >
+          <ChevronLeftIcon :size="22" aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          class="flex size-11 items-center justify-center rounded-lg border-2 border-ink bg-paper disabled:border-line disabled:text-dim"
+          aria-label="Diagramm nach rechts scrollen"
+          :disabled="!hiddenRight"
+          @click="scrollChart(1)"
+        >
+          <ChevronRightIcon :size="22" aria-hidden="true" />
+        </button>
+      </div>
     </div>
 
     <div class="mt-4 flex" role="img" :aria-label="chartDescription(section)">
@@ -124,7 +156,7 @@ const DASHES = '6 4'
                     v-if="weekTotal(week)"
                     class="block text-xs leading-4 whitespace-nowrap tabular-nums"
                     data-split
-                    ><span class="font-bold text-beam-large">{{ week.large }}</span
+                    ><span class="font-bold text-body">{{ week.large }}</span
                     ><span class="text-beam-small-text"> / {{ week.small }}</span></span
                   >
                 </span>

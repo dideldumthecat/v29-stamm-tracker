@@ -1,22 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
-import type { DashboardPileSection, DashboardResponse } from '@v29/shared/contract'
-import dashboardFixture from '@v29/shared/fixtures/dashboard-response.json' with { type: 'json' }
+import { enableAutoUnmount, flushPromises, mount, type DOMWrapper } from '@vue/test-utils'
+import type { PileCardSection, PileCardsResponse } from '@v29/shared/contract'
+import pileCardsFixture from '@v29/shared/fixtures/pile-cards-response.json' with { type: 'json' }
 
 import PileCard from '@/components/PileCard.vue'
 import { popup, pressEscape, stubBrowser } from './popup'
 
-const piles = (dashboardFixture as DashboardResponse).sections.filter(
-  (section): section is DashboardPileSection => section.type === 'pile',
-)
-const [fiveWeeks, manyWeeks, empty] = piles as [
-  DashboardPileSection,
-  DashboardPileSection,
-  DashboardPileSection,
-]
+const piles = (pileCardsFixture as PileCardsResponse).sections
+const [empty, manyWeeks, fiveWeeks] = piles as [PileCardSection, PileCardSection, PileCardSection]
 
 const squeezed = (text: string) => text.replace(/\s+/g, ' ').trim()
-const show = (section: DashboardPileSection) =>
+const figureText = (figure: DOMWrapper<Element>) => [
+  figure.get('dt').text(),
+  figure.get('dd').text(),
+]
+const show = (section: PileCardSection) =>
   mount(PileCard, { props: { section }, attachTo: document.body })
 
 enableAutoUnmount(afterEach)
@@ -24,11 +22,11 @@ beforeEach(() => stubBrowser())
 afterEach(() => vi.restoreAllMocks())
 
 describe('pile card', () => {
-  it('has the three piles of the fixture: five weeks, more weeks than fit in a row, and an empty one', () => {
-    expect(piles.map((pile) => pile.weeks.length)).toEqual([5, 16, 0])
+  it('has the three piles of the fixture, the newest first: an empty one, more weeks than fit in a row, and five weeks', () => {
+    expect(piles.map((pile) => pile.weeks.length)).toEqual([0, 16, 5])
   })
 
-  it('shows title, subtitle with the map link, progress and yield of a pile', () => {
+  it('shows title, subtitle with the map link, progress of a pile', () => {
     const wrapper = show(fiveWeeks)
 
     expect(wrapper.get('h2').text()).toBe('Polter 2601-010145 (Krummes F)')
@@ -43,6 +41,9 @@ describe('pile card', () => {
 
     const progress = wrapper.get('[data-progress]')
     expect(squeezed(progress.text())).toBe('Fortschritt85,7 %5 gesägt1 nicht sägbar1 offen')
+    expect(progress.get('p').classes()).toEqual(
+      expect.arrayContaining(['font-bold', 'tabular-nums']),
+    )
     expect(progress.get('[role=img]').attributes('aria-label')).toBe(
       '5 gesägt, 1 nicht sägbar, 1 offen',
     )
@@ -52,12 +53,33 @@ describe('pile card', () => {
       'flex: 1 1 0%;',
       'flex: 1 1 0%;',
     ])
+  })
 
-    const yieldArea = wrapper.get('[data-yield]')
-    expect(squeezed(yieldArea.text())).toBe(
-      'Ausbeute42,3 %1,29 m³ Schnittholz1,76 fm Verschnitt (Rinde, Schwarten, Späne)aus 3,05 fm Rundholz der gesägten Stämme',
-    )
-    expect(yieldArea.get('[role=img] span').attributes('style')).toContain('width: 42.29')
+  it('shows the beams by size and the sawn timber as three figures under "Ausbeute"', () => {
+    const wrapper = show(fiveWeeks)
+
+    const figures = wrapper.findAll('[data-yield] dl > div')
+    expect(figures.map(figureText)).toEqual([
+      ['Balken 14×14', '11Stück'],
+      ['Balken 10×14', '5Stück'],
+      ['Schnittholz', '1,29fm'],
+    ])
+    expect(figures.map((figure) => figure.classes())).toEqual([
+      expect.arrayContaining(['bg-beam-large']),
+      expect.arrayContaining(['bg-beam-small']),
+      expect.arrayContaining(['bg-paper', 'border-line']),
+    ])
+  })
+
+  it('shows 0 beams and a dash for the sawn timber of a pile without a sawn stem', () => {
+    const figures = show(empty).findAll('[data-yield] dl > div')
+
+    expect(figures.map(figureText)).toEqual([
+      ['Balken 14×14', '0Stück'],
+      ['Balken 10×14', '0Stück'],
+      ['Schnittholz', '–'],
+    ])
+    expect(figures[2]!.get('[role=img]').attributes('aria-label')).toBe('nicht berechenbar')
   })
 
   it('draws a column per week with the sum above, the label below and the current week as "bis heute"', () => {
@@ -114,7 +136,7 @@ describe('pile card', () => {
       ['0', null],
     ])
     const [large, small] = wrapper.get('[data-split]').findAll('span')
-    expect(large!.classes()).toEqual(['font-bold', 'text-beam-large'])
+    expect(large!.classes()).toEqual(['font-bold', 'text-body'])
     expect(small!.classes()).toEqual(['text-beam-small-text'])
   })
 
@@ -155,6 +177,69 @@ describe('pile card', () => {
     expect(wrapper.find('[data-fade]').exists()).toBe(false)
   })
 
+  describe('scroll arrows', () => {
+    const scrollBy = vi.fn()
+    const scrolled = (left: number) => {
+      vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get').mockReturnValue(1400)
+      vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(400)
+      vi.spyOn(Element.prototype, 'scrollLeft', 'get').mockReturnValue(left)
+      vi.spyOn(Element.prototype, 'scrollLeft', 'set').mockImplementation(() => {})
+    }
+    const arrow = (wrapper: ReturnType<typeof show>, side: 'links' | 'rechts') =>
+      wrapper.find(`button[aria-label="Diagramm nach ${side} scrollen"]`)
+
+    beforeEach(() => {
+      scrollBy.mockClear()
+      // jsdom does not scroll elements
+      Object.defineProperty(Element.prototype, 'scrollBy', { value: scrollBy, configurable: true })
+    })
+    afterEach(() => {
+      delete (Element.prototype as { scrollBy?: unknown }).scrollBy
+    })
+
+    it('are not there while the columns fit', async () => {
+      const wrapper = show(fiveWeeks)
+      await flushPromises()
+
+      expect(arrow(wrapper, 'links').exists()).toBe(false)
+      expect(arrow(wrapper, 'rechts').exists()).toBe(false)
+    })
+
+    it('start with "right" disabled at the current week, and "left" scrolls back by 60 % of the width', async () => {
+      scrolled(1000)
+      const wrapper = show(manyWeeks)
+      await flushPromises()
+
+      expect(arrow(wrapper, 'links').attributes('disabled')).toBeUndefined()
+      expect(arrow(wrapper, 'rechts').attributes('disabled')).toBeDefined()
+      await arrow(wrapper, 'links').trigger('click')
+      expect(scrollBy).toHaveBeenCalledWith({ left: -240, behavior: 'smooth' })
+    })
+
+    it('disable "left" at the oldest week, and "right" scrolls forward', async () => {
+      scrolled(0)
+      const wrapper = show(manyWeeks)
+      await flushPromises()
+      await wrapper.get('.overflow-x-auto').trigger('scroll')
+
+      expect(arrow(wrapper, 'links').attributes('disabled')).toBeDefined()
+      expect(arrow(wrapper, 'rechts').attributes('disabled')).toBeUndefined()
+      await arrow(wrapper, 'rechts').trigger('click')
+      expect(scrollBy).toHaveBeenCalledWith({ left: 240, behavior: 'smooth' })
+    })
+
+    it('scroll without animation when the system asks for less motion', async () => {
+      scrolled(0)
+      vi.stubGlobal('matchMedia', () => ({ matches: true }))
+      const wrapper = show(manyWeeks)
+      await flushPromises()
+      await wrapper.get('.overflow-x-auto').trigger('scroll')
+
+      await arrow(wrapper, 'rechts').trigger('click')
+      expect(scrollBy).toHaveBeenCalledWith({ left: 240, behavior: 'auto' })
+    })
+  })
+
   it('has no fade where nothing is hidden', async () => {
     const wrapper = show(fiveWeeks)
     await flushPromises()
@@ -170,7 +255,6 @@ describe('pile card', () => {
     expect(squeezed(wrapper.get('[data-progress]').text())).toBe(
       'Fortschritt0 %Noch kein Stamm verarbeitet',
     )
-    expect(squeezed(wrapper.get('[data-yield]').text())).toBe('Ausbeute–Noch kein Stamm gesägt')
     expect(wrapper.find('ol').exists()).toBe(false)
     expect(wrapper.text()).not.toContain('Gesägte Balken pro Woche')
   })

@@ -1,26 +1,53 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { ExternalLinkIcon } from '@lucide/vue'
-import type { DashboardPileSection } from '@v29/shared/contract'
+import type { PileCardSection } from '@v29/shared/contract'
 
 import InfoPopover from '@/components/InfoPopover.vue'
 import WeeklyBeamsChart from '@/components/WeeklyBeamsChart.vue'
-import { formatOneDecimal, formatTwoDecimals } from '@/keyFigures'
-import { progressText, stemsText } from '@/pileCard'
+import { formatTwoDecimals } from '@/keyFigures'
+import { beamTotals, progressText, stemsText } from '@/pileCard'
 import { formatVolume, mapUrl } from '@/piles'
 
 /**
- * The card of one pile on the dashboard: progress and yield side by side (stacked on a phone), below them the sawn beams per week.
- * All numbers come from the server; the card only formats them and sizes the bars.
+ * The card of one pile on the page "Polter": progress and yield side by side (stacked on a phone), below them the sawn beams per week.
+ * All numbers come from the server; the card only formats them, adds up the beams of the weeks and sizes the progress bar.
  */
-const props = defineProps<{ section: DashboardPileSection }>()
+const props = defineProps<{ section: PileCardSection }>()
 
 const notesOpen = ref(false)
 const map = computed(() => mapUrl(props.section))
 const progress = computed(() => props.section.progress)
 const processed = computed(() => progress.value.sawn + progress.value.not_sawable)
-const yieldOf = computed(() => props.section.yield)
-const percent = (share: number) => `${formatOneDecimal(share * 100)} %`
+/** The three figures of "Ausbeute"; the surfaces of the beams are the colours of their columns in the chart. */
+const figures = computed(() => {
+  const beams = beamTotals(props.section)
+  const sawnTimber = props.section.sawn_timber_m3
+  const labels = props.section.size_labels
+  return [
+    {
+      key: 'large',
+      label: labels.large,
+      value: beams.large,
+      unit: 'Stück',
+      surface: 'border-transparent bg-beam-large',
+    },
+    {
+      key: 'small',
+      label: labels.small,
+      value: beams.small,
+      unit: 'Stück',
+      surface: 'border-transparent bg-beam-small',
+    },
+    {
+      key: 'sawn-timber',
+      label: 'Schnittholz',
+      value: sawnTimber === null ? null : formatTwoDecimals(sawnTimber),
+      unit: 'fm',
+      surface: 'border-line bg-paper',
+    },
+  ]
+})
 </script>
 
 <template>
@@ -61,13 +88,14 @@ const percent = (share: number) => `${formatOneDecimal(share * 100)} %`
 
     <div class="mt-6 grid gap-x-12 gap-y-8 md:grid-cols-2">
       <div data-progress>
-        <div class="flex items-baseline justify-between gap-4">
-          <h3 class="text-label font-bold">Fortschritt</h3>
-          <span class="text-3xl tabular-nums">{{ progressText(section) }}</span>
-        </div>
+        <h3 class="text-label font-bold">Fortschritt</h3>
+        <!-- Starts level with the top of the figures of "Ausbeute", sized like their numbers, flush with the right end of the bar -->
+        <p class="mt-3 text-right text-[40px] leading-none font-bold tabular-nums max-sm:text-3xl">
+          {{ progressText(section) }}
+        </p>
         <!-- 2 px white gaps between the parts; the widths are the counts, so the parts are as wide as their share -->
         <div
-          class="mt-3 flex h-[18px] gap-0.5"
+          class="mt-4 flex h-[18px] gap-0.5"
           role="img"
           :aria-label="`${progress.sawn} gesägt, ${progress.not_sawable} nicht sägbar, ${progress.open} offen`"
         >
@@ -108,46 +136,26 @@ const percent = (share: number) => `${formatOneDecimal(share * 100)} %`
       </div>
 
       <div data-yield>
-        <div class="flex items-baseline justify-between gap-4">
-          <h3 class="text-label font-bold">Ausbeute</h3>
-          <span class="text-3xl tabular-nums">
-            <span v-if="yieldOf.ratio === null" role="img" aria-label="nicht berechenbar">–</span>
-            <template v-else>{{ percent(yieldOf.ratio) }}</template>
-          </span>
-        </div>
-        <!-- Dark = sawn timber, light = the rest; without a yield an empty place keeps the two sides level -->
-        <div
-          v-if="yieldOf.ratio !== null"
-          class="mt-3 h-[18px] overflow-hidden rounded-xs bg-line"
-          role="img"
-          :aria-label="`Ausbeute ${percent(yieldOf.ratio)}`"
-        >
-          <span class="block h-full bg-ink" :style="{ width: `${yieldOf.ratio * 100}%` }" />
-        </div>
-        <div v-else class="mt-3 h-[18px]" aria-hidden="true" />
-        <p v-if="progress.sawn === 0" class="mt-3 text-mute">Noch kein Stamm gesägt</p>
-        <template v-else>
-          <ul class="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-mute">
-            <li v-if="yieldOf.sawn_timber_m3 !== null" class="flex items-center gap-2">
-              <span class="size-3 shrink-0 rounded-xs bg-ink" aria-hidden="true" /><span
-                ><b class="text-ink">{{ formatTwoDecimals(yieldOf.sawn_timber_m3) }}&nbsp;m³</b>
-                Schnittholz</span
-              >
-            </li>
-            <li v-if="yieldOf.waste_fm !== null" class="flex items-center gap-2">
-              <span class="size-3 shrink-0 rounded-xs bg-line" aria-hidden="true" /><span
-                ><b class="text-ink">{{ formatTwoDecimals(yieldOf.waste_fm) }}&nbsp;fm</b>
-                Verschnitt (Rinde, Schwarten, Späne)</span
-              >
-            </li>
-          </ul>
-          <p class="mt-1 text-sm text-mute">
-            <template v-if="yieldOf.round_wood_fm !== null"
-              >aus {{ formatTwoDecimals(yieldOf.round_wood_fm) }} fm Rundholz der gesägten
-              Stämme</template
-            ><template v-else>Rundholz der gesägten Stämme nicht berechenbar</template>
-          </p>
-        </template>
+        <h3 class="text-label font-bold">Ausbeute</h3>
+        <dl class="mt-3 flex gap-3 sm:gap-8">
+          <div
+            v-for="figure in figures"
+            :key="figure.key"
+            class="max-w-[168px] min-w-0 flex-1 rounded-xl border px-5 py-4"
+            :class="figure.surface"
+            :data-figure="figure.key"
+          >
+            <dt class="text-caption font-semibold">{{ figure.label }}</dt>
+            <dd
+              class="mt-1.5 flex items-baseline justify-end gap-1 text-[40px] leading-none font-bold tabular-nums max-sm:text-3xl"
+            >
+              <span v-if="figure.value === null" role="img" aria-label="nicht berechenbar">–</span>
+              <template v-else>
+                {{ figure.value }}<span class="text-label font-semibold">{{ figure.unit }}</span>
+              </template>
+            </dd>
+          </div>
+        </dl>
       </div>
     </div>
 

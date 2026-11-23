@@ -18,7 +18,7 @@ async function open(configure?: (api: ReturnType<typeof fakeApi>) => void) {
   await wrapper.get('form').trigger('submit')
   await flushPromises()
   configure?.(api)
-  await router.push('/piles')
+  await router.push('/pile-data')
   await flushPromises()
   return { api, router, wrapper }
 }

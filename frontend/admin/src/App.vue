@@ -14,6 +14,7 @@ import { useSizeVariable } from '@/sizeVariable'
 const navigation = [
   { label: 'Dashboard', to: { name: 'dashboard' } },
   { label: 'Aktivität', to: { name: 'activity' } },
+  { label: 'Polter', to: { name: 'piles' } },
   { label: 'Stämme', to: { name: 'stems' } },
   { label: 'Balken', to: { name: 'beams' } },
 ]

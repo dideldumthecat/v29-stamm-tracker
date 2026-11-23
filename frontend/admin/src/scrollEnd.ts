@@ -2,11 +2,17 @@ import { onBeforeUnmount, onMounted, ref, type Ref } from 'vue'
 
 /**
  * Scrolls a sideways scrolling element to its right end once it is shown (the newest week of a chart) and keeps track of whether
- * older content is still hidden on the left.
+ * content is hidden on its left (older weeks) and on its right.
  */
 export function useScrollStart(element: Ref<HTMLElement | null>) {
   const hiddenLeft = ref(false)
-  const update = () => (hiddenLeft.value = !!element.value && element.value.scrollLeft > 1)
+  const hiddenRight = ref(false)
+  function update() {
+    const target = element.value
+    hiddenLeft.value = !!target && target.scrollLeft > 1
+    // One pixel of room: scrollLeft is fractional on scaled screens and never quite reaches the end
+    hiddenRight.value = !!target && target.scrollLeft + target.clientWidth < target.scrollWidth - 1
+  }
 
   let observer: ResizeObserver | undefined
   onMounted(() => {
@@ -24,5 +30,5 @@ export function useScrollStart(element: Ref<HTMLElement | null>) {
     observer?.disconnect()
   })
 
-  return { hiddenLeft }
+  return { hiddenLeft, hiddenRight }
 }

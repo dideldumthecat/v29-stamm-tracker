@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
-import { axisSteps, isoWeek, progressText, stemsText, weekLabel, weekRange } from '@/pileCard'
+import {
+  axisSteps,
+  beamTotals,
+  isoWeek,
+  progressText,
+  stemsText,
+  weekLabel,
+  weekRange,
+} from '@/pileCard'
 
 describe('calendar weeks', () => {
   it('numbers the ISO weeks, week 53 of 2026 and week 1 of 2027 included', () => {
@@ -60,5 +68,20 @@ describe('texts of the card', () => {
     expect(progressText({ stems: 2, progress: { sawn: 2, not_sawable: 0, open: 0 } })).toBe(
       '100,0 %',
     )
+  })
+})
+
+describe('figures of the card', () => {
+  it('adds up the beams of all weeks by size, 0 for a pile without a sawn beam', () => {
+    expect(
+      beamTotals({
+        weeks: [
+          { week_start: '2026-11-02', large: 3, small: 2 },
+          { week_start: '2026-11-09', large: 0, small: 0 },
+          { week_start: '2026-11-16', large: 4, small: 1 },
+        ],
+      }),
+    ).toEqual({ large: 7, small: 3 })
+    expect(beamTotals({ weeks: [] })).toEqual({ large: 0, small: 0 })
   })
 })

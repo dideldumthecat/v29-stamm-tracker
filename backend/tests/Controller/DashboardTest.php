@@ -15,6 +15,7 @@ use App\Entity\UserRole;
 use App\KeyFigures\Dashboard;
 use App\KeyFigures\KeyFigures;
 use App\KeyFigures\MeasureLoader;
+use App\KeyFigures\PileCards;
 use App\KeyFigures\PileSections;
 use App\Pile\PileEditor;
 use App\Projection\TimberItemProjector;
@@ -27,7 +28,7 @@ use Symfony\Component\BrowserKit\Cookie;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * GET /api/admin/dashboard. The fixture dashboard-response.json is the expectation for one stem of every kind:
+ * GET /api/admin/dashboard and /api/admin/pile-cards. The fixture dashboard-response.json is the expectation for one stem of every kind:
  * split into beams (without the checkmark "sawn": the beams make it sawn), sawn whole, unsawable, sawn without diameter,
  * unprocessed, and a voided one that must not count. By diameter: 104 in 38–40, 105 in 32–34, 106 alone and unsawable in 30–32,
  * two empty classes between, 107 without diameter.
@@ -120,13 +121,13 @@ class DashboardTest extends WebTestCase
     }
 
     /** @return array<string, mixed> */
-    private static function fixture(): array
+    private static function fixture(string $name = 'dashboard-response'): array
     {
-        return json_decode(file_get_contents(__DIR__.'/../../../frontend/shared/fixtures/dashboard-response.json'), true, flags: \JSON_THROW_ON_ERROR);
+        return json_decode(file_get_contents(__DIR__."/../../../frontend/shared/fixtures/$name.json"), true, flags: \JSON_THROW_ON_ERROR);
     }
 
     /** @return array<string, mixed> */
-    private function dashboard(string $as = 'Ada', int $status = 200): array
+    private function dashboard(string $as = 'Ada', int $status = 200, string $path = '/api/admin/dashboard'): array
     {
         $this->em->flush();
         $projector = self::getContainer()->get(TimberItemProjector::class);
@@ -138,7 +139,7 @@ class DashboardTest extends WebTestCase
         if ('' !== $as) {
             $this->client->getCookieJar()->set(new Cookie(SessionController::COOKIE, $as.'-test-token'));
         }
-        $this->client->request('GET', '/api/admin/dashboard');
+        $this->client->request('GET', $path);
         self::assertSame($status, $this->client->getResponse()->getStatusCode());
 
         return json_decode($this->client->getResponse()->getContent(), true) ?? [];
@@ -162,7 +163,7 @@ class DashboardTest extends WebTestCase
 
         $fixture = self::fixture();
         self::assertSame($fixture['last_sync_at'], $response['last_sync_at']);
-        self::assertEqualsWithDelta(\array_slice($fixture['sections'], 0, 2), $response['sections'], 1e-9, 'no stem has a pile: no pile cards');
+        self::assertEqualsWithDelta($fixture['sections'], $response['sections'], 1e-9);
         $figures = self::sawing($response);
         self::assertSame([5, 4, 1], [$figures['stems_total']['value'], $figures['stems_processed']['value'], $figures['stems_open']['value']]);
         $roundSawn = M_PI / 4 * (0.40 * 0.38 + 0.34 * 0.31) * 4.1;
@@ -268,6 +269,24 @@ class DashboardTest extends WebTestCase
         $this->dashboard('Alexander');
     }
 
+    public function testPileCardsNeedTheAdministrationRole(): void
+    {
+        $this->dashboard('', 401, '/api/admin/pile-cards');
+        $this->dashboard('Kerstin', 403, '/api/admin/pile-cards');
+        self::assertSame(['sections' => []], $this->dashboard('Ada', 200, '/api/admin/pile-cards'));
+    }
+
+    public function testThePageHasTheCardsNewestPileFirstAndTheDashboardHasNone(): void
+    {
+        $this->piles();
+
+        $cards = $this->dashboard('Alexander', 200, '/api/admin/pile-cards');
+        $dashboard = $this->dashboard();
+
+        self::assertSame(['pile-0199a000-0000-7000-8000-00000000a003', 'pile-0199a000-0000-7000-8000-00000000a002', 'pile-0199a000-0000-7000-8000-00000000a001'], array_column($cards['sections'], 'key'));
+        self::assertSame(['figures', 'diameter_classes'], array_column($dashboard['sections'], 'type'));
+    }
+
     private function pile(string $id, string $label, int $order, string $number, ?string $location, ?string $latitude, ?string $longitude, ?string $volume): void
     {
         $this->em->persist($option = new AttributeOption($this->attribute['source'], $label, $order, id: Uuid::fromString($id)));
@@ -329,7 +348,7 @@ class DashboardTest extends WebTestCase
         return $this->build();
     }
 
-    /** @return array<string, mixed> the dashboard on Saturday 21 Nov 2026 (the current week is KW 47, from Monday 16 Nov) */
+    /** @return array<string, mixed> the pile cards on Saturday 21 Nov 2026 (the current week is KW 47, from Monday 16 Nov) */
     private function build(): array
     {
         $this->em->flush();
@@ -339,18 +358,18 @@ class DashboardTest extends WebTestCase
         }
         $this->em->clear();
         $kf = new KeyFigures();
-        $dashboard = new Dashboard($this->em, new MeasureLoader($this->em), $kf, new PileEditor($this->em), new PileSections($kf));
+        $cards = new PileCards($this->em, new MeasureLoader($this->em), new PileEditor($this->em), new PileSections($kf));
 
-        return $dashboard->build(new \DateTimeImmutable('2026-11-21 12:00:00 Europe/Berlin'));
+        return $cards->build(new \DateTimeImmutable('2026-11-21 12:00:00 Europe/Berlin'));
     }
 
     public function testPileCardsMatchTheFixture(): void
     {
         $sections = $this->piles()['sections'];
 
-        self::assertEqualsWithDelta(\array_slice(self::fixture()['sections'], 2), \array_slice($sections, 2), 1e-9);
-        self::assertSame(['Polter 2601-010145 (Krummes F)', 'Polter 2601-010160 (Waldweg Nord)', 'Polter 2601-010170 (Lindenallee)'], array_column(\array_slice($sections, 2), 'label'));
-        self::assertSame([5, 16, 0], array_map(static fn (array $pile) => \count($pile['weeks']), \array_slice($sections, 2)));
+        self::assertEqualsWithDelta(self::fixture('pile-cards-response')['sections'], $sections, 1e-9);
+        self::assertSame(['Polter 2601-010170 (Lindenallee)', 'Polter 2601-010160 (Waldweg Nord)', 'Polter 2601-010145 (Krummes F)'], array_column($sections, 'label'), 'the newest pile first');
+        self::assertSame([0, 16, 5], array_map(static fn (array $pile) => \count($pile['weeks']), $sections));
         self::assertStringNotContainsString('„', json_encode($sections, \JSON_UNESCAPED_UNICODE));
     }
 
@@ -367,7 +386,7 @@ class DashboardTest extends WebTestCase
             $this->event('501', EventType::AttributeRecorded, ['attribute_id' => $this->attribute[$key]->id->toRfc4122(), 'value' => $this->option[$value] ?? $value], $at);
         }
 
-        $pile = $this->build()['sections'][2];
+        $pile = $this->build()['sections'][0];
 
         return array_map(static fn (array $week) => [$week['week_start'], $week['large'], $week['small']], $pile['weeks']);
     }

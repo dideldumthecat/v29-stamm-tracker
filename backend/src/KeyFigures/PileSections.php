@@ -5,7 +5,7 @@ namespace App\KeyFigures;
 use App\Pile\PileEditor;
 
 /**
- * The cards "Polter" of the dashboard (DashboardPileSection in frontend/shared/contract.ts), one per pile with at least one stem.
+ * The cards of the page "Polter" (PileCardSection in frontend/shared/contract.ts), one per pile with at least one stem, the newest pile first.
  * The sums and the yield are those of KeyFigures::totals(), the same definitions as the section "Kennzahlen: Sägen", only over the stems of one pile.
  * Beams belong to the pile of their stem. Nothing here asks the database.
  */
@@ -19,7 +19,7 @@ final class PileSections
 
     /**
      * @param list<Measures>             $items all stems and beams that are not voided
-     * @param list<array<string, mixed>> $piles PileEditor::all(): the options of the attribute "source" in order, with their master data
+     * @param list<array<string, mixed>> $piles PileEditor::all(): the options of the attribute "source" with their master data
      * @param array<string, string>      $names attribute names by key, with source, sawn, unsawable and sawn_cross_section
      * @param \DateTimeImmutable         $now   decides which week is the current one
      *
@@ -34,6 +34,9 @@ final class PileSections
                 $stemsOf[$stem->pileId][] = $stem;
             }
         }
+
+        // The ids of the options are UUIDv7, which start with the creation time: descending is the newest pile first
+        usort($piles, static fn (array $a, array $b) => $b['id'] <=> $a['id']);
 
         $sections = [];
         foreach ($piles as $pile) {
@@ -60,12 +63,7 @@ final class PileSections
                 'latitude' => $pile['latitude'],
                 'longitude' => $pile['longitude'],
                 'progress' => ['sawn' => $totals->sawnStems, 'not_sawable' => $totals->unsawableStems, 'open' => $totals->stems - $totals->processed()],
-                'yield' => [
-                    'ratio' => $totals->yield(),
-                    'sawn_timber_m3' => $totals->sawnStems > 0 ? $sawnTimber : null,
-                    'waste_fm' => $totals->roundSawn > 0 ? $totals->roundSawn - $sawnTimber : null,
-                    'round_wood_fm' => $totals->roundSawn > 0 ? $totals->roundSawn : null,
-                ],
+                'sawn_timber_m3' => $totals->sawnStems > 0 ? $sawnTimber : null,
                 'size_labels' => ['large' => KeyFigures::LARGE_BEAM_LABEL, 'small' => KeyFigures::SMALL_BEAM_LABEL],
                 'weeks' => $weeks,
                 'average_per_week' => $average,
@@ -143,8 +141,8 @@ final class PileSections
         return [
             ['term' => 'Stämme', 'text' => \sprintf('Alle Stämme, bei denen %s auf diesen Polter steht, ohne Balken und ohne entfernte.', $names['source'])],
             ['term' => 'Fortschritt', 'text' => \sprintf('(gesägt + nicht sägbar) ÷ Stämme. Als gesägt zählt ein Stamm, wenn %s angehakt ist, Balken vorhanden sind oder %s erfasst ist. Nicht sägbar ist ein Stamm mit Häkchen bei %s, der nicht gesägt ist.', $names['sawn'], $names['sawn_cross_section'], $names['unsawable'])],
-            ['term' => 'Ausbeute', 'text' => \sprintf('Schnittholz ÷ Rundholz der gesägten Stämme, gerechnet wie bei den Kennzahlen: Rundholz je Stamm %s, Schnittholz je Stück %s. Nicht sägbare Stämme gehen nicht ein, Stämme ohne Durchmesser oder Länge fehlen im Rundholz.', KeyFigures::roundWoodFormula($names), KeyFigures::pieceFormula($names))],
-            ['term' => 'Verschnitt', 'text' => 'Rundholz − Schnittholz der gesägten Stämme: Rinde, Schwarten, Späne.'],
+            ['term' => 'Ausbeute', 'text' => 'Die drei Kennzahlen zeigen, was von diesem Polter bisher gesägt ist: die Zahl der gesägten Balken je Größe (siehe Groß und klein) und das Schnittholz. Nicht sägbare Stämme gehen nicht ein.'],
+            ['term' => 'Schnittholz', 'text' => \sprintf('Volumen der gesägten Balken in fm, je Stück %s.', KeyFigures::pieceFormula($names))],
             ['term' => 'Balken pro Woche', 'text' => \sprintf('Gesägte Balken je Kalenderwoche (Montag bis Sonntag, Zeitzone Europe/Berlin), von der ersten Woche mit einem gesägten Balken bis zur aktuellen; Wochen ohne Balken zählen 0. Ein Balken zählt in der Woche, in der er angelegt wurde. Ein als Ganzes gesägter Stamm zählt als ein Balken in der Woche, in der das Merkmal %s zum ersten Mal auf Ja gesetzt wurde; ohne eine solche Erfassung zählt die Woche, in der das Merkmal %s erfasst wurde.', $names['sawn'], $names['sawn_cross_section'])],
             ['term' => 'Groß und klein', 'text' => \sprintf('Grundlage ist %s: Ist die kleinere Seite mindestens %d cm, ist der Balken groß (%s), sonst klein (%s). Ein Balken ohne lesbaren Querschnitt zählt weder als groß noch als klein.', $names['sawn_cross_section'], KeyFigures::LARGE_BEAM_MIN_SIDE_CM, KeyFigures::LARGE_BEAM_LABEL, KeyFigures::SMALL_BEAM_LABEL)],
             ['term' => 'Durchschnitt', 'text' => 'Balken ÷ Wochen, nur über die abgeschlossenen Wochen; die aktuelle Woche zählt nicht mit.'],

@@ -444,7 +444,7 @@ describe('the settings', () => {
     expect(squeezed(hint.text())).toBe(
       'Die Optionen sind die Polter. Du pflegst sie auf der Seite Polter.',
     )
-    expect(hint.get('a').attributes('href')).toBe('/piles')
+    expect(hint.get('a').attributes('href')).toBe('/pile-data')
     expect(settings(wrapper).find('input[aria-label="Auswahl-Option 1"]').exists()).toBe(false)
 
     await field(wrapper, 'Gesägt').trigger('click')

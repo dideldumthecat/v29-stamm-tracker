@@ -203,6 +203,7 @@ describe('frame', () => {
     expect(wrapper.findAll('nav a').map((link) => link.text())).toEqual([
       'Dashboard',
       'Aktivität',
+      'Polter',
       'Stämme',
       'Balken',
     ])

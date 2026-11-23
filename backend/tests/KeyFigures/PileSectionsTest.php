@@ -50,14 +50,14 @@ class PileSectionsTest extends TestCase
         return array_map(static fn (array $week) => [$week['week_start'], $week['large'], $week['small']], $section['weeks']);
     }
 
-    public function testOnlyPilesWithAStemGetACardInTheOrderOfThePiles(): void
+    public function testOnlyPilesWithAStemGetACardNewestPileFirst(): void
     {
-        $sections = $this->sections([self::stem('1', 'p3'), self::stem('2', 'p1'), self::stem('3', 'unknown'), self::stem('4', 'p3')]);
+        $sections = $this->sections([self::stem('1', 'p1'), self::stem('2', 'p3'), self::stem('3', 'unknown'), self::stem('4', 'p3')]);
 
-        self::assertSame(['pile-p1', 'pile-p3'], array_column($sections, 'key'));
-        self::assertSame(['Polter 2601-010145 (Krummes F)', 'Polter 2601-010200'], array_column($sections, 'label'));
-        self::assertSame([1, 2], array_column($sections, 'stems'));
-        self::assertSame(51.52, $sections[0]['stacked_volume']);
+        self::assertSame(['pile-p3', 'pile-p1'], array_column($sections, 'key'), 'descending by id, whatever the order of the piles');
+        self::assertSame(['Polter 2601-010200', 'Polter 2601-010145 (Krummes F)'], array_column($sections, 'label'));
+        self::assertSame([2, 1], array_column($sections, 'stems'));
+        self::assertSame(51.52, $sections[1]['stacked_volume']);
     }
 
     public function testAPileWithoutMasterDataIsNamedByItsOption(): void
@@ -70,13 +70,13 @@ class PileSectionsTest extends TestCase
         $section = $this->sections([self::stem('1'), self::stem('2')])[0];
 
         self::assertSame(['sawn' => 0, 'not_sawable' => 0, 'open' => 2], $section['progress']);
-        self::assertSame(['ratio' => null, 'sawn_timber_m3' => null, 'waste_fm' => null, 'round_wood_fm' => null], $section['yield']);
+        self::assertNull($section['sawn_timber_m3']);
         self::assertSame([], $section['weeks']);
         self::assertNull($section['average_per_week']);
         self::assertSame(['large' => 'Balken 14×14', 'small' => 'Balken 10×14'], $section['size_labels']);
     }
 
-    public function testProgressAndYieldUseTheDefinitionsOfTheSawingSection(): void
+    public function testProgressAndSawnTimberUseTheDefinitionsOfTheSawingSection(): void
     {
         $items = [
             self::stem('1', max: 40, min: 40), self::beam('1', 'A', '2026-11-10 08:00:00 UTC'), self::beam('1', 'B', '2026-11-10 08:00:00 UTC', 10.5, 14.7),
@@ -85,15 +85,10 @@ class PileSectionsTest extends TestCase
             self::stem('4', 'p3'),
         ];
 
-        $section = $this->sections($items)[0];
+        $section = $this->sections($items)[1]; // p3 is the first card
 
         self::assertSame(['sawn' => 1, 'not_sawable' => 1, 'open' => 1], $section['progress']);
-        $round = M_PI / 4 * 0.40 * 0.40 * 4.0;
-        $sawn = (0.147 * 0.147 + 0.105 * 0.147) * 4.0;
-        self::assertEqualsWithDelta($sawn / $round, $section['yield']['ratio'], 1e-9);
-        self::assertEqualsWithDelta($sawn, $section['yield']['sawn_timber_m3'], 1e-9);
-        self::assertEqualsWithDelta($round, $section['yield']['round_wood_fm'], 1e-9);
-        self::assertEqualsWithDelta($round - $sawn, $section['yield']['waste_fm'], 1e-9, 'the unsawable stem is not in the round wood');
+        self::assertEqualsWithDelta((0.147 * 0.147 + 0.105 * 0.147) * 4.0, $section['sawn_timber_m3'], 1e-9);
     }
 
     public function testWeeksRunFromTheFirstBeamToTheCurrentWeekWithGapsAsZero(): void
@@ -174,9 +169,9 @@ class PileSectionsTest extends TestCase
     {
         $notes = array_column($this->sections([self::stem('1')])[0]['notes'], 'text', 'term');
 
-        self::assertSame(['Stämme', 'Fortschritt', 'Ausbeute', 'Verschnitt', 'Balken pro Woche', 'Groß und klein', 'Durchschnitt'], array_keys($notes));
+        self::assertSame(['Stämme', 'Fortschritt', 'Ausbeute', 'Schnittholz', 'Balken pro Woche', 'Groß und klein', 'Durchschnitt'], array_keys($notes));
         self::assertStringContainsString('Polternummer', $notes['Stämme']);
-        self::assertStringContainsString('π ÷ 4 × Durchmesser groß × Durchmesser klein × Länge', $notes['Ausbeute']);
+        self::assertStringContainsString('Breite × Höhe × Länge', $notes['Schnittholz']);
         self::assertStringContainsString('mindestens 12 cm', $notes['Groß und klein']);
     }
 }

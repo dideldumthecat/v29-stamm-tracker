@@ -1,7 +1,8 @@
 import { vi } from 'vitest'
-import type { DashboardResponse, Snapshot } from '@v29/shared/contract'
+import type { DashboardResponse, PileCardsResponse, Snapshot } from '@v29/shared/contract'
 
 import dashboardFixture from '@v29/shared/fixtures/dashboard-response.json' with { type: 'json' }
+import pileCardsFixture from '@v29/shared/fixtures/pile-cards-response.json' with { type: 'json' }
 import keyFiguresFixture from '@v29/shared/fixtures/key-figures-response.json' with { type: 'json' }
 
 import { activityAnswer } from './fakeActivity'
@@ -12,7 +13,7 @@ import { snapshotFixture } from './fakeSnapshot'
 
 /**
  * A stand-in for fetch that behaves like the session endpoints, the activity list (see fakeActivity.ts) and the key figures
- * (always the fixture of the worked example, whatever the item), the dashboard (its fixture), and the attributes (see fakeAttributes.ts).
+ * (always the fixture of the worked example, whatever the item), the dashboard and the pile cards (their fixtures), and the attributes (see fakeAttributes.ts).
  * `codes` maps an invite code to the role of its user; an unknown code is 401. `offline` makes every request fail.
  */
 export function fakeApi(codes: Record<string, string>, { offline = false, pageSize = 50 } = {}) {
@@ -22,7 +23,9 @@ export function fakeApi(codes: Record<string, string>, { offline = false, pageSi
   let snapshotFails = false
   let keyFiguresFail = false
   let dashboardFails = false
+  let pileCardsFail = false
   let dashboard = dashboardFixture as DashboardResponse
+  let pileCards = pileCardsFixture as PileCardsResponse
   let snapshot: Snapshot = snapshotFixture
   const attributes = createFakeAttributes()
   const users = createFakeUsers()
@@ -74,6 +77,10 @@ export function fakeApi(codes: Record<string, string>, { offline = false, pageSi
         if (!role) return json(401)
         return dashboardFails ? json(500) : json(200, dashboard)
       }
+      if (call === 'GET /api/admin/pile-cards') {
+        if (!role) return json(401)
+        return pileCardsFail ? json(500) : json(200, pileCards)
+      }
       if (url.startsWith('/api/admin/attributes')) {
         if (!role) return json(401)
         if (attributesFail) return json(500)
@@ -109,6 +116,8 @@ export function fakeApi(codes: Record<string, string>, { offline = false, pageSi
     failKeyFigures: (fails = true) => (keyFiguresFail = fails),
     failDashboard: (fails = true) => (dashboardFails = fails),
     setDashboard: (next: DashboardResponse) => (dashboard = next),
+    failPileCards: (fails = true) => (pileCardsFail = fails),
+    setPileCards: (next: PileCardsResponse) => (pileCards = next),
     failAttributes: (fails = true) => (attributesFail = fails),
     failUsers: (fails = true) => (usersFail = fails),
     failPiles: (fails = true) => (pilesFail = fails),

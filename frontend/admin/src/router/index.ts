@@ -7,6 +7,7 @@ import ActivityView from '@/views/ActivityView.vue'
 import AttributesView from '@/views/AttributesView.vue'
 import DashboardView from '@/views/DashboardView.vue'
 import LoginView from '@/views/LoginView.vue'
+import PileCardsView from '@/views/PileCardsView.vue'
 import PilesView from '@/views/PilesView.vue'
 import TimberItemsView from '@/views/TimberItemsView.vue'
 import TimberItemView from '@/views/TimberItemView.vue'
@@ -23,7 +24,8 @@ export function createAdminRouter(history: RouterHistory = createWebHistory('/ad
       { path: '/activity', name: 'activity', component: ActivityView },
       { path: '/attributes', name: 'attributes', component: AttributesView },
       { path: '/users', name: 'users', component: UsersView },
-      { path: '/piles', name: 'piles', component: PilesView },
+      { path: '/piles', name: 'piles', component: PileCardsView },
+      { path: '/pile-data', name: 'pileData', component: PilesView },
       // One view for both lists; the router decides which. Another name makes another instance (App.vue keys the view by it).
       { path: '/stems', name: 'stems', component: TimberItemsView, props: { kind: 'stem' } },
       { path: '/beams', name: 'beams', component: TimberItemsView, props: { kind: 'beam' } },

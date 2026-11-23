@@ -1,6 +1,7 @@
 import { test, expect, type Locator, type Page, type Route } from '@playwright/test'
 
 import dashboardFixture from '@v29/shared/fixtures/dashboard-response.json' with { type: 'json' }
+import pileCardsFixture from '@v29/shared/fixtures/pile-cards-response.json' with { type: 'json' }
 import keyFiguresFixture from '@v29/shared/fixtures/key-figures-response.json' with { type: 'json' }
 
 import { activityAnswer } from '../src/__tests__/fakeActivity'
@@ -53,6 +54,9 @@ async function fakeApi(page: Page) {
     }
     if (call === 'GET /api/admin/dashboard') {
       return role ? route.fulfill({ json: dashboardFixture }) : route.fulfill({ status: 401 })
+    }
+    if (call === 'GET /api/admin/pile-cards') {
+      return role ? route.fulfill({ json: pileCardsFixture }) : route.fulfill({ status: 401 })
     }
     if (/^GET \/api\/admin\/timber-items\/[^/]+\/key-figures$/.test(call)) {
       return role ? route.fulfill({ json: keyFiguresFixture }) : route.fulfill({ status: 401 })
@@ -148,7 +152,7 @@ test('the frame: active navigation item, credit, and one 1280px column from head
   // the sign-in lands on the dashboard, the only marked navigation item
   await expect(page.locator('h1')).toHaveText('Dashboard')
   const navigation = page.getByRole('navigation')
-  await expect(navigation.getByRole('link')).toHaveCount(4)
+  await expect(navigation.getByRole('link')).toHaveCount(5)
   await expect(navigation.locator('[aria-current]')).toHaveText('Dashboard')
   await navigation.getByRole('link', { name: 'Aktivität', exact: true }).click()
   await expect(page.getByRole('link', { name: 'Aktivität', exact: true })).toHaveAttribute(
@@ -1026,7 +1030,7 @@ test.describe('stem list', () => {
     await page.goto('/admin/activity')
     await signIn(page, 'K7QM4XHT9RDP')
     const links = page.getByRole('navigation').getByRole('link')
-    await expect(links).toHaveText(['Dashboard', 'Aktivität', 'Stämme', 'Balken'])
+    await expect(links).toHaveText(['Dashboard', 'Aktivität', 'Polter', 'Stämme', 'Balken'])
     await links.filter({ hasText: 'Balken' }).click()
     await expect(page).toHaveURL(/\/admin\/beams$/)
     await expect(page.locator('h1')).toHaveText('Balken')
@@ -1048,7 +1052,7 @@ test.describe('stem list', () => {
     await expect(page).toHaveURL(/\/admin\/beams\?tags=104-B$/)
 
     // the list of stems has its own filter state
-    await links.nth(2).click()
+    await links.filter({ hasText: 'Stämme' }).click()
     await expect(page).toHaveURL(/\/admin\/stems$/)
     await expect(page.getByText('4 Stämme', { exact: true })).toBeVisible()
 
@@ -2404,6 +2408,35 @@ test.describe('users', () => {
   }
 })
 
+test.describe('pile cards', () => {
+  test('the page Polter lists the cards, newest pile first, and the arrows scroll the weekly chart', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 900 })
+    await page.goto('/admin/activity')
+    await signIn(page, 'K7QM4XHT9RDP')
+    await page.getByRole('navigation').getByRole('link', { name: 'Polter', exact: true }).click()
+    await expect(page).toHaveURL(/\/admin\/piles$/)
+    await expect(page.locator('h1')).toHaveText('Polter')
+    await expect(page.getByText('Zuletzt angelegter Polter oben.')).toBeVisible()
+    await expect(page.locator('h2')).toHaveText([
+      'Polter 2601-010170 (Lindenallee)',
+      'Polter 2601-010160 (Waldweg Nord)',
+      'Polter 2601-010145 (Krummes F)',
+    ])
+
+    // Only the pile with sixteen weeks has columns wider than their room; the chart starts at the current week
+    const arrows = page.getByRole('button', { name: /^Diagramm nach (links|rechts) scrollen$/ })
+    await expect(arrows).toHaveCount(2)
+    const left = page.getByRole('button', { name: 'Diagramm nach links scrollen', exact: true })
+    const right = page.getByRole('button', { name: 'Diagramm nach rechts scrollen', exact: true })
+    await expect(right).toBeDisabled()
+    await left.click()
+    await expect(right).toBeEnabled()
+    await expect(page.locator('[data-fade]')).toBeVisible()
+  })
+})
+
 test.describe('piles', () => {
   const pile = (page: Page, label: string) => page.locator(`[data-pile="${label}"]`)
   const card = (page: Page, label: string) =>
@@ -2414,7 +2447,7 @@ test.describe('piles', () => {
     await signIn(page, 'K7QM4XHT9RDP')
     await page.getByRole('button', { name: 'Verwaltung', exact: true }).click()
     await page.getByRole('menuitem', { name: 'Polter', exact: true }).click()
-    await expect(page).toHaveURL(/\/admin\/piles$/)
+    await expect(page).toHaveURL(/\/admin\/pile-data$/)
     await expect(page.getByText('4 Polter', { exact: true })).toBeVisible()
   })
 

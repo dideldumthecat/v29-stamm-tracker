@@ -1,8 +1,8 @@
-import type { DashboardPileSection } from '@v29/shared/contract'
+import type { PileCardSection } from '@v29/shared/contract'
 
 import { formatOneDecimal } from '@/keyFigures'
 
-export type PileWeek = DashboardPileSection['weeks'][number]
+export type PileWeek = PileCardSection['weeks'][number]
 
 const DAY = 24 * 60 * 60 * 1000
 /** A date of the server (Monday of a week, YYYY-MM-DD) as UTC midnight: no time zone can shift the calendar day. */
@@ -47,10 +47,7 @@ export function axisSteps(max: number): { step: number; top: number; ticks: numb
 export const stemsText = (stems: number) => `${stems} ${stems === 1 ? 'Stamm' : 'Stämme'}`
 
 /** The share of processed stems (sawn or unsawable) as "95,5 %"; a pile with none says "0 %". */
-export function progressText({
-  progress,
-  stems,
-}: Pick<DashboardPileSection, 'progress' | 'stems'>) {
+export function progressText({ progress, stems }: Pick<PileCardSection, 'progress' | 'stems'>) {
   const processed = progress.sawn + progress.not_sawable
   return processed === 0 ? '0 %' : `${formatOneDecimal((processed / stems) * 100)} %`
 }
@@ -58,8 +55,14 @@ export function progressText({
 /** The sum of beams of a week. */
 export const weekTotal = (week: PileWeek) => week.large + week.small
 
+/** The sawn beams of all weeks by size: the two figures of "Ausbeute". */
+export const beamTotals = ({ weeks }: Pick<PileCardSection, 'weeks'>) => ({
+  large: weeks.reduce((sum, week) => sum + week.large, 0),
+  small: weeks.reduce((sum, week) => sum + week.small, 0),
+})
+
 /** Everything the chart shows, for screen readers: "KW 45 (2.–8.11.): 5 insgesamt, 3 Balken 14×14, 2 Balken 10×14; …; Durchschnitt 15,5 pro Woche". */
-export function chartDescription(section: DashboardPileSection): string {
+export function chartDescription(section: PileCardSection): string {
   const { weeks, size_labels: sizes, average_per_week: average } = section
   const rows = weeks.map((week, index) => {
     const label = weekLabel(week.week_start, index === weeks.length - 1)

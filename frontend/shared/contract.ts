@@ -145,13 +145,12 @@ export interface KeyFigure {
 export interface DashboardResponse {
   /** Server time of the newest event (received_at) or photo upload (uploaded_at), whichever is later; null = neither */
   last_sync_at: string | null
-  /** In display order; today only "sawing". Later work steps (sorting …) come as further sections – the administration renders sections generically, without knowing their keys */
+  /** In display order; today "sawing" and "stems_by_diameter". Later work steps (sorting …) come as further sections – the administration renders sections generically, without knowing their keys */
   sections: DashboardSection[]
 }
 
 /** The type says how the administration renders a section; within a type it knows no key. */
-export type DashboardSection =
-  DashboardFiguresSection | DashboardDiameterSection | DashboardPileSection
+export type DashboardSection = DashboardFiguresSection | DashboardDiameterSection
 
 export interface DashboardFiguresSection {
   type: 'figures'
@@ -176,8 +175,16 @@ export interface DashboardDiameterSection {
   without_diameter: number
 }
 
-/** One card per pile with at least one stem (inactive options too), after the other sections, in the order of the options. */
-export interface DashboardPileSection {
+// --- GET /api/admin/pile-cards -----------------------------------------------
+
+// GET /api/admin/pile-cards – roles admin and superadmin, otherwise 403. The page "Polter" of the administration.
+export interface PileCardsResponse {
+  /** The newest pile first (the option ids are UUIDv7, so descending by id) */
+  sections: PileCardSection[]
+}
+
+/** One card per pile with at least one stem (inactive options too). */
+export interface PileCardSection {
   type: 'pile'
   /** "pile-" + option id */
   key: string
@@ -192,13 +199,8 @@ export interface DashboardPileSection {
   longitude: number | null
   /** Stems: sawn (as in the section "sawing"), unsawable and not sawn, the rest */
   progress: { sawn: number; not_sawable: number; open: number }
-  /** null values without a sawn stem; same definitions as the section "sawing" */
-  yield: {
-    ratio: number | null
-    sawn_timber_m3: number | null
-    waste_fm: number | null
-    round_wood_fm: number | null
-  }
+  /** Volume of the sawn beams in fm (same definition as "sawn_timber" of the section "sawing"); null without a sawn stem */
+  sawn_timber_m3: number | null
   /** Labels of the two sizes, e.g. "Balken 14×14", "Balken 10×14" (large: shorter side of the cross-section ≥ 12 cm) */
   size_labels: { large: string; small: string }
   /** Monday of the ISO week (YYYY-MM-DD, Europe/Berlin), ascending, from the first week with a sawn beam to the current week (the last entry), empty weeks with 0; empty without a sawn beam */
