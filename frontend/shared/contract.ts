@@ -227,10 +227,17 @@ export interface PileCardSection {
   sawn_timber_m3: number | null
   /** Labels of the two sizes, "14×14 (groß)" and "10×14 (klein)" (large: shorter side of the cross-section ≥ 12 cm) */
   size_labels: { large: string; small: string }
-  /** Monday of the ISO week (YYYY-MM-DD, Europe/Berlin), ascending, from the first week with a sawn beam to the current week (the last entry), empty weeks with 0; empty without a sawn beam */
-  weeks: { week_start: string; large: number; small: number }[]
+  /**
+   * Monday of the ISO week (YYYY-MM-DD, Europe/Berlin), ascending, from the first week with a processed stem or a sawn beam to the current week (the last entry),
+   * empty weeks with 0; empty without either. Both charts use this list.
+   * large, small: sawn beams of the week by size. stems: processed stems of the pile in the week, by the rule of the tempo on the dashboard
+   * (first "sawn" or "unsawable" = yes, else the cross-section or the first beam); a stem without such a time counts in no week.
+   */
+  weeks: { week_start: string; large: number; small: number; stems: number }[]
   /** Mean beams per week over the completed weeks (the current one does not count); null if none */
   average_per_week: number | null
+  /** Mean processed stems per week over the completed weeks, like average_per_week; null if none */
+  stems_average_per_week: number | null
 }
 
 export interface DiameterClass {

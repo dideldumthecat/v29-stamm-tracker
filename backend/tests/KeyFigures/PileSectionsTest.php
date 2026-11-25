@@ -2,6 +2,7 @@
 
 namespace App\Tests\KeyFigures;
 
+use App\KeyFigures\DashboardCards;
 use App\KeyFigures\KeyFigures;
 use App\KeyFigures\Measures;
 use App\KeyFigures\PileSections;
@@ -165,11 +166,67 @@ class PileSectionsTest extends TestCase
         self::assertSame([['2026-11-16', 1, 0]], self::weekRows($section));
     }
 
+    public function testProcessedStemsCountInTheWeekOfTheirProcessingAndAStemWithoutATimeInNone(): void
+    {
+        // Now is Saturday 21 Nov 2026, the current week starts Monday 16 Nov.
+        $items = [
+            self::stem('1'), self::beam('1', 'A', '2026-11-04 10:00:00 UTC'), self::beam('1', 'B', '2026-11-18 10:00:00 UTC'), // first beam: week of 2 Nov, two beams in two weeks
+            self::stem('2', sawnAt: '2026-11-18 09:00:00 UTC', width: 14.7, height: 14.7),                                    // sawn whole: current week
+            self::stem('3', unsawable: true),                                                                                  // processed, but no time: in no week
+            self::stem('4'),                                                                                                   // not processed
+        ];
+
+        $section = $this->sections($items)[0];
+
+        self::assertSame([['2026-11-02', 1], ['2026-11-09', 0], ['2026-11-16', 1]], array_map(static fn (array $week) => [$week['week_start'], $week['stems']], $section['weeks']));
+        self::assertSame(1 / 2, $section['stems_average_per_week'], 'the current week does not count, the empty one does');
+        self::assertSame(3, $section['progress']['sawn'] + $section['progress']['not_sawable'], 'stem 3 is processed but has no week');
+    }
+
+    public function testTheWeeksStartWithTheFirstProcessedStemEvenIfABeamComesLater(): void
+    {
+        $items = [self::stem('2', sawnAt: '2026-11-04 09:00:00 UTC', width: 14.7, height: 14.7)];
+        $unsawable = new Measures('3', null, '3', 30, 30, 4.0, null, null, false, false, true, 'p1', new \DateTimeImmutable('2026-10-01 UTC'), null, new \DateTimeImmutable('2026-10-28 10:00:00 UTC'));
+
+        $section = $this->sections([...$items, $unsawable])[0];
+
+        self::assertSame([['2026-10-26', 0, 0], ['2026-11-02', 1, 0], ['2026-11-09', 0, 0], ['2026-11-16', 0, 0]], self::weekRows($section));
+        self::assertSame([1, 1, 0, 0], array_column($section['weeks'], 'stems'));
+    }
+
+    public function testWithoutACompletedWeekThereIsNoAverageOfStemsEither(): void
+    {
+        $section = $this->sections([self::stem('1'), self::beam('1', 'A', '2026-11-17 10:00:00 UTC')])[0];
+
+        self::assertSame([1], array_column($section['weeks'], 'stems'));
+        self::assertNull($section['stems_average_per_week']);
+        self::assertSame([], array_column($this->sections([self::stem('1')])[0]['weeks'], 'stems'));
+        self::assertNull($this->sections([self::stem('1')])[0]['stems_average_per_week']);
+    }
+
+    public function testTheStemsOfAWeekAreThoseOfTheTempoOnTheDashboard(): void
+    {
+        $now = new \DateTimeImmutable('2026-11-21 12:00:00 Europe/Berlin');
+        $items = [
+            self::stem('1'), self::beam('1', 'A', '2026-11-03 10:00:00 UTC'),
+            self::stem('2', sawnAt: '2026-11-04 09:00:00 UTC', width: 14.7, height: 14.7),
+            self::stem('3'), self::beam('3', 'A', '2026-11-12 10:00:00 UTC'), self::beam('3', 'B', '2026-11-13 10:00:00 UTC'),
+            self::stem('4', sawnAt: '2026-11-17 09:00:00 UTC', width: 14.7, height: 14.7), // the current week: not in the tempo
+            new Measures('5', null, '5', 30, 30, 4.0, null, null, false, false, true, 'p1', new \DateTimeImmutable('2026-10-01 UTC'), null, new \DateTimeImmutable('2026-11-10 10:00:00 UTC')),
+        ];
+
+        $weeks = (new PileSections(new KeyFigures()))->build($items, self::PILES, self::NAMES, $now)[0]['weeks'];
+        $tempo = array_column((new DashboardCards(new KeyFigures()))->build($items, self::PILES, self::NAMES, $now)[0]['cards'], null, 'key')['tempo'];
+
+        self::assertSame([2, 2, 1], array_column($weeks, 'stems'));
+        self::assertSame('2,0', $tempo['value'], 'the mean of the two completed weeks of the chart');
+    }
+
     public function testTheNotesNameTheAttributes(): void
     {
         $notes = array_column($this->sections([self::stem('1')])[0]['notes'], 'text', 'term');
 
-        self::assertSame(['Stämme', 'Fortschritt', 'Ausbeute', 'Schnittholz', 'Balken pro Woche', 'Groß und klein', 'Durchschnitt'], array_keys($notes));
+        self::assertSame(['Stämme', 'Fortschritt', 'Ausbeute', 'Schnittholz', 'Stämme pro Woche', 'Balken pro Woche', 'Groß und klein', 'Durchschnitt'], array_keys($notes));
         self::assertStringContainsString('Polternummer', $notes['Stämme']);
         self::assertStringContainsString('Breite × Höhe × Länge', $notes['Schnittholz']);
         self::assertStringContainsString('mindestens 12 cm', $notes['Groß und klein']);

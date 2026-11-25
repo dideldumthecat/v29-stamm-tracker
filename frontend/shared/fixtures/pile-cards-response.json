@@ -22,8 +22,12 @@
           "text": "Volumen der gesägten Balken in fm, je Stück Breite × Höhe × Länge."
         },
         {
+          "term": "Stämme pro Woche",
+          "text": "Bearbeitete Stämme je Kalenderwoche (Montag bis Sonntag, Zeitzone Europe/Berlin), von der ersten Woche mit einem bearbeiteten Stamm oder gesägten Balken bis zur aktuellen; Wochen ohne Stamm zählen 0. Ein Stamm zählt in der Woche, in der Gesägt oder Nicht sägbar zum ersten Mal auf Ja gesetzt wurde; sonst in der Woche, in der sein erster Balken angelegt bzw. Gesägter Querschnitt erfasst wurde. Ein Stamm ohne einen dieser Zeitpunkte zählt in keiner Woche. Dieselbe Regel wie beim Tempo auf dem Dashboard."
+        },
+        {
           "term": "Balken pro Woche",
-          "text": "Gesägte Balken je Kalenderwoche (Montag bis Sonntag, Zeitzone Europe/Berlin), von der ersten Woche mit einem gesägten Balken bis zur aktuellen; Wochen ohne Balken zählen 0. Ein Balken zählt in der Woche, in der er angelegt wurde. Ein als Ganzes gesägter Stamm zählt als ein Balken in der Woche, in der das Merkmal Gesägt zum ersten Mal auf Ja gesetzt wurde; ohne eine solche Erfassung zählt die Woche, in der das Merkmal Gesägter Querschnitt erfasst wurde."
+          "text": "Gesägte Balken je Kalenderwoche (Montag bis Sonntag, Zeitzone Europe/Berlin), von der ersten Woche mit einem bearbeiteten Stamm oder gesägten Balken bis zur aktuellen; Wochen ohne Balken zählen 0. Ein Balken zählt in der Woche, in der er angelegt wurde. Ein als Ganzes gesägter Stamm zählt als ein Balken in der Woche, in der das Merkmal Gesägt zum ersten Mal auf Ja gesetzt wurde; ohne eine solche Erfassung zählt die Woche, in der das Merkmal Gesägter Querschnitt erfasst wurde."
         },
         {
           "term": "Groß und klein",
@@ -31,7 +35,7 @@
         },
         {
           "term": "Durchschnitt",
-          "text": "Balken ÷ Wochen, nur über die abgeschlossenen Wochen; die aktuelle Woche zählt nicht mit."
+          "text": "Balken bzw. Stämme ÷ Wochen, nur über die abgeschlossenen Wochen; die aktuelle Woche zählt nicht mit."
         }
       ],
       "stems": 2,
@@ -49,7 +53,8 @@
         "small": "10×14 (klein)"
       },
       "weeks": [],
-      "average_per_week": null
+      "average_per_week": null,
+      "stems_average_per_week": null
     },
     {
       "type": "pile",
@@ -73,8 +78,12 @@
           "text": "Volumen der gesägten Balken in fm, je Stück Breite × Höhe × Länge."
         },
         {
+          "term": "Stämme pro Woche",
+          "text": "Bearbeitete Stämme je Kalenderwoche (Montag bis Sonntag, Zeitzone Europe/Berlin), von der ersten Woche mit einem bearbeiteten Stamm oder gesägten Balken bis zur aktuellen; Wochen ohne Stamm zählen 0. Ein Stamm zählt in der Woche, in der Gesägt oder Nicht sägbar zum ersten Mal auf Ja gesetzt wurde; sonst in der Woche, in der sein erster Balken angelegt bzw. Gesägter Querschnitt erfasst wurde. Ein Stamm ohne einen dieser Zeitpunkte zählt in keiner Woche. Dieselbe Regel wie beim Tempo auf dem Dashboard."
+        },
+        {
           "term": "Balken pro Woche",
-          "text": "Gesägte Balken je Kalenderwoche (Montag bis Sonntag, Zeitzone Europe/Berlin), von der ersten Woche mit einem gesägten Balken bis zur aktuellen; Wochen ohne Balken zählen 0. Ein Balken zählt in der Woche, in der er angelegt wurde. Ein als Ganzes gesägter Stamm zählt als ein Balken in der Woche, in der das Merkmal Gesägt zum ersten Mal auf Ja gesetzt wurde; ohne eine solche Erfassung zählt die Woche, in der das Merkmal Gesägter Querschnitt erfasst wurde."
+          "text": "Gesägte Balken je Kalenderwoche (Montag bis Sonntag, Zeitzone Europe/Berlin), von der ersten Woche mit einem bearbeiteten Stamm oder gesägten Balken bis zur aktuellen; Wochen ohne Balken zählen 0. Ein Balken zählt in der Woche, in der er angelegt wurde. Ein als Ganzes gesägter Stamm zählt als ein Balken in der Woche, in der das Merkmal Gesägt zum ersten Mal auf Ja gesetzt wurde; ohne eine solche Erfassung zählt die Woche, in der das Merkmal Gesägter Querschnitt erfasst wurde."
         },
         {
           "term": "Groß und klein",
@@ -82,7 +91,7 @@
         },
         {
           "term": "Durchschnitt",
-          "text": "Balken ÷ Wochen, nur über die abgeschlossenen Wochen; die aktuelle Woche zählt nicht mit."
+          "text": "Balken bzw. Stämme ÷ Wochen, nur über die abgeschlossenen Wochen; die aktuelle Woche zählt nicht mit."
         }
       ],
       "stems": 27,
@@ -103,85 +112,102 @@
         {
           "week_start": "2026-08-03",
           "large": 2,
-          "small": 0
+          "small": 0,
+          "stems": 1
         },
         {
           "week_start": "2026-08-10",
           "large": 7,
-          "small": 3
+          "small": 3,
+          "stems": 2
         },
         {
           "week_start": "2026-08-17",
           "large": 5,
-          "small": 2
+          "small": 2,
+          "stems": 2
         },
         {
           "week_start": "2026-08-24",
           "large": 3,
-          "small": 1
+          "small": 1,
+          "stems": 1
         },
         {
           "week_start": "2026-08-31",
           "large": 0,
-          "small": 0
+          "small": 0,
+          "stems": 0
         },
         {
           "week_start": "2026-09-07",
           "large": 6,
-          "small": 3
+          "small": 3,
+          "stems": 2
         },
         {
           "week_start": "2026-09-14",
           "large": 4,
-          "small": 2
+          "small": 2,
+          "stems": 2
         },
         {
           "week_start": "2026-09-21",
           "large": 2,
-          "small": 1
+          "small": 1,
+          "stems": 1
         },
         {
           "week_start": "2026-09-28",
           "large": 7,
-          "small": 0
+          "small": 0,
+          "stems": 2
         },
         {
           "week_start": "2026-10-05",
           "large": 5,
-          "small": 3
+          "small": 3,
+          "stems": 2
         },
         {
           "week_start": "2026-10-12",
           "large": 3,
-          "small": 2
+          "small": 2,
+          "stems": 2
         },
         {
           "week_start": "2026-10-19",
           "large": 8,
-          "small": 1
+          "small": 1,
+          "stems": 2
         },
         {
           "week_start": "2026-10-26",
           "large": 6,
-          "small": 0
+          "small": 0,
+          "stems": 2
         },
         {
           "week_start": "2026-11-02",
           "large": 4,
-          "small": 3
+          "small": 3,
+          "stems": 2
         },
         {
           "week_start": "2026-11-09",
           "large": 2,
-          "small": 2
+          "small": 2,
+          "stems": 1
         },
         {
           "week_start": "2026-11-16",
           "large": 7,
-          "small": 1
+          "small": 1,
+          "stems": 3
         }
       ],
-      "average_per_week": 5.8
+      "average_per_week": 5.8,
+      "stems_average_per_week": 1.6
     },
     {
       "type": "pile",
@@ -205,8 +231,12 @@
           "text": "Volumen der gesägten Balken in fm, je Stück Breite × Höhe × Länge."
         },
         {
+          "term": "Stämme pro Woche",
+          "text": "Bearbeitete Stämme je Kalenderwoche (Montag bis Sonntag, Zeitzone Europe/Berlin), von der ersten Woche mit einem bearbeiteten Stamm oder gesägten Balken bis zur aktuellen; Wochen ohne Stamm zählen 0. Ein Stamm zählt in der Woche, in der Gesägt oder Nicht sägbar zum ersten Mal auf Ja gesetzt wurde; sonst in der Woche, in der sein erster Balken angelegt bzw. Gesägter Querschnitt erfasst wurde. Ein Stamm ohne einen dieser Zeitpunkte zählt in keiner Woche. Dieselbe Regel wie beim Tempo auf dem Dashboard."
+        },
+        {
           "term": "Balken pro Woche",
-          "text": "Gesägte Balken je Kalenderwoche (Montag bis Sonntag, Zeitzone Europe/Berlin), von der ersten Woche mit einem gesägten Balken bis zur aktuellen; Wochen ohne Balken zählen 0. Ein Balken zählt in der Woche, in der er angelegt wurde. Ein als Ganzes gesägter Stamm zählt als ein Balken in der Woche, in der das Merkmal Gesägt zum ersten Mal auf Ja gesetzt wurde; ohne eine solche Erfassung zählt die Woche, in der das Merkmal Gesägter Querschnitt erfasst wurde."
+          "text": "Gesägte Balken je Kalenderwoche (Montag bis Sonntag, Zeitzone Europe/Berlin), von der ersten Woche mit einem bearbeiteten Stamm oder gesägten Balken bis zur aktuellen; Wochen ohne Balken zählen 0. Ein Balken zählt in der Woche, in der er angelegt wurde. Ein als Ganzes gesägter Stamm zählt als ein Balken in der Woche, in der das Merkmal Gesägt zum ersten Mal auf Ja gesetzt wurde; ohne eine solche Erfassung zählt die Woche, in der das Merkmal Gesägter Querschnitt erfasst wurde."
         },
         {
           "term": "Groß und klein",
@@ -214,7 +244,7 @@
         },
         {
           "term": "Durchschnitt",
-          "text": "Balken ÷ Wochen, nur über die abgeschlossenen Wochen; die aktuelle Woche zählt nicht mit."
+          "text": "Balken bzw. Stämme ÷ Wochen, nur über die abgeschlossenen Wochen; die aktuelle Woche zählt nicht mit."
         }
       ],
       "stems": 7,
@@ -235,30 +265,36 @@
         {
           "week_start": "2026-10-19",
           "large": 2,
-          "small": 2
+          "small": 2,
+          "stems": 1
         },
         {
           "week_start": "2026-10-26",
           "large": 3,
-          "small": 1
+          "small": 1,
+          "stems": 1
         },
         {
           "week_start": "2026-11-02",
           "large": 1,
-          "small": 0
+          "small": 0,
+          "stems": 1
         },
         {
           "week_start": "2026-11-09",
           "large": 4,
-          "small": 0
+          "small": 0,
+          "stems": 1
         },
         {
           "week_start": "2026-11-16",
           "large": 1,
-          "small": 2
+          "small": 2,
+          "stems": 2
         }
       ],
-      "average_per_week": 3.25
+      "average_per_week": 3.25,
+      "stems_average_per_week": 1.0
     }
   ]
 }

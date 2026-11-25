@@ -76,9 +76,9 @@ describe('figures of the card', () => {
     expect(
       beamTotals({
         weeks: [
-          { week_start: '2026-11-02', large: 3, small: 2 },
-          { week_start: '2026-11-09', large: 0, small: 0 },
-          { week_start: '2026-11-16', large: 4, small: 1 },
+          { week_start: '2026-11-02', large: 3, small: 2, stems: 1 },
+          { week_start: '2026-11-09', large: 0, small: 0, stems: 0 },
+          { week_start: '2026-11-16', large: 4, small: 1, stems: 2 },
         ],
       }),
     ).toEqual({ large: 7, small: 3 })

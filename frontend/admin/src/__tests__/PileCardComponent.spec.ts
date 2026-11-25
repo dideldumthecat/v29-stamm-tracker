@@ -17,6 +17,11 @@ const figureText = (figure: DOMWrapper<Element>) => [
 const show = (section: PileCardSection) =>
   mount(PileCard, { props: { section }, attachTo: document.body })
 
+const beamsChart = (wrapper: ReturnType<typeof show>) =>
+  wrapper.get('[role=img][aria-label^="Gesägte Balken pro Woche"]')
+const stemsChart = (wrapper: ReturnType<typeof show>) =>
+  wrapper.get('[role=img][aria-label^="Bearbeitete Stämme pro Woche"]')
+
 enableAutoUnmount(afterEach)
 beforeEach(() => stubBrowser())
 afterEach(() => vi.restoreAllMocks())
@@ -85,7 +90,7 @@ describe('pile card', () => {
   it('draws a column per week with the sum above, the label below and the current week as "bis heute"', () => {
     const wrapper = show(fiveWeeks)
 
-    const columns = wrapper.findAll('ol > li')
+    const columns = beamsChart(wrapper).findAll('ol > li')
     expect(
       columns.map((column) =>
         ['.font-bold', '.font-semibold', '.text-caption']
@@ -108,23 +113,67 @@ describe('pile card', () => {
         .get('section')
         .findAll('h3')
         .map((h3) => h3.text()),
-    ).toEqual(['Fortschritt', 'Ausbeute', 'Gesägte Balken pro Woche'])
+    ).toEqual([
+      'Fortschritt',
+      'Ausbeute',
+      'Bearbeitete Stämme pro Woche',
+      'Gesägte Balken pro Woche',
+    ])
     expect(squeezed(wrapper.get('section > div:last-child ul').text())).toBe(
       '14×14 (groß)10×14 (klein) Ø 3,3 pro Woche',
     )
+  })
+
+  it('draws the processed stems above the beams: one black column per week, the number above it, the average and a lower chart', () => {
+    const wrapper = show(fiveWeeks)
+    const chart = stemsChart(wrapper)
+
+    expect(
+      chart
+        .findAll('ol > li')
+        .map((column) => [
+          column.get('.font-bold').text(),
+          column.get('.font-semibold').text(),
+          column.find('[data-split]').exists(),
+        ]),
+    ).toEqual([
+      ['1', 'KW 43', false],
+      ['1', 'KW 44', false],
+      ['1', 'KW 45', false],
+      ['1', 'KW 46', false],
+      ['2', 'KW 47', false],
+    ])
+    expect(
+      chart.findAll('ol > li')[0]!.findAll('span.block[class*="bg-"]')[0]!.classes(),
+    ).toContain('bg-ink')
+    expect(squeezed(chart.element.parentElement!.querySelector('ul')!.textContent!)).toBe(
+      'Gesägt oder nicht sägbar Ø 1,0 pro Woche',
+    )
+    expect(chart.find('svg[data-average]').exists()).toBe(true)
+    // lower than the chart of the beams: about two thirds
+    expect(chart.get('ol > li > div').attributes('style')).toContain('height: 132px')
+    expect(beamsChart(wrapper).get('ol > li > div').attributes('style')).toContain('height: 204px')
+  })
+
+  it('lists every week of the stems in the label of their chart', () => {
+    const label = stemsChart(show(fiveWeeks)).attributes('aria-label')!
+
+    expect(label).toContain('KW 43 (19.–25.10.): 1 Stamm; KW 44')
+    expect(label).toContain('KW 47 (bis heute): 2 Stämme')
+    expect(label).toContain('Durchschnitt 1,0 pro Woche')
   })
 
   it('writes two lines above a column: the sum, and large / small with both numbers, none for an empty week', () => {
     const wrapper = show({
       ...fiveWeeks,
       weeks: [
-        { week_start: '2026-11-02', large: 3, small: 2 },
-        { week_start: '2026-11-09', large: 15, small: 0 },
-        { week_start: '2026-11-16', large: 0, small: 0 },
+        { week_start: '2026-11-02', large: 3, small: 2, stems: 1 },
+        { week_start: '2026-11-09', large: 15, small: 0, stems: 2 },
+        { week_start: '2026-11-16', large: 0, small: 0, stems: 0 },
       ],
     })
 
-    const lines = wrapper
+    const lines = beamsChart(wrapper)
       .findAll('ol > li')
       .map((column) => [
         column.get('.font-bold').text(),
@@ -135,15 +184,13 @@ describe('pile card', () => {
       ['15', '15 / 0'],
       ['0', null],
     ])
-    const [large, small] = wrapper.get('[data-split]').findAll('span')
+    const [large, small] = beamsChart(wrapper).get('[data-split]').findAll('span')
     expect(large!.classes()).toEqual(['font-bold', 'text-body'])
     expect(small!.classes()).toEqual(['text-beam-small-text'])
   })
 
   it('lists every value in the label of the chart', () => {
-    const label = show(fiveWeeks)
-      .get('[aria-label^="Gesägte Balken pro Woche"]')
-      .attributes('aria-label')!
+    const label = beamsChart(show(fiveWeeks)).attributes('aria-label')!
 
     expect(label).toContain(
       'KW 43 (19.–25.10.): 4 insgesamt, 2 Balken 14×14 (groß), 2 Balken 10×14 (klein)',
@@ -157,10 +204,12 @@ describe('pile card', () => {
   it('draws the average over the whole width, and the weeks of the year end as they are', () => {
     const wrapper = show(manyWeeks)
 
-    expect(wrapper.findAll('ol > li')).toHaveLength(16)
-    expect(wrapper.find('svg[data-average]').exists()).toBe(true)
-    expect(wrapper.findAll('svg[data-average] line')).toHaveLength(1)
-    expect(wrapper.findAll('ol > li')[4]!.text()).toContain('0')
+    const beams = beamsChart(wrapper)
+    expect(beams.findAll('ol > li')).toHaveLength(16)
+    expect(stemsChart(wrapper).findAll('ol > li')).toHaveLength(16)
+    expect(beams.find('svg[data-average]').exists()).toBe(true)
+    expect(beams.findAll('svg[data-average] line')).toHaveLength(1)
+    expect(beams.findAll('ol > li')[4]!.text()).toContain('0')
   })
 
   it('starts at the current week and fades the older weeks out while they are hidden', async () => {
@@ -174,11 +223,13 @@ describe('pile card', () => {
     await flushPromises()
 
     expect(wrote).toContain(1400)
-    expect(wrapper.find('[data-fade]').exists()).toBe(true)
+    expect(wrapper.findAll('[data-fade]')).toHaveLength(2)
 
+    // each chart scrolls on its own
     vi.spyOn(Element.prototype, 'scrollLeft', 'get').mockReturnValue(0)
-    await wrapper.get('.overflow-x-auto').trigger('scroll')
-    expect(wrapper.find('[data-fade]').exists()).toBe(false)
+    await beamsChart(wrapper).get('.overflow-x-auto').trigger('scroll')
+    expect(beamsChart(wrapper).find('[data-fade]').exists()).toBe(false)
+    expect(stemsChart(wrapper).find('[data-fade]').exists()).toBe(true)
   })
 
   describe('scroll arrows', () => {
@@ -190,7 +241,7 @@ describe('pile card', () => {
       vi.spyOn(Element.prototype, 'scrollLeft', 'set').mockImplementation(() => {})
     }
     const arrow = (wrapper: ReturnType<typeof show>, side: 'links' | 'rechts') =>
-      wrapper.find(`button[aria-label="Diagramm nach ${side} scrollen"]`)
+      wrapper.find(`button[aria-label="Gesägte Balken pro Woche: nach ${side} scrollen"]`)
 
     beforeEach(() => {
       scrollBy.mockClear()
@@ -207,6 +258,24 @@ describe('pile card', () => {
 
       expect(arrow(wrapper, 'links').exists()).toBe(false)
       expect(arrow(wrapper, 'rechts').exists()).toBe(false)
+      expect(wrapper.findAll('button[aria-label$="scrollen"]')).toHaveLength(0)
+    })
+
+    it('belong to their own chart: the one of the stems has two of its own', async () => {
+      scrolled(1000)
+      const wrapper = show(manyWeeks)
+      await flushPromises()
+
+      expect(
+        wrapper
+          .findAll('button[aria-label$="scrollen"]')
+          .map((button) => button.attributes('aria-label')),
+      ).toEqual([
+        'Bearbeitete Stämme pro Woche: nach links scrollen',
+        'Bearbeitete Stämme pro Woche: nach rechts scrollen',
+        'Gesägte Balken pro Woche: nach links scrollen',
+        'Gesägte Balken pro Woche: nach rechts scrollen',
+      ])
     })
 
     it('start with "right" disabled at the current week, and "left" scrolls back by 60 % of the width', async () => {
@@ -224,7 +293,7 @@ describe('pile card', () => {
       scrolled(0)
       const wrapper = show(manyWeeks)
       await flushPromises()
-      await wrapper.get('.overflow-x-auto').trigger('scroll')
+      await beamsChart(wrapper).get('.overflow-x-auto').trigger('scroll')
 
       expect(arrow(wrapper, 'links').attributes('disabled')).toBeDefined()
       expect(arrow(wrapper, 'rechts').attributes('disabled')).toBeUndefined()
@@ -237,7 +306,7 @@ describe('pile card', () => {
       vi.stubGlobal('matchMedia', () => ({ matches: true }))
       const wrapper = show(manyWeeks)
       await flushPromises()
-      await wrapper.get('.overflow-x-auto').trigger('scroll')
+      await beamsChart(wrapper).get('.overflow-x-auto').trigger('scroll')
 
       await arrow(wrapper, 'rechts').trigger('click')
       expect(scrollBy).toHaveBeenCalledWith({ left: 240, behavior: 'auto' })
@@ -261,6 +330,7 @@ describe('pile card', () => {
     )
     expect(wrapper.find('ol').exists()).toBe(false)
     expect(wrapper.text()).not.toContain('Gesägte Balken pro Woche')
+    expect(wrapper.text()).not.toContain('Bearbeitete Stämme pro Woche')
   })
 
   it('leaves out the volume and the link where the pile has none', () => {
@@ -272,12 +342,14 @@ describe('pile card', () => {
   it('has no line and no legend entry for the average without a completed week', () => {
     const wrapper = show({
       ...fiveWeeks,
-      weeks: [{ week_start: '2026-11-16', large: 1, small: 0 }],
+      weeks: [{ week_start: '2026-11-16', large: 1, small: 0, stems: 1 }],
       average_per_week: null,
+      stems_average_per_week: null,
     })
 
     expect(wrapper.find('svg[data-average]').exists()).toBe(false)
     expect(wrapper.text()).not.toContain('Ø')
+    expect(wrapper.findAll('ol')).toHaveLength(2)
     expect(wrapper.get('ol').text()).toContain('bis heute')
   })
 

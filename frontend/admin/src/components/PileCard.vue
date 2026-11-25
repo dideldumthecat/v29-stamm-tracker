@@ -5,12 +5,13 @@ import type { PileCardSection } from '@v29/shared/contract'
 
 import InfoPopover from '@/components/InfoPopover.vue'
 import WeeklyBeamsChart from '@/components/WeeklyBeamsChart.vue'
+import WeeklyStemsChart from '@/components/WeeklyStemsChart.vue'
 import { formatTwoDecimals } from '@/keyFigures'
 import { beamTotals, progressText, stemsText } from '@/pileCard'
 import { formatVolume, mapUrl } from '@/piles'
 
 /**
- * The card of one pile on the page "Polter": progress and yield side by side (stacked on a phone), below them the sawn beams per week.
+ * The card of one pile on the page "Polter": progress and yield side by side (stacked on a phone), below them the processed stems and the sawn beams per week.
  * All numbers come from the server; the card only formats them, adds up the beams of the weeks and sizes the progress bar.
  */
 const props = defineProps<{ section: PileCardSection }>()
@@ -159,6 +160,9 @@ const figures = computed(() => {
       </div>
     </div>
 
-    <WeeklyBeamsChart v-if="section.weeks.length" :section="section" />
+    <template v-if="section.weeks.length">
+      <WeeklyStemsChart :section="section" />
+      <WeeklyBeamsChart :section="section" />
+    </template>
   </section>
 </template>

@@ -70,3 +70,13 @@ export function chartDescription(section: PileCardSection): string {
   })
   return `Gesägte Balken pro Woche. ${rows.join('; ')}${average === null ? '' : `. Durchschnitt ${formatOneDecimal(average)} pro Woche`}`
 }
+
+/** The processed stems of every week for screen readers: "KW 45 (2.–8.11.): 2 Stämme; …; Durchschnitt 1,6 pro Woche". */
+export function stemsChartDescription(section: PileCardSection): string {
+  const { weeks, stems_average_per_week: average } = section
+  const rows = weeks.map((week, index) => {
+    const label = weekLabel(week.week_start, index === weeks.length - 1)
+    return `${label.title} (${label.period}): ${stemsText(week.stems)}`
+  })
+  return `Bearbeitete Stämme pro Woche. ${rows.join('; ')}${average === null ? '' : `. Durchschnitt ${formatOneDecimal(average)} pro Woche`}`
+}

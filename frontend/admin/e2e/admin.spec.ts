@@ -2497,15 +2497,18 @@ test.describe('pile cards', () => {
       'Polter 2601-010145 (Krummes F)',
     ])
 
-    // Only the pile with sixteen weeks has columns wider than their room; the chart starts at the current week
-    const arrows = page.getByRole('button', { name: /^Diagramm nach (links|rechts) scrollen$/ })
-    await expect(arrows).toHaveCount(2)
-    const left = page.getByRole('button', { name: 'Diagramm nach links scrollen', exact: true })
-    const right = page.getByRole('button', { name: 'Diagramm nach rechts scrollen', exact: true })
-    await expect(right).toBeDisabled()
-    await left.click()
-    await expect(right).toBeEnabled()
-    await expect(page.locator('[data-fade]')).toBeVisible()
+    // Only the pile with sixteen weeks has columns wider than their room; both charts start at the current week and scroll on their own
+    await expect(page.getByRole('button', { name: /: nach (links|rechts) scrollen$/ })).toHaveCount(
+      4,
+    )
+    const arrow = (chart: string, side: 'links' | 'rechts') =>
+      page.getByRole('button', { name: `${chart}: nach ${side} scrollen`, exact: true })
+    await expect(arrow('Gesägte Balken pro Woche', 'rechts')).toBeDisabled()
+    await expect(arrow('Bearbeitete Stämme pro Woche', 'rechts')).toBeDisabled()
+    await arrow('Gesägte Balken pro Woche', 'links').click()
+    await expect(arrow('Gesägte Balken pro Woche', 'rechts')).toBeEnabled()
+    await expect(arrow('Bearbeitete Stämme pro Woche', 'rechts')).toBeDisabled()
+    await expect(page.locator('[data-fade]')).toHaveCount(2)
   })
 })
 
