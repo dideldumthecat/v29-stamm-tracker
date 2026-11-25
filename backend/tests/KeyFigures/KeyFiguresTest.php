@@ -7,6 +7,7 @@ use App\KeyFigures\KeyFigures;
 use App\KeyFigures\Measures;
 use App\KeyFigures\Missing;
 use App\KeyFigures\StemFigures;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /** The numbers and the texts, on Measures alone: no database, no export, no HTTP. */
@@ -59,7 +60,7 @@ class KeyFiguresTest extends TestCase
         self::assertFalse($result->sawnTimber->wholeStem);
 
         $card = self::byKey($this->figures->stemCard($result, self::NAMES));
-        self::assertSame(['round_wood', 'sawn_timber', 'yield'], array_keys($card));
+        self::assertSame(['round_wood', 'sawn_timber', 'yield', 'diameter_class'], array_keys($card));
         self::assertSame(['Rundholz', 'fm', 'aus 40 × 39 cm und 4,10 m', 'π ÷ 4 × Durchmesser groß × Durchmesser klein × Länge', '0,785 × 0,40 m × 0,39 m × 4,10 m'], [$card['round_wood']->label, $card['round_wood']->unit, $card['round_wood']->source, $card['round_wood']->formula, $card['round_wood']->inserted]);
         self::assertSame('Vorläufige Formel: Durchmesser mit Rinde, kein Abzug.', $card['round_wood']->note);
         self::assertSame(['Summe der 4 Balken', 'Summe des Schnittholzes aller Balken', '0,089 + 0,089 + 0,063 + 0,063 m³'], [$card['sawn_timber']->source, $card['sawn_timber']->formula, $card['sawn_timber']->inserted]);
@@ -76,7 +77,7 @@ class KeyFiguresTest extends TestCase
     }
 
     /** @param list<Measures> $items */
-    #[\PHPUnit\Framework\Attributes\DataProvider('sawnCases')]
+    #[DataProvider('sawnCases')]
     public function testSawnIsTheCheckmarkABeamOrACrossSection(array $items, bool $sawn): void
     {
         self::assertSame($sawn, $this->stemFigures($items, '1')->isSawn());
@@ -107,7 +108,7 @@ class KeyFiguresTest extends TestCase
         $texts = [];
         foreach ([self::stem('2', null, null, 4.1), self::stem('3', 40, 39, null), self::stem('4', null, null, 0)] as $stem) {
             $card = $this->figures->stemCard($this->figures->ofStems([$stem])[$stem->id], self::NAMES);
-            self::assertCount(1, $card, 'not sawn: round wood only');
+            self::assertSame(['round_wood', 'diameter_class'], array_map(static fn (KeyFigure $figure) => $figure->key, $card), 'not sawn: class and round wood only');
             self::assertNull($card[0]->value);
             self::assertNull($card[0]->inserted);
             $texts[] = $card[0]->source;
@@ -169,7 +170,37 @@ class KeyFiguresTest extends TestCase
         self::assertNull($result->sawnTimber);
         self::assertNull($result->yield);
         self::assertSame([], $result->yieldMissing);
-        self::assertSame(['round_wood'], array_map(static fn (KeyFigure $figure) => $figure->key, $this->figures->stemCard($result, self::NAMES)));
+        self::assertSame(['round_wood', 'diameter_class'], array_map(static fn (KeyFigure $figure) => $figure->key, $this->figures->stemCard($result, self::NAMES)));
+    }
+
+    /** @return iterable<string, array{?float, ?float, ?float, string, ?string}> max, min, class from_cm, source, inserted */
+    public static function diameterClassCases(): iterable
+    {
+        yield 'two diameters' => [40, 39, 40, 'aus 40 × 39 cm', '(40 + 39) ÷ 2 = 39,5 ≈ 40 cm'];
+        yield 'rounded up at .5' => [33, 32, 32, 'aus 33 × 32 cm', '(33 + 32) ÷ 2 = 32,5 ≈ 33 cm'];
+        yield 'kept below .5' => [32.4, 32.4, 32, 'aus 32,4 × 32,4 cm', '(32,4 + 32,4) ÷ 2 = 32,4 ≈ 32 cm'];
+        yield 'one diameter' => [null, 31, 30, 'aus einem Durchmesser (31 cm)', '31 ≈ 31 cm'];
+        yield 'one diameter at .5' => [31.5, 0, 32, 'aus einem Durchmesser (31,5 cm)', '31,5 ≈ 32 cm'];
+        yield 'no diameter' => [null, null, null, 'Durchmesser fehlt', null];
+    }
+
+    #[DataProvider('diameterClassCases')]
+    public function testTheMeanDiameterClassOfAStem(?float $max, ?float $min, ?float $from, string $source, ?string $inserted): void
+    {
+        // Every stem has it, processed or not, with or without length
+        $card = self::byKey($this->figures->stemCard($this->stemFigures([self::stem('1', $max, $min, null)], '1'), self::NAMES));
+
+        self::assertSame('diameter_class', array_key_last($card));
+        $figure = $card['diameter_class'];
+        self::assertSame(['Mittendurchmesser', 'cm', $from, $source, $inserted, null], [$figure->label, $figure->unit, $figure->value, $figure->source, $figure->inserted, $figure->note]);
+        self::assertSame('(Durchmesser groß + Durchmesser klein) ÷ 2, auf ganze cm kaufmännisch gerundet (ab ,5 aufgerundet). Ist nur einer erfasst, zählt dieser.', $figure->formula);
+    }
+
+    public function testABeamHasNoDiameterClass(): void
+    {
+        $beam = $this->figures->beamCard($this->figures->piece(self::beam('104', 'A', 14.7, 14.7)), self::NAMES);
+
+        self::assertSame(['sawn_timber'], array_map(static fn (KeyFigure $figure) => $figure->key, $beam));
     }
 
     public function testABeamHasOnlyItsOwnSawnTimber(): void

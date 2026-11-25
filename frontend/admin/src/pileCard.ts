@@ -61,12 +61,12 @@ export const beamTotals = ({ weeks }: Pick<PileCardSection, 'weeks'>) => ({
   small: weeks.reduce((sum, week) => sum + week.small, 0),
 })
 
-/** Everything the chart shows, for screen readers: "KW 45 (2.–8.11.): 5 insgesamt, 3 Balken 14×14, 2 Balken 10×14; …; Durchschnitt 15,5 pro Woche". */
+/** Everything the chart shows, for screen readers: "KW 45 (2.–8.11.): 5 insgesamt, 3 Balken 14×14 (groß), 2 Balken 10×14 (klein); …; Durchschnitt 15,5 pro Woche". */
 export function chartDescription(section: PileCardSection): string {
   const { weeks, size_labels: sizes, average_per_week: average } = section
   const rows = weeks.map((week, index) => {
     const label = weekLabel(week.week_start, index === weeks.length - 1)
-    return `${label.title} (${label.period}): ${weekTotal(week)} insgesamt, ${week.large} ${sizes.large}, ${week.small} ${sizes.small}`
+    return `${label.title} (${label.period}): ${weekTotal(week)} insgesamt, ${week.large} Balken ${sizes.large}, ${week.small} Balken ${sizes.small}`
   })
   return `Gesägte Balken pro Woche. ${rows.join('; ')}${average === null ? '' : `. Durchschnitt ${formatOneDecimal(average)} pro Woche`}`
 }

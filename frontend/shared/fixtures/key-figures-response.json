@@ -29,6 +29,16 @@
       "formula": "Schnittholz ÷ Rundholz",
       "inserted": "0,304 m³ ÷ 0,502 fm",
       "note": null
+    },
+    {
+      "key": "diameter_class",
+      "label": "Mittendurchmesser",
+      "value": 40,
+      "unit": "cm",
+      "source": "aus 40 × 39 cm",
+      "formula": "(Durchmesser groß + Durchmesser klein) ÷ 2, auf ganze cm kaufmännisch gerundet (ab ,5 aufgerundet). Ist nur einer erfasst, zählt dieser.",
+      "inserted": "(40 + 39) ÷ 2 = 39,5 ≈ 40 cm",
+      "note": null
     }
   ]
 }

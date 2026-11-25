@@ -6,7 +6,7 @@ use App\Pile\PileEditor;
 
 /**
  * The cards of the page "Polter" (PileCardSection in frontend/shared/contract.ts), one per pile with at least one stem, the newest pile first.
- * The sums and the yield are those of KeyFigures::totals(), the same definitions as the section "Kennzahlen: Sägen", only over the stems of one pile.
+ * The sums and the yield are those of KeyFigures::totals(), the same definitions as the dashboard, only over the stems of one pile.
  * Beams belong to the pile of their stem. Nothing here asks the database.
  */
 final class PileSections
@@ -144,7 +144,7 @@ final class PileSections
             ['term' => 'Ausbeute', 'text' => 'Die drei Kennzahlen zeigen, was von diesem Polter bisher gesägt ist: die Zahl der gesägten Balken je Größe (siehe Groß und klein) und das Schnittholz. Nicht sägbare Stämme gehen nicht ein.'],
             ['term' => 'Schnittholz', 'text' => \sprintf('Volumen der gesägten Balken in fm, je Stück %s.', KeyFigures::pieceFormula($names))],
             ['term' => 'Balken pro Woche', 'text' => \sprintf('Gesägte Balken je Kalenderwoche (Montag bis Sonntag, Zeitzone Europe/Berlin), von der ersten Woche mit einem gesägten Balken bis zur aktuellen; Wochen ohne Balken zählen 0. Ein Balken zählt in der Woche, in der er angelegt wurde. Ein als Ganzes gesägter Stamm zählt als ein Balken in der Woche, in der das Merkmal %s zum ersten Mal auf Ja gesetzt wurde; ohne eine solche Erfassung zählt die Woche, in der das Merkmal %s erfasst wurde.', $names['sawn'], $names['sawn_cross_section'])],
-            ['term' => 'Groß und klein', 'text' => \sprintf('Grundlage ist %s: Ist die kleinere Seite mindestens %d cm, ist der Balken groß (%s), sonst klein (%s). Ein Balken ohne lesbaren Querschnitt zählt weder als groß noch als klein.', $names['sawn_cross_section'], KeyFigures::LARGE_BEAM_MIN_SIDE_CM, KeyFigures::LARGE_BEAM_LABEL, KeyFigures::SMALL_BEAM_LABEL)],
+            ['term' => 'Groß und klein', 'text' => \sprintf('Grundlage ist %s: Ist die kleinere Seite mindestens %d cm, ist der Balken %s, sonst %s. Ein Balken ohne lesbaren Querschnitt zählt weder als groß noch als klein.', $names['sawn_cross_section'], KeyFigures::LARGE_BEAM_MIN_SIDE_CM, KeyFigures::LARGE_BEAM_LABEL, KeyFigures::SMALL_BEAM_LABEL)],
             ['term' => 'Durchschnitt', 'text' => 'Balken ÷ Wochen, nur über die abgeschlossenen Wochen; die aktuelle Woche zählt nicht mit.'],
         ];
     }

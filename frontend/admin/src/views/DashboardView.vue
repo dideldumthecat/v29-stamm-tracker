@@ -1,19 +1,20 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { RefreshCwIcon } from '@lucide/vue'
 import type { DashboardResponse } from '@v29/shared/contract'
 
 import { formatDateTime } from '@/activity'
 import { ApiError, request } from '@/api/client'
+import DashboardCards from '@/components/DashboardCards.vue'
 import DiameterClasses from '@/components/DiameterClasses.vue'
-import FigureInfo from '@/components/FigureInfo.vue'
 import LoadFailure from '@/components/LoadFailure.vue'
 import LoadingStatus from '@/components/LoadingStatus.vue'
-import { formatTotal } from '@/keyFigures'
+import PageHeader from '@/components/PageHeader.vue'
 
 /**
- * The start page: one card per section of the answer, in its order, drawn by the type of the section. It knows no section or figure
- * by key, so a new work step on the server appears here without a change. All numbers and texts come from the server, the page only
- * formats them (and sorts the diameter classes).
+ * The start page: the sections of the answer in their order, drawn by the type of the section. It knows no section or card
+ * by key, so a new work step on the server appears here without a change. All numbers and texts come from the server; only the
+ * table of diameter classes formats and sorts its raw numbers.
  */
 const status = ref<'loading' | 'ready' | 'error'>('loading')
 const failure = ref(0)
@@ -37,60 +38,37 @@ const openKey = ref<string | null>(null)
 
 <template>
   <main class="page-column py-8">
-    <h1 class="text-3xl font-bold">Dashboard</h1>
-    <p v-if="dashboard?.last_sync_at" class="mt-2 text-mute">
-      Letzter Sync: {{ formatDateTime(dashboard.last_sync_at) }}
-    </p>
+    <PageHeader title="Dashboard">
+      <template #aside>
+        <p v-if="dashboard?.last_sync_at" class="whitespace-nowrap text-mute">
+          <RefreshCwIcon
+            :size="16"
+            class="-mt-0.5 mr-1.5 inline-block align-middle"
+            aria-hidden="true"
+          />Letzter Sync: {{ formatDateTime(dashboard.last_sync_at) }}
+        </p>
+      </template>
+    </PageHeader>
 
     <LoadFailure v-if="status === 'error'" :failure="failure" @retry="load" />
     <LoadingStatus v-else-if="status === 'loading'" role="status" />
 
-    <template v-for="section in status === 'ready' ? dashboard!.sections : []" :key="section.key">
-      <DiameterClasses v-if="section.type === 'diameter_classes'" :section="section" />
-      <section v-else class="mt-6 card p-4 sm:p-6" :aria-labelledby="`section-${section.key}`">
-        <h2 :id="`section-${section.key}`" class="text-lg font-bold">{{ section.label }}</h2>
-        <dl class="mt-4 grid gap-y-6 sm:grid-cols-3">
-          <div
-            v-for="(figure, index) in section.figures"
-            :key="figure.key"
-            class="flex flex-col items-center px-2 text-center"
-          >
-            <!-- Short line above every cell but the first row: stacked that is every cell after the first, in three columns from the fourth on -->
-            <span
-              v-if="index > 0"
-              aria-hidden="true"
-              class="mb-6 block h-px w-[35%] bg-soft"
-              :class="index < 3 && 'sm:hidden'"
-            />
-            <!-- The button hangs beside the label, so that the label text itself stays centred; 44 px target, the icon starts 4 px after the text -->
-            <dt class="relative text-caption font-semibold text-mute">
-              {{ figure.label }}
-              <FigureInfo
-                v-if="figure.value !== null"
-                :open="openKey === `${section.key}/${figure.key}`"
-                :label="figure.label"
-                :formula="figure.formula"
-                :inserted="figure.inserted"
-                :result="`${formatTotal(figure)}${figure.unit ? `\u00a0${figure.unit}` : ''}`"
-                :note="figure.note"
-                class="absolute top-1/2 left-full -ml-[9px] -translate-y-1/2"
-                @update:open="
-                  (open: boolean) => (openKey = open ? `${section.key}/${figure.key}` : null)
-                "
-              />
-            </dt>
-            <dd class="mt-1 text-3xl font-bold tabular-nums">
-              <span v-if="figure.value === null" role="img" aria-label="nicht berechenbar">–</span>
-              <template v-else>
-                {{ formatTotal(figure)
-                }}<span v-if="figure.unit" class="ml-1 text-lg font-semibold text-mute">{{
-                  figure.unit
-                }}</span>
-              </template>
-            </dd>
-          </div>
-        </dl>
-      </section>
+    <template
+      v-for="(section, index) in status === 'ready' ? dashboard!.sections : []"
+      :key="section.key"
+    >
+      <!-- Below another section the next one starts with more room, as in the design; the first one follows the page header -->
+      <DiameterClasses
+        v-if="section.type === 'diameter_classes'"
+        :section="section"
+        :class="{ 'mt-10': index > 0 }"
+      />
+      <DashboardCards
+        v-else
+        v-model:open-key="openKey"
+        :section="section"
+        :class="{ 'mt-10': index > 0 }"
+      />
     </template>
   </main>
 </template>

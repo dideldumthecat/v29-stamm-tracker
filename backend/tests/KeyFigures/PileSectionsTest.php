@@ -73,7 +73,7 @@ class PileSectionsTest extends TestCase
         self::assertNull($section['sawn_timber_m3']);
         self::assertSame([], $section['weeks']);
         self::assertNull($section['average_per_week']);
-        self::assertSame(['large' => 'Balken 14×14', 'small' => 'Balken 10×14'], $section['size_labels']);
+        self::assertSame(['large' => '14×14 (groß)', 'small' => '10×14 (klein)'], $section['size_labels']);
     }
 
     public function testProgressAndSawnTimberUseTheDefinitionsOfTheSawingSection(): void

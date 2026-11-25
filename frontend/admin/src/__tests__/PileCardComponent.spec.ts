@@ -60,8 +60,8 @@ describe('pile card', () => {
 
     const figures = wrapper.findAll('[data-yield] dl > div')
     expect(figures.map(figureText)).toEqual([
-      ['Balken 14×14', '11Stück'],
-      ['Balken 10×14', '5Stück'],
+      ['14×14 (groß)', '11Stück'],
+      ['10×14 (klein)', '5Stück'],
       ['Schnittholz', '1,29fm'],
     ])
     expect(figures.map((figure) => figure.classes())).toEqual([
@@ -75,8 +75,8 @@ describe('pile card', () => {
     const figures = show(empty).findAll('[data-yield] dl > div')
 
     expect(figures.map(figureText)).toEqual([
-      ['Balken 14×14', '0Stück'],
-      ['Balken 10×14', '0Stück'],
+      ['14×14 (groß)', '0Stück'],
+      ['10×14 (klein)', '0Stück'],
       ['Schnittholz', '–'],
     ])
     expect(figures[2]!.get('[role=img]').attributes('aria-label')).toBe('nicht berechenbar')
@@ -110,7 +110,7 @@ describe('pile card', () => {
         .map((h3) => h3.text()),
     ).toEqual(['Fortschritt', 'Ausbeute', 'Gesägte Balken pro Woche'])
     expect(squeezed(wrapper.get('section > div:last-child ul').text())).toBe(
-      'Balken 14×14Balken 10×14 Ø 3,3 pro Woche',
+      '14×14 (groß)10×14 (klein) Ø 3,3 pro Woche',
     )
   })
 
@@ -145,8 +145,12 @@ describe('pile card', () => {
       .get('[aria-label^="Gesägte Balken pro Woche"]')
       .attributes('aria-label')!
 
-    expect(label).toContain('KW 43 (19.–25.10.): 4 insgesamt, 2 Balken 14×14, 2 Balken 10×14')
-    expect(label).toContain('KW 47 (bis heute): 3 insgesamt, 1 Balken 14×14, 2 Balken 10×14')
+    expect(label).toContain(
+      'KW 43 (19.–25.10.): 4 insgesamt, 2 Balken 14×14 (groß), 2 Balken 10×14 (klein)',
+    )
+    expect(label).toContain(
+      'KW 47 (bis heute): 3 insgesamt, 1 Balken 14×14 (groß), 2 Balken 10×14 (klein)',
+    )
     expect(label).toContain('Durchschnitt 3,3 pro Woche')
   })
 

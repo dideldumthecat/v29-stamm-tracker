@@ -324,6 +324,7 @@ describe('key figures', () => {
       'Rundholz0,502 fmaus 40 × 39 cm und 4,10 m',
       'Schnittholz0,304 m³Summe der 4 Balken',
       'Ausbeute60 % Schnittholz ÷ Rundholz',
+      'Mittendurchmesser40–41 cmaus 40 × 39 cm',
     ])
 
     const beam = await open('/beams/104-A')
@@ -371,7 +372,7 @@ describe('key figures', () => {
     api.failKeyFigures(false)
     await wrapper.get('[role=alert] button').trigger('click')
     await flushPromises()
-    expect(rows(wrapper)).toHaveLength(3)
+    expect(rows(wrapper)).toHaveLength(4)
   })
 })
 

@@ -2,7 +2,7 @@
 
 namespace App\KeyFigures;
 
-/** The sums behind the dashboard section "Kennzahlen: Sägen", see KeyFigures::totals(). Volumes in fm (round wood) and m³ (sawn timber). */
+/** The sums behind the dashboard cards and the pile cards, see KeyFigures::totals(). Volumes in fm (round wood) and m³ (sawn timber). */
 final readonly class SawingTotals
 {
     public function __construct(

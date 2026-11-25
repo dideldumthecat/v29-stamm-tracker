@@ -44,20 +44,21 @@ final class MeasureLoader
         }
         $reader = new MeasureReader($attributes, $options);
 
-        $firstSawn = $this->firstSawn($items, $attributes['sawn']);
+        $firstSawn = $this->firstYes($items, $attributes['sawn']);
+        $firstUnsawable = isset($attributes['unsawable']) ? $this->firstYes($items, $attributes['unsawable']) : [];
 
-        return [array_map(static fn (TimberItem $item) => $reader->read($item, $values[$item->id->toRfc4122()] ?? [], $firstSawn[$item->id->toRfc4122()] ?? null), $items), $reader->names()];
+        return [array_map(static fn (TimberItem $item) => $reader->read($item, $values[$id = $item->id->toRfc4122()] ?? [], $firstSawn[$id] ?? null, $firstUnsawable[$id] ?? null), $items), $reader->names()];
     }
 
     /**
-     * Device time of the first recording of "sawn" as yes, per item id. The projection keeps only the latest value, so this reads the events.
+     * Device time of the first recording of a yes/no attribute ("sawn", "unsawable") as yes, per item id. The projection keeps only the latest value, so this reads the events.
      * A voided recording does not count (as in the projection). JSON_VALUE gives a boolean as 'true' or '1' depending on the MariaDB version.
      *
      * @param list<TimberItem> $items
      *
      * @return array<string, \DateTimeImmutable>
      */
-    private function firstSawn(array $items, Attribute $sawn): array
+    private function firstYes(array $items, Attribute $attribute): array
     {
         if ([] === $items) {
             return [];
@@ -67,7 +68,7 @@ final class MeasureLoader
               WHERE e.type = ? AND e.timber_item_id IN (?) AND JSON_VALUE(e.data, ?) = ? AND JSON_VALUE(e.data, ?) IN (?, ?)
                 AND NOT EXISTS (SELECT 1 FROM timber_item_events v WHERE v.type = ? AND v.reference_id = e.id)
               GROUP BY e.timber_item_id',
-            [EventType::AttributeRecorded->value, array_map(static fn (TimberItem $item) => $item->id->toBinary(), $items), '$.attribute_id', $sawn->id->toRfc4122(), '$.value', 'true', '1', EventType::Voided->value],
+            [EventType::AttributeRecorded->value, array_map(static fn (TimberItem $item) => $item->id->toBinary(), $items), '$.attribute_id', $attribute->id->toRfc4122(), '$.value', 'true', '1', EventType::Voided->value],
             [1 => ArrayParameterType::BINARY],
         );
         $first = [];

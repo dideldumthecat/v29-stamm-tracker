@@ -147,9 +147,10 @@ class KeyFiguresTest extends WebTestCase
 
         $figures = $this->figures('7')['figures'];
 
-        self::assertSame(['round_wood'], array_column($figures, 'key'));
+        self::assertSame(['round_wood', 'diameter_class'], array_column($figures, 'key'));
         self::assertNotNull($figures[0]['value']);
         self::assertSame('aus einem Durchmesser (40 cm) und 4,10 m', $figures[0]['source']);
+        self::assertSame('aus einem Durchmesser (40 cm)', $figures[1]['source']);
     }
 
     public function testABeamWithoutCrossSectionNamesTheBeam(): void
@@ -176,7 +177,9 @@ class KeyFiguresTest extends WebTestCase
         $this->workedExample();
         $this->item('8');
 
-        self::assertSame(['round_wood'], array_column($this->figures('8')['figures'], 'key'));
+        $unsawn = $this->figures('8')['figures'];
+        self::assertSame(['round_wood', 'diameter_class'], array_column($unsawn, 'key'), 'every stem has the class, a beam does not');
+        self::assertSame([null, 'Durchmesser fehlt', null], [$unsawn[1]['value'], $unsawn[1]['source'], $unsawn[1]['inserted']]);
         $beam = $this->figures('104-C')['figures'];
         self::assertSame(['sawn_timber'], array_column($beam, 'key'));
         self::assertSame('aus 10,5 × 14,7 cm und 4,10 m', $beam[0]['source'], 'the length is inherited from the stem');

@@ -123,12 +123,12 @@ export interface KeyFiguresResponse {
 }
 
 export interface KeyFigure {
-  key: 'round_wood' | 'sawn_timber' | 'yield'
-  /** "Rundholz", "Schnittholz", "Ausbeute" */
+  key: 'diameter_class' | 'round_wood' | 'sawn_timber' | 'yield'
+  /** "Mittendurchmesser", "Rundholz", "Schnittholz", "Ausbeute" */
   label: string
-  /** fm (round wood) or m³ (sawn timber; 1 fm = 1 m³), or the share 0–1 for the yield; null = not calculable. */
+  /** fm (round wood) or m³ (sawn timber; 1 fm = 1 m³), the share 0–1 for the yield, or `from_cm` of the diameter class (a stem only, last figure, every stem has it; the class 32–33 cm is 32); null = not calculable. */
   value: number | null
-  unit: 'fm' | 'm³' | '%'
+  unit: 'fm' | 'm³' | '%' | 'cm'
   /** The small line under the value, e.g. "aus 40 × 39 cm und 4,10 m"; with value null it says what is missing. */
   source: string
   /** "π ÷ 4 × Durchmesser groß × Durchmesser klein × Länge" (attribute names as in the database) */
@@ -145,27 +145,51 @@ export interface KeyFigure {
 export interface DashboardResponse {
   /** Server time of the newest event (received_at) or photo upload (uploaded_at), whichever is later; null = neither */
   last_sync_at: string | null
-  /** In display order; today "sawing" and "stems_by_diameter". Later work steps (sorting …) come as further sections – the administration renders sections generically, without knowing their keys */
+  /** In display order; today "round_wood", "sawn_timber" and "stems_by_diameter". Later work steps (sorting …) come as further sections – the administration renders sections generically, without knowing their keys */
   sections: DashboardSection[]
 }
 
 /** The type says how the administration renders a section; within a type it knows no key. */
-export type DashboardSection = DashboardFiguresSection | DashboardDiameterSection
+export type DashboardSection = DashboardCardsSection | DashboardDiameterSection
 
-export interface DashboardFiguresSection {
-  type: 'figures'
-  /** Stable, e.g. "sawing" */
+/** Today "round_wood" and "sawn_timber" */
+export interface DashboardCardsSection {
+  type: 'cards'
   key: string
-  /** "Kennzahlen: Sägen" */
+  /** "Rundholz" */
   label: string
-  figures: DashboardFigure[]
+  /** "In Stämmen und Raummetern (Rm)" */
+  description: string | null
+  cards: DashboardCard[]
+}
+
+export interface DashboardCard {
+  key: string
+  /** "Tempo", "14×14 (groß)" */
+  label: string
+  /** Formatted by the server (de-DE): "16,3", "KW 51"; "–" if not calculable */
+  value: string
+  /** "Stämme / Woche", "%", "m³"; null = none */
+  unit: string | null
+  /** Second line, formatted by the server: "50,0 % ≈ 25,76 Rm"; null = none */
+  secondary: string | null
+  /** Colour square before the label as on the page "Polter"; null = none */
+  marker: 'large' | 'small' | null
+  /** Framed in the accent colour */
+  highlight: boolean
+  /** Starts a new row */
+  starts_row: boolean
+  /** Info button, same meaning as in KeyFigure */
+  formula: string
+  inserted: string | null
+  note: string | null
 }
 
 /** Processed stems in classes of 2 cm by the mean of both diameters ("stems_by_diameter"). Numbers raw, the administration formats and sorts. */
 export interface DashboardDiameterSection {
   type: 'diameter_classes'
   key: string
-  /** "Stämme nach Mittendurchmesser" */
+  /** "Stämme nach Mittendurchmesser": the section heading above the card, as with the card sections; the card has no title of its own */
   label: string
   /** The whole calculation, one term each ("Durchmesser" …); the texts carry the attribute names from the database */
   notes: { term: string; text: string }[]
@@ -197,11 +221,11 @@ export interface PileCardSection {
   stacked_volume: number | null
   latitude: number | null
   longitude: number | null
-  /** Stems: sawn (as in the section "sawing"), unsawable and not sawn, the rest */
+  /** Stems: sawn (as on the dashboard), unsawable and not sawn, the rest */
   progress: { sawn: number; not_sawable: number; open: number }
-  /** Volume of the sawn beams in fm (same definition as "sawn_timber" of the section "sawing"); null without a sawn stem */
+  /** Volume of the sawn beams in fm (same definition as the m³ of the dashboard card "Gesägt gesamt"); null without a sawn stem */
   sawn_timber_m3: number | null
-  /** Labels of the two sizes, e.g. "Balken 14×14", "Balken 10×14" (large: shorter side of the cross-section ≥ 12 cm) */
+  /** Labels of the two sizes, "14×14 (groß)" and "10×14 (klein)" (large: shorter side of the cross-section ≥ 12 cm) */
   size_labels: { large: string; small: string }
   /** Monday of the ISO week (YYYY-MM-DD, Europe/Berlin), ascending, from the first week with a sawn beam to the current week (the last entry), empty weeks with 0; empty without a sawn beam */
   weeks: { week_start: string; large: number; small: number }[]
@@ -223,18 +247,6 @@ export interface DiameterClass {
   beams_per_stem_large: number | null
   /** Small beams (shorter side < 12 cm) ÷ sawn stems, as beams_per_stem_large */
   beams_per_stem_small: number | null
-}
-
-export interface DashboardFigure {
-  key: string
-  label: string
-  value: number | null
-  /** null = count */
-  unit: 'fm' | 'm³' | '%' | null
-  /** Content of the info button, same meaning as in KeyFigure */
-  formula: string
-  inserted: string | null
-  note: string | null
 }
 
 // --- /api/admin/users --------------------------------------------------------

@@ -7,8 +7,8 @@ namespace App\KeyFigures;
  * detail view, the dashboard and, later, the lists all use it.
  *
  * Two layers: roundWood(), piece() and ofStems() calculate and say what is missing (as Missing, not as text);
- * stemCard() and beamCard() write the texts for the detail view from that result, each right beside its formula,
- * sawing() adds the results up for the dashboard and writes its texts the same way.
+ * stemCard() and beamCard() write the texts for the detail view from that result, each right beside its formula;
+ * totals() adds the results up for the dashboard (DashboardCards writes its texts) and the pile cards.
  * It works on Measures that are already loaded: nothing here asks the database, so one stem or all of them cost the same.
  *
  * Round wood is provisional until V29 confirms the formula: π ÷ 4 × larger diameter × smaller diameter × length, with bark.
@@ -17,9 +17,9 @@ final class KeyFigures
 {
     /** Wanted format 14×14 is large, 10×14 small: the shorter side in cm decides. */
     public const LARGE_BEAM_MIN_SIDE_CM = 12;
-    public const LARGE_BEAM_LABEL = 'Balken 14×14';
-    public const SMALL_BEAM_LABEL = 'Balken 10×14';
-    private const PRELIMINARY = 'Vorläufige Formel: Durchmesser mit Rinde, kein Abzug.';
+    public const LARGE_BEAM_LABEL = '14×14 (groß)';
+    public const SMALL_BEAM_LABEL = '10×14 (klein)';
+    public const PRELIMINARY = 'Vorläufige Formel: Durchmesser mit Rinde, kein Abzug.';
 
     // --- Numbers ---------------------------------------------------------------------------------
 
@@ -95,7 +95,7 @@ final class KeyFigures
     // --- Texts for the detail view ----------------------------------------------------------------
 
     /**
-     * Stem: round wood; sawn also sawn timber and yield.
+     * Stem: round wood; sawn also sawn timber and yield; at the end the diameter class, which every stem has.
      *
      * @param array<string, string> $names attribute names by key (MeasureReader::names()): the formulas name the attributes they use
      *
@@ -115,8 +115,9 @@ final class KeyFigures
             null === $round->volume ? null : \sprintf('%s × %s m × %s m × %s m', self::number(M_PI / 4, 3), self::meters($round->diameterMax / 100), self::meters($round->diameterMin / 100), self::meters($round->length)),
             self::PRELIMINARY.($round->oneDiameter ? ' Nur ein Durchmesser erfasst: Der Stamm wird als kreisrund gerechnet.' : ''),
         )];
+        $diameterClass = $this->diameterClassCard($round, $names);
         if (null === $sawn = $stem->sawnTimber) {
-            return $figures;
+            return [...$figures, $diameterClass];
         }
 
         $whole = $sawn->wholeStem ? $sawn->pieces[0] : null;
@@ -145,7 +146,7 @@ final class KeyFigures
             null,
         );
 
-        return $figures;
+        return [...$figures, $diameterClass];
     }
 
     /**
@@ -166,58 +167,10 @@ final class KeyFigures
         )];
     }
 
-    // --- Totals for the dashboard ------------------------------------------------------------------
+    // --- Totals for the dashboard and the pile cards ------------------------------------------------------------------
 
     /**
-     * The section "Kennzahlen: Sägen". A stem is processed if it is sawn (StemFigures::isSawn(), the rule of ofStems()) or unsawable.
-     * Round wood adds up processed stems, sawn timber every piece of sawn stems (beams, or the stem sawn whole),
-     * the yield divides it by the round wood of sawn stems only.
-     * Items without a calculable volume are left out of a sum; the note says how many.
-     *
-     * @param list<Measures>        $items all stems and beams that are not voided
-     * @param array<string, string> $names attribute names by key, with the optional "unsawable"
-     *
-     * @return list<DashboardFigure>
-     */
-    public function sawing(array $items, array $names): array
-    {
-        $unsawableName = $names['unsawable'] ?? throw new \RuntimeException('The dashboard needs the attribute with the key unsawable.');
-        $totals = $this->totals($items, $this->ofStems($items));
-        $stems = $totals->stems;
-        $sawnStems = $totals->sawnStems;
-        $unsawableStems = $totals->unsawableStems;
-        $processed = $totals->processed();
-        $roundSawn = $totals->roundSawn;
-        $roundUnsawable = $totals->roundUnsawable;
-        $beams = $totals->beams;
-        $wholeStems = $totals->wholeStems;
-        $sawnTimber = $totals->sawnTimber();
-        // "gesägt", "nicht sägbar": the states in the short form of the sums, named as in the database
-        $sawnState = mb_strtolower($names['sawn']);
-        $unsawableState = mb_strtolower($unsawableName);
-        $sawnRule = \sprintf('Als gesägt zählt ein Stamm, wenn %s angehakt ist, Balken vorhanden sind oder %s erfasst ist.', $names['sawn'], $names['sawn_cross_section']);
-
-        return [
-            new DashboardFigure('stems_total', 'Stämme gesamt', $stems, null, 'Alle Stämme ohne Balken, entfernte nicht mitgezählt', null, null),
-            new DashboardFigure('stems_processed', 'Stämme bearbeitet', $processed, null, \sprintf('%s Bearbeitet sind außerdem Stämme mit Häkchen bei %s.', $sawnRule, $unsawableName),
-                \sprintf('%d %s + %d %s', $sawnStems, $sawnState, $unsawableStems, $unsawableState), null),
-            new DashboardFigure('stems_open', 'Stämme nicht bearbeitet', $stems - $processed, null, 'Stämme gesamt − Stämme bearbeitet', \sprintf('%d − %d', $stems, $processed), null),
-            new DashboardFigure('round_wood', 'Rundholz bearbeitet', $roundSawn + $roundUnsawable, 'fm',
-                \sprintf('Summe über alle bearbeiteten Stämme, je Stamm %s', self::roundWoodFormula($names)),
-                \sprintf('%s fm %s + %s fm %s', self::number($roundSawn, 2), $sawnState, self::number($roundUnsawable, 2), $unsawableState),
-                self::PRELIMINARY.self::leftOut($totals->noRoundWood, 'bearbeiteter Stamm', 'bearbeitete Stämme', 'Durchmesser oder Länge')),
-            new DashboardFigure('sawn_timber', 'Schnittholz', $sawnTimber, 'm³',
-                \sprintf('Summe über alle Stücke gesägter Stämme (Balken oder der als Ganzes gesägte Stamm), je Stück %s. %s', self::pieceFormula($names), $sawnRule),
-                \sprintf('%s m³ Balken + %s m³ als Ganzes gesägte Stämme', self::number($beams, 2), self::number($wholeStems, 2)),
-                ltrim(self::leftOut($totals->noSawnTimber, 'Stück', 'Stücke', 'Querschnitt oder Länge')) ?: null),
-            new DashboardFigure('yield', 'Ausbeute', $totals->yield(), '%', 'Schnittholz ÷ Rundholz der gesägten Stämme',
-                $roundSawn > 0 ? \sprintf('%s m³ ÷ %s fm', self::number($sawnTimber, 2), self::number($roundSawn, 2)) : null,
-                \sprintf('Nur gesägte Stämme gehen ein. %s Stämme mit Häkchen bei %s zählen nicht.', $sawnRule, $unsawableName)),
-        ];
-    }
-
-    /**
-     * The sums of "sawing()": a stem is processed if it is sawn (StemFigures::isSawn()) or unsawable. Round wood adds up processed stems,
+     * The sums of the dashboard and the pile cards: a stem is processed if it is sawn (StemFigures::isSawn()) or unsawable. Round wood adds up processed stems,
      * sawn timber every piece of sawn stems (beams, or the stem sawn whole). Items without a calculable volume are left out of a sum and counted.
      *
      * @param list<Measures>             $items   all stems and beams that are not voided
@@ -262,10 +215,10 @@ final class KeyFigures
     }
 
     /**
-     * The section "Stämme nach Mittendurchmesser": processed stems (as in sawing()) in classes of two whole cm (32 and 33 cm: from_cm 32, to_cm 34).
+     * The section "Stämme nach Mittendurchmesser": processed stems (as in totals()) in classes of two whole cm (32 and 33 cm: from_cm 32, to_cm 34).
      * The class diameter is the mean of both diameters rounded commercially to whole cm (half up: 32.5 → 33, V29's choice, not the forestry convention of rounding down), or the one recorded (RoundWood holds it twice then).
      * Classes run from the smallest to the largest one with a stem, empty ones in between included. Yield and beams per stem count
-     * sawn stems only, missing volumes are left out as in sawing(); a stem sawn whole is one beam.
+     * sawn stems only, missing volumes are left out as in totals(); a stem sawn whole is one beam.
      * Beams are large or small by the shorter side of their cross-section; one without a readable cross-section counts in neither.
      *
      * @param list<Measures>        $items all stems and beams that are not voided
@@ -289,12 +242,11 @@ final class KeyFigures
                 continue;
             }
             $round = $stemFigures->roundWood;
-            if (null === $round->diameterMax || null === $round->diameterMin) {
+            if (null === $mean = self::meanDiameter($round)) {
                 ++$withoutDiameter;
                 continue;
             }
-            // Rounded to 6 places first, so that float noise does not turn 32.5 into 32.4999…; PHP's round() is half up
-            $from = intdiv((int) round(round(($round->diameterMax + $round->diameterMin) / 2, 6)), 2) * 2;
+            $from = self::diameterClass($mean);
             $classes[$from] ??= $empty;
             ++$classes[$from]['stems'];
             if (!$sawn) {
@@ -330,7 +282,7 @@ final class KeyFigures
         return [
             'notes' => [
                 ['term' => 'Stämme', 'text' => 'Alle bearbeiteten Stämme, also gesägt oder nicht sägbar.'],
-                ['term' => 'Durchmesser', 'text' => \sprintf('(%s + %s) ÷ 2, auf ganze cm kaufmännisch gerundet (ab ,5 aufgerundet). Ist nur einer erfasst, zählt dieser.', $names['mid_diameter_max'], $names['mid_diameter_min'])],
+                ['term' => 'Durchmesser', 'text' => self::diameterRule($names)],
                 ['term' => 'Klassen', 'text' => 'je 2 cm, z. B. 32–33 cm = 32 und 33 cm.'],
                 ['term' => 'Ausbeute', 'text' => 'Schnittholz ÷ Rundholz der gesägten Stämme der Klasse. Der Rest ist Verschnitt: Rinde, Schwarten, Späne.'],
                 ['term' => 'Balken je Stamm', 'text' => 'Große bzw. kleine Balken ÷ gesägte Stämme der Klasse. Ein als Ganzes gesägter Stamm zählt als 1 Balken.'],
@@ -342,8 +294,61 @@ final class KeyFigures
         ];
     }
 
+    // --- The class of a stem by its mean diameter -------------------------------------------------------
+
+    /** The mean of both diameters (with only one recorded, RoundWood holds it twice); null without a diameter. */
+    public static function meanDiameter(RoundWood $round): ?float
+    {
+        return null === $round->diameterMax || null === $round->diameterMin ? null : ($round->diameterMax + $round->diameterMin) / 2;
+    }
+
+    /** The mean in whole cm, rounded commercially (half up: 32.5 → 33, V29's choice, not the forestry convention of rounding down). */
+    public static function wholeCm(float $mean): int
+    {
+        // Rounded to 6 places first, so that float noise does not turn 32.5 into 32.4999…; PHP's round() is half up
+        return (int) round(round($mean, 6));
+    }
+
+    /**
+     * The one rule for the class of a stem: classes of two whole cm, 32 and 33 cm are from_cm 32 (to_cm 34).
+     * The dashboard section and the key figure use it; the list of stems has its copy in frontend/shared/attributes.ts (diameterClassOf), tested with the same cases.
+     */
+    public static function diameterClass(float $mean): int
+    {
+        return intdiv(self::wholeCm($mean), 2) * 2;
+    }
+
+    /** @param array<string, string> $names */
+    public static function diameterRule(array $names): string
+    {
+        return \sprintf('(%s + %s) ÷ 2, auf ganze cm kaufmännisch gerundet (ab ,5 aufgerundet). Ist nur einer erfasst, zählt dieser.', $names['mid_diameter_max'], $names['mid_diameter_min']);
+    }
+
+    /** @param array<string, string> $names */
+    private function diameterClassCard(RoundWood $round, array $names): KeyFigure
+    {
+        $mean = self::meanDiameter($round);
+
+        return new KeyFigure(
+            'diameter_class', 'Mittendurchmesser', null === $mean ? null : (float) self::diameterClass($mean), 'cm',
+            match (true) {
+                null === $mean => self::lacks([Missing::Diameter]),
+                $round->oneDiameter => \sprintf('aus einem Durchmesser (%s cm)', self::cm($round->diameterMax)),
+                default => \sprintf('aus %s × %s cm', self::cm($round->diameterMax), self::cm($round->diameterMin)),
+            },
+            self::diameterRule($names),
+            null === $mean ? null : \sprintf(
+                '%s%s ≈ %d cm',
+                $round->oneDiameter ? '' : \sprintf('(%s + %s) ÷ 2 = ', self::cm($round->diameterMax), self::cm($round->diameterMin)),
+                self::cm($mean),
+                self::wholeCm($mean),
+            ),
+            null,
+        );
+    }
+
     /** " 3 bearbeitete Stämme ohne Durchmesser oder Länge fehlen in der Summe."; empty if none. */
-    private static function leftOut(int $count, string $one, string $many, string $what): string
+    public static function leftOut(int $count, string $one, string $many, string $what): string
     {
         return match ($count) {
             0 => '',

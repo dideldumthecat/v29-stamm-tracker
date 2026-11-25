@@ -258,7 +258,7 @@ test.describe('dashboard: stems by diameter', () => {
       '34–35 cm',
       '32–33 cm',
       '30–31 cm',
-      'ohne Durchmesser',
+      'Kein ⌀',
     ])
 
     await header(page, 'Ausbeute').getByRole('button').click()
@@ -268,7 +268,7 @@ test.describe('dashboard: stems by diameter', () => {
     await header(page, 'Ausbeute').getByRole('button').click()
     await expect(header(page, 'Ausbeute')).toHaveAttribute('aria-sort', 'ascending')
     await expect(diameters(page).first()).toHaveText('32–33 cm')
-    await expect(diameters(page).last()).toHaveText('ohne Durchmesser')
+    await expect(diameters(page).last()).toHaveText('Kein ⌀')
   })
 
   test('stacks each row on a narrow screen: the bar below the diameter, the other figures named', async ({
@@ -292,7 +292,7 @@ test.describe('dashboard: stems by diameter', () => {
     ).toBeVisible()
     await expect(
       card(page)
-        .getByRole('row', { name: /^ohne Durchmesser/ })
+        .getByRole('row', { name: /^Kein Durchmesser/ })
         .getByText('1 Stamm', { exact: true }),
     ).toBeVisible()
     await expect(row.getByText('14×14 je Stamm 1,0', { exact: true })).toBeVisible()
@@ -300,9 +300,77 @@ test.describe('dashboard: stems by diameter', () => {
   })
 })
 
+// A mouse click on the middle of an element, for one that another element (a stretched link) lies over: `click` would refuse it
+async function clickAt(page: Page, element: Locator) {
+  await element.scrollIntoViewIfNeeded()
+  const box = (await element.boundingBox())!
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
+}
+
 test.describe('dashboard: stems by diameter, layout', () => {
   const card = (page: Page) =>
     page.getByRole('region', { name: 'Stämme nach Mittendurchmesser', exact: true })
+
+  test('opens the stem list from anywhere in a row with stems, and from the arrow; a row without stems is no link', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1000, height: 800 })
+    await page.goto('/admin/')
+    await signIn(page, 'K7QM4XHT9RDP')
+
+    // the arrow does not make a row higher than one without
+    const height = async (name: RegExp) =>
+      (await card(page).getByRole('row', { name }).boundingBox())!.height
+    expect(await height(/^32–33 cm/)).toBe(await height(/^34–35 cm/))
+    await expect(
+      card(page)
+        .getByRole('row', { name: /^34–35 cm/ })
+        .getByRole('link'),
+    ).toHaveCount(0)
+
+    // a click on the bar, far from the arrow, follows the link of the row (the link lies over the bar)
+    await clickAt(
+      page,
+      card(page)
+        .getByRole('row', { name: /^32–33 cm/ })
+        .getByRole('img', { name: 'Ausbeute 26,1 %', exact: true }),
+    )
+    await expect(page).toHaveURL(/\/admin\/stems\?Mittendurchmesser=32&Bearbeitet=yes$/)
+    await expect(
+      page.getByRole('button', { name: 'Mittendurchmesser: 32–33 cm', exact: true }),
+    ).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Bearbeitet: ja', exact: true })).toBeVisible()
+
+    await page.goBack()
+    await card(page)
+      .getByRole('link', { name: 'Stämme ohne Durchmesser in der Stammliste zeigen' })
+      .focus()
+    await page.keyboard.press('Enter')
+    await expect(page).toHaveURL(/\/admin\/stems\?Mittendurchmesser=none&Bearbeitet=yes$/)
+    await expect(
+      page.getByRole('button', { name: 'Mittendurchmesser: Nicht erfasst', exact: true }),
+    ).toBeVisible()
+  })
+
+  test('makes the whole stacked row the click area, the arrow at the top right', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 800 })
+    await page.goto('/admin/')
+    await signIn(page, 'K7QM4XHT9RDP')
+
+    const row = card(page).getByRole('row', { name: /^32–33 cm/ })
+    const arrow = row.getByRole('link')
+    const [rowBox, arrowBox, countBox] = await Promise.all([
+      row.boundingBox(),
+      arrow.boundingBox(),
+      row.getByRole('img', { name: '1 Stamm', exact: true }).boundingBox(),
+    ])
+    expect(arrowBox!.x + arrowBox!.width).toBeGreaterThan(rowBox!.x + rowBox!.width - 20)
+    expect(arrowBox!.x).toBeGreaterThan(countBox!.x)
+    await clickAt(page, row.getByText('14×14 je Stamm 1,0', { exact: true }))
+    await expect(page).toHaveURL(/\/admin\/stems\?Mittendurchmesser=32&Bearbeitet=yes$/)
+  })
 
   test('shows the unsawable stems in brackets behind the count, the counts end on one edge', async ({
     page,
@@ -324,14 +392,14 @@ test.describe('dashboard: stems by diameter, layout', () => {
     expect(new Set(edges).size).toBe(1)
   })
 
-  test('is a table from 768px on with a bar of at least 120px, stacked below', async ({ page }) => {
+  test('is a table from 768px on with a bar of at least 80px, stacked below', async ({ page }) => {
     const row = () => card(page).getByRole('row', { name: /^32–33 cm/ })
     const bar = () => row().getByRole('img', { name: 'Ausbeute 26,1 %', exact: true })
     await page.setViewportSize({ width: 768, height: 800 })
     await page.goto('/admin/')
     await signIn(page, 'K7QM4XHT9RDP')
 
-    expect((await bar().boundingBox())!.width).toBeGreaterThanOrEqual(120)
+    expect((await bar().boundingBox())!.width).toBeGreaterThanOrEqual(80)
     // Every header is at most two lines (44 px) and its words do not break, sorted (bold) or not; they end on one edge
     const headings = card(page).locator('thead button')
     const bottoms: number[] = []
@@ -1088,6 +1156,10 @@ test.describe('stem list', () => {
     await expect(page).toHaveURL(/tags=1-200/)
     await expect(page.getByText('2 von 4 Stämmen')).toBeVisible()
 
+    // The phone emulation makes the whole page its window and cannot scroll or pan it (see above): the first row lies below the visible part since the
+    // filter bar has two more buttons. A person would pan to it, so the window is made tall enough to show it.
+    const size = page.viewportSize()!
+    await page.setViewportSize({ width: size.width, height: Math.max(size.height, 1200) })
     await page.getByRole('link', { name: '00104', exact: true }).click()
     await expect(page).toHaveURL(/\/admin\/stems\/104$/)
     await expect(page.locator('h1')).toHaveText('00104')

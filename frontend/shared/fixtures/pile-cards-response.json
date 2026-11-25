@@ -27,7 +27,7 @@
         },
         {
           "term": "Groß und klein",
-          "text": "Grundlage ist Gesägter Querschnitt: Ist die kleinere Seite mindestens 12 cm, ist der Balken groß (Balken 14×14), sonst klein (Balken 10×14). Ein Balken ohne lesbaren Querschnitt zählt weder als groß noch als klein."
+          "text": "Grundlage ist Gesägter Querschnitt: Ist die kleinere Seite mindestens 12 cm, ist der Balken 14×14 (groß), sonst 10×14 (klein). Ein Balken ohne lesbaren Querschnitt zählt weder als groß noch als klein."
         },
         {
           "term": "Durchschnitt",
@@ -45,8 +45,8 @@
       },
       "sawn_timber_m3": null,
       "size_labels": {
-        "large": "Balken 14×14",
-        "small": "Balken 10×14"
+        "large": "14×14 (groß)",
+        "small": "10×14 (klein)"
       },
       "weeks": [],
       "average_per_week": null
@@ -78,7 +78,7 @@
         },
         {
           "term": "Groß und klein",
-          "text": "Grundlage ist Gesägter Querschnitt: Ist die kleinere Seite mindestens 12 cm, ist der Balken groß (Balken 14×14), sonst klein (Balken 10×14). Ein Balken ohne lesbaren Querschnitt zählt weder als groß noch als klein."
+          "text": "Grundlage ist Gesägter Querschnitt: Ist die kleinere Seite mindestens 12 cm, ist der Balken 14×14 (groß), sonst 10×14 (klein). Ein Balken ohne lesbaren Querschnitt zählt weder als groß noch als klein."
         },
         {
           "term": "Durchschnitt",
@@ -96,8 +96,8 @@
       },
       "sawn_timber_m3": 7.809183899999984,
       "size_labels": {
-        "large": "Balken 14×14",
-        "small": "Balken 10×14"
+        "large": "14×14 (groß)",
+        "small": "10×14 (klein)"
       },
       "weeks": [
         {
@@ -210,7 +210,7 @@
         },
         {
           "term": "Groß und klein",
-          "text": "Grundlage ist Gesägter Querschnitt: Ist die kleinere Seite mindestens 12 cm, ist der Balken groß (Balken 14×14), sonst klein (Balken 10×14). Ein Balken ohne lesbaren Querschnitt zählt weder als groß noch als klein."
+          "text": "Grundlage ist Gesägter Querschnitt: Ist die kleinere Seite mindestens 12 cm, ist der Balken 14×14 (groß), sonst 10×14 (klein). Ein Balken ohne lesbaren Querschnitt zählt weder als groß noch als klein."
         },
         {
           "term": "Durchschnitt",
@@ -228,8 +228,8 @@
       },
       "sawn_timber_m3": 1.2909833999999998,
       "size_labels": {
-        "large": "Balken 14×14",
-        "small": "Balken 10×14"
+        "large": "14×14 (groß)",
+        "small": "10×14 (klein)"
       },
       "weeks": [
         {

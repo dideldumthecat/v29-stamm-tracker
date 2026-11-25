@@ -27,6 +27,8 @@ final readonly class Measures
         public ?\DateTimeImmutable $createdAt = null,
         /** Stems: device time "sawn" was first recorded as yes, without one the time the cross-section was recorded; null if neither. */
         public ?\DateTimeImmutable $sawnAt = null,
+        /** Stems: device time "unsawable" was first recorded as yes; null if never or the attribute does not exist. */
+        public ?\DateTimeImmutable $unsawableAt = null,
     ) {
     }
 }

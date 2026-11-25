@@ -101,18 +101,20 @@ class DashboardTest extends WebTestCase
 
     private function everyKindOfStem(): void
     {
-        // Split, the checkmark forgotten: round wood 0,502 fm, four beams 0,304 m³ (the worked example of the detail view)
-        $this->stem('104', ['mid_diameter_max' => 40, 'mid_diameter_min' => 38, 'length' => '4,10 m']);
+        // 104 to 107 share a pile of 10 Rm, 2,50 Rm each; 108 is on no pile
+        $this->pile('0199a000-0000-7000-8000-00000000a001', 'P1', 10, 'P1', null, null, null, '10.00');
+        // Split, the checkmark forgotten: round wood 0,502 fm, four beams 0,304 m³ (the worked example of the detail view); processed in KW 47 by its beams
+        $this->stem('104', ['mid_diameter_max' => 40, 'mid_diameter_min' => 38, 'length' => '4,10 m', 'source' => 'P1']);
         foreach (['A' => '14,7 x 14,7 cm', 'B' => '14,7 x 14,7 cm', 'C' => '10,5 x 14,7 cm', 'D' => '10,5 x 14,7 cm'] as $letter => $section) {
             $this->item("104-$letter", '104');
             $this->event("104-$letter", EventType::AttributeRecorded, ['attribute_id' => $this->attribute['sawn_cross_section']->id->toRfc4122(), 'value' => $this->option[$section]], '2026-11-18 08:00:00');
         }
-        // Sawn whole: round wood 0,339 fm, sawn timber 0,089 m³
-        $this->stem('105', ['mid_diameter_max' => 34, 'mid_diameter_min' => 31, 'length' => '4,10 m', 'sawn' => true, 'sawn_cross_section' => '14,7 x 14,7 cm']);
-        // Unsawable: round wood 0,290 fm, outside the yield
-        $this->stem('106', ['mid_diameter_max' => 30, 'mid_diameter_min' => 30, 'length' => '4,10 m', 'unsawable' => true]);
-        // Sawn without diameter: counts as processed, its sawn timber (0,063 m³) counts, its round wood cannot
-        $this->stem('107', ['length' => '4,10 m', 'sawn' => true, 'sawn_cross_section' => '10,5 x 14,7 cm']);
+        // Sawn whole in KW 45: round wood 0,339 fm, sawn timber 0,089 m³
+        $this->stem('105', ['mid_diameter_max' => 34, 'mid_diameter_min' => 31, 'length' => '4,10 m', 'source' => 'P1', 'sawn' => true, 'sawn_cross_section' => '14,7 x 14,7 cm'], '2026-11-03 09:00:00');
+        // Unsawable in KW 46: round wood 0,290 fm, outside the yield
+        $this->stem('106', ['mid_diameter_max' => 30, 'mid_diameter_min' => 30, 'length' => '4,10 m', 'source' => 'P1', 'unsawable' => true], '2026-11-10 09:00:00');
+        // Sawn without diameter in KW 46: counts as processed, its sawn timber (0,063 m³) counts, its round wood cannot
+        $this->stem('107', ['length' => '4,10 m', 'source' => 'P1', 'sawn' => true, 'sawn_cross_section' => '10,5 x 14,7 cm'], '2026-11-11 09:00:00');
         // Not processed
         $this->stem('108', ['mid_diameter_max' => 50, 'mid_diameter_min' => 50, 'length' => '4,10 m']);
         // Voided: counts nowhere; its void is the newest event
@@ -148,35 +150,44 @@ class DashboardTest extends WebTestCase
     /**
      * @param array<string, mixed> $response
      *
-     * @return array<string, array<string, mixed>> the figures of "sawing" by key
+     * @return array<string, array<string, mixed>> the cards of both card sections by key
      */
-    private static function sawing(array $response): array
+    private static function cards(array $response): array
     {
-        return array_column($response['sections'][0]['figures'], null, 'key');
+        return array_column([...$response['sections'][0]['cards'], ...$response['sections'][1]['cards']], null, 'key');
+    }
+
+    /** @return array<string, mixed> the dashboard on Saturday 21 Nov 2026 (the current week is KW 47) */
+    private function dashboardOnSaturday(): array
+    {
+        $this->dashboard();
+
+        return self::getContainer()->get(Dashboard::class)->build(new \DateTimeImmutable('2026-11-21 12:00:00 Europe/Berlin'));
     }
 
     public function testEveryKindOfStemMatchesTheFixture(): void
     {
         $this->everyKindOfStem();
 
-        $response = $this->dashboard();
+        $response = $this->dashboardOnSaturday();
 
         $fixture = self::fixture();
         self::assertSame($fixture['last_sync_at'], $response['last_sync_at']);
         self::assertEqualsWithDelta($fixture['sections'], $response['sections'], 1e-9);
-        $figures = self::sawing($response);
-        self::assertSame([5, 4, 1], [$figures['stems_total']['value'], $figures['stems_processed']['value'], $figures['stems_open']['value']]);
+        self::assertSame(['round_wood', 'sawn_timber', 'stems_by_diameter'], array_column($response['sections'], 'key'));
+        $cards = self::cards($response);
+        self::assertSame(['5', '4', '1'], [$cards['stems_total']['value'], $cards['stems_processed']['value'], $cards['stems_unsawable']['value']]);
         $roundSawn = M_PI / 4 * (0.40 * 0.38 + 0.34 * 0.31) * 4.1;
         $roundUnsawable = M_PI / 4 * 0.30 * 0.30 * 4.1;
         $sawnTimber = (2 * 0.147 * 0.147 + 2 * 0.105 * 0.147 + 0.147 * 0.147 + 0.105 * 0.147) * 4.1;
-        self::assertEqualsWithDelta($roundSawn + $roundUnsawable, $figures['round_wood']['value'], 1e-9);
-        self::assertEqualsWithDelta($sawnTimber, $figures['sawn_timber']['value'], 1e-9);
-        self::assertEqualsWithDelta($sawnTimber / $roundSawn, $figures['yield']['value'], 1e-9, 'the unsawable stem is not in the denominator');
-        self::assertSame('3 gesägt + 1 nicht sägbar', $figures['stems_processed']['inserted'], 'the beams make 104 sawn');
-        self::assertSame('Als gesägt zählt ein Stamm, wenn Gesägt angehakt ist, Balken vorhanden sind oder Gesägter Querschnitt erfasst ist. Bearbeitet sind außerdem Stämme mit Häkchen bei Nicht sägbar.', $figures['stems_processed']['formula']);
+        self::assertSame(number_format($roundSawn + $roundUnsawable, 2, ',', ''), $cards['round_wood']['value']);
+        self::assertStringStartsWith(number_format($sawnTimber, 2, ',', '').' m³', $cards['beams_total']['secondary']);
+        self::assertSame(number_format($sawnTimber / $roundSawn * 100, 1, ',', ''), $cards['yield']['value'], 'the unsawable stem is not in the denominator');
+        self::assertSame('3 gesägt + 1 nicht sägbar; 4 ÷ 5 Stämme', $cards['stems_processed']['inserted'], 'the beams make 104 sawn');
         self::assertStringNotContainsString('„', json_encode($response, \JSON_UNESCAPED_UNICODE), 'no quotation marks in the texts');
-        self::assertSame('0,83 fm gesägt + 0,29 fm nicht sägbar', $figures['round_wood']['inserted']);
-        self::assertStringContainsString('1 bearbeiteter Stamm ohne Durchmesser oder Länge fehlt in der Summe.', $figures['round_wood']['note']);
+        self::assertSame('0,83 fm gesägt + 0,29 fm nicht sägbar', $cards['round_wood']['inserted']);
+        self::assertStringContainsString('1 bearbeiteter Stamm ohne Durchmesser oder Länge fehlt in der Summe.', $cards['round_wood']['note']);
+        self::assertSame(['1,5', 'KW 48'], [$cards['tempo']['value'], $cards['supply']['value']], '105, 106 and 107 in KW 45 and 46; 104 in the current week does not count');
     }
 
     public function testAMissingPieceIsLeftOutAndNamed(): void
@@ -184,11 +195,11 @@ class DashboardTest extends WebTestCase
         $this->stem('104', ['mid_diameter_max' => 40, 'mid_diameter_min' => 39, 'length' => '4,10 m', 'sawn' => true]);
         $this->item('104-A', '104');
 
-        $figures = self::sawing($this->dashboard());
+        $cards = self::cards($this->dashboard());
 
-        self::assertSame(0, $figures['sawn_timber']['value']);
-        self::assertSame('1 Stück ohne Querschnitt oder Länge fehlt in der Summe.', $figures['sawn_timber']['note']);
-        self::assertSame(0, $figures['yield']['value']);
+        self::assertSame('0,00 m³ · aus 1 Stamm', $cards['beams_total']['secondary']);
+        self::assertSame('1 Stück ohne Querschnitt oder Länge fehlt in der Summe.', $cards['beams_total']['note']);
+        self::assertSame('0,0', $cards['yield']['value']);
     }
 
     public function testBeamsAndACrossSectionMakeAStemSawnAndOnlySawnStemsGoIntoTheYield(): void
@@ -201,13 +212,13 @@ class DashboardTest extends WebTestCase
         $this->stem('107', ['mid_diameter_max' => 30, 'mid_diameter_min' => 30, 'length' => '4,10 m', 'sawn_cross_section' => '10,5 x 14,7 cm']);
         $this->stem('108', ['mid_diameter_max' => 30, 'mid_diameter_min' => 30, 'length' => '4,10 m']);
 
-        $figures = self::sawing($this->dashboard());
+        $cards = self::cards($this->dashboard());
 
-        self::assertSame([4, 3, 1], [$figures['stems_total']['value'], $figures['stems_processed']['value'], $figures['stems_open']['value']]);
-        self::assertSame('2 gesägt + 1 nicht sägbar', $figures['stems_processed']['inserted']);
+        self::assertSame(['4', '3', '1'], [$cards['stems_total']['value'], $cards['stems_processed']['value'], $cards['stems_unsawable']['value']]);
+        self::assertSame('2 gesägt + 1 nicht sägbar; 3 ÷ 4 Stämme', $cards['stems_processed']['inserted']);
         $sawnTimber = (0.147 * 0.147 + 0.105 * 0.147) * 4.1;
-        self::assertEqualsWithDelta($sawnTimber, $figures['sawn_timber']['value'], 1e-9);
-        self::assertEqualsWithDelta($sawnTimber / (M_PI / 4 * (0.40 * 0.40 + 0.30 * 0.30) * 4.1), $figures['yield']['value'], 1e-9);
+        self::assertSame(number_format($sawnTimber, 2, ',', '').' m³ · aus 2 Stämmen', $cards['beams_total']['secondary']);
+        self::assertSame(number_format($sawnTimber / (M_PI / 4 * (0.40 * 0.40 + 0.30 * 0.30) * 4.1) * 100, 1, ',', ''), $cards['yield']['value']);
     }
 
     /** @return iterable<string, array{array<string, mixed>, bool, bool}> the values of stem 1, whether it has a beam, whether it is sawn */
@@ -228,11 +239,11 @@ class DashboardTest extends WebTestCase
             $this->item('1-A', '1');
         }
 
-        $figures = self::sawing($this->dashboard());
+        $cards = self::cards($this->dashboard());
         $sheet = self::getContainer()->get(TimberReport::class)->build(new \DateTimeImmutable())->stems;
 
-        self::assertSame($sawn ? 1 : 0, $figures['stems_processed']['value']);
-        self::assertSame($sawn ? '1 gesägt + 0 nicht sägbar' : '0 gesägt + 0 nicht sägbar', $figures['stems_processed']['inserted']);
+        self::assertSame($sawn ? '1' : '0', $cards['stems_processed']['value']);
+        self::assertSame($sawn ? '1 gesägt + 0 nicht sägbar; 1 ÷ 1 Stämme' : '0 gesägt + 0 nicht sägbar; 0 ÷ 1 Stämme', $cards['stems_processed']['inserted']);
         self::assertSame($sawn ? 'ja' : 'nein', array_combine($sheet->headers, $sheet->rows[0])['Gesägt']);
     }
 
@@ -255,10 +266,11 @@ class DashboardTest extends WebTestCase
         $response = $this->dashboard();
 
         self::assertNull($response['last_sync_at']);
-        $figures = self::sawing($response);
-        self::assertSame([0, 0, 0], [$figures['stems_total']['value'], $figures['stems_processed']['value'], $figures['stems_open']['value']]);
-        self::assertNull($figures['yield']['value']);
-        self::assertNull($figures['yield']['inserted']);
+        $cards = self::cards($response);
+        self::assertSame(['0', '0', '0'], [$cards['stems_total']['value'], $cards['stems_processed']['value'], $cards['beams_total']['value']]);
+        self::assertSame(['–', '–', '–'], [$cards['yield']['value'], $cards['tempo']['value'], $cards['supply']['value']]);
+        self::assertNull($cards['yield']['inserted']);
+        self::assertNull($cards['stems_unsawable']['secondary'], 'no share without processed stems');
     }
 
     public function testNeedsTheAdministrationRole(): void
@@ -284,7 +296,7 @@ class DashboardTest extends WebTestCase
         $dashboard = $this->dashboard();
 
         self::assertSame(['pile-0199a000-0000-7000-8000-00000000a003', 'pile-0199a000-0000-7000-8000-00000000a002', 'pile-0199a000-0000-7000-8000-00000000a001'], array_column($cards['sections'], 'key'));
-        self::assertSame(['figures', 'diameter_classes'], array_column($dashboard['sections'], 'type'));
+        self::assertSame(['cards', 'cards', 'diameter_classes'], array_column($dashboard['sections'], 'type'));
     }
 
     private function pile(string $id, string $label, int $order, string $number, ?string $location, ?string $latitude, ?string $longitude, ?string $volume): void

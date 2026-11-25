@@ -44,10 +44,11 @@ final class MeasureReader
     }
 
     /**
-     * @param array<string, list<array{value: bool|int|float|string, recorded_at: string, user_id: string, event_id: string}>> $values    records by attribute id
-     * @param ?\DateTimeImmutable                                                                                              $firstSawn when "sawn" was first recorded as yes (the values hold only the latest), see MeasureLoader
+     * @param array<string, list<array{value: bool|int|float|string, recorded_at: string, user_id: string, event_id: string}>> $values         records by attribute id
+     * @param ?\DateTimeImmutable                                                                                              $firstSawn      when "sawn" was first recorded as yes (the values hold only the latest), see MeasureLoader
+     * @param ?\DateTimeImmutable                                                                                              $firstUnsawable when "unsawable" was first recorded as yes, as $firstSawn
      */
-    public function read(TimberItem $item, array $values, ?\DateTimeImmutable $firstSawn = null): Measures
+    public function read(TimberItem $item, array $values, ?\DateTimeImmutable $firstSawn = null, ?\DateTimeImmutable $firstUnsawable = null): Measures
     {
         $number = fn (string $key, int $count): ?array => $this->numbers($item, $values, $this->attributes[$key], $count);
         // Only stems have diameters; a beam that inherited them is not asked.
@@ -74,6 +75,7 @@ final class MeasureReader
             $isStem ? $this->pileId($values) : null,
             \DateTimeImmutable::createFromInterface($item->createdAt),
             $isStem ? $firstSawn ?? $this->crossSectionAt($values) : null,
+            $isStem ? $firstUnsawable : null,
         );
     }
 
