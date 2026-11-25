@@ -5,6 +5,7 @@ import type { PileCardSection, PileCardsResponse } from '@v29/shared/contract'
 import { ApiError, request } from '@/api/client'
 import LoadFailure from '@/components/LoadFailure.vue'
 import LoadingStatus from '@/components/LoadingStatus.vue'
+import PageHeader from '@/components/PageHeader.vue'
 import PileCard from '@/components/PileCard.vue'
 
 /** The page "Polter": one card per pile, in the order of the server (the newest pile first). The page only draws what the server calculated. */
@@ -27,14 +28,13 @@ void load()
 
 <template>
   <main class="page-column py-8">
-    <h1 class="text-3xl font-bold">Polter</h1>
-    <p class="mt-2 text-mute">Zuletzt angelegter Polter oben.</p>
+    <PageHeader title="Polter">Zuletzt angelegter Polter oben.</PageHeader>
 
     <LoadFailure v-if="status === 'error'" :failure="failure" @retry="load" />
     <LoadingStatus v-else-if="status === 'loading'" role="status" />
 
-    <template v-else>
+    <div v-else class="flex flex-col gap-6">
       <PileCard v-for="section in sections" :key="section.key" :section="section" />
-    </template>
+    </div>
   </main>
 </template>

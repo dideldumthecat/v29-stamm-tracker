@@ -17,6 +17,7 @@ import { ApiError, request } from '@/api/client'
 import ColumnFilterButton from '@/components/ColumnFilterButton.vue'
 import LoadFailure from '@/components/LoadFailure.vue'
 import LoadingStatus from '@/components/LoadingStatus.vue'
+import PageHeader from '@/components/PageHeader.vue'
 import ResultsBar from '@/components/ResultsBar.vue'
 import StatusCard from '@/components/StatusCard.vue'
 import { itemRoute } from '@/detail'
@@ -158,10 +159,11 @@ async function removeFilter(id: string) {
   <main data-wide class="py-8">
     <div class="sticky left-0 w-[100cqw]">
       <div class="page-column">
-        <h1 class="text-3xl font-bold">{{ kind === 'stem' ? 'Stämme' : 'Balken' }}</h1>
-        <p class="mt-2 text-mute">Eine Spalte je Merkmal, Reihenfolge wie in der App.</p>
+        <PageHeader :title="kind === 'stem' ? 'Stämme' : 'Balken'">
+          Eine Spalte je Merkmal, Reihenfolge wie in der App.
+        </PageHeader>
 
-        <form class="mt-6" @submit.prevent>
+        <form @submit.prevent>
           <div class="flex flex-wrap items-end gap-x-3 gap-y-3">
             <div class="flex max-w-sm min-w-48 flex-1 flex-col text-sm text-mute">
               <label for="stems-tags">Kennung</label>

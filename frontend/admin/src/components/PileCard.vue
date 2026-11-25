@@ -51,7 +51,7 @@ const figures = computed(() => {
 </script>
 
 <template>
-  <section class="mt-6 card p-4 sm:p-6" :aria-labelledby="`section-${section.key}`">
+  <section class="card p-4 sm:p-6" :aria-labelledby="`section-${section.key}`">
     <div class="flex items-center">
       <h2 :id="`section-${section.key}`" class="text-lg font-bold">{{ section.label }}</h2>
       <InfoPopover

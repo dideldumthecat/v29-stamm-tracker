@@ -90,7 +90,7 @@ describe('activity page', () => {
     const { wrapper } = await open()
 
     expect(wrapper.get('h1').text()).toBe('Aktivität')
-    expect(wrapper.get('h1 + p').text().replace(/\s+/g, ' ')).toBe(
+    expect(wrapper.get('header > p').text().replace(/\s+/g, ' ')).toBe(
       'Wer hat wann was erfasst? Die Uhrzeit links ist der Eingang am Server (nach einem Sync), die Zeiten in den Details sind die Uhrzeit am Handy zum Zeitpunkt der Erfassung.',
     )
     expect(wrapper.text()).not.toContain('neueste zuerst')

@@ -12,6 +12,7 @@ import FilterChecklist from '@/components/FilterChecklist.vue'
 import FilterRange from '@/components/FilterRange.vue'
 import LoadFailure from '@/components/LoadFailure.vue'
 import LoadingStatus from '@/components/LoadingStatus.vue'
+import PageHeader from '@/components/PageHeader.vue'
 import ResultsBar from '@/components/ResultsBar.vue'
 import StatusCard from '@/components/StatusCard.vue'
 import { useFilterBar } from '@/filterBar'
@@ -204,13 +205,12 @@ const barText = computed(() =>
 <template>
   <main class="py-8">
     <div class="page-column" :class="{ 'pb-2': showBar }">
-      <h1 class="text-3xl font-bold">Aktivität</h1>
-      <p class="mt-2 text-measure text-mute">
+      <PageHeader title="Aktivität">
         Wer hat wann was erfasst? Die Uhrzeit links ist der Eingang am Server (nach einem Sync), die
         Zeiten in den Details sind die Uhrzeit am Handy zum Zeitpunkt der Erfassung.
-      </p>
+      </PageHeader>
 
-      <form class="mt-6" @submit.prevent>
+      <form @submit.prevent>
         <div class="flex flex-wrap items-end gap-x-3 gap-y-3">
           <div class="flex max-w-sm min-w-48 flex-1 flex-col text-sm text-mute">
             <label for="activity-tags">Kennung</label>

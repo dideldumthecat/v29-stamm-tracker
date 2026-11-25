@@ -17,6 +17,7 @@ import AttributeTypePicker from '@/components/AttributeTypePicker.vue'
 import DiscardDialog from '@/components/DiscardDialog.vue'
 import LoadFailure from '@/components/LoadFailure.vue'
 import LoadingStatus from '@/components/LoadingStatus.vue'
+import PageHeader from '@/components/PageHeader.vue'
 import ResultsBar from '@/components/ResultsBar.vue'
 import StatusCard from '@/components/StatusCard.vue'
 import {
@@ -419,17 +420,16 @@ const viewButton = 'flex h-11 items-center rounded-lg border-2 px-3 text-base'
 <template>
   <main class="py-8">
     <div class="page-column">
-      <h1 class="text-3xl font-bold">Merkmale</h1>
-      <p class="mt-2 text-measure text-mute">
+      <PageHeader title="Merkmale">
         Merkmale legen fest, was in der App erfasst wird, in der Reihenfolge der Vorschau. Die
         Reihenfolge änderst du per Ziehen, sie wird sofort gespeichert. Änderungen kommen beim
         nächsten Synchronisieren auf die Handys. Merkmale mit
         <LockIcon :size="14" class="inline-block align-[-2px]" aria-label="Schloss" /> sind
         Systemmerkmale: App und Berichte rechnen mit ihnen, deshalb änderst du hier nur Name,
         Beschreibung und Reihenfolge, alles andere ist im Code festgelegt.
-      </p>
+      </PageHeader>
 
-      <div class="mt-6 flex flex-wrap items-end gap-x-6 gap-y-3">
+      <div class="flex flex-wrap items-end gap-x-6 gap-y-3">
         <div class="flex flex-col text-sm text-mute">
           <span :id="'view-label'">Vorschau für</span>
           <div class="mt-1 flex gap-3" role="group" aria-labelledby="view-label">

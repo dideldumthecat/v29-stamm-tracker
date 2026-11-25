@@ -51,8 +51,8 @@ describe('page Polter', () => {
     const { wrapper } = await open()
 
     expect(wrapper.get('h1').text()).toBe('Polter')
-    expect(wrapper.get('h1 + p').text()).toBe('Zuletzt angelegter Polter oben.')
-    expect(wrapper.get('h1 + p').classes()).toContain('text-mute')
+    expect(wrapper.get('header > p').text()).toBe('Zuletzt angelegter Polter oben.')
+    expect(wrapper.get('header > p').classes()).toContain('text-mute')
     expect(wrapper.findAll('main section > div > h2').map((h2) => h2.text())).toEqual([
       'Polter 2601-010170 (Lindenallee)',
       'Polter 2601-010160 (Waldweg Nord)',

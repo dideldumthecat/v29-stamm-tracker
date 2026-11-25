@@ -61,7 +61,9 @@ describe('stem list', () => {
     const { wrapper } = await open()
 
     expect(wrapper.get('h1').text()).toBe('Stämme')
-    expect(wrapper.get('h1 + p').text()).toBe('Eine Spalte je Merkmal, Reihenfolge wie in der App.')
+    expect(wrapper.get('header > p').text()).toBe(
+      'Eine Spalte je Merkmal, Reihenfolge wie in der App.',
+    )
     expect(wrapper.get('main p.text-lg').text()).toBe('4 Stämme')
     expect(wrapper.findAll('thead th').map((th) => squeezed(th.text()))).toEqual([
       'Stamm',

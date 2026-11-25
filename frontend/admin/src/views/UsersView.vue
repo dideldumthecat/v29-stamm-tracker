@@ -12,6 +12,7 @@ import { ApiError, request } from '@/api/client'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import LoadFailure from '@/components/LoadFailure.vue'
 import LoadingStatus from '@/components/LoadingStatus.vue'
+import PageHeader from '@/components/PageHeader.vue'
 import ResultsBar from '@/components/ResultsBar.vue'
 import SelectField from '@/components/SelectField.vue'
 import UserTable from '@/components/UserTable.vue'
@@ -239,11 +240,10 @@ const label = 'text-caption font-semibold text-mute'
 <template>
   <main class="py-8">
     <div class="page-column">
-      <h1 class="text-3xl font-bold">Nutzer</h1>
-      <p class="mt-2 text-measure text-mute">
+      <PageHeader title="Nutzer">
         Wer in der App erfasst und wer die Administration nutzt. Gesperrte Nutzer kommen nicht mehr
         hinein, ihre Erfassungen bleiben erhalten.
-      </p>
+      </PageHeader>
 
       <LoadFailure v-if="status === 'error'" :failure="failure" @retry="load" />
       <LoadingStatus v-else-if="status === 'loading'" role="status" />
@@ -251,7 +251,6 @@ const label = 'text-caption font-semibold text-mute'
 
     <ResultsBar
       v-if="status === 'ready'"
-      class="mt-4"
       :text="countUsers(users.length)"
       :chips="[]"
       :can-reset="false"

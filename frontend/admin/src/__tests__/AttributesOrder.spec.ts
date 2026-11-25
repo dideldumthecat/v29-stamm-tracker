@@ -358,7 +358,7 @@ describe('the feedback beside the count', () => {
   it('tells the intro that the order is saved at once', async () => {
     const { wrapper } = await open()
 
-    expect(wrapper.get('h1 + p').text()).toContain(
+    expect(wrapper.get('header > p').text()).toContain(
       'Die Reihenfolge änderst du per Ziehen, sie wird sofort gespeichert. Änderungen kommen beim nächsten Synchronisieren auf die Handys.',
     )
   })

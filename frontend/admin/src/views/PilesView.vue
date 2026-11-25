@@ -6,6 +6,7 @@ import { PlusIcon } from '@lucide/vue'
 import { ApiError, request } from '@/api/client'
 import LoadFailure from '@/components/LoadFailure.vue'
 import LoadingStatus from '@/components/LoadingStatus.vue'
+import PageHeader from '@/components/PageHeader.vue'
 import PileForm from '@/components/PileForm.vue'
 import PileTable from '@/components/PileTable.vue'
 import ResultsBar from '@/components/ResultsBar.vue'
@@ -168,11 +169,10 @@ const button =
 <template>
   <main class="py-8">
     <div class="page-column">
-      <h1 class="text-3xl font-bold">Polter</h1>
-      <p class="mt-2 text-measure text-mute">
+      <PageHeader title="Polter">
         Die Polter, aus denen die Stämme kommen. In der App wählt man den Polter beim Erfassen eines
         Stamms aus.
-      </p>
+      </PageHeader>
 
       <LoadFailure v-if="status === 'error'" :failure="failure" @retry="load" />
       <LoadingStatus v-else-if="status === 'loading'" role="status" />
@@ -180,7 +180,6 @@ const button =
 
     <ResultsBar
       v-if="status === 'ready'"
-      class="mt-4"
       :text="countPiles(piles.length)"
       :chips="[]"
       :can-reset="false"
