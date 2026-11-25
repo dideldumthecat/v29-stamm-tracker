@@ -58,6 +58,18 @@ final class StemPieces
     }
 
     /**
+     * When a processed stem was processed: "sawn" or "unsawable" first set to yes, whichever came first; without either the cross-section
+     * of the stem (both in Measures) or else its first beam. null if there is none. The one rule for the week of the tempo (dashboard) and
+     * of the processed stems per week (pile cards).
+     */
+    public function processedAt(Measures $stem): ?\DateTimeImmutable
+    {
+        $times = array_filter([$stem->sawnAt, $stem->unsawableAt]) ?: array_filter(array_map(static fn (Measures $beam) => $beam->createdAt, $this->beamsOf($stem->id)));
+
+        return [] === $times ? null : min($times);
+    }
+
+    /**
      * @return list<Measures> its beams; the stem itself if sawn whole; none if not sawn
      */
     public function piecesOf(string $stemId): array

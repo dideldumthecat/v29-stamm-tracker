@@ -188,17 +188,6 @@ final class DashboardCards
     }
 
     /**
-     * When a processed stem was processed: "sawn" or "unsawable" first set to yes, whichever came first; without either the cross-section
-     * of the stem (both in Measures) or else its first beam.
-     */
-    private static function processedAt(Measures $stem, StemPieces $pieces): ?\DateTimeImmutable
-    {
-        $times = array_filter([$stem->sawnAt, $stem->unsawableAt]) ?: array_filter(array_map(static fn (Measures $beam) => $beam->createdAt, $pieces->beamsOf($stem->id)));
-
-        return [] === $times ? null : min($times);
-    }
-
-    /**
      * Processed stems per week over the last completed weeks, at most TEMPO_WEEKS, none before the first week with a processed stem.
      *
      * @param array<string, Measures> $processed by id
@@ -211,7 +200,7 @@ final class DashboardCards
         $current = self::monday($now);
         $weekOf = [];
         foreach ($processed as $id => $stem) {
-            if (null !== $at = self::processedAt($stem, $pieces)) {
+            if (null !== $at = $pieces->processedAt($stem)) {
                 $weekOf[$id] = min(self::monday($at), $current);
             }
         }
