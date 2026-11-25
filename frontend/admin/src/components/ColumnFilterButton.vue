@@ -26,7 +26,11 @@ const type = computed(() => filterType(props.column) as FilterType)
 const textType = computed(() => (type.value === 'photo' ? 'photo' : 'text'))
 const picks = computed(() => (props.filter?.kind === 'pick' ? props.filter.picks : []))
 const checklist = computed(
-  () => type.value === 'choice' || type.value === 'boolean' || type.value === 'month',
+  () =>
+    type.value === 'choice' ||
+    type.value === 'boolean' ||
+    type.value === 'month' ||
+    type.value === 'diameter',
 )
 // All rows of the list, not the filtered ones: an option does not vanish because of another filter
 const options = computed(() =>

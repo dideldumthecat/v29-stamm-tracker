@@ -2,6 +2,7 @@ import {
   bySortOrder,
   currentValue,
   formatDate,
+  formatDiameterClass,
   formatMonthLong,
   formatNumber,
 } from '@v29/shared/attributes'
@@ -81,7 +82,7 @@ export const isReadableTags = (text: string) => parseTags(text) !== null
 /** What the filters need to know of a column; the columns of the lists (`Column`, stemlist.ts) have it. */
 export interface FilterColumn {
   id: string
-  kind: 'tag' | 'attribute' | 'beams' | 'changed'
+  kind: 'tag' | 'attribute' | 'diameter' | 'processed' | 'beams' | 'changed'
   label: string
   attribute?: Attribute
 }
@@ -97,8 +98,8 @@ export interface FilterRow {
   beamTags: string[]
   /** The German calendar day of the last change, "2026-10-31". */
   changedDay: string
-  /** The value of every cell by column id; `text` null = not recorded. */
-  cells: Record<string, { text: string | null }>
+  /** The value of every cell by column id; `text` null = not recorded. `pick` is what a pick filter of a fixed column compares ("32", "yes"). */
+  cells: Record<string, { text: string | null; pick?: string }>
 }
 
 /** A filter keeps the rows it returns true for; all filters of a list must hold. */
@@ -124,8 +125,11 @@ export function tagFilter(text: string): RowFilter | null {
   }
 }
 
-/** The type a column is filtered as: the type of the attribute, "count" for the beams; "Geändert" is filtered by day like a date. */
-export type FilterType = AttributeType | 'count'
+/**
+ * The type a column is filtered as: the type of the attribute, "count" for the beams; "Geändert" is filtered by day like a date.
+ * The fixed columns "Mittendurchmesser" ("diameter": the classes of the rows as picks) and "Bearbeitet" (yes/no, so "boolean") are picks as well.
+ */
+export type FilterType = AttributeType | 'count' | 'diameter'
 
 /** null: the column has no filter ("Stamm" has the field "Kennung"). */
 export function filterType(column: FilterColumn): FilterType | null {
@@ -136,6 +140,10 @@ export function filterType(column: FilterColumn): FilterType | null {
       return 'count'
     case 'changed':
       return 'date'
+    case 'diameter':
+      return 'diameter'
+    case 'processed':
+      return 'boolean'
     default:
       return column.attribute!.type
   }
@@ -190,9 +198,12 @@ export function boundText(type: FilterType, value: string): string {
   }
 }
 
-/** Whether the filter of the column offers "Nicht erfasst" (all but a count, "Geändert", which every item has, and yes/no, where no value is "nein"). */
+/** Whether the filter of the column offers "Nicht erfasst" (all but a count, "Geändert", which every item has, and yes/no, where no value is "nein"; "Bearbeitet" is yes or no). */
 export const offersNone = (column: FilterColumn) =>
-  column.kind !== 'beams' && column.kind !== 'changed' && column.attribute?.type !== 'boolean'
+  column.kind !== 'beams' &&
+  column.kind !== 'changed' &&
+  column.kind !== 'processed' &&
+  column.attribute?.type !== 'boolean'
 
 const MONTH = /^\d{4}-(?:0[1-9]|1[0-2])$/
 
@@ -213,6 +224,12 @@ export function readFilter(
     case 'month': {
       const picks = [...new Set(text.split(','))]
       return picks.every((pick) => pick === NOT_RECORDED_PICK || MONTH.test(pick))
+        ? { kind: 'pick', picks }
+        : null
+    }
+    case 'diameter': {
+      const picks = [...new Set(text.split(','))]
+      return picks.every((pick) => pick === NOT_RECORDED_PICK || /^\d+$/.test(pick))
         ? { kind: 'pick', picks }
         : null
     }
@@ -276,9 +293,11 @@ export function matchesFilter(row: FilterRow, column: FilterColumn, filter: Colu
     }
     case 'pick': {
       if (!recorded(row, column)) return filter.picks.includes(NOT_RECORDED_PICK)
-      const value = lastValue(row, attribute!)
+      // The fixed columns say what they are picked by themselves (`Cell.pick`)
+      if (!attribute) return filter.picks.includes(row.cells[column.id].pick!)
+      const value = lastValue(row, attribute)
       return filter.picks.includes(
-        attribute!.type === 'boolean' ? (value ? 'yes' : 'no') : String(value),
+        attribute.type === 'boolean' ? (value ? 'yes' : 'no') : String(value),
       )
     }
     case 'range': {
@@ -299,15 +318,35 @@ export function matchesFilter(row: FilterRow, column: FilterColumn, filter: Colu
   }
 }
 
+/** The classes as picks ("32", largest first), those of the rows and of `picks`: a class of the URL that no row has (any more) stays on offer, so it can be unticked. */
+function diameterOptions(column: FilterColumn, rows: FilterRow[], picks: string[]) {
+  const classes = new Set([
+    ...rows.flatMap((row) => row.cells[column.id].pick ?? []),
+    ...picks.filter((pick) => pick !== NOT_RECORDED_PICK),
+  ])
+  return [...classes]
+    .sort((a, b) => Number(b) - Number(a))
+    .map((id) => ({ id, label: formatDiameterClass(Number(id)) }))
+}
+
 /**
  * What a pick filter offers for the column: the options of the attribute in V29 order (inactive ones only if a row still has them), "ja" and "nein",
- * or for a month the months the rows have, newest first. `picks` keeps a month of the URL on offer that no row has (any more), so it can be unticked.
+ * or for a month the months the rows have, newest first, for the diameter the classes the rows have, largest first. `picks` keeps a month or class
+ * of the URL on offer that no row has (any more), so it can be unticked.
  */
 export function pickOptions(
   column: FilterColumn,
   rows: FilterRow[],
   picks: string[] = [],
 ): { id: string; label: string }[] {
+  const type = filterType(column)
+  if (type === 'diameter') return diameterOptions(column, rows, picks)
+  if (type === 'boolean') {
+    return [
+      { id: 'yes', label: 'ja' },
+      { id: 'no', label: 'nein' },
+    ]
+  }
   const attribute = column.attribute!
   if (attribute.type === 'month') {
     const months = new Set([
@@ -318,12 +357,6 @@ export function pickOptions(
       .sort()
       .reverse()
       .map((id) => ({ id, label: formatMonthLong(id) }))
-  }
-  if (attribute.type === 'boolean') {
-    return [
-      { id: 'yes', label: 'ja' },
-      { id: 'no', label: 'nein' },
-    ]
   }
   return [...attribute.options]
     .sort(bySortOrder)
@@ -376,7 +409,7 @@ function describeValue(column: FilterColumn, type: FilterType, filter: ColumnFil
       const all =
         type === 'boolean'
           ? pickOptions(column, [])
-          : type === 'month'
+          : type === 'month' || type === 'diameter'
             ? pickOptions(column, [], filter.picks)
             : [...column.attribute!.options].sort(bySortOrder)
       return describePicks(

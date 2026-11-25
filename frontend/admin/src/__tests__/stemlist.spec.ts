@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { Attribute } from '@v29/shared/contract'
+import type { Attribute, DashboardDiameterSection, DashboardResponse } from '@v29/shared/contract'
+import dashboardFixture from '@v29/shared/fixtures/dashboard-response.json' with { type: 'json' }
 
 import { applyFilters, tagFilter } from '@/listFilters'
 import {
@@ -9,6 +10,7 @@ import {
   filtersFor,
   headingWords,
   MAX_UNBROKEN_WORD_LENGTH,
+  processedStemsLink,
   readQuery,
   sortBy,
   sortRows,
@@ -19,6 +21,7 @@ import {
   type RawRow,
   type Row,
 } from '@/stemlist'
+import { processingAttributes, processingSnapshot, stemWithBeams, type StemSpec } from './fakeStems'
 import { snapshotFixture } from './fakeSnapshot'
 
 // "Geändert" shows the year only outside the current one, so the clock is pinned.
@@ -44,6 +47,8 @@ describe('buildColumns', () => {
       'Holzfeuchte',
       'Notiz',
       'Fotos',
+      'Mittendurchmesser',
+      'Bearbeitet',
       'Balken',
       'Geändert',
     ])
@@ -196,6 +201,8 @@ describe('sortRows', () => {
       },
       values: { [notiz.id]: [{ ...row('104').item.values[notiz.id][0], value: text }] },
       beams: 0,
+      diameterClass: null,
+      processed: false,
       beamTags: [],
       changed: '2026-10-31T10:00:00.000Z',
       changedDay: '2026-10-31',
@@ -359,8 +366,10 @@ describe('URL', () => {
       expect(Object.keys(written).sort()).toEqual(
         [
           'Balken',
+          'Bearbeitet',
           'Geändert',
           'Länge mit Leerzeichen',
+          'Mittendurchmesser',
           'a-tags',
           'a-sort',
           'a-dir',
@@ -445,5 +454,191 @@ describe('headingWords', () => {
     expect(MAX_UNBROKEN_WORD_LENGTH).toBe(14)
     expect(headingWords('a'.repeat(14))[0].hyphenate).toBe(false)
     expect(headingWords('a'.repeat(15))[0].hyphenate).toBe(true)
+  })
+})
+
+describe('"Mittendurchmesser" and "Bearbeitet"', () => {
+  const stems: [string, StemSpec, number?][] = [
+    ['1', { max: 32.6, min: 32.4, sawn: true }], // mean 32,5 → 33 → class 32
+    ['2', { max: 40, min: 39 }, 2], // sawn into two beams, class 40
+    ['3', { max: 31, unsawable: true }], // one diameter, class 30
+    ['4', { sawn: true }], // processed without diameter
+    ['5', { max: 50, min: 50 }], // open, class 50
+    ['6', {}], // open, no diameter
+  ]
+  const snapshot = processingSnapshot(
+    stems.flatMap(([tag, spec, beams]) => stemWithBeams(tag, spec, beams)),
+  )
+  const stemColumns = buildColumns(snapshot.attributes, 'stem')
+  const stemRows = buildRows(snapshot, 'stem', stemColumns)
+  const by = (id: string) => (row: Row) => row.cells[id].text
+  const textOf = (id: string) =>
+    Object.fromEntries(stemRows.map((r) => [r.item.tag_number, by(id)(r)]))
+  const sorted = (id: string, dir: 'asc' | 'desc') =>
+    tags(
+      sortRows(
+        stemRows,
+        stemColumns.find((c) => c.id === id)!,
+        dir,
+      ),
+    )
+  const shown = (query: Record<string, string>) => {
+    const filters = filtersFor(readQuery(query, stemColumns), stemColumns)!
+    return tags(applyFilters(stemRows, filters))
+  }
+
+  it('are fixed columns of the list of stems, right before "Balken", and not in the list of beams', () => {
+    const labels = stemColumns.map((c) => c.label)
+    expect(labels.slice(-3)).toEqual(['Bearbeitet', 'Balken', 'Geändert'])
+    expect(buildColumns(processingAttributes, 'beam').map((c) => c.kind)).not.toContain('diameter')
+    expect(buildColumns(processingAttributes, 'beam').map((c) => c.kind)).not.toContain('processed')
+  })
+
+  it('puts the class right behind the later of the two diameter columns, or before "Bearbeitet" without them', () => {
+    const labelsOf = (list: Attribute[]) =>
+      buildColumns(list, 'stem').map((c) => (c.kind === 'attribute' ? c.attribute!.key : c.kind))
+    const [max, min, ...rest] = processingAttributes
+    expect(labelsOf(processingAttributes)).toEqual([
+      'tag',
+      'mid_diameter_max',
+      'mid_diameter_min',
+      'diameter',
+      'sawn',
+      'unsawable',
+      'sawn_cross_section',
+      'processed',
+      'beams',
+      'changed',
+    ])
+    // V29 order decides, not the position in the list
+    expect(labelsOf([{ ...max, sort_order: 9 }, min, ...rest])).toEqual([
+      'tag',
+      'mid_diameter_min',
+      'sawn',
+      'unsawable',
+      'sawn_cross_section',
+      'mid_diameter_max',
+      'diameter',
+      'processed',
+      'beams',
+      'changed',
+    ])
+    // one of them inactive: behind the other
+    expect(labelsOf([{ ...max, active: false }, min, ...rest]).slice(0, 3)).toEqual([
+      'tag',
+      'mid_diameter_min',
+      'diameter',
+    ])
+    // both inactive: before "Bearbeitet"
+    expect(labelsOf([{ ...max, active: false }, { ...min, active: false }, ...rest])).toEqual([
+      'tag',
+      'sawn',
+      'unsawable',
+      'sawn_cross_section',
+      'diameter',
+      'processed',
+      'beams',
+      'changed',
+    ])
+  })
+
+  it('show the class as the two whole cm, "–" without a diameter, and ja or nein', () => {
+    expect(textOf('diameter')).toEqual({
+      '1': '32–33 cm',
+      '2': '40–41 cm',
+      '3': '30–31 cm',
+      '4': null,
+      '5': '50–51 cm',
+      '6': null,
+    })
+    expect(textOf('processed')).toEqual({
+      '1': 'ja',
+      '2': 'ja',
+      '3': 'ja',
+      '4': 'ja',
+      '5': 'nein',
+      '6': 'nein',
+    })
+  })
+
+  it('sort by class with "–" last either way, and "ja" before "nein"', () => {
+    expect(sorted('diameter', 'asc')).toEqual(['3', '1', '2', '5', '4', '6'])
+    expect(sorted('diameter', 'desc')).toEqual(['5', '2', '1', '3', '4', '6'])
+    expect(sorted('processed', 'asc')).toEqual(['1', '2', '3', '4', '5', '6'])
+    expect(sorted('processed', 'desc')).toEqual(['5', '6', '1', '2', '3', '4'])
+  })
+
+  it('filter by the class, "Nicht erfasst" and ja or nein, all combined', () => {
+    expect(shown({ Mittendurchmesser: '32' })).toEqual(['1'])
+    expect(shown({ Mittendurchmesser: '32,40' })).toEqual(['1', '2'])
+    expect(shown({ Mittendurchmesser: 'none' })).toEqual(['4', '6'])
+    expect(shown({ Bearbeitet: 'yes' })).toEqual(['1', '2', '3', '4'])
+    expect(shown({ Bearbeitet: 'no' })).toEqual(['5', '6'])
+    expect(shown({ Bearbeitet: 'yes', Mittendurchmesser: 'none' })).toEqual(['4'])
+    // yes/no has no "Nicht erfasst": an old link with it loses that value
+    expect(readQuery({ Bearbeitet: 'yes,none' }, stemColumns).filters.processed).toBe('yes')
+    // a filter that is no class is unreadable
+    expect(
+      filtersFor(readQuery({ Mittendurchmesser: 'groß' }, stemColumns), stemColumns),
+    ).toBeNull()
+  })
+
+  it('keep their heading in the URL even if an attribute is called the same', () => {
+    const named = buildColumns(
+      processingAttributes.map((a) => (a.key === 'sawn' ? { ...a, name: 'Bearbeitet' } : a)),
+      'stem',
+    )
+    const written = writeQuery(
+      { tags: '', filters: { processed: 'yes', 'a-sawn': 'yes' }, sort: 'tag', dir: 'asc' },
+      named,
+    )
+    expect(written).toEqual({ Bearbeitet: 'yes', 'a-sawn': 'yes' })
+  })
+
+  // The link of a row of the dashboard card shows the list with exactly the stems the row counts.
+  describe('the link of the dashboard card', () => {
+    const byDiameter = (dashboardFixture as DashboardResponse).sections.find(
+      (section): section is DashboardDiameterSection => section.type === 'diameter_classes',
+    )!
+    // Per row of the card as many processed stems of its class as it counts (the first ones unsawable), per class one open stem as noise,
+    // and the stems without a diameter: processed ones as many as the card counts, one open
+    const items = [
+      ...byDiameter.rows.flatMap((row) => [
+        ...Array.from(
+          { length: row.stems },
+          (_, index) =>
+            stemWithBeams(`${row.from_cm}${index}`, {
+              max: row.from_cm + 1.5,
+              min: row.from_cm + 0.5,
+              ...(index < row.not_sawable ? { unsawable: true } : { sawn: true }),
+            })[0],
+        ),
+        stemWithBeams(`${row.from_cm}x`, { max: row.from_cm, min: row.from_cm })[0],
+      ]),
+      ...Array.from(
+        { length: byDiameter.without_diameter },
+        (_, index) => stemWithBeams(`n${index}`, { sawn: true })[0],
+      ),
+      stemWithBeams('open', {})[0],
+    ]
+    const cardSnapshot = processingSnapshot(items)
+    const cardColumns = buildColumns(cardSnapshot.attributes, 'stem')
+    const cardRows = buildRows(cardSnapshot, 'stem', cardColumns)
+    const count = (fromCm: number | null) =>
+      applyFilters(
+        cardRows,
+        filtersFor(readQuery(processedStemsLink(fromCm), cardColumns), cardColumns)!,
+      ).length
+
+    it('names the two filters with their headings', () => {
+      expect(processedStemsLink(32)).toEqual({ Mittendurchmesser: '32', Bearbeitet: 'yes' })
+      expect(processedStemsLink(null)).toEqual({ Mittendurchmesser: 'none', Bearbeitet: 'yes' })
+    })
+
+    it('counts, for every row of the card, the stems the row counts', () => {
+      expect(byDiameter.rows.length).toBeGreaterThan(1)
+      for (const row of byDiameter.rows) expect(count(row.from_cm)).toBe(row.stems)
+      expect(count(null)).toBe(byDiameter.without_diameter)
+    })
   })
 })

@@ -8,10 +8,14 @@ import type {
 } from '@v29/shared/contract'
 import {
   bySortOrder,
+  CROSS_SECTION_KEY,
   currentValue,
   formatValue,
+  hasValueOfKey,
   isInheritedValue,
+  isMarked,
   SAWN_KEY,
+  UNSAWABLE_KEY,
 } from '@v29/shared/attributes'
 import { itemRoles, splitChoiceOf } from '@v29/shared/itemRoles'
 import { formatTag } from '@v29/shared/tag'
@@ -78,10 +82,19 @@ export interface ItemParts {
   lastChangedBy: string | undefined
 }
 
+/**
+ * Whether a stem counts as processed, the one definition of the dashboard (server: `StemPieces::isSawn` and `unsawableMarked`): sawn (the checkmark "Gesägt",
+ * a beam, or a cross-section recorded on the stem itself, i.e. sawn whole) or marked "Nicht sägbar". `beams` is the number of beams of the stem in the snapshot.
+ */
+export const isProcessed = (item: TimberItem, beams: number, attributes: Attribute[]) =>
+  isMarked(item, attributes, SAWN_KEY) ||
+  beams > 0 ||
+  hasValueOfKey(item, attributes, CROSS_SECTION_KEY) ||
+  isMarked(item, attributes, UNSAWABLE_KEY)
+
 /** The kinds a saved item counts as, by the rule of the app: a stem without beams that is "Gesägt: ja" was sawn whole and is a beam as well. */
 export function kindsOf(item: TimberItem, attributes: Attribute[]): ItemKind[] {
-  const sawnId = attributes.find((attribute) => attribute.key === SAWN_KEY)?.id
-  const sawn = !!sawnId && item.values[sawnId]?.slice(-1)[0]?.value === true
+  const sawn = isMarked(item, attributes, SAWN_KEY)
   const choice = splitChoiceOf({
     sawn,
     recordedSawn: sawn,

@@ -153,6 +153,8 @@ describe('column filters', () => {
       'date',
       'text',
       'photo',
+      'diameter',
+      'boolean',
       'count',
       'date',
     ])
@@ -474,7 +476,7 @@ describe('column filters', () => {
       expect(cols.map((c) => [c.label, c.kind === 'tag' || offersNone(c)])).toEqual(
         cols.map((c) => [
           c.label,
-          !['beams', 'changed'].includes(c.kind) && c.attribute?.type !== 'boolean',
+          !['beams', 'changed', 'processed'].includes(c.kind) && c.attribute?.type !== 'boolean',
         ]),
       )
     })

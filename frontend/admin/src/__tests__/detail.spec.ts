@@ -4,6 +4,7 @@ import type { ActivityChange, ActivityEntry } from '@v29/shared/contract'
 import {
   beamsOf,
   historyPoints,
+  isProcessed,
   normalizeTag,
   photoFileName,
   plaqueTag,
@@ -12,6 +13,7 @@ import {
   type HistoryPoint,
 } from '@/detail'
 import { activityFixture } from './fakeActivity'
+import { processingAttributes, stem as stemOf } from './fakeStems'
 import { snapshotFixture, stemPhotos } from './fakeSnapshot'
 
 const { timber_items: items, attributes, users } = snapshotFixture
@@ -411,5 +413,30 @@ describe('timelineRows', () => {
 
   it('has no rows without points', () => {
     expect(timelineRows([], 2026)).toEqual([])
+  })
+})
+
+// "Bearbeitet" is the definition of the dashboard (server: StemPieces::isSawn and unsawableMarked)
+describe('isProcessed', () => {
+  const processed = (spec: Parameters<typeof stemOf>[1], beams = 0) =>
+    isProcessed(stemOf('1', spec, beams), beams, processingAttributes)
+
+  it('is true for a stem sawn into beams, with or without the checkmark', () => {
+    expect(processed({}, 3)).toBe(true)
+    expect(processed({ sawn: true }, 3)).toBe(true)
+  })
+
+  it('is true for a stem sawn whole: the checkmark, or a cross-section recorded on the stem', () => {
+    expect(processed({ sawn: true })).toBe(true)
+    expect(processed({ crossSection: '14,7 x 14,7 cm' })).toBe(true)
+  })
+
+  it('is true for a stem marked unsawable', () => {
+    expect(processed({ unsawable: true })).toBe(true)
+  })
+
+  it('is false for an open stem, also with every "nein" and a diameter', () => {
+    expect(processed({})).toBe(false)
+    expect(processed({ sawn: false, unsawable: false, max: 40, min: 39 })).toBe(false)
   })
 })

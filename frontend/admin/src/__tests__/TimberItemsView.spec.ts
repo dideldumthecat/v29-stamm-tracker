@@ -75,6 +75,8 @@ describe('stem list', () => {
       'Holzfeuchte',
       'Notiz',
       'Fotos',
+      'Mittendurchmesser',
+      'Bearbeitet',
       'Balken',
       'Geändert',
     ])
@@ -99,6 +101,8 @@ describe('stem list', () => {
       '41 %',
       'Zweite Zeile mit Umbruch(+1)',
       '2',
+      '–',
+      'ja',
       '3',
       '31.10. Aaron Bauer',
     ])
@@ -360,6 +364,8 @@ describe('filter bar and chips', () => {
       'Holzfeuchte',
       'Notiz',
       'Fotos',
+      'Mittendurchmesser',
+      'Bearbeitet',
       'Balken',
       'Geändert',
     ])

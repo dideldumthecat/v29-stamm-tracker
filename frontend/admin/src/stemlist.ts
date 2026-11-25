@@ -1,5 +1,12 @@
 import type { LocationQueryRaw } from 'vue-router'
-import { bySortOrder, currentValue, isInheritedValue } from '@v29/shared/attributes'
+import {
+  bySortOrder,
+  currentValue,
+  diameterClassOf,
+  formatDiameterClass,
+  isInheritedValue,
+  MID_DIAMETER_KEYS,
+} from '@v29/shared/attributes'
 import type {
   Attribute,
   AttributeValueRecord,
@@ -9,7 +16,7 @@ import type {
 } from '@v29/shared/contract'
 
 import { dayKey, formatDayMonthUnlessThisYear } from '@/activity'
-import { formatRecorded, kindsOf, latestOwnRecord } from '@/detail'
+import { formatRecorded, isProcessed, kindsOf, latestOwnRecord } from '@/detail'
 import {
   countText,
   filterType,
@@ -29,10 +36,10 @@ import {
  * and their texts are in `listFilters.ts`.
  */
 
-/** `id` is what `sort` in the URL holds: "tag", "beams", "changed" or the id of the attribute. */
+/** `id` is what `sort` in the URL holds: "tag", "diameter", "processed", "beams", "changed" or the id of the attribute. */
 export interface Column {
   id: string
-  kind: 'tag' | 'attribute' | 'beams' | 'changed'
+  kind: 'tag' | 'attribute' | 'diameter' | 'processed' | 'beams' | 'changed'
   label: string
   attribute?: Attribute
   align: 'left' | 'right'
@@ -50,6 +57,10 @@ export interface RawRow {
   values: Record<string, AttributeValueRecord[]>
   /** Number of beams cut from the stem. */
   beams: number
+  /** `from_cm` of the diameter class of a stem; null without a diameter (and for a beam, which has none). */
+  diameterClass: number | null
+  /** Whether the stem counts as processed, as on the dashboard (`isProcessed`); false for a beam. */
+  processed: boolean
   /** The tags of those beams ("104-A"): what the "Kennung" filter looks at for a beam tag. */
   beamTags: string[]
   /** Latest own recording, otherwise the creation: same rule as the detail view. */
@@ -66,10 +77,26 @@ export interface Row extends RawRow {
 }
 
 /**
- * Tag, one column per active attribute of the kind (V29 order), for stems the number of beams, last change.
+ * Tag, one column per active attribute of the kind (V29 order), for stems the diameter class, whether processed and the number of beams, last change.
+ * The class stands right behind the later of the columns of the two mid diameters (by key), without them (inactive) right before "Bearbeitet".
  * The first column is called "Stamm" or "Balken" like the kind; a stem list shows no column for beams of beams.
  */
 export function buildColumns(attributes: Attribute[], kind: ItemKind): Column[] {
+  const fromAttributes = attributes
+    .filter((attribute) => attribute.active && attribute.applies_to.includes(kind))
+    .sort(bySortOrder)
+    .map((attribute): Column => ({
+      id: attribute.id,
+      kind: 'attribute',
+      label: attribute.name,
+      attribute,
+      align: attribute.type === 'number' || attribute.type === 'photo' ? 'right' : 'left',
+      wraps: attribute.type === 'text' || attribute.type === 'choice',
+    }))
+  const diameters = fromAttributes.map((column) =>
+    (MID_DIAMETER_KEYS as readonly (string | null)[]).includes(column.attribute!.key),
+  )
+  const afterDiameters = diameters.lastIndexOf(true) + 1 || fromAttributes.length
   return [
     {
       id: 'tag',
@@ -78,20 +105,27 @@ export function buildColumns(attributes: Attribute[], kind: ItemKind): Column[] 
       align: 'left',
       wraps: false,
     },
-    ...attributes
-      .filter((attribute) => attribute.active && attribute.applies_to.includes(kind))
-      .sort(bySortOrder)
-      .map((attribute): Column => ({
-        id: attribute.id,
-        kind: 'attribute',
-        label: attribute.name,
-        attribute,
-        align: attribute.type === 'number' || attribute.type === 'photo' ? 'right' : 'left',
-        wraps: attribute.type === 'text' || attribute.type === 'choice',
-      })),
     ...(kind === 'stem'
-      ? [{ id: 'beams', kind: 'beams', label: 'Balken', align: 'right', wraps: false } as Column]
-      : []),
+      ? [
+          ...fromAttributes.slice(0, afterDiameters),
+          {
+            id: 'diameter',
+            kind: 'diameter',
+            label: 'Mittendurchmesser',
+            align: 'left',
+            wraps: false,
+          } as Column,
+          ...fromAttributes.slice(afterDiameters),
+          {
+            id: 'processed',
+            kind: 'processed',
+            label: 'Bearbeitet',
+            align: 'left',
+            wraps: false,
+          } as Column,
+          { id: 'beams', kind: 'beams', label: 'Balken', align: 'right', wraps: false } as Column,
+        ]
+      : fromAttributes),
     { id: 'changed', kind: 'changed', label: 'Geändert', align: 'left', wraps: false },
   ]
 }
@@ -141,10 +175,13 @@ function rawRows(snapshot: Snapshot, kind: ItemKind): RawRow[] {
           )
           .map((attribute) => attribute.id),
       )
+      const beamCount = beams.get(item.id)?.length ?? 0
       return {
         item,
         values: Object.fromEntries(Object.entries(item.values).filter(([id]) => !hidden.has(id))),
-        beams: beams.get(item.id)?.length ?? 0,
+        beams: beamCount,
+        diameterClass: kind === 'stem' ? diameterClassOf(item, snapshot.attributes) : null,
+        processed: kind === 'stem' && isProcessed(item, beamCount, snapshot.attributes),
         beamTags: (beams.get(item.id) ?? []).flatMap((beam) => beam.tag_number ?? []),
         changed,
         changedDay: dayKey(changed),
@@ -161,6 +198,8 @@ export interface Cell {
   more?: number
   /** "Geändert": the person, shown under the date. */
   by?: string
+  /** "Mittendurchmesser" ("32") and "Bearbeitet" ("yes", "no"): what the pick filter of the column compares. */
+  pick?: string
 }
 
 const NOT_RECORDED: Cell = { text: null, key: null }
@@ -179,6 +218,19 @@ export function cellOf(row: RawRow, column: Column): Cell {
       return row.item.tag_number === null
         ? NOT_RECORDED
         : { text: row.item.tag_number, key: tagKey(row.item.tag_number) }
+    case 'diameter':
+      return row.diameterClass === null
+        ? NOT_RECORDED
+        : {
+            text: formatDiameterClass(row.diameterClass),
+            key: row.diameterClass,
+            pick: String(row.diameterClass),
+          }
+    case 'processed':
+      // "ja" before "nein", like a yes/no attribute
+      return row.processed
+        ? { text: 'ja', key: 0, pick: 'yes' }
+        : { text: 'nein', key: 1, pick: 'no' }
     case 'beams':
       return { text: formatCount(row.beams), key: row.beams }
     case 'changed':
@@ -401,6 +453,21 @@ export function writeQuery(
   if (dir === 'desc') query.dir = 'desc'
   return query
 }
+
+/**
+ * The URL query of the list of stems with the stems a row of the dashboard card "Stämme nach Mittendurchmesser" counts: processed ones of the class
+ * `fromCm`, or without a diameter (null).
+ */
+export const processedStemsLink = (fromCm: number | null) =>
+  writeQuery(
+    {
+      tags: '',
+      filters: { processed: 'yes', diameter: fromCm === null ? NOT_RECORDED_PICK : String(fromCm) },
+      sort: 'tag',
+      dir: 'asc',
+    },
+    buildColumns([], 'stem'),
+  )
 
 /** A click on a header: the same column flips the direction, another one starts ascending. */
 export const sortBy = (state: ListQuery, columnId: string): ListQuery =>
