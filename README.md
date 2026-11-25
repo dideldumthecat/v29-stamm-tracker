@@ -4,6 +4,8 @@ An offline-first web app for tracking around 1,300 oak logs – and the beams sa
 
 Built pro bono for **V29**, a collective of architects building a publicly funded residential house in Leipzig from their own low-grade oak ("Schwachholz"). Every log carries a numbered metal tag. Until now, the numbers lived on labels and in an Excel sheet. The Stamm-Tracker replaces that: people in the field capture each log's attributes on their phone, and the data is collected centrally for project management and the research attached to the project.
 
+![The capture app on the phone and the administration on the desktop: typing a tag number, recording attributes and photos, syncing, the filterable list of logs and the detail view of a beam](docs/screenshots.png)
+
 ## How it works
 
 **Capture app** (mobile-first Progressive Web App, installed on the phone's home screen)
@@ -68,7 +70,7 @@ flowchart LR
 .
 ├── backend/     Symfony JSON API under /api, console commands
 ├── frontend/    npm workspace: app/ (Vue capture app), admin/ (administration), shared/ (API contract, fixtures, design values)
-├── docs/        clickable prototype and static screens from the design phase
+├── docs/        clickable prototype and static screens from the design phase, README screenshots
 ├── .ddev/       local development environment
 └── .github/     checks and deployment workflows
 ```
