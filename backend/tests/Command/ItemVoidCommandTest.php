@@ -7,6 +7,7 @@ use App\Entity\TimberItemEvent;
 use App\Entity\User;
 use App\Entity\UserRole;
 use App\Projection\TimberItemProjector;
+use App\Tests\Support\Groups;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -28,7 +29,7 @@ class ItemVoidCommandTest extends KernelTestCase
         $this->projector = self::getContainer()->get(TimberItemProjector::class);
         $this->tester = new CommandTester((new Application($kernel))->find('app:item:void'));
 
-        $this->em->persist($this->admin = new User('Alex Beispiel', UserRole::Superadmin, User::hashToken('a')));
+        $this->em->persist($this->admin = new User('Alex Beispiel', UserRole::Superadmin, Groups::v29($this->em), User::hashToken('a')));
         $this->em->flush();
     }
 

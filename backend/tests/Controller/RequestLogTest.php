@@ -5,6 +5,7 @@ namespace App\Tests\Controller;
 use App\Controller\SessionController;
 use App\Entity\User;
 use App\Entity\UserRole;
+use App\Tests\Support\Groups;
 use Doctrine\ORM\EntityManagerInterface;
 use Monolog\Handler\TestHandler;
 use Monolog\Level;
@@ -29,7 +30,7 @@ class RequestLogTest extends WebTestCase
         $this->client = static::createClient();
         $this->client->disableReboot();
         $container = self::getContainer();
-        $container->get(EntityManagerInterface::class)->persist(new User('Kerstin', UserRole::User, User::hashToken(User::normalizeToken(self::TOKEN))));
+        $container->get(EntityManagerInterface::class)->persist(new User('Kerstin', UserRole::User, Groups::v29($container->get(EntityManagerInterface::class)), User::hashToken(User::normalizeToken(self::TOKEN))));
         $container->get(EntityManagerInterface::class)->flush();
 
         $this->log = new TestHandler();

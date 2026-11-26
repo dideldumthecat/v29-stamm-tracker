@@ -51,8 +51,15 @@ export interface Snapshot {
   generated_at: Timestamp
   /** Names for "recorded by …", own name included (looked up via the id from the session). Never tokens or revocation state. */
   users: { id: Uuid; name: string }[]
-  /** Includes inactive attributes and options: old values must still be displayable. */
+  /** Includes inactive attributes and options: old values must still be displayable. Hidden ones too, see `hidden_attribute_ids`. */
   attributes: Attribute[]
+  /**
+   * The attributes the group of the requesting user does not see (empty for a group that sees all). The snapshot is the only part that differs
+   * between users. The app hides them completely: field, recorded values (inherited ones too), draft input; `hidden_when` keeps working on them.
+   * The server enforces nothing, and a value recorded on the device for an attribute that becomes hidden is still synced.
+   * A snapshot stored before this field existed has none: the app treats that as [].
+   */
+  hidden_attribute_ids: Uuid[]
   /** Voided items are not included. */
   timber_items: TimberItem[]
 }

@@ -189,7 +189,7 @@ const beamToRemove = ref<TimberItem | null>(null)
 // What the remove dialog lists: the beam's own values (`store.items` holds no inherited ones).
 const removeLines = computed(() =>
   formatRecordedLines(
-    store.attributes,
+    store.visibleAttributes,
     store.items.find((candidate) => candidate.id === beamToRemove.value?.id)?.values ?? {},
   ),
 )
@@ -314,7 +314,7 @@ function onDiscard() {
       </template>
     </div>
 
-    <section v-if="item && parent" class="py-section px-gutter">
+    <section v-if="item && parent && store.canEditBeams" class="py-section px-gutter">
       <button
         type="button"
         class="flex h-14 w-full items-center justify-center gap-2 rounded-lg border-2 border-ink bg-paper text-label font-bold"

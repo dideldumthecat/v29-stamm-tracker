@@ -3,7 +3,9 @@
 namespace App\Tests\Command;
 
 use App\Entity\User;
+use App\Entity\UserGroup;
 use App\Entity\UserRole;
+use App\Tests\Support\Groups;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -24,6 +26,8 @@ class UserCommandsTest extends KernelTestCase
         $kernel = self::bootKernel();
         $this->em = self::getContainer()->get(EntityManagerInterface::class);
         $this->application = new Application($kernel);
+        // The group new users get
+        Groups::v29($this->em);
     }
 
     /** @param array<string, mixed> $input */
@@ -48,6 +52,28 @@ class UserCommandsTest extends KernelTestCase
         $this->em->clear();
 
         return $this->em->getRepository(User::class)->findAll();
+    }
+
+    public function testCreateGivesTheUserTheGroupV29(): void
+    {
+        $this->em->persist(new UserGroup('Anna', false));
+        $this->em->flush();
+
+        $this->execute('app:user:create', ['name' => 'Kerstin']);
+
+        self::assertSame('V29', $this->em->getRepository(User::class)->findOneBy(['name' => 'Kerstin'])?->group->name);
+    }
+
+    public function testCreateNeedsAGroup(): void
+    {
+        $this->em->getConnection()->executeStatement('DELETE FROM user_groups');
+        $this->em->clear();
+
+        $tester = $this->execute('app:user:create', ['name' => 'Kerstin']);
+
+        self::assertSame(Command::FAILURE, $tester->getStatusCode());
+        self::assertStringContainsString('no user group', $tester->getDisplay());
+        self::assertSame([], $this->em->getRepository(User::class)->findAll());
     }
 
     public function testCreatePrintsTheFormattedCodeAndStoresOnlyTheHash(): void
@@ -94,7 +120,7 @@ class UserCommandsTest extends KernelTestCase
 
     public function testRoleChangesTheRoleOfAnActiveUserByNameOrId(): void
     {
-        $user = new User('Kerstin', UserRole::User, User::hashToken('t'));
+        $user = new User('Kerstin', UserRole::User, Groups::v29($this->em), User::hashToken('t'));
         $this->em->persist($user);
         $this->em->flush();
 
@@ -106,9 +132,9 @@ class UserCommandsTest extends KernelTestCase
 
     public function testRoleRefusesUnknownRevokedAndAmbiguousUsersAndUnknownRoles(): void
     {
-        $this->em->persist(new User('Kerstin', UserRole::User, User::hashToken('a')));
-        $this->em->persist(new User('Kerstin', UserRole::User, User::hashToken('b')));
-        $revoked = new User('Jonas', UserRole::User, User::hashToken('c'));
+        $this->em->persist(new User('Kerstin', UserRole::User, Groups::v29($this->em), User::hashToken('a')));
+        $this->em->persist(new User('Kerstin', UserRole::User, Groups::v29($this->em), User::hashToken('b')));
+        $revoked = new User('Jonas', UserRole::User, Groups::v29($this->em), User::hashToken('c'));
         $revoked->revokedAt = new \DateTimeImmutable();
         $this->em->persist($revoked);
         $this->em->flush();
@@ -118,7 +144,7 @@ class UserCommandsTest extends KernelTestCase
             self::assertSame(Command::FAILURE, $tester->getStatusCode(), $user);
             self::assertStringContainsString('No active user', $tester->getDisplay(), $user);
         }
-        $this->em->persist(new User('Anna', UserRole::User, User::hashToken('d')));
+        $this->em->persist(new User('Anna', UserRole::User, Groups::v29($this->em), User::hashToken('d')));
         $this->em->flush();
         $tester = $this->execute('app:user:role', ['user' => 'Anna', 'role' => 'root']);
         self::assertSame(Command::FAILURE, $tester->getStatusCode());
@@ -128,8 +154,8 @@ class UserCommandsTest extends KernelTestCase
 
     public function testRoleAllowsOnlyOneSuperadminButTheSameOneAgain(): void
     {
-        $this->em->persist($alex = new User('Alex Beispiel', UserRole::Superadmin, User::hashToken('a')));
-        $this->em->persist($jonas = new User('Jonas', UserRole::Admin, User::hashToken('j')));
+        $this->em->persist($alex = new User('Alex Beispiel', UserRole::Superadmin, Groups::v29($this->em), User::hashToken('a')));
+        $this->em->persist($jonas = new User('Jonas', UserRole::Admin, Groups::v29($this->em), User::hashToken('j')));
         $this->em->flush();
 
         $tester = $this->execute('app:user:role', ['user' => 'Jonas', 'role' => 'superadmin']);
@@ -173,8 +199,8 @@ class UserCommandsTest extends KernelTestCase
     public function testListShowsUsersButNeverTokenOrHash(): void
     {
         $token = 'a-token-that-must-not-appear';
-        $active = new User('Kerstin', UserRole::User, User::hashToken($token));
-        $revoked = new User('Jonas', UserRole::Admin, User::hashToken('another-token'));
+        $active = new User('Kerstin', UserRole::User, Groups::v29($this->em), User::hashToken($token));
+        $revoked = new User('Jonas', UserRole::Admin, Groups::v29($this->em), User::hashToken('another-token'));
         $revoked->revokedAt = new \DateTimeImmutable();
         $this->em->persist($active);
         $this->em->persist($revoked);
@@ -193,8 +219,8 @@ class UserCommandsTest extends KernelTestCase
 
     public function testRevokeSetsRevokedAtByIdOrNameAndKeepsTheFirstTimeOnRepeat(): void
     {
-        $this->em->persist($kerstin = new User('Kerstin', UserRole::User, User::hashToken('t')));
-        $this->em->persist($jonas = new User('Jonas', UserRole::User, User::hashToken('j')));
+        $this->em->persist($kerstin = new User('Kerstin', UserRole::User, Groups::v29($this->em), User::hashToken('t')));
+        $this->em->persist($jonas = new User('Jonas', UserRole::User, Groups::v29($this->em), User::hashToken('j')));
         $this->em->flush();
 
         $tester = $this->execute('app:user:revoke', ['user' => $kerstin->id->toRfc4122()]);
@@ -217,8 +243,8 @@ class UserCommandsTest extends KernelTestCase
 
     public function testRevokeReportsAnUnknownOrAmbiguousUserAndRevokesNobody(): void
     {
-        $this->em->persist(new User('Kerstin', UserRole::User, User::hashToken('a')));
-        $this->em->persist(new User('Kerstin', UserRole::User, User::hashToken('b')));
+        $this->em->persist(new User('Kerstin', UserRole::User, Groups::v29($this->em), User::hashToken('a')));
+        $this->em->persist(new User('Kerstin', UserRole::User, Groups::v29($this->em), User::hashToken('b')));
         $this->em->flush();
 
         foreach ([Uuid::v7()->toRfc4122(), 'nope', 'Kerstin'] as $user) {

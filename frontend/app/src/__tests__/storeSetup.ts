@@ -26,13 +26,32 @@ export async function restartWith(events: Event[]) {
   await store.load()
 }
 
+/** Restarts the store with the stored snapshot changed by `change`, as a download would have left it. */
+export async function restartWithSnapshot(change: (snapshot: Snapshot) => void) {
+  const store = useTimberItemStore()
+  await vi.waitFor(() => expect(store.pendingWrites).toBe(0))
+  const snapshot = structuredClone(toRaw(store.snapshot)) as Snapshot
+  change(snapshot)
+  await save({ snapshot, events: store.events.map((event) => structuredClone(toRaw(event))) })
+  await store.load()
+}
+
+/** Restarts the store as if the group of the user did not see these attributes (by name). */
+export const restartWithHidden = (...names: string[]) =>
+  restartWithSnapshot((snapshot) => {
+    snapshot.hidden_attribute_ids = snapshot.attributes
+      .filter((attribute) => names.includes(attribute.name))
+      .map((attribute) => attribute.id)
+  })
+
 /**
- * Restarts the store with the snapshot an app version from before `key`, `applies_to` and `hidden_when` left on the device.
+ * Restarts the store with the snapshot an app version from before `key`, `applies_to`, `hidden_when` and `hidden_attribute_ids` left on the device.
  */
 export async function restartWithOldSnapshot() {
   const store = useTimberItemStore()
   await vi.waitFor(() => expect(store.pendingWrites).toBe(0))
   const snapshot = structuredClone(toRaw(store.snapshot)) as Snapshot
+  delete (snapshot as Partial<Snapshot>).hidden_attribute_ids
   for (const attribute of snapshot.attributes as Partial<Snapshot['attributes'][number]>[]) {
     delete attribute.key
     delete attribute.applies_to

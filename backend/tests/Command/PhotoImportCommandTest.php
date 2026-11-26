@@ -9,6 +9,7 @@ use App\Entity\TimberItemEvent;
 use App\Entity\User;
 use App\Entity\UserRole;
 use App\Projection\TimberItemProjector;
+use App\Tests\Support\Groups;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -32,7 +33,7 @@ class PhotoImportCommandTest extends KernelTestCase
         $this->dir = sys_get_temp_dir().'/photo-import-'.bin2hex(random_bytes(4));
         mkdir($this->dir);
 
-        $this->em->persist($admin = new User('Alex Beispiel', UserRole::Superadmin, User::hashToken('a')));
+        $this->em->persist($admin = new User('Alex Beispiel', UserRole::Superadmin, Groups::v29($this->em), User::hashToken('a')));
         $this->em->persist($this->fotos = new Attribute('Fotos', AttributeType::Photo, isSeries: true));
         $id = Uuid::v7();
         foreach ([[EventType::Created, ['parent_id' => null]], [EventType::TagAssigned, ['tag_number' => '123']]] as [$type, $data]) {

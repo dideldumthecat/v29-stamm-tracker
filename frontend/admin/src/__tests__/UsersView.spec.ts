@@ -107,7 +107,7 @@ describe('the table', () => {
     const labels = [...document.querySelectorAll('[role=menuitem]')].map((item) =>
       item.textContent!.trim(),
     )
-    expect(labels).toEqual(['Merkmale', 'Nutzer', 'Polter'])
+    expect(labels).toEqual(['Nutzer', 'Gruppen', 'Merkmale', 'Polter'])
   })
 
   it('shows the error state when loading fails', async () => {
@@ -274,11 +274,11 @@ describe('the rights', () => {
     const { wrapper } = await open(ADMIN)
     await openUser(wrapper, 'Bruno')
 
-    expect(panel(wrapper).find('select').exists()).toBe(false)
+    expect(panel(wrapper).find('select[id$="-edit-role"]').exists()).toBe(false)
     expect(panel(wrapper).text()).toContain('Nutzer')
     await wrapper.get('button[aria-expanded=true]').trigger('click')
     await click(wrapper, 'Nutzer hinzufügen')
-    expect(wrapper.find('select').exists()).toBe(false)
+    expect(wrapper.find('select[id$="-role"]').exists()).toBe(false)
   })
 
   it('gives the superadmin the role of everybody but themselves, and the same actions for administrators', async () => {
@@ -294,12 +294,39 @@ describe('the rights', () => {
     const { wrapper, api } = await open()
     await openUser(wrapper, 'Bruno')
 
-    await panel(wrapper).get('select').setValue('admin')
+    await panel(wrapper).get('select[id$="-edit-role"]').setValue('admin')
     await panel(wrapper).get('form').trigger('submit')
     await flushPromises()
 
     expect(api.users.users()[2].role).toBe('admin')
     expect(cells(wrapper, 'Bruno')[1]).toBe('Admin')
+  })
+
+  it('shows the group of the user and changes it with "Speichern"', async () => {
+    const { wrapper, api } = await open(ADMIN)
+    await openUser(wrapper, 'Bruno')
+    const select = panel(wrapper).get('select[id$="-edit-group"]')
+    expect((select.element as HTMLSelectElement).selectedOptions[0].textContent!.trim()).toBe(
+      'Sägewerk',
+    )
+    expect(button(wrapper, 'Speichern')!.attributes('disabled')).toBeDefined()
+
+    await select.setValue(api.groups.groups.find((group) => group.name === 'V29')!.id)
+    expect(button(wrapper, 'Speichern')!.attributes('disabled')).toBeUndefined()
+    await panel(wrapper).get('form').trigger('submit')
+    await flushPromises()
+
+    expect(api.users.users()[2].group_id).toBe(
+      api.groups.groups.find((group) => group.name === 'V29')!.id,
+    )
+    expect(api.calls.filter((call) => call.startsWith('PATCH'))).toHaveLength(1)
+  })
+
+  it('shows the error state when the groups cannot be loaded', async () => {
+    const { wrapper } = await open(SUPERADMIN, (api) => api.failGroups())
+
+    expect(wrapper.text()).toContain('Hier ist grad der Wurm drin')
+    expect(wrapper.text()).not.toContain('5 Nutzer')
   })
 })
 
@@ -311,8 +338,39 @@ describe('add', () => {
     await click(wrapper, 'Nutzer hinzufügen')
 
     expect(wrapper.find('[data-add-arrow]').exists()).toBe(true)
-    expect(wrapper.get('form select').element.querySelectorAll('option')).toHaveLength(2)
+    expect(wrapper.get('form select[id$="-role"]').element.querySelectorAll('option')).toHaveLength(
+      2,
+    )
     expect(wrapper.text()).toContain('Steht in der App oben und an jeder Erfassung.')
+  })
+
+  it('preselects the group V29, the one a new user gets', async () => {
+    const { wrapper, api } = await open()
+    await click(wrapper, 'Nutzer hinzufügen')
+
+    const select = wrapper.get('form select[id$="-group"]')
+    expect(
+      [...select.element.querySelectorAll('option')].map((option) => option.textContent!.trim()),
+    ).toEqual(['Sägewerk', 'V29'])
+    expect((select.element as HTMLSelectElement).selectedOptions[0].textContent!.trim()).toBe('V29')
+    await wrapper.get('form input').setValue('Eva')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(api.users.users().slice(-1)[0].group_id).toBe(
+      api.groups.groups.find((group) => group.name === 'V29')!.id,
+    )
+  })
+
+  it('creates a user in the chosen group', async () => {
+    const { wrapper, api } = await open()
+    await click(wrapper, 'Nutzer hinzufügen')
+
+    await wrapper.get('form input').setValue('Eva')
+    await wrapper.get('form select[id$="-group"]').setValue(api.groups.groups[0].id)
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(api.users.users().slice(-1)[0].group_id).toBe(api.groups.groups[0].id)
   })
 
   it('creates a user, closes and opens the new one with its code', async () => {
@@ -337,7 +395,7 @@ describe('add', () => {
     await click(wrapper, 'Nutzer hinzufügen')
 
     await wrapper.get('form input').setValue('Fred')
-    await wrapper.get('form select').setValue('admin')
+    await wrapper.get('form select[id$="-role"]').setValue('admin')
     await wrapper.get('form').trigger('submit')
     await flushPromises()
 

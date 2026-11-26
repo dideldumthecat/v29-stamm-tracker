@@ -11,6 +11,7 @@ use App\Entity\TimberItemEvent;
 use App\Entity\User;
 use App\Entity\UserRole;
 use App\Projection\TimberItemProjector;
+use App\Tests\Support\Groups;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -45,9 +46,9 @@ class ActivityTest extends WebTestCase
         $this->em = self::getContainer()->get(EntityManagerInterface::class);
         $this->projector = self::getContainer()->get(TimberItemProjector::class);
 
-        foreach ([[$this->ada = new User('Ada', UserRole::Superadmin, User::hashToken(User::normalizeToken('Ada-test-token')))],
-            [$this->bruno = new User('Bruno', UserRole::User, User::hashToken(User::normalizeToken('Bruno-test-token')))],
-            [new User('Chef', UserRole::Admin, User::hashToken(User::normalizeToken('Chef-test-token')))]] as [$user]) {
+        foreach ([[$this->ada = new User('Ada', UserRole::Superadmin, Groups::v29($this->em), User::hashToken(User::normalizeToken('Ada-test-token')))],
+            [$this->bruno = new User('Bruno', UserRole::User, Groups::v29($this->em), User::hashToken(User::normalizeToken('Bruno-test-token')))],
+            [new User('Chef', UserRole::Admin, Groups::v29($this->em), User::hashToken(User::normalizeToken('Chef-test-token')))]] as [$user]) {
             $this->em->persist($user);
         }
         $this->em->persist($this->sawn = new Attribute('Gesägt', AttributeType::Boolean));
@@ -517,7 +518,7 @@ class ActivityTest extends WebTestCase
     {
         $users = [];
         foreach (['Alex Beispiel' => UserRole::Superadmin, 'Aaron Bauer' => UserRole::User, 'Sägewerk Muster' => UserRole::User, 'Mara Vogel' => UserRole::User] as $name => $role) {
-            $this->em->persist($users[$name] = new User($name, $role, User::hashToken(User::normalizeToken($name.'-test-token')), id: $this->nextId()));
+            $this->em->persist($users[$name] = new User($name, $role, Groups::v29($this->em), User::hashToken(User::normalizeToken($name.'-test-token')), id: $this->nextId()));
         }
         $this->em->flush();
         [$alex, $bruno, $sawmill, $mara] = array_values($users);

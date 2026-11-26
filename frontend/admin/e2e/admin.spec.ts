@@ -6,6 +6,7 @@ import keyFiguresFixture from '@v29/shared/fixtures/key-figures-response.json' w
 
 import { activityAnswer } from '../src/__tests__/fakeActivity'
 import { createFakeAttributes } from '../src/__tests__/fakeAttributes'
+import { createFakeGroups } from '../src/__tests__/fakeGroups'
 import { createFakePiles } from '../src/__tests__/fakePiles'
 import { createFakeUsers } from '../src/__tests__/fakeUsers'
 import { snapshotFixture, stemPhotos } from '../src/__tests__/fakeSnapshot'
@@ -24,6 +25,7 @@ async function fakeApi(page: Page) {
   let role: string | null = null
   const attributes = createFakeAttributes()
   const users = createFakeUsers()
+  const groups = createFakeGroups()
   const piles = createFakePiles()
   await page.route('**/api/**', async (route) => {
     const request = route.request()
@@ -70,6 +72,12 @@ async function fakeApi(page: Page) {
       if (!role) return route.fulfill({ status: 401 })
       const body = request.postData() ? request.postDataJSON() : undefined
       const answer = piles.handle(request.method(), path, body)
+      return route.fulfill({ status: answer?.status ?? 404, json: answer?.json })
+    }
+    if (path.startsWith('/api/admin/groups')) {
+      if (!role) return route.fulfill({ status: 401 })
+      const body = request.postData() ? request.postDataJSON() : undefined
+      const answer = groups.handle(request.method(), path, body)
       return route.fulfill({ status: answer?.status ?? 404, json: answer?.json })
     }
     if (path.startsWith('/api/admin/users')) {
@@ -2453,7 +2461,7 @@ test.describe('users', () => {
     await open(page, 'K7QM4XHT9RDP')
     await expect(toggle(page, 'Chef')).toHaveCount(0)
     await toggle(page, 'Bruno').click()
-    await expect(card(page, 'Bruno').getByRole('combobox')).toHaveCount(0)
+    await expect(card(page, 'Bruno').getByLabel('Rolle', { exact: true })).toHaveCount(0)
     await page.getByRole('button', { name: 'Abmelden', exact: true }).click()
 
     await signIn(page, 'S4PA2DM1N8QX')
@@ -2464,6 +2472,27 @@ test.describe('users', () => {
     await card(page, 'Bruno').getByLabel('Rolle', { exact: true }).selectOption('admin')
     await card(page, 'Bruno').getByRole('button', { name: 'Speichern', exact: true }).click()
     await expect(user(page, 'Bruno').getByText('Admin', { exact: true })).toBeVisible()
+  })
+
+  test('puts a user into another group, and a new user into the group V29 unless another is chosen', async ({
+    page,
+  }) => {
+    await open(page, 'K7QM4XHT9RDP')
+    await toggle(page, 'Bruno').click()
+    await expect(card(page, 'Bruno').getByLabel('Gruppe', { exact: true })).toHaveValue(/a2$/)
+    await card(page, 'Bruno').getByLabel('Gruppe', { exact: true }).selectOption({ label: 'V29' })
+    await card(page, 'Bruno').getByRole('button', { name: 'Speichern', exact: true }).click()
+    await expect(card(page, 'Bruno')).toHaveCount(0)
+    await toggle(page, 'Bruno').click()
+    await expect(card(page, 'Bruno').getByLabel('Gruppe', { exact: true })).toHaveValue(/a1$/)
+
+    await page.getByRole('button', { name: 'Nutzer hinzufügen', exact: true }).click()
+    const form = page.getByRole('region', { name: 'Nutzer hinzufügen', exact: true })
+    await expect(form.getByLabel('Gruppe', { exact: true })).toHaveValue(/a1$/)
+    await form.getByLabel('Gruppe', { exact: true }).selectOption({ label: 'Sägewerk' })
+    await form.getByLabel('Name', { exact: true }).fill('Eva')
+    await form.getByRole('button', { name: 'Anlegen', exact: true }).click()
+    await expect(card(page, 'Eva').getByLabel('Gruppe', { exact: true })).toHaveValue(/a2$/)
   })
 
   for (const width of [1000, 390]) {
@@ -2559,4 +2588,96 @@ test.describe('piles', () => {
     await expect(pile(page, '01')).toHaveCount(0)
     await expect(card(page, '01')).toHaveCount(0)
   })
+})
+
+test.describe('groups', () => {
+  const open = async (page: Page, code: string) => {
+    await page.goto('/admin/activity')
+    await signIn(page, code)
+    await page.getByRole('button', { name: 'Verwaltung', exact: true }).click()
+    await expect(page.getByRole('menuitem')).toHaveText(['Nutzer', 'Gruppen', 'Merkmale', 'Polter'])
+    await page.getByRole('menuitem', { name: 'Gruppen', exact: true }).click()
+    await expect(page).toHaveURL(/\/admin\/groups$/)
+    await expect(page.getByText('2 Gruppen', { exact: true })).toBeVisible()
+  }
+  const group = (page: Page, name: string) => page.locator(`[data-group="${name}"]`)
+  const card = (page: Page, name: string) =>
+    page.getByRole('region', { name: `Einstellungen der Gruppe ${name}`, exact: true })
+
+  test('lists the groups with their attributes and members, and opens one with the arrow under its chevron', async ({
+    page,
+  }) => {
+    await open(page, 'K7QM4XHT9RDP')
+    await expect(group(page, 'Sägewerk')).toContainText('2 von 10')
+    await expect(group(page, 'Sägewerk')).toContainText('Bruno, Cem')
+    await expect(group(page, 'V29')).toContainText('Alle')
+
+    await group(page, 'Sägewerk').getByRole('button').click()
+    await expect(card(page, 'Sägewerk')).toContainText('2 von 10 ausgewählt')
+    const chevron = (await group(page, 'Sägewerk').locator('[data-chevron]').boundingBox())!
+    const arrow = (await page.locator('[data-card-arrow]').boundingBox())!
+    expect(Math.abs(chevron.x + chevron.width / 2 - (arrow.x + arrow.width / 2))).toBeLessThan(2)
+  })
+
+  test('chooses the attributes of a group, or all of them, and saves', async ({ page }) => {
+    await open(page, 'K7QM4XHT9RDP')
+    await group(page, 'Sägewerk').getByRole('button').click()
+
+    await card(page, 'Sägewerk')
+      .getByRole('checkbox', { name: /^Lagerplatz/ })
+      .check()
+    await expect(card(page, 'Sägewerk')).toContainText('3 von 10 ausgewählt')
+    await card(page, 'Sägewerk').getByRole('button', { name: 'Speichern', exact: true }).click()
+    await expect(group(page, 'Sägewerk')).toContainText('3 von 10')
+    await expect(card(page, 'Sägewerk')).toHaveCount(0)
+
+    await group(page, 'Sägewerk').getByRole('button').click()
+    await card(page, 'Sägewerk')
+      .getByRole('radio', { name: 'Alle Merkmale, auch künftige' })
+      .check()
+    await expect(card(page, 'Sägewerk').getByRole('checkbox')).toHaveCount(0)
+    await card(page, 'Sägewerk').getByRole('button', { name: 'Speichern', exact: true }).click()
+    await expect(group(page, 'Sägewerk')).toContainText('Alle')
+  })
+
+  test('adds a group, which starts with nothing selected, and deletes it after a question; one with users cannot be deleted', async ({
+    page,
+  }) => {
+    await open(page, 'K7QM4XHT9RDP')
+    await group(page, 'V29').getByRole('button').click()
+    await expect(card(page, 'V29').getByRole('button', { name: 'Gruppe löschen' })).toBeDisabled()
+    await expect(card(page, 'V29')).toContainText(
+      'Nur möglich, solange die Gruppe keine Nutzer hat.',
+    )
+
+    const add = page.getByRole('button', { name: 'Gruppe hinzufügen', exact: true })
+    await add.click()
+    const button = (await add.boundingBox())!
+    const arrow = (await page.locator('[data-add-arrow]').boundingBox())!
+    expect(Math.abs(button.x + button.width / 2 - (arrow.x + arrow.width / 2))).toBeLessThan(2)
+    const form = page.getByRole('region', { name: 'Gruppe hinzufügen', exact: true })
+    await form.getByLabel('Name', { exact: true }).fill('Forst')
+    await form.getByRole('button', { name: 'Anlegen', exact: true }).click()
+    await expect(page.getByText('3 Gruppen', { exact: true })).toBeVisible()
+    await expect(card(page, 'Forst')).toContainText('0 von 10 ausgewählt')
+
+    await card(page, 'Forst').getByRole('button', { name: 'Gruppe löschen' }).click()
+    await expect(page.getByRole('alertdialog')).toContainText('Forst wird gelöscht')
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Gruppe löschen' }).click()
+    await expect(page.getByText('2 Gruppen', { exact: true })).toBeVisible()
+    await expect(group(page, 'Forst')).toHaveCount(0)
+  })
+
+  for (const width of [1000, 390]) {
+    test(`stays free of sideways scrolling at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 800 })
+      await open(page, 'K7QM4XHT9RDP')
+      await group(page, 'Sägewerk').getByRole('button').click()
+      await expect(card(page, 'Sägewerk')).toBeVisible()
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      )
+      expect(overflow).toBe(0)
+    })
+  }
 })

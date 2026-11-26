@@ -102,6 +102,7 @@ export function useTimberItemDraft(item: Ref<TimberItem | undefined>, tagNumber:
     const sawnAttribute = store.attributes.find((attribute) => attribute.id === sawnId.value)
     return (
       !isBeam.value &&
+      store.canEditBeams &&
       (!sawnAttribute || (sawnAttribute.active && !hiddenByOthers.value.has(sawnId.value)))
     )
   })
@@ -124,7 +125,7 @@ export function useTimberItemDraft(item: Ref<TimberItem | undefined>, tagNumber:
   // The form in the order V29 set. Input typed before the stem got locked, for an attribute the lock closes
   // (one the beams take too), stays an input until it is saved: it is saved with the stem, so it must not vanish from the screen.
   const fields = computed(() =>
-    [...store.attributes].sort(bySortOrder).flatMap((attribute) => {
+    [...store.visibleAttributes].sort(bySortOrder).flatMap((attribute) => {
       const id = attribute.id
       const lockedOnly = attribute.active && appliesNow(attribute) && roles.value.locked
       const hasDraft =
@@ -158,13 +159,18 @@ export function useTimberItemDraft(item: Ref<TimberItem | undefined>, tagNumber:
   // Input for an attribute that no longer fits the item (beam attributes after "Mehrere Balken") is left out, not deleted:
   // it comes back with the field.
   const collected = computed(() =>
-    collectDraft(store.attributes.filter(appliesNow), draft.value, added.value, item.value?.values),
+    collectDraft(
+      store.visibleAttributes.filter(appliesNow),
+      draft.value,
+      added.value,
+      item.value?.values,
+    ),
   )
   const changes = computed(() => collected.value.changes)
   // The mid diameters are measured on the round wood, so a stem counts as sawn only with both (see `setField`, `blockedByDiameters`).
   const emptyDiameters = computed(() =>
     emptyDiameterIds(
-      store.attributes.filter(appliesNow),
+      store.visibleAttributes.filter(appliesNow),
       draft.value,
       added.value,
       item.value?.values,
@@ -179,7 +185,7 @@ export function useTimberItemDraft(item: Ref<TimberItem | undefined>, tagNumber:
   // Blocks the save like invalid input, but is no unsaved input itself (not in `isDirty`, not in the leave dialog).
   const blockingErrors = computed(() => ({
     ...missingDiameterErrors(
-      store.attributes.filter(appliesNow),
+      store.visibleAttributes.filter(appliesNow),
       collected.value,
       item.value?.values,
     ),

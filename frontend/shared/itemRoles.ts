@@ -9,13 +9,14 @@ import type { Attribute, ItemKind, Snapshot } from './contract'
 export const NOTES_KEY = 'notes'
 
 /**
- * A snapshot stored by an app version from before `key`, `applies_to` and `hidden_when` lacks these fields, and it stays
+ * A snapshot stored by an app version from before `key`, `applies_to`, `hidden_when` and `hidden_attribute_ids` lacks these fields, and it stays
  * on the device until the next download succeeds. With these defaults the app behaves as it did then:
  * every attribute everywhere, no split question (no key "sawn").
  */
 export function withAttributeDefaults(snapshot: Snapshot): Snapshot {
   return {
     ...snapshot,
+    hidden_attribute_ids: snapshot.hidden_attribute_ids ?? [],
     attributes: snapshot.attributes.map((attribute) => ({
       ...attribute,
       key: attribute.key ?? null,

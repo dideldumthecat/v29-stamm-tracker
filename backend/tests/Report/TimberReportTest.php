@@ -13,6 +13,7 @@ use App\Projection\TimberItemProjector;
 use App\Report\Report;
 use App\Report\Sheet;
 use App\Report\TimberReport;
+use App\Tests\Support\Groups;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Uid\Uuid;
@@ -32,7 +33,7 @@ class TimberReportTest extends KernelTestCase
     {
         self::bootKernel();
         $this->em = self::getContainer()->get(EntityManagerInterface::class);
-        $this->em->persist($this->user = new User('Kerstin', UserRole::User, User::hashToken('t')));
+        $this->em->persist($this->user = new User('Kerstin', UserRole::User, Groups::v29($this->em), User::hashToken('t')));
     }
 
     /** Attributes as in the migration for system attributes, plus one that is not inherited. */
@@ -254,7 +255,7 @@ class TimberReportTest extends KernelTestCase
     public function testLastChangedByIsTheAuthorOfTheLastOwnEvent(): void
     {
         $this->attributes();
-        $this->em->persist($anna = new User('Anna', UserRole::User, User::hashToken('a')));
+        $this->em->persist($anna = new User('Anna', UserRole::User, Groups::v29($this->em), User::hashToken('a')));
         $stem = $this->item('30');
         $this->item('30-A', $stem);
         $tie = $this->item('31');

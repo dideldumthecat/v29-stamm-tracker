@@ -9,6 +9,7 @@ use App\Entity\TimberItemEvent;
 use App\Entity\User;
 use App\Entity\UserRole;
 use App\Projection\TimberItemProjector;
+use App\Tests\Support\Groups;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Uid\Uuid;
@@ -27,7 +28,7 @@ class TimberItemProjectorTest extends KernelTestCase
         self::bootKernel();
         $this->em = self::getContainer()->get(EntityManagerInterface::class);
         $this->projector = self::getContainer()->get(TimberItemProjector::class);
-        $this->em->persist($this->user = new User('Kerstin', UserRole::Admin, User::hashToken('t')));
+        $this->em->persist($this->user = new User('Kerstin', UserRole::Admin, Groups::v29($this->em), User::hashToken('t')));
         $this->em->persist($this->diameter = new Attribute('Durchmesser', AttributeType::Number, isInheritable: true));
         $this->em->persist($this->notes = new Attribute('Notiz', AttributeType::Text, isSeries: true));
         $this->em->flush();

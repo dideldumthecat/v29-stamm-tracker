@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, useId, useTemplateRef } from 'vue'
 import type {
+  AdminGroup,
+  AdminGroupsResponse,
   AdminInviteResponse,
   AdminUser,
   AdminUserResponse,
@@ -16,6 +18,7 @@ import PageHeader from '@/components/PageHeader.vue'
 import ResultsBar from '@/components/ResultsBar.vue'
 import SelectField from '@/components/SelectField.vue'
 import UserTable from '@/components/UserTable.vue'
+import { defaultGroup } from '@/groups'
 import { useAddCard } from '@/useAddCard'
 import { useAttempt } from '@/useAttempt'
 import { isBlocked, ROLE_LABELS } from '@/users'
@@ -31,13 +34,21 @@ const status = ref<'loading' | 'ready' | 'error'>('loading')
 const failure = ref(0)
 const users = ref<AdminUser[]>([])
 const creatableRoles = ref<AdminUsersResponse['creatable_roles']>(['user'])
+const groups = ref<AdminGroup[]>([])
+// The group of a new user, preselected as the server would choose it.
+const newGroupId = ref('')
 
 async function load() {
   status.value = 'loading'
   try {
-    const answer = await request<AdminUsersResponse>('GET', 'admin/users')
+    const [answer, groupsAnswer] = await Promise.all([
+      request<AdminUsersResponse>('GET', 'admin/users'),
+      request<AdminGroupsResponse>('GET', 'admin/groups'),
+    ])
     users.value = answer.users
     creatableRoles.value = answer.creatable_roles
+    groups.value = groupsAnswer.groups
+    newGroupId.value = defaultGroup(groups.value)?.id ?? ''
     status.value = 'ready'
   } catch (error) {
     failure.value = error instanceof ApiError ? error.status : 0
@@ -62,13 +73,18 @@ const split = computed(() => {
     : { before: users.value.slice(0, index + 1), after: users.value.slice(index + 1) }
 })
 
-// What is typed in the card; it is thrown away with every other user opened. Name and role are saved together with "Speichern".
-const draft = ref<{ name: string; role: 'user' | 'admin' }>({ name: '', role: 'user' })
+// What is typed in the card; it is thrown away with every other user opened. Name, role and group are saved together with "Speichern".
+const draft = ref<{ name: string; role: 'user' | 'admin'; groupId: string }>({
+  name: '',
+  role: 'user',
+  groupId: '',
+})
 const saveErrors = ref<Record<string, string>>({})
 const changed = computed(
   () =>
     !!openUser.value &&
     (draft.value.name.trim() !== openUser.value.name ||
+      draft.value.groupId !== openUser.value.group_id ||
       (openUser.value.can_set_role && draft.value.role !== openUser.value.role)),
 )
 
@@ -82,7 +98,11 @@ onBeforeUnmount(() => clearTimeout(copiedTimer))
 
 function select(user: AdminUser) {
   openId.value = user.id
-  draft.value = { name: user.name, role: user.role === 'admin' ? 'admin' : 'user' }
+  draft.value = {
+    name: user.name,
+    role: user.role === 'admin' ? 'admin' : 'user',
+    groupId: user.group_id,
+  }
   saveErrors.value = {}
   copied.value = false
   copyFailed.value = false
@@ -114,8 +134,9 @@ const save = () =>
   attempt(
     async () => {
       const user = openUser.value!
-      const body: { name?: string; role?: string } = {}
+      const body: { name?: string; role?: string; group_id?: string } = {}
       if (draft.value.name.trim() !== user.name) body.name = draft.value.name
+      if (draft.value.groupId !== user.group_id) body.group_id = draft.value.groupId
       if (user.can_set_role && draft.value.role !== user.role) body.role = draft.value.role
       const answer = await request<AdminUserResponse>('PATCH', `admin/users/${user.id}`, body)
       replace(answer.user)
@@ -174,6 +195,7 @@ const create = () =>
       const answer = await request<AdminInviteResponse>('POST', 'admin/users', {
         name: newName.value,
         role: newRole.value,
+        group_id: newGroupId.value,
       })
       users.value = [...users.value, answer.user]
       adding.value = false
@@ -290,6 +312,14 @@ const label = 'text-caption font-semibold text-mute'
               <SelectField :id="`${id}-role`" v-model="newRole" class="mt-1">
                 <option v-for="role in creatableRoles" :key="role" :value="role">
                   {{ ROLE_LABELS[role] }}
+                </option>
+              </SelectField>
+            </div>
+            <div class="w-full sm:w-48">
+              <label :for="`${id}-group`" :class="label">Gruppe</label>
+              <SelectField :id="`${id}-group`" v-model="newGroupId" class="mt-1">
+                <option v-for="group in groups" :key="group.id" :value="group.id">
+                  {{ group.name }}
                 </option>
               </SelectField>
             </div>
@@ -429,6 +459,20 @@ const label = 'text-caption font-semibold text-mute'
                   <option value="admin">{{ ROLE_LABELS.admin }}</option>
                 </SelectField>
                 <p v-else :id="`${id}-edit-role`">{{ ROLE_LABELS[openUser.role] }}</p>
+              </div>
+
+              <div class="grid gap-x-6 gap-y-1 sm:grid-cols-[9rem_minmax(0,1fr)] sm:items-center">
+                <label :for="`${id}-edit-group`" :class="label">Gruppe</label>
+                <div>
+                  <SelectField :id="`${id}-edit-group`" v-model="draft.groupId" class="sm:w-48">
+                    <option v-for="group in groups" :key="group.id" :value="group.id">
+                      {{ group.name }}
+                    </option>
+                  </SelectField>
+                  <p class="mt-1 text-caption text-mute">
+                    Bestimmt, welche Merkmale {{ openUser.name }} in der App sieht.
+                  </p>
+                </div>
               </div>
 
               <div

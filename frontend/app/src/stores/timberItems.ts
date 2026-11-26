@@ -17,6 +17,7 @@ import {
   removedBeams as projectRemovedBeams,
   withInherited as projectWithInherited,
 } from './projection'
+import { SAWN_KEY } from '@v29/shared/attributes'
 import { isOpenOnSplitStem, withAttributeDefaults } from '@v29/shared/itemRoles'
 import { createPersistence } from './persistence'
 import { createSync, type SyncProgress } from './sync'
@@ -39,6 +40,18 @@ export const useTimberItemStore = defineStore('timberItems', () => {
   watch(currentUser, (user) => setDiagnosticsSignedIn(!!user), { immediate: true, flush: 'sync' })
   const users = computed(() => snapshot.value.users)
   const attributes = computed(() => snapshot.value.attributes)
+  // Adding and removing beams set "Gesägt" (key "sawn"), so they follow its visibility. An attribute that is not there at all
+  // (a device that never synced, a snapshot from before the keys) hides nothing.
+  const canEditBeams = computed(() => {
+    const id = attributes.value.find((attribute) => attribute.key === SAWN_KEY)?.id
+    return id === undefined || !snapshot.value.hidden_attribute_ids.includes(id)
+  })
+  // What the user's group sees. The rest stays in `attributes`: events and the sync list still need it, and `hidden_when` looks at its values.
+  const visibleAttributes = computed(() =>
+    attributes.value.filter(
+      (attribute) => !snapshot.value.hidden_attribute_ids.includes(attribute.id),
+    ),
+  )
   const events = ref<Event[]>([])
   const lastSyncedAt = ref<Timestamp | null>(null)
   // What the user did, not the wire format: the tag always belongs to the "created" of its item.
@@ -382,6 +395,8 @@ export const useTimberItemStore = defineStore('timberItems', () => {
     currentUser: readonly(currentUser),
     users,
     attributes,
+    visibleAttributes,
+    canEditBeams,
     items,
     removedBeams,
     events: readonly(events),

@@ -7,8 +7,10 @@ use App\Entity\Attribute;
 use App\Entity\AttributeOption;
 use App\Entity\AttributeType;
 use App\Entity\User;
+use App\Entity\UserGroup;
 use App\Entity\UserRole;
 use App\Photo\PhotoStorage;
+use App\Tests\Support\Groups;
 use Doctrine\ORM\EntityManagerInterface;
 use OpenSpout\Reader\XLSX\Reader;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
@@ -55,7 +57,7 @@ class ApiTest extends WebTestCase
 
         $snapshot = self::fixture('snapshot');
         foreach ($snapshot['users'] as $user) {
-            $this->em->persist(new User($user['name'], UserRole::User, User::hashToken(User::normalizeToken($user['name'].'-test-token')), id: Uuid::fromString($user['id'])));
+            $this->em->persist(new User($user['name'], UserRole::User, Groups::v29($this->em), User::hashToken(User::normalizeToken($user['name'].'-test-token')), id: Uuid::fromString($user['id'])));
         }
         foreach ($snapshot['attributes'] as $a) {
             $attribute = new Attribute($a['name'], AttributeType::from($a['type']), $a['description'], $a['unit'], $a['is_series'],
@@ -201,7 +203,7 @@ class ApiTest extends WebTestCase
 
     public function testSessionAcceptsACodeInAnySpellingAndStoresItNormalized(): void
     {
-        $user = new User('Jana', UserRole::User, User::hashToken('K7QM4XHT9RD1'));
+        $user = new User('Jana', UserRole::User, Groups::v29($this->em), User::hashToken('K7QM4XHT9RD1'));
         $this->em->persist($user);
         $this->em->flush();
 
@@ -217,7 +219,7 @@ class ApiTest extends WebTestCase
     public function testAdminMeAnswersAdminsAndRefusesUsersAndUnknownCookies(): void
     {
         foreach (['Ada' => UserRole::Admin, 'Sam' => UserRole::Superadmin, 'Uli' => UserRole::User] as $name => $role) {
-            $this->em->persist(new User($name, $role, User::hashToken(User::normalizeToken($name.'-test-token'))));
+            $this->em->persist(new User($name, $role, Groups::v29($this->em), User::hashToken(User::normalizeToken($name.'-test-token'))));
         }
         $this->em->flush();
 
@@ -549,6 +551,22 @@ class ApiTest extends WebTestCase
         self::assertStringContainsString('"values":{}', $this->client->getResponse()->getContent());
     }
 
+    public function testSnapshotNamesTheAttributesTheGroupOfTheUserDoesNotSee(): void
+    {
+        $holzart = $this->em->find(Attribute::class, Uuid::fromString(self::HOLZART));
+        $this->em->persist($group = new UserGroup('Sägewerk', false));
+        $group->enable([$holzart]);
+        $this->em->getRepository(User::class)->findOneBy(['name' => 'Kerstin'])->group = $group;
+        $this->em->flush();
+
+        $all = array_column($this->request('GET', '/api/snapshot', as: 'Kerstin')['attributes'], 'id');
+        $snapshot = $this->request('GET', '/api/snapshot', as: 'Kerstin');
+
+        self::assertSame($all, array_column($snapshot['attributes'], 'id'), 'every attribute stays in the snapshot');
+        self::assertSame(array_values(array_diff($all, [self::HOLZART])), $snapshot['hidden_attribute_ids']);
+        self::assertSame([], $this->request('GET', '/api/snapshot', as: 'Alex Beispiel')['hidden_attribute_ids'], 'the group V29 sees all');
+    }
+
     public function testBeamInheritsInheritableValuesThroughAllLevelsAndItsOwnValueWins(): void
     {
         [$log, $beam, $beamOfBeam] = [Uuid::v4()->toRfc4122(), Uuid::v4()->toRfc4122(), Uuid::v4()->toRfc4122()];
@@ -695,7 +713,7 @@ class ApiTest extends WebTestCase
     private function ensureSuperadmin(): void
     {
         if (!$this->em->getRepository(User::class)->findBy(['role' => UserRole::Superadmin])) {
-            $this->em->persist(new User('Admin', UserRole::Superadmin, User::hashToken('admin-test-token')));
+            $this->em->persist(new User('Admin', UserRole::Superadmin, Groups::v29($this->em), User::hashToken('admin-test-token')));
             $this->em->flush();
         }
     }

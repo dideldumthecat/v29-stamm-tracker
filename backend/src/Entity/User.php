@@ -21,6 +21,10 @@ class User
         public string $name,
         #[ORM\Column(length: 16, enumType: UserRole::class)]
         public UserRole $role,
+        /** Decides which attributes the app shows the user; the role only governs the administration. */
+        #[ORM\ManyToOne]
+        #[ORM\JoinColumn(nullable: false)]
+        public UserGroup $group,
         /** SHA-256 of the invite token as hex. The token itself is never stored. */
         #[ORM\Column(length: 64, options: ['fixed' => true])]
         public string $tokenHash,

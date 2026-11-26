@@ -10,6 +10,7 @@ use App\Entity\TimberItemEvent;
 use App\Entity\User;
 use App\Entity\UserRole;
 use App\Projection\TimberItemProjector;
+use App\Tests\Support\Groups;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -28,7 +29,7 @@ class ResetCommandTest extends KernelTestCase
         $this->em = self::getContainer()->get(EntityManagerInterface::class);
         $this->tester = new CommandTester((new Application($kernel))->find('app:reset'));
 
-        $user = new User('Kerstin', UserRole::User, User::hashToken('t'));
+        $user = new User('Kerstin', UserRole::User, Groups::v29($this->em), User::hashToken('t'));
         $this->em->persist($user);
         $this->em->persist($attribute = new Attribute('Notiz', AttributeType::Text));
         $item = Uuid::v7();

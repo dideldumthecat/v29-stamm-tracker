@@ -10,6 +10,7 @@ use App\Entity\EventType;
 use App\Entity\TimberItemEvent;
 use App\Entity\User;
 use App\Entity\UserRole;
+use App\Tests\Support\Groups;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -33,9 +34,9 @@ class AttributeAdminTest extends WebTestCase
     {
         $this->client = static::createClient();
         $this->em = self::getContainer()->get(EntityManagerInterface::class);
-        $this->em->persist($this->admin = new User('Chef', UserRole::Admin, User::hashToken(User::normalizeToken('Chef-test-token'))));
-        $this->em->persist(new User('Ada', UserRole::Superadmin, User::hashToken(User::normalizeToken('Ada-test-token'))));
-        $this->em->persist(new User('Bruno', UserRole::User, User::hashToken(User::normalizeToken('Bruno-test-token'))));
+        $this->em->persist($this->admin = new User('Chef', UserRole::Admin, Groups::v29($this->em), User::hashToken(User::normalizeToken('Chef-test-token'))));
+        $this->em->persist(new User('Ada', UserRole::Superadmin, Groups::v29($this->em), User::hashToken(User::normalizeToken('Ada-test-token'))));
+        $this->em->persist(new User('Bruno', UserRole::User, Groups::v29($this->em), User::hashToken(User::normalizeToken('Bruno-test-token'))));
         $this->em->persist($this->sawn = new Attribute('Gesägt', AttributeType::Boolean, sortOrder: 10, key: 'sawn'));
         $this->em->persist($this->notes = new Attribute('Notiz', AttributeType::Text, isSeries: true, sortOrder: 20));
         $this->em->persist($this->species = new Attribute('Holzart', AttributeType::Choice, sortOrder: 30, active: false));

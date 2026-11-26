@@ -5,6 +5,7 @@ namespace App\Command;
 use App\Entity\User;
 use App\Entity\UserRole;
 use App\User\Invites;
+use App\User\UserGroups;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\Argument;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -19,6 +20,7 @@ class UserCreateCommand
         private readonly EntityManagerInterface $em,
         private readonly Superadmin $superadmin,
         private readonly Invites $invites,
+        private readonly UserGroups $groups,
     ) {
     }
 
@@ -29,9 +31,11 @@ class UserCreateCommand
     ): int {
         $name = trim($name);
         $userRole = UserRole::tryFrom($role);
+        $group = $this->groups->default();
         $error = match (true) {
             '' === $name => 'The name must not be empty.',
             null === $userRole => \sprintf('"%s" is not a role. Use user, admin or superadmin.', $role),
+            null === $group => 'There is no user group yet. Create one in the administration first.',
             UserRole::Superadmin === $userRole => $this->superadmin->conflict(),
             default => null,
         };
@@ -42,7 +46,7 @@ class UserCreateCommand
         }
 
         // Only the hash is stored, never the code itself.
-        $user = new User($name, $userRole, '');
+        $user = new User($name, $userRole, $group, '');
         $code = $this->invites->issue($user);
         $this->em->persist($user);
         $this->em->flush();

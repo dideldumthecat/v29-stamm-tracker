@@ -9,20 +9,21 @@ use App\Entity\AttributeType;
 use App\Entity\TimberItem;
 use App\Entity\TimberItemState;
 use App\Entity\User;
+use App\Photo\PhotoTakenAt;
+use App\User\UserGroups;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Attribute\Route;
-use Symfony\Component\Uid\Uuid;
 
 /**
- * Snapshot in frontend/shared/contract.ts – the same for every user.
+ * Snapshot in frontend/shared/contract.ts. Everything is the same for every user except `hidden_attribute_ids`, which depends on the user's group.
  */
 final class SnapshotController extends AbstractController
 {
     #[Route('/api/snapshot', methods: ['GET'])]
-    public function __invoke(EntityManagerInterface $em, LoggerInterface $logger): JsonResponse
+    public function __invoke(User $user, EntityManagerInterface $em, LoggerInterface $logger, PhotoTakenAt $photoTimes, UserGroups $groups): JsonResponse
     {
         $options = [];
         foreach ($em->getRepository(AttributeOption::class)->findBy([], ['sortOrder' => 'ASC']) as $option) {
@@ -39,10 +40,7 @@ final class SnapshotController extends AbstractController
             static fn (Attribute $attribute) => $attribute->id->toRfc4122(),
             $em->getRepository(Attribute::class)->findBy(['type' => AttributeType::Photo]),
         ));
-        $takenAt = [];
-        foreach ($em->getConnection()->fetchAllKeyValue('SELECT id, taken_at FROM photos') as $id => $time) {
-            $takenAt[Uuid::fromBinary((string) $id)->toRfc4122()] = Timestamp::format(new \DateTimeImmutable((string) $time, new \DateTimeZone('UTC')));
-        }
+        $takenAt = $photoTimes->byPhotoId();
 
         $values = [];
         foreach ($em->getRepository(TimberItemState::class)->findAll() as $state) {
@@ -85,6 +83,7 @@ final class SnapshotController extends AbstractController
                 'active' => $attribute->active,
                 'options' => $options[$attribute->id->toRfc4122()] ?? [],
             ], $em->getRepository(Attribute::class)->findBy([], ['sortOrder' => 'ASC'])),
+            'hidden_attribute_ids' => $groups->hiddenAttributeIds($user),
             'timber_items' => array_map(static fn (TimberItem $item) => [
                 'id' => $item->id->toRfc4122(),
                 'parent_id' => $item->parentId?->toRfc4122(),

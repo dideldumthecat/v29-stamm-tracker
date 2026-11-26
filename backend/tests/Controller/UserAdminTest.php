@@ -6,6 +6,7 @@ use App\Controller\SessionController;
 use App\Entity\EventType;
 use App\Entity\TimberItemEvent;
 use App\Entity\User;
+use App\Entity\UserGroup;
 use App\Entity\UserRole;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -21,28 +22,35 @@ class UserAdminTest extends WebTestCase
     private EntityManagerInterface $em;
     /** @var array<string, User> by name */
     private array $users = [];
+    /** @var array<string, UserGroup> by name */
+    private array $groups = [];
+    private const GROUP_V29 = '00000000-0000-7000-8000-0000000000a1';
+    private const GROUP_SAWMILL = '00000000-0000-7000-8000-0000000000a2';
 
     protected function setUp(): void
     {
         $this->client = static::createClient();
         $this->em = self::getContainer()->get(EntityManagerInterface::class);
         // The ids and times are those of the fixture admin-users-response.json.
-        $this->add('Ada', UserRole::Superadmin, 1, '2026-10-20 08:00:00');
-        $this->add('Chef', UserRole::Admin, 2, '2026-10-21 08:00:00');
-        $this->add('Bruno', UserRole::User, 3, '2026-10-22 08:00:00', code: 'K7QM4XHT9RDP');
-        $this->add('Cem', UserRole::User, 4, '2026-10-23 08:00:00', revoked: '2026-11-05 12:00:00');
-        $this->add('Dora', UserRole::User, 5, '2026-10-24 08:00:00');
+        $this->em->persist($this->groups['V29'] = new UserGroup('V29', true, Uuid::fromString(self::GROUP_V29)));
+        $this->em->persist($this->groups['Sägewerk'] = new UserGroup('Sägewerk', false, Uuid::fromString(self::GROUP_SAWMILL)));
+        $this->add('Ada', UserRole::Superadmin, 'V29', 1, '2026-10-20 08:00:00');
+        $this->add('Chef', UserRole::Admin, 'V29', 2, '2026-10-21 08:00:00');
+        $this->add('Bruno', UserRole::User, 'Sägewerk', 3, '2026-10-22 08:00:00', code: 'K7QM4XHT9RDP');
+        $this->add('Cem', UserRole::User, 'Sägewerk', 4, '2026-10-23 08:00:00', revoked: '2026-11-05 12:00:00');
+        $this->add('Dora', UserRole::User, 'V29', 5, '2026-10-24 08:00:00');
         $this->event($this->users['Ada'], '2026-11-12 16:30:00');
         $this->event($this->users['Bruno'], '2026-11-13 09:15:00');
         $this->event($this->users['Bruno'], '2026-11-10 09:15:00');
         $this->em->flush();
     }
 
-    private function add(string $name, UserRole $role, int $number, string $created, ?string $code = null, ?string $revoked = null): void
+    private function add(string $name, UserRole $role, string $group, int $number, string $created, ?string $code = null, ?string $revoked = null): void
     {
         $user = new User(
             $name,
             $role,
+            $this->groups[$group],
             User::hashToken(User::normalizeToken($name.'-test-token')),
             new \DateTimeImmutable($created, new \DateTimeZone('UTC')),
             $revoked ? new \DateTimeImmutable($revoked, new \DateTimeZone('UTC')) : null,
@@ -163,6 +171,36 @@ class UserAdminTest extends WebTestCase
         self::assertSame(405, $this->code());
     }
 
+    public function testANewUserGetsTheGroupV29UnlessAnotherIsNamed(): void
+    {
+        $body = $this->call('POST', '', ['name' => 'Eva', 'role' => 'user'], as: 'Chef');
+        self::assertSame(self::GROUP_V29, $body['user']['group_id']);
+
+        $body = $this->call('POST', '', ['name' => 'Eli', 'role' => 'user', 'group_id' => self::GROUP_SAWMILL], as: 'Chef');
+        self::assertSame(self::GROUP_SAWMILL, $body['user']['group_id']);
+    }
+
+    public function testChangeTheGroupOfAUser(): void
+    {
+        $body = $this->call('PATCH', $this->id('Bruno'), ['group_id' => self::GROUP_V29], as: 'Chef');
+        self::assertSame(200, $this->code());
+        self::assertSame(self::GROUP_V29, $body['user']['group_id']);
+        self::assertSame($this->groups['V29'], $this->users['Bruno']->group);
+
+        $this->call('PATCH', $this->id('Bruno'), ['group_id' => '00000000-0000-7000-8000-0000000000ff'], as: 'Chef');
+        self::assertSame(['group_id: Bitte eine Gruppe wählen.'], $this->errors());
+        $this->call('PATCH', $this->id('Bruno'), ['group_id' => null], as: 'Chef');
+        self::assertSame(['group_id: Bitte eine Gruppe wählen.'], $this->errors());
+        self::assertSame($this->groups['V29'], $this->users['Bruno']->group);
+    }
+
+    public function testAnAdminCannotChangeTheGroupOfAnAdministrator(): void
+    {
+        $this->call('PATCH', $this->id('Chef'), ['group_id' => self::GROUP_SAWMILL], as: 'Chef');
+
+        self::assertSame(403, $this->code());
+    }
+
     public function testOnlyTheSuperadminCreatesAdministrators(): void
     {
         $this->call('POST', '', ['name' => 'Fred', 'role' => 'admin'], as: 'Chef');
@@ -188,6 +226,7 @@ class UserAdminTest extends WebTestCase
         yield 'no name' => [['name' => '  ', 'role' => 'user'], 'name: Bitte einen Namen eingeben.'];
         yield 'long name' => [['name' => str_repeat('x', 256), 'role' => 'user'], 'name: Der Name darf höchstens 255 Zeichen lang sein.'];
         yield 'no role' => [['name' => 'Fred'], 'role: Bitte eine Rolle wählen.'];
+        yield 'unknown group' => [['name' => 'Fred', 'role' => 'user', 'group_id' => 'nope'], 'group_id: Bitte eine Gruppe wählen.'];
         yield 'unknown role' => [['name' => 'Fred', 'role' => 'boss'], 'role: Bitte eine Rolle wählen.'];
         yield 'nobody creates a superadmin' => [['name' => 'Fred', 'role' => 'superadmin'], 'role: Bitte eine Rolle wählen.'];
     }

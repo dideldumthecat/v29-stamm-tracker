@@ -12,6 +12,7 @@ use App\Entity\User;
 use App\Entity\UserRole;
 use App\Projection\TimberItemProjector;
 use App\Report\TimberReport;
+use App\Tests\Support\Groups;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -38,8 +39,8 @@ class KeyFiguresTest extends WebTestCase
     {
         $this->client = static::createClient();
         $this->em = self::getContainer()->get(EntityManagerInterface::class);
-        $this->em->persist($this->user = new User('Ada', UserRole::Admin, User::hashToken(User::normalizeToken('Ada-test-token'))));
-        $this->em->persist(new User('Kerstin', UserRole::User, User::hashToken(User::normalizeToken('Kerstin-test-token'))));
+        $this->em->persist($this->user = new User('Ada', UserRole::Admin, Groups::v29($this->em), User::hashToken(User::normalizeToken('Ada-test-token'))));
+        $this->em->persist(new User('Kerstin', UserRole::User, Groups::v29($this->em), User::hashToken(User::normalizeToken('Kerstin-test-token'))));
         $definitions = [
             ['Durchmesser groß', 'mid_diameter_max', AttributeType::Number, []],
             ['Durchmesser klein', 'mid_diameter_min', AttributeType::Number, []],

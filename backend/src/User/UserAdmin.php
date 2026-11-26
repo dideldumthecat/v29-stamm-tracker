@@ -21,7 +21,7 @@ final class UserAdmin
 {
     private const int NAME_MAX = 255;
 
-    public function __construct(private readonly EntityManagerInterface $em, private readonly Invites $invites)
+    public function __construct(private readonly EntityManagerInterface $em, private readonly Invites $invites, private readonly UserGroups $groups)
     {
     }
 
@@ -64,6 +64,7 @@ final class UserAdmin
             'id' => $id,
             'name' => $user->name,
             'role' => $user->role->value,
+            'group_id' => $user->group->id->toRfc4122(),
             'created_at' => Timestamp::format($user->createdAt),
             'revoked_at' => $user->revokedAt ? Timestamp::format($user->revokedAt) : null,
             'last_active_at' => isset($lastActive[$id]) ? Timestamp::format($lastActive[$id]) : null,
@@ -97,7 +98,7 @@ final class UserAdmin
      * @throws InvalidUser
      * @throws UserActionDenied
      */
-    public function create(User $actor, mixed $name, mixed $role): array
+    public function create(User $actor, mixed $name, mixed $role, mixed $groupId = null): array
     {
         $errors = [];
         $name = $this->checkName($name, $errors);
@@ -107,11 +108,16 @@ final class UserAdmin
         } elseif (!\in_array($userRole, $this->creatableRoles($actor), true)) {
             throw new UserActionDenied('Only the superadmin may create administrators.');
         }
-        if ($errors) {
+        // Without a group the new user gets the default one.
+        $group = null === $groupId ? $this->groups->default() : $this->groups->find($groupId);
+        if (!$group) {
+            $errors[] = ['field' => 'group_id', 'message' => 'Bitte eine Gruppe wählen.'];
+        }
+        if ($errors || !$userRole || !$group) {
             throw new InvalidUser($errors);
         }
 
-        $user = new User($name, $userRole, '');
+        $user = new User($name, $userRole, $group, '');
         $code = $this->invites->issue($user);
         $this->em->persist($user);
         $this->em->flush();
@@ -122,7 +128,7 @@ final class UserAdmin
     /**
      * Fields missing in the body stay as they are.
      *
-     * @param array<mixed> $body name, role and blocked
+     * @param array<mixed> $body name, role, group_id and blocked
      *
      * @throws InvalidUser
      * @throws UserActionDenied
@@ -147,6 +153,14 @@ final class UserAdmin
                 $role = $new;
             }
         }
+        $group = $target->group;
+        if (\array_key_exists('group_id', $body)) {
+            $this->requireManage($actor, $target);
+            $group = $this->groups->find($body['group_id']);
+            if (!$group) {
+                $errors[] = ['field' => 'group_id', 'message' => 'Bitte eine Gruppe wählen.'];
+            }
+        }
         $blocked = null !== $target->revokedAt;
         if (\array_key_exists('blocked', $body)) {
             if (!\is_bool($body['blocked'])) {
@@ -158,12 +172,13 @@ final class UserAdmin
                 $blocked = $body['blocked'];
             }
         }
-        if ($errors) {
+        if ($errors || !$group) {
             throw new InvalidUser($errors);
         }
 
         $target->name = $name;
         $target->role = $role;
+        $target->group = $group;
         if ($blocked !== (null !== $target->revokedAt)) {
             $target->revokedAt = $blocked ? new \DateTimeImmutable() : null;
         }

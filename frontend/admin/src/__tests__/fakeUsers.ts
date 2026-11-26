@@ -2,6 +2,9 @@ import type { AdminInviteResponse, AdminUser, AdminUsersResponse } from '../api/
 
 import listFixture from '@v29/shared/fixtures/admin-users-response.json' with { type: 'json' }
 
+/** The group "V29" of the fixture admin-groups-response.json, the one a new user gets. */
+const DEFAULT_GROUP = '00000000-0000-7000-8000-0000000000a1'
+
 /**
  * Stands in for /api/admin/users, with state: the users of the fixture (seen by the superadmin Ada, the administrator is Chef). The flags
  * (`can_manage` …) follow the rules of the server in a few lines, because what the page shows depends on them; nothing else is checked.
@@ -61,6 +64,7 @@ export function createFakeUsers() {
           id: `new-user-${++counter}`,
           name: String(body?.name).trim(),
           role: body?.role as AdminUser['role'],
+          group_id: typeof body?.group_id === 'string' ? body.group_id : DEFAULT_GROUP,
           created_at: '2026-11-19T10:00:00.000Z',
           revoked_at: null,
           last_active_at: null,
@@ -81,6 +85,7 @@ export function createFakeUsers() {
         const next = { ...user }
         if (typeof body?.name === 'string') next.name = body.name.trim()
         if (typeof body?.role === 'string') next.role = body.role as AdminUser['role']
+        if (typeof body?.group_id === 'string') next.group_id = body.group_id
         if (typeof body?.blocked === 'boolean') {
           next.revoked_at = body.blocked ? (user.revoked_at ?? '2026-11-19T10:00:00.000Z') : null
         }

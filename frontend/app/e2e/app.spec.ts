@@ -346,6 +346,55 @@ async function addMidDiameters(page: Page) {
   )
 }
 
+// The group of the user decides which attributes the app shows (`hidden_attribute_ids` of the snapshot).
+test('hides the attributes the group of the user does not see, with their values', async ({
+  page,
+}) => {
+  const holzart = '0847b35f-f94e-4f68-84c6-63426a5dcf77'
+  await page.addInitScript(
+    (value) => localStorage.setItem('fake-api-extra', value),
+    JSON.stringify({ hidden_attribute_ids: [holzart] }),
+  )
+
+  // Stem 789 and its beam 789-A, which inherits the species: no field, no value, the other attributes stay.
+  for (const tag of ['789', '789-A']) {
+    await page.goto(`/timber-item/${tag}`)
+    await expect(page.getByText('Lieferdatum', { exact: true })).toBeVisible()
+    await expect(page.getByText('Holzart', { exact: true })).toHaveCount(0)
+    await expect(page.getByText('Stieleiche')).toHaveCount(0)
+  }
+
+  // An empty stem has no field for it either; the other attributes are there.
+  await page.goto('/timber-item/456')
+  await expect(page.getByLabel('Lagerplatz')).toBeVisible()
+  await expect(page.getByLabel('Holzart')).toHaveCount(0)
+})
+
+// Adding and removing beams belong to "Gesägt" (key "sawn"): hidden, the actions are gone.
+test('a group without "Gesägt" cannot add or remove beams, but opens the existing ones', async ({
+  page,
+}) => {
+  const sawn = '15e4afde-597d-41c4-8d96-45cc398cfd10'
+  await page.addInitScript(
+    (value) => localStorage.setItem('fake-api-extra', value),
+    JSON.stringify({ hidden_attribute_ids: [sawn] }),
+  )
+
+  await page.goto('/timber-item/789')
+  await expect(page.locator('a[href="/timber-item/789-A"]')).toBeVisible()
+  await expect(page.getByRole('button', { name: /Balken .* hinzufügen/ })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /Balken 789-. entfernen/ })).toHaveCount(0)
+
+  await page.locator('a[href="/timber-item/789-A"]').click()
+  await expect(page.locator('h1')).toContainText('BALKEN')
+  await expect(page.getByRole('button', { name: 'Balken entfernen', exact: true })).toHaveCount(0)
+
+  await page.goto('/timber-item/456')
+  await expect(page.getByLabel('Lagerplatz')).toBeVisible()
+  await expect(page.getByRole('button', { name: /Balken .* hinzufügen/ })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Gesägt', exact: true })).toHaveCount(0)
+})
+
 // The two mid diameters are saved only as a pair.
 test('a mid diameter alone blocks the save until its partner is filled', async ({ page }) => {
   await addMidDiameters(page)

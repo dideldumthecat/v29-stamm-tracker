@@ -11,6 +11,7 @@ use App\Entity\TimberItemEvent;
 use App\Entity\User;
 use App\Entity\UserRole;
 use App\Projection\TimberItemProjector;
+use App\Tests\Support\Groups;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Uid\Uuid;
@@ -31,7 +32,7 @@ abstract class PhotoMoveTestCase extends KernelTestCase
         $this->em = self::getContainer()->get(EntityManagerInterface::class);
         $this->projector = self::getContainer()->get(TimberItemProjector::class);
 
-        $this->em->persist($this->admin = new User('Alex Beispiel', UserRole::Superadmin, User::hashToken('a')));
+        $this->em->persist($this->admin = new User('Alex Beispiel', UserRole::Superadmin, Groups::v29($this->em), User::hashToken('a')));
         $this->em->persist($this->fotos = new Attribute('Fotos', AttributeType::Photo, isSeries: true));
         $this->em->flush();
     }

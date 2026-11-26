@@ -9,6 +9,7 @@ use App\Entity\EventType;
 use App\Entity\TimberItemEvent;
 use App\Entity\User;
 use App\Entity\UserRole;
+use App\Tests\Support\Groups;
 use Doctrine\DBAL\Schema\Schema;
 use Doctrine\Migrations\AbstractMigration;
 use Doctrine\Migrations\Exception\AbortMigration;
@@ -28,7 +29,7 @@ class PileMigrationTest extends KernelTestCase
     {
         self::bootKernel();
         $this->em = self::getContainer()->get(EntityManagerInterface::class);
-        $this->em->persist($this->user = new User('Ada', UserRole::Superadmin, User::hashToken(User::normalizeToken('Ada-test-token'))));
+        $this->em->persist($this->user = new User('Ada', UserRole::Superadmin, Groups::v29($this->em), User::hashToken(User::normalizeToken('Ada-test-token'))));
         $this->em->persist($this->source = new Attribute('Polternummer', AttributeType::Choice));
     }
 

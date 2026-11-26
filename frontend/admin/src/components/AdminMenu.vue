@@ -15,8 +15,9 @@ import { SettingsIcon } from '@lucide/vue'
  */
 const route = useRoute()
 const items = [
-  { label: 'Merkmale', to: { name: 'attributes' } },
   { label: 'Nutzer', to: { name: 'users' } },
+  { label: 'Gruppen', to: { name: 'groups' } },
+  { label: 'Merkmale', to: { name: 'attributes' } },
   { label: 'Polter', to: { name: 'pileData' } },
 ]
 </script>

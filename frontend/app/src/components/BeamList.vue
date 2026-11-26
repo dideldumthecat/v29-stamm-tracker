@@ -101,7 +101,7 @@ function onRemove(row: { tag: string; beam: TimberItem | undefined }) {
           >
             <BeamRowLabel
               :tag-number="row.tag"
-              :summary="beamSummary(row.beam, stem, store.attributes)"
+              :summary="beamSummary(row.beam, stem, store.visibleAttributes)"
               :note="store.isUnsynced(row.beam.id) ? 'nicht synchronisiert' : undefined"
             />
           </a>
@@ -114,11 +114,12 @@ function onRemove(row: { tag: string; beam: TimberItem | undefined }) {
         >
           <BeamRowLabel
             :tag-number="row.tag"
-            :summary="beamSummary(undefined, stem, store.attributes)"
+            :summary="beamSummary(undefined, stem, store.visibleAttributes)"
             note="nicht gespeichert"
           />
         </button>
         <button
+          v-if="store.canEditBeams"
           type="button"
           class="flex size-11 shrink-0 items-center justify-center rounded-md border-2 border-ink bg-paper text-ink"
           :aria-label="`Balken ${row.tag} entfernen`"
@@ -129,6 +130,7 @@ function onRemove(row: { tag: string; beam: TimberItem | undefined }) {
       </div>
     </div>
     <button
+      v-if="store.canEditBeams"
       type="button"
       class="flex h-14 w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-ink bg-paper text-label font-bold disabled:border-lockline disabled:text-mute"
       :disabled="!nextBeam"
@@ -141,7 +143,7 @@ function onRemove(row: { tag: string; beam: TimberItem | undefined }) {
       <span v-else-if="nextBeam">Balken <FormattedTag :tag-number="nextBeam" /> hinzufügen</span>
       <span v-else>Balken hinzufügen</span>
     </button>
-    <span v-if="!nextBeam" class="text-caption text-mute"
+    <span v-if="store.canEditBeams && !nextBeam" class="text-caption text-mute"
       >Höchstens {{ MAX_BEAMS }} Balken je Stamm</span
     >
   </section>

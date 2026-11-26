@@ -102,6 +102,7 @@ describe('column filters', () => {
     generated_at: '2026-11-01T00:00:00.000Z',
     users: [],
     attributes: attrs,
+    hidden_attribute_ids: [],
     timber_items: [
       stem('1', {
         [id('choice')]: [rec('o-eins')],

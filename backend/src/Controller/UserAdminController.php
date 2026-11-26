@@ -45,7 +45,7 @@ final class UserAdminController extends AbstractController
     {
         return $this->guard(function () use ($user, $request) {
             $body = $this->body($request);
-            [$target, $code] = $this->users->create($user, $body['name'] ?? null, $body['role'] ?? null);
+            [$target, $code] = $this->users->create($user, $body['name'] ?? null, $body['role'] ?? null, $body['group_id'] ?? null);
 
             return $this->json($this->answer($user, $target, $code), Response::HTTP_CREATED);
         });

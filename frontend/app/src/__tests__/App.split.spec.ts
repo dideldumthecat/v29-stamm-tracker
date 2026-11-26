@@ -347,6 +347,8 @@ describe('App: attributes by kind and the split choice', () => {
           attribute.hidden_when.length === 0,
       ),
     ).toBe(true)
+    // Nothing is hidden either.
+    expect(store.visibleAttributes).toEqual(store.attributes)
 
     const { wrapper, router } = await mountAt('/timber-item/456')
     // As before the update: every attribute on the stem, "Gesägt" without a question.

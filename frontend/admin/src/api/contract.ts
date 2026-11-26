@@ -240,6 +240,8 @@ export interface AdminUser {
   id: Uuid
   name: string
   role: UserRole
+  /** The group decides which attributes the user sees in the app; the role only governs the administration. */
+  group_id: Uuid
   created_at: Timestamp
   /** Blocked since then; the invite code does not work and the user is out at once. Null = active. */
   revoked_at: Timestamp | null
@@ -256,11 +258,13 @@ export interface AdminUser {
 /**
  * POST /api/admin/users (answers 201 with AdminInviteResponse; name and role are required, role is not "superadmin").
  * PATCH /api/admin/users/{id} (answers 200 with AdminUserResponse; fields left out stay as they are; 404 for an unknown id).
- * Status 422 as AttributeErrorsResponse: field "name", "role" or "blocked".
+ * Status 422 as AttributeErrorsResponse: field "name", "role", "group_id" or "blocked".
  */
 export interface AdminUserInput {
   name: string
   role: Exclude<UserRole, 'superadmin'>
+  /** Optional when creating: the group with sees_all_attributes named "V29", else the first group by name. 422 for an unknown id. Changing it needs can_manage. */
+  group_id: Uuid
   /** true blocks, false unblocks (the same code works again). */
   blocked: boolean
 }
@@ -281,6 +285,40 @@ export interface AdminInviteResponse extends AdminUserResponse {
     /** "K7QM-4XHT-9RDP" */
     code: string
   }
+}
+
+// --- /api/admin/groups ------------------------------------------------------
+// Groups decide which attributes their members see in the app (roles admin and superadmin, otherwise 403); roles stay as they are and only govern access to
+// the administration. Every user belongs to exactly one group. The administration itself always shows every attribute. The server enforces nothing in the app
+// (see Snapshot.hidden_attribute_ids).
+
+/** GET /api/admin/groups: sorted by name. */
+export interface AdminGroupsResponse {
+  groups: AdminGroup[]
+}
+
+export interface AdminGroup {
+  id: Uuid
+  /** Required, unique (without regard to case), trimmed, at most 255 characters. */
+  name: string
+  /** true: the members see all attributes, future ones included. false: only the ones in attribute_ids; a new attribute stays hidden until it is enabled. */
+  sees_all_attributes: boolean
+  /** Empty while sees_all_attributes is true (the list is not kept), otherwise the enabled attributes in their order. */
+  attribute_ids: Uuid[]
+  /** Everybody in the group, blocked users too, by name. */
+  users: { id: Uuid; name: string }[]
+}
+
+/**
+ * POST /api/admin/groups (answers 201 with the AdminGroup) and PATCH /api/admin/groups/{id} (answers 200 with the AdminGroup; fields left out stay as they are;
+ * 404 for an unknown id). A new group without sees_all_attributes and attribute_ids sees only the enabled ones, none yet.
+ * Status 422 as AttributeErrorsResponse: field "name" (empty, too long, taken), "sees_all_attributes" or "attribute_ids" (not a list, unknown attribute).
+ * DELETE /api/admin/groups/{id}: 204; 409 while the group has users; 404 for an unknown id.
+ */
+export interface AdminGroupInput {
+  name: string
+  sees_all_attributes: boolean
+  attribute_ids: Uuid[]
 }
 
 // --- /api/admin/attributes --------------------------------------------------
