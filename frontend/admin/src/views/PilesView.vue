@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId, useTemplateRef } from 'vue'
+import { computed, nextTick, ref, useId } from 'vue'
 import type { AdminPile, AdminPilesResponse } from '@/api/contract'
 import { PlusIcon } from '@lucide/vue'
 
 import { ApiError, request } from '@/api/client'
-import { errorsOf } from '@/apiErrors'
 import LoadFailure from '@/components/LoadFailure.vue'
 import LoadingStatus from '@/components/LoadingStatus.vue'
 import PageHeader from '@/components/PageHeader.vue'
@@ -12,6 +11,8 @@ import PileForm from '@/components/PileForm.vue'
 import PileTable from '@/components/PileTable.vue'
 import ResultsBar from '@/components/ResultsBar.vue'
 import { draftOf, emptyDraft, fieldsOf, type PileDraft } from '@/piles'
+import { useAddCard } from '@/useAddCard'
+import { useAttempt } from '@/useAttempt'
 
 /**
  * The page "Polter": the master data of the piles from the handover record of the forestry office, built like the page "Nutzer": a table, one
@@ -36,35 +37,7 @@ async function load() {
 }
 void load()
 
-// One request at a time; the outcome is said in a line next to the count (read out too).
-const busy = ref(false)
-const notice = ref<{ text: string; error: boolean } | null>(null)
-async function attempt(
-  run: () => Promise<void>,
-  onInvalid?: (errors: Record<string, string>) => void,
-) {
-  if (busy.value) return
-  busy.value = true
-  notice.value = null
-  try {
-    await run()
-  } catch (error) {
-    if (error instanceof ApiError && error.status === 422 && onInvalid) {
-      onInvalid(errorsOf(error.body))
-    } else {
-      notice.value = {
-        text:
-          error instanceof ApiError && error.status === 0
-            ? 'Keine Verbindung zum Server. Bitte noch einmal versuchen.'
-            : 'Das hat nicht geklappt. Bitte noch einmal versuchen.',
-        error: true,
-      }
-    }
-  } finally {
-    busy.value = false
-  }
-}
-const say = (text: string) => (notice.value = { text, error: false })
+const { busy, notice, attempt, say } = useAttempt()
 const replace = (pile: AdminPile) =>
   (piles.value = piles.value.map((entry) => (entry.id === pile.id ? pile : entry)))
 
@@ -120,20 +93,7 @@ const save = () => {
 const adding = ref(false)
 const newDraft = ref<PileDraft>(emptyDraft())
 const createErrors = ref<Record<string, string>>({})
-const addButton = useTemplateRef<HTMLButtonElement>('addButton')
-const addCard = useTemplateRef<HTMLElement>('addCard')
-const arrowRight = ref(32)
-
-// The arrow of the card points at the middle of the real button, see the page of the users.
-function placeArrow() {
-  if (!addButton.value || !addCard.value) return
-  const button = addButton.value.getBoundingClientRect()
-  const card = addCard.value.getBoundingClientRect()
-  if (!button.width) return
-  arrowRight.value = Math.round(card.right - (button.left + button.width / 2) - 7 - 1)
-}
-onMounted(() => window.addEventListener('resize', placeArrow))
-onBeforeUnmount(() => window.removeEventListener('resize', placeArrow))
+const { addCard, arrowRight, placeArrow } = useAddCard()
 
 async function toggleAdd() {
   adding.value = !adding.value

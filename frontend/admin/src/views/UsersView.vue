@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId, useTemplateRef } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, useId, useTemplateRef } from 'vue'
 import type {
   AdminInviteResponse,
   AdminUser,
@@ -9,7 +9,6 @@ import type {
 import { CheckIcon, CopyIcon, PlusIcon, TriangleAlertIcon } from '@lucide/vue'
 
 import { ApiError, request } from '@/api/client'
-import { errorsOf } from '@/apiErrors'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import LoadFailure from '@/components/LoadFailure.vue'
 import LoadingStatus from '@/components/LoadingStatus.vue'
@@ -17,6 +16,8 @@ import PageHeader from '@/components/PageHeader.vue'
 import ResultsBar from '@/components/ResultsBar.vue'
 import SelectField from '@/components/SelectField.vue'
 import UserTable from '@/components/UserTable.vue'
+import { useAddCard } from '@/useAddCard'
+import { useAttempt } from '@/useAttempt'
 import { isBlocked, ROLE_LABELS } from '@/users'
 
 /**
@@ -45,35 +46,7 @@ async function load() {
 }
 void load()
 
-// One request at a time; the outcome is said in a line next to the count (read out too).
-const busy = ref(false)
-const notice = ref<{ text: string; error: boolean } | null>(null)
-async function attempt(
-  run: () => Promise<void>,
-  onInvalid?: (errors: Record<string, string>) => void,
-) {
-  if (busy.value) return
-  busy.value = true
-  notice.value = null
-  try {
-    await run()
-  } catch (error) {
-    if (error instanceof ApiError && error.status === 422 && onInvalid) {
-      onInvalid(errorsOf(error.body))
-    } else {
-      notice.value = {
-        text:
-          error instanceof ApiError && error.status === 0
-            ? 'Keine Verbindung zum Server. Bitte noch einmal versuchen.'
-            : 'Das hat nicht geklappt. Bitte noch einmal versuchen.',
-        error: true,
-      }
-    }
-  } finally {
-    busy.value = false
-  }
-}
-const say = (text: string) => (notice.value = { text, error: false })
+const { busy, notice, attempt, say } = useAttempt()
 const replace = (user: AdminUser) =>
   (users.value = users.value.map((entry) => (entry.id === user.id ? user : entry)))
 
@@ -183,21 +156,7 @@ const newName = ref('')
 const newRole = ref<AdminUsersResponse['creatable_roles'][number]>('user')
 const createErrors = ref<Record<string, string>>({})
 const nameField = useTemplateRef<HTMLInputElement>('nameField')
-const addButton = useTemplateRef<HTMLButtonElement>('addButton')
-const addCard = useTemplateRef<HTMLElement>('addCard')
-const arrowRight = ref(32)
-
-// The arrow of the card points at the middle of the real button: its distance from the right edge of the card, less its own half width
-// (14 px) and the border of the card. The button sits at the right edge of the row, the card is as wide as the row.
-function placeArrow() {
-  if (!addButton.value || !addCard.value) return
-  const button = addButton.value.getBoundingClientRect()
-  const card = addCard.value.getBoundingClientRect()
-  if (!button.width) return
-  arrowRight.value = Math.round(card.right - (button.left + button.width / 2) - 7 - 1)
-}
-onMounted(() => window.addEventListener('resize', placeArrow))
-onBeforeUnmount(() => window.removeEventListener('resize', placeArrow))
+const { arrowRight, placeArrow } = useAddCard()
 
 async function toggleAdd() {
   adding.value = !adding.value
