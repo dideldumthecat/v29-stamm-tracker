@@ -290,8 +290,7 @@ export function useTimberItemDraft(item: Ref<TimberItem | undefined>, tagNumber:
         (blob, takenAt) => {
           draftPhotos.value.push({ id: crypto.randomUUID(), attributeId, blob, takenAt })
         },
-        undefined,
-        source === 'gallery' ? takenAtOfFile : undefined,
+        source === 'gallery' ? { takenAtOf: takenAtOfFile } : {},
       )
       if (skipped > 0) {
         toast.show({

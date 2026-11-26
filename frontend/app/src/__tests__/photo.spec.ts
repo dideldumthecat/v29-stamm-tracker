@@ -90,7 +90,7 @@ describe('attaching several photos', () => {
     const result = await attachPhotos(
       files,
       (photo) => void log.push(`add ${(photo as File).name}`),
-      compress,
+      { compress },
     )
 
     expect(result).toEqual({ skipped: 0 })
@@ -112,11 +112,9 @@ describe('attaching several photos', () => {
       }
       return file
     }
-    const result = await attachPhotos(
-      files,
-      (photo) => void added.push((photo as File).name),
+    const result = await attachPhotos(files, (photo) => void added.push((photo as File).name), {
       compress,
-    )
+    })
     expect(result).toEqual({ skipped: 1 })
     expect(added).toEqual(['a.jpg', 'c.jpg'])
   })
@@ -129,7 +127,9 @@ describe('attaching several photos', () => {
       }
       added.push((photo as File).name)
     }
-    await expect(attachPhotos(files, add, async (file) => file)).rejects.toThrow('storage full')
+    await expect(attachPhotos(files, add, { compress: async (file) => file })).rejects.toThrow(
+      'storage full',
+    )
     expect(added).toEqual(['a.jpg'])
   })
 })
@@ -248,12 +248,15 @@ describe('capture time of a library photo', () => {
     const compress = async (file: Blob) => (log.push(`compress ${(file as File).name}`), file)
     const added: (Date | undefined)[] = []
 
-    await attachPhotos(files, (_photo, takenAt) => void added.push(takenAt), compress, takenAtOf)
+    await attachPhotos(files, (_photo, takenAt) => void added.push(takenAt), {
+      compress,
+      takenAtOf,
+    })
     expect(added).toEqual([new Date(1000), new Date(2000)])
     expect(log).toEqual(['time a.jpg', 'compress a.jpg', 'time b.jpg', 'compress b.jpg'])
 
     added.length = 0
-    await attachPhotos(files, (_photo, takenAt) => void added.push(takenAt), compress)
+    await attachPhotos(files, (_photo, takenAt) => void added.push(takenAt), { compress })
     expect(added).toEqual([undefined, undefined])
   })
 })

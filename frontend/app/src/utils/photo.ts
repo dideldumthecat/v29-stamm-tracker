@@ -117,6 +117,11 @@ export async function takenAtOfFile(file: File): Promise<Date> {
   )
 }
 
+interface PhotoOptions {
+  compress?: (file: Blob) => Promise<Blob>
+  takenAtOf?: (file: File) => Promise<Date>
+}
+
 /**
  * Compresses and hands over the files one after another (a phone does not hold several 12-megapixel images at once).
  * `add` stores each photo before the next file is read, so a failure keeps what was done so far.
@@ -126,8 +131,7 @@ export async function takenAtOfFile(file: File): Promise<Date> {
 export async function attachPhotos(
   files: File[],
   add: (photo: Blob, takenAt?: Date) => void | Promise<void>,
-  compress: (file: Blob) => Promise<Blob> = compressPhoto,
-  takenAtOf?: (file: File) => Promise<Date>,
+  { compress = compressPhoto, takenAtOf }: PhotoOptions = {},
 ): Promise<{ skipped: number }> {
   let skipped = 0
   for (const file of files) {
