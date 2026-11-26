@@ -4,7 +4,6 @@ namespace App\Migration;
 
 use App\Entity\Attribute;
 use App\Entity\AttributeType;
-use Doctrine\Migrations\AbstractMigration;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -16,7 +15,7 @@ use Symfony\Component\Uid\Uuid;
  * Everything goes through addSql(), so --dry-run writes nothing. The attributes are read once and then tracked in memory,
  * so a call sees what the calls before it in the same migration did. Mistakes abort the migration before it changes anything.
  */
-abstract class AttributeMigration extends AbstractMigration
+abstract class AttributeMigration extends DataMigration
 {
     private const int STEP = 10;
 
@@ -131,6 +130,9 @@ abstract class AttributeMigration extends AbstractMigration
             return;
         }
         $this->attributes = [];
+        if (!$this->hasTables('attributes', 'attribute_options')) {
+            return;
+        }
         foreach ($this->connection->fetchAllAssociative('SELECT id, name, `key`, type, sort_order FROM attributes') as $row) {
             $this->attributes[] = ['id' => $row['id'], 'name' => $row['name'], 'key' => $row['key'], 'type' => $row['type'], 'sort' => (int) $row['sort_order'], 'options' => []];
         }

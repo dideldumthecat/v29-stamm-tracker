@@ -30,12 +30,13 @@ final class Version20261120180000 extends AttributeMigration
         $this->addSql('CREATE TABLE piles (number VARCHAR(32) NOT NULL, location VARCHAR(200) DEFAULT NULL, latitude NUMERIC(9, 6) DEFAULT NULL, longitude NUMERIC(9, 6) DEFAULT NULL, stacked_volume NUMERIC(8, 2) DEFAULT NULL, option_id BINARY(16) NOT NULL, UNIQUE INDEX UNIQ_E995227B96901F54 (number), PRIMARY KEY (option_id)) DEFAULT CHARACTER SET utf8mb4');
         $this->addSql('ALTER TABLE piles ADD CONSTRAINT FK_E995227BA7C41D6F FOREIGN KEY (option_id) REFERENCES attribute_options (id)');
 
-        $attributeId = $this->connection->fetchOne('SELECT id FROM attributes WHERE `key` = ? OR name = ?', ['source', 'Polternummer']);
+        $attributesExist = $this->hasTables('attributes');
+        $attributeId = $attributesExist ? $this->connection->fetchOne('SELECT id FROM attributes WHERE `key` = ? OR name = ?', ['source', 'Polternummer']) : false;
         if (false === $attributeId) {
             // Not addAttribute(): it insists on options for a choice, and the piles are what fills this one
             $this->addSql(
                 'INSERT INTO attributes (id, name, type, description, unit, is_series, is_inheritable, sort_order, active, `key`, applies_to, hidden_when) VALUES (?, ?, ?, ?, NULL, 0, 1, ?, 1, ?, ?, ?)',
-                [Uuid::v7()->toBinary(), 'Polternummer', AttributeType::Choice->value, '', 10 + (int) $this->connection->fetchOne('SELECT COALESCE(MAX(sort_order), 0) FROM attributes'), 'source', '["stem"]', '[]'],
+                [Uuid::v7()->toBinary(), 'Polternummer', AttributeType::Choice->value, '', 10 + (int) ($attributesExist ? $this->connection->fetchOne('SELECT COALESCE(MAX(sort_order), 0) FROM attributes') : 0), 'source', '["stem"]', '[]'],
             );
 
             return;

@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace DoctrineMigrations;
 
+use App\Migration\DataMigration;
 use App\Pile\PileEditor;
 use Doctrine\DBAL\Schema\Schema;
-use Doctrine\Migrations\AbstractMigration;
 
 /**
  * The first pile ("Polter 01") gets the master data of the handover record of the forestry office; they are real data on purpose.
  * It is the option "01 (0101/0145)" of the attribute "source". Its label becomes the one the pile page derives (PileEditor::label).
  * Without any option of "source" (a new database, where Version20261120180000 created the attribute empty) nothing happens; with other options but not this one, or a pile row already, it aborts.
  */
-final class Version20261120190000 extends AbstractMigration
+final class Version20261120190000 extends DataMigration
 {
     private const string OLD_LABEL = '01 (0101/0145)';
 
@@ -24,7 +24,7 @@ final class Version20261120190000 extends AbstractMigration
 
     public function up(Schema $schema): void
     {
-        if (!$this->connection->fetchOne('SELECT 1 FROM attribute_options o JOIN attributes a ON a.id = o.attribute_id WHERE a.`key` = ? LIMIT 1', ['source'])) {
+        if (!$this->hasTables('attribute_options', 'attributes') || !$this->connection->fetchOne('SELECT 1 FROM attribute_options o JOIN attributes a ON a.id = o.attribute_id WHERE a.`key` = ? LIMIT 1', ['source'])) {
             return;
         }
         $id = $this->connection->fetchOne(

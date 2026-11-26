@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace DoctrineMigrations;
 
+use App\Migration\DataMigration;
 use Doctrine\DBAL\Schema\Schema;
-use Doctrine\Migrations\AbstractMigration;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -13,7 +13,7 @@ use Symfony\Component\Uid\Uuid;
  * Entries that are the id of an attribute stay (the migration may run on data that is converted already); every other entry must be
  * the key of a yes/no attribute, otherwise the migration aborts and changes nothing.
  */
-final class Version20261119140000 extends AbstractMigration
+final class Version20261119140000 extends DataMigration
 {
     public function getDescription(): string
     {
@@ -22,6 +22,9 @@ final class Version20261119140000 extends AbstractMigration
 
     public function up(Schema $schema): void
     {
+        if (!$this->hasTables('attributes')) {
+            return;
+        }
         $idOf = [];
         $isYesNo = [];
         foreach ($this->connection->fetchAllAssociative('SELECT id, `key`, type FROM attributes') as $row) {
