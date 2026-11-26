@@ -1,6 +1,5 @@
 import type { AdminPile } from '@/api/contract'
 
-import { errorsOf } from '@/attributes'
 import { parseCoordinate } from '@/coordinates'
 
 /** What the form holds: the text as typed, numbers as German or decimal text. */
@@ -96,9 +95,3 @@ export const mapUrl = (pile: Pick<AdminPile, 'latitude' | 'longitude'>): string 
   pile.latitude === null || pile.longitude === null
     ? null
     : `https://www.openstreetmap.org/?mlat=${pile.latitude}&mlon=${pile.longitude}#map=16/${pile.latitude}/${pile.longitude}`
-
-/** "field → message" of a 422 (the same shape as for the attributes). */
-export const pileErrorsOf = errorsOf
-
-/** The text of the page for a count, "1 Polter" / "5 Polter". */
-export const countPiles = (n: number) => `${n} Polter`

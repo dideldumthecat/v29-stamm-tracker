@@ -188,14 +188,6 @@ export function bodyOf(draft: AttributeDraft): AdminAttributeInput {
 export const hidingCandidates = (attributes: AdminAttribute[], exceptId: Uuid) =>
   attributes.filter((attribute) => attribute.type === 'boolean' && attribute.id !== exceptId)
 
-/** "field → message" of a 422; the first message of a field counts. */
-export function errorsOf(body: unknown): Record<string, string> {
-  const list = (body as { errors?: { field: string; message: string }[] } | undefined)?.errors
-  const errors: Record<string, string> = {}
-  for (const { field, message } of Array.isArray(list) ? list : []) errors[field] ??= message
-  return errors
-}
-
 // --- A new attribute -------------------------------------------------------------------------------------------------------------
 
 /** The types the tiles offer: a date is a day or a month (the form asks which), the rest is one tile each. */

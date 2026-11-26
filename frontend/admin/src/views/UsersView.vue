@@ -9,6 +9,7 @@ import type {
 import { CheckIcon, CopyIcon, PlusIcon, TriangleAlertIcon } from '@lucide/vue'
 
 import { ApiError, request } from '@/api/client'
+import { errorsOf } from '@/apiErrors'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import LoadFailure from '@/components/LoadFailure.vue'
 import LoadingStatus from '@/components/LoadingStatus.vue'
@@ -16,7 +17,7 @@ import PageHeader from '@/components/PageHeader.vue'
 import ResultsBar from '@/components/ResultsBar.vue'
 import SelectField from '@/components/SelectField.vue'
 import UserTable from '@/components/UserTable.vue'
-import { countUsers, isBlocked, ROLE_LABELS, userErrorsOf } from '@/users'
+import { isBlocked, ROLE_LABELS } from '@/users'
 
 /**
  * The page "Nutzer": a table; one user at a time opens in a card below the row (name, role, invite code, new code, block). The button
@@ -58,7 +59,7 @@ async function attempt(
     await run()
   } catch (error) {
     if (error instanceof ApiError && error.status === 422 && onInvalid) {
-      onInvalid(userErrorsOf(error.body))
+      onInvalid(errorsOf(error.body))
     } else {
       notice.value = {
         text:
@@ -251,7 +252,7 @@ const label = 'text-caption font-semibold text-mute'
 
     <ResultsBar
       v-if="status === 'ready'"
-      :text="countUsers(users.length)"
+      :text="`${users.length} Nutzer`"
       :chips="[]"
       :can-reset="false"
     >

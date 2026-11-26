@@ -11,6 +11,7 @@ import type { AdminAttribute, AdminAttributesResponse } from '@/api/contract'
 import { CheckIcon, GripVerticalIcon, LockIcon, MousePointerClickIcon, PlusIcon } from '@lucide/vue'
 
 import { ApiError, request } from '@/api/client'
+import { errorsOf } from '@/apiErrors'
 import AttributePreviewField from '@/components/AttributePreviewField.vue'
 import AttributeSettings from '@/components/AttributeSettings.vue'
 import AttributeTypePicker from '@/components/AttributeTypePicker.vue'
@@ -25,7 +26,6 @@ import {
   bodyOf,
   countAttributes,
   draftOf,
-  errorsOf,
   hidingCandidates,
   isChanged,
   isInheritedOnly,

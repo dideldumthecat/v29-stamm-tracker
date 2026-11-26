@@ -4,13 +4,14 @@ import type { AdminPile, AdminPilesResponse } from '@/api/contract'
 import { PlusIcon } from '@lucide/vue'
 
 import { ApiError, request } from '@/api/client'
+import { errorsOf } from '@/apiErrors'
 import LoadFailure from '@/components/LoadFailure.vue'
 import LoadingStatus from '@/components/LoadingStatus.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import PileForm from '@/components/PileForm.vue'
 import PileTable from '@/components/PileTable.vue'
 import ResultsBar from '@/components/ResultsBar.vue'
-import { countPiles, draftOf, emptyDraft, fieldsOf, pileErrorsOf, type PileDraft } from '@/piles'
+import { draftOf, emptyDraft, fieldsOf, type PileDraft } from '@/piles'
 
 /**
  * The page "Polter": the master data of the piles from the handover record of the forestry office, built like the page "Nutzer": a table, one
@@ -49,7 +50,7 @@ async function attempt(
     await run()
   } catch (error) {
     if (error instanceof ApiError && error.status === 422 && onInvalid) {
-      onInvalid(pileErrorsOf(error.body))
+      onInvalid(errorsOf(error.body))
     } else {
       notice.value = {
         text:
@@ -180,7 +181,7 @@ const button =
 
     <ResultsBar
       v-if="status === 'ready'"
-      :text="countPiles(piles.length)"
+      :text="`${piles.length} Polter`"
       :chips="[]"
       :can-reset="false"
     >
