@@ -20,6 +20,7 @@ use Symfony\Component\BrowserKit\Cookie;
 use Symfony\Component\Console\Tester\CommandTester;
 use Symfony\Component\HttpFoundation\Cookie as ResponseCookie;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -347,6 +348,56 @@ class ApiTest extends WebTestCase
             self::assertSame(0, $this->eventCount(), $case);
         }
         self::assertSame([], $this->request('GET', '/api/snapshot')['timber_items']);
+    }
+
+    public function testInvalidRequestsAnswerWithTheReasonForTheFirstBadEvent(): void
+    {
+        $item = Uuid::v4()->toRfc4122();
+        $created = self::event('created', $item, ['parent_id' => null]);
+        $cases = [
+            'events must be a list.' => [['events' => 'x'], ['events' => ['a' => $created]], []],
+            'events[1]: not an event of schema_version 1 with data.' => [['events' => [$created, 'x']], ['events' => [$created, ['schema_version' => 2] + $created]]],
+            'events[1]: id must be a UUID.' => [['events' => [$created, ['id' => 'x'] + $created]]],
+            'events[1]: timber_item_id must be a UUID.' => [['events' => [$created, ['timber_item_id' => 5] + $created]]],
+            'events[1]: recorded_at must be an ISO 8601 timestamp.' => [['events' => [$created, ['recorded_at' => '2026-10-02'] + $created]]],
+            'events[1]: data.parent_id must be a UUID or null.' => [['events' => [$created, self::event('created', Uuid::v4()->toRfc4122(), [])]]],
+            'events[1]: data.tag_number must be a non-empty string.' => [
+                ['events' => [$created, self::event('tag_assigned', $item, ['tag_number' => ''])]],
+                ['events' => [$created, self::event('tag_assigned', $item, ['tag_number' => 7])]],
+            ],
+            'events[1]: data.attribute_id is not a known attribute.' => [['events' => [$created, self::event('attribute_recorded', $item, ['attribute_id' => Uuid::v4()->toRfc4122(), 'value' => true])]]],
+            'events[1]: data.value does not fit the number attribute.' => [['events' => [$created, self::event('attribute_recorded', $item, ['attribute_id' => self::HOLZFEUCHTE, 'value' => '41'])]]],
+            'events[1]: data.value does not fit the choice attribute.' => [['events' => [$created, self::event('attribute_recorded', $item, ['attribute_id' => self::HOLZART, 'value' => Uuid::v4()->toRfc4122()])]]],
+            'events[1]: data must be empty.' => [['events' => [$created, self::event('voided', $item, ['reason' => 'x'])]]],
+            'events[1]: voided needs an existing beam.' => [['events' => [$created, self::event('voided', $item, [])]]],
+            'events[1]: type must be created, tag_assigned, attribute_recorded or voided.' => [['events' => [$created, self::event('restored', $item, [])]]],
+            'events[1]: unknown timber item without a preceding created event.' => [['events' => [$created, self::event('tag_assigned', Uuid::v4()->toRfc4122(), ['tag_number' => '7'])]]],
+            'events[1]: unknown parent timber item.' => [['events' => [$created, self::event('created', Uuid::v4()->toRfc4122(), ['parent_id' => Uuid::v4()->toRfc4122()])]]],
+        ];
+
+        // The body of an error page carries no message in production, so the exception is what a caller can tell apart.
+        $this->client->catchExceptions(false);
+        foreach ($cases as $message => $requests) {
+            foreach ($requests as $index => $body) {
+                try {
+                    $this->request('POST', '/api/sync', $body);
+                    self::fail("$message #$index was accepted");
+                } catch (BadRequestHttpException $e) {
+                    self::assertSame($message, $e->getMessage(), "$message #$index");
+                }
+                self::assertSame(0, $this->eventCount(), "$message #$index");
+                self::assertSame([], $this->rejectedSyncs(), "$message #$index");
+            }
+        }
+    }
+
+    public function testASyncBodyThatIsNotJsonIsRefused(): void
+    {
+        $this->client->getCookieJar()->set(new Cookie(SessionController::COOKIE, 'Alex Beispiel-test-token'));
+        $this->client->request('POST', '/api/sync', server: ['CONTENT_TYPE' => 'application/json'], content: 'not json');
+
+        self::assertResponseStatusCodeSame(400);
+        self::assertSame(0, $this->eventCount());
     }
 
     /** @return list<array{user_id: string, reason: string, events: mixed}> */
