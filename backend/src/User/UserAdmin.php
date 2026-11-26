@@ -6,15 +6,13 @@ use App\Api\Timestamp;
 use App\Entity\User;
 use App\Entity\UserRole;
 use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
-use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\Uid\Uuid;
 
 /**
  * User management in the administration: GET/POST/PATCH /api/admin/users, see AdminUser in frontend/admin/src/api/contract.ts.
  * All rules live here; the controller only passes the acting user. The console commands app:user:* stay for the first superadmin.
  *
- * Who may do what (the interface hides the rest, the server refuses it with 403):
+ * Who may do what (the interface hides the rest, the server refuses it with UserActionDenied):
  * - admin and superadmin: create, rename, block and unblock users with the role "user", issue them a new invite code.
  * - only the superadmin: the same for users with the role "admin", and giving or taking the role "admin".
  * - nobody: change, block or create a superadmin; blocking oneself. Users are never deleted, their events refer to them.
@@ -97,6 +95,7 @@ final class UserAdmin
      * @return array{User, string} the new user and their formatted invite code
      *
      * @throws InvalidUser
+     * @throws UserActionDenied
      */
     public function create(User $actor, mixed $name, mixed $role): array
     {
@@ -106,7 +105,7 @@ final class UserAdmin
         if (null === $userRole || UserRole::Superadmin === $userRole) {
             $errors[] = ['field' => 'role', 'message' => 'Bitte eine Rolle wählen.'];
         } elseif (!\in_array($userRole, $this->creatableRoles($actor), true)) {
-            throw new AccessDeniedHttpException('Only the superadmin may create administrators.');
+            throw new UserActionDenied('Only the superadmin may create administrators.');
         }
         if ($errors) {
             throw new InvalidUser($errors);
@@ -126,6 +125,7 @@ final class UserAdmin
      * @param array<mixed> $body name, role and blocked
      *
      * @throws InvalidUser
+     * @throws UserActionDenied
      */
     public function update(User $actor, User $target, array $body): void
     {
@@ -139,7 +139,7 @@ final class UserAdmin
         if (\array_key_exists('role', $body) && ($body['role'] !== $target->role->value)) {
             $new = \is_string($body['role']) ? UserRole::tryFrom($body['role']) : null;
             if (!$this->canSetRole($actor, $target)) {
-                throw new AccessDeniedHttpException('Only the superadmin may give or take the role "admin".');
+                throw new UserActionDenied('Only the superadmin may give or take the role "admin".');
             }
             if (null === $new || UserRole::Superadmin === $new) {
                 $errors[] = ['field' => 'role', 'message' => 'Bitte eine Rolle wählen.'];
@@ -153,7 +153,7 @@ final class UserAdmin
                 $errors[] = ['field' => 'blocked', 'message' => 'Der Wert muss wahr oder falsch sein.'];
             } elseif ($body['blocked'] !== $blocked) {
                 if ($body['blocked'] ? !$this->canBlock($actor, $target) : !$this->canManage($actor, $target)) {
-                    throw new AccessDeniedHttpException('You may not block or unblock this user.');
+                    throw new UserActionDenied('You may not block or unblock this user.');
                 }
                 $blocked = $body['blocked'];
             }
@@ -170,7 +170,12 @@ final class UserAdmin
         $this->em->flush();
     }
 
-    /** Issues a new code; the old one stops working at once. */
+    /**
+     * Issues a new code; the old one stops working at once.
+     *
+     * @throws UserActionDenied
+     * @throws UserBlocked
+     */
     public function renewInvite(User $actor, User $target): string
     {
         $this->requireInviteAllowed($actor, $target);
@@ -183,7 +188,7 @@ final class UserAdmin
     private function requireManage(User $actor, User $target): void
     {
         if (!$this->canManage($actor, $target)) {
-            throw new AccessDeniedHttpException('You may not change this user.');
+            throw new UserActionDenied('You may not change this user.');
         }
     }
 
@@ -191,7 +196,7 @@ final class UserAdmin
     {
         $this->requireManage($actor, $target);
         if (null !== $target->revokedAt) {
-            throw new ConflictHttpException('The user is blocked; unblock them first.');
+            throw new UserBlocked('The user is blocked; unblock them first.');
         }
     }
 

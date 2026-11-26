@@ -4,12 +4,16 @@ namespace App\Controller;
 
 use App\Entity\User;
 use App\User\InvalidUser;
+use App\User\UserActionDenied;
 use App\User\UserAdmin;
+use App\User\UserBlocked;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Uid\Uuid;
@@ -64,7 +68,7 @@ final class UserAdminController extends AbstractController
     {
         $target = $this->find($id);
 
-        return $this->json($this->answer($user, $target, $this->users->renewInvite($user, $target)));
+        return $this->guard(fn () => $this->json($this->answer($user, $target, $this->users->renewInvite($user, $target))));
     }
 
     /** @return array<string, mixed> */
@@ -88,6 +92,10 @@ final class UserAdminController extends AbstractController
             return $action();
         } catch (InvalidUser $e) {
             return $this->json(['errors' => $e->errors], Response::HTTP_UNPROCESSABLE_ENTITY);
+        } catch (UserActionDenied $e) {
+            throw new AccessDeniedHttpException($e->getMessage(), $e);
+        } catch (UserBlocked $e) {
+            throw new ConflictHttpException($e->getMessage(), $e);
         }
     }
 }
