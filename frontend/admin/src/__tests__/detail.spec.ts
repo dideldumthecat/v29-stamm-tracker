@@ -58,6 +58,19 @@ describe('splitValues', () => {
     ])
   })
 
+  it('sorts the photos by the time shown, so library photos come in capture order', () => {
+    const photosId = attributes.find((attribute) => attribute.type === 'photo')!.id
+    const [first, second] = stem.values[photosId]
+    const lateLibraryPhoto = { ...first, taken_at: '2026-11-05T08:00:00.000Z' }
+    const reordered = {
+      ...stem,
+      values: { ...stem.values, [photosId]: [lateLibraryPhoto, second] },
+    }
+
+    const photos = splitValues(reordered, undefined, attributes, users).photos
+    expect(photos.map((photo) => photo.id)).toEqual([stemPhotos[1], stemPhotos[0]])
+  })
+
   it('lists the attributes in V29 order, notes included, without photos, an inactive one only with a value', () => {
     expect(parts.rows.map((row) => row.name)).toEqual([
       'Holzart',

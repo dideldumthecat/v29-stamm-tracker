@@ -152,8 +152,8 @@ export function splitValues(
   }
   return {
     photos: photos
-      .sort((a, b) => a.recorded_at.localeCompare(b.recorded_at))
-      .map((p) => ({ id: String(p.value), taken_at: p.taken_at ?? p.recorded_at })),
+      .map((p) => ({ id: String(p.value), taken_at: p.taken_at ?? p.recorded_at }))
+      .sort((a, b) => a.taken_at.localeCompare(b.taken_at)),
     rows,
     lastChanged: last?.recorded_at,
     lastChangedBy: last && userName(last),
