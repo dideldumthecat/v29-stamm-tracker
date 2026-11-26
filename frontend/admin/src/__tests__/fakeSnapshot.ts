@@ -7,69 +7,14 @@ const base = fixture as unknown as Snapshot
 const attribute = (name: string) => base.attributes.find((candidate) => candidate.name === name)!
 const option = (name: string, label: string) =>
   attribute(name).options.find((candidate) => candidate.label === label)!.id
-// The items of stem 104 and its beams, with the ids the activity fixture uses
-const itemId = (label: string) =>
-  activityFixture.entries.flatMap((entry) => entry.items).find((item) => item.label === label)!
-    .timber_item_id
-
-const aaron = activityFixture.users.find((user) => user.name === 'Aaron Bauer')!.id
-const alex = activityFixture.users.find((user) => user.name === 'Alex Beispiel')!.id
+const alex = base.users.find((user) => user.name === 'Alex Beispiel')!.id
 
 let counter = 0
-const record = (value: AttributeValueRecord['value'], recorded_at: string, user_id = alex) => ({
+const record = (value: AttributeValueRecord['value'], recorded_at: string) => ({
   value,
   recorded_at,
-  user_id,
+  user_id: alex,
   event_id: `e-${++counter}`,
-})
-
-const holzart = record(option('Holzart', 'Stieleiche'), '2026-10-29T10:09:00.000Z')
-const faelldatum = record('2026-10', '2026-10-29T10:10:00.000Z')
-const gesaegt = record(true, '2026-10-31T10:46:00.000Z', aaron)
-
-const stem: TimberItem = {
-  id: itemId('104'),
-  parent_id: null,
-  tag_number: '104',
-  has_children: true,
-  created_at: '2026-10-29T10:09:00.000Z',
-  created_by: alex,
-  values: {
-    [attribute('Holzart').id]: [holzart],
-    [attribute('Fälldatum').id]: [faelldatum],
-    [attribute('Gesägt').id]: [gesaegt],
-    [attribute('Holzfeuchte').id]: [
-      record(48.5, '2026-10-29T10:12:00.000Z'),
-      record(41, '2026-10-31T10:30:00.000Z', aaron),
-    ],
-    [attribute('Notiz').id]: [
-      record('Leichter Drehwuchs', '2026-10-29T10:13:00.000Z'),
-      record('Zweite Zeile\nmit Umbruch', '2026-10-31T10:50:00.000Z', aaron),
-    ],
-    [attribute('Fotos').id]: [
-      // A library photo: taken two days before it was recorded
-      {
-        ...record('00000000-0000-4000-8000-0000000000a1', '2026-10-29T10:14:00.000Z'),
-        taken_at: '2026-10-27T14:05:00.000Z',
-      },
-      record('00000000-0000-4000-8000-0000000000a2', '2026-10-30T23:30:00.000Z'),
-    ],
-  },
-}
-
-const inherited = {
-  [attribute('Holzart').id]: [holzart],
-  [attribute('Fälldatum').id]: [faelldatum],
-  [attribute('Gesägt').id]: [gesaegt],
-}
-const beam = (letter: string, values: TimberItem['values']): TimberItem => ({
-  id: itemId(`104-${letter}`),
-  parent_id: stem.id,
-  tag_number: `104-${letter}`,
-  has_children: false,
-  created_at: '2026-10-31T10:46:20.000Z',
-  created_by: aaron,
-  values: { ...inherited, ...values },
 })
 
 // Further stems for the list: one without values, one with others, one without a tag
@@ -83,25 +28,14 @@ const otherStem = (tag: string | null, values: TimberItem['values']): TimberItem
   values,
 })
 
-/** Stem 104 with the beams A to C and an inactive attribute without a value, matching the activity fixture of the 31 October.
- *  Beside it the stems 7 (nothing recorded), 1500 and one without a tag, for the list. */
+/** The shared snapshot, reduced to stem 104 with the beams A to C (they match the activity fixture of the 31 October) and the users of that fixture,
+ *  plus the stems 7 (nothing recorded), 1500 and one without a tag, which only the lists of the administration need.
+ *  The other items of the shared snapshot (123, 456, 789) are left out: the tests of the administration count stems, beams and attributes with values. */
 export const snapshotFixture: Snapshot = {
   ...base,
   users: activityFixture.users,
   timber_items: [
-    stem,
-    beam('A', {
-      [attribute('Fotos').id]: [
-        record('00000000-0000-4000-8000-0000000000b1', '2026-10-31T10:46:40.000Z', aaron),
-      ],
-    }),
-    beam('B', {}),
-    beam('C', {
-      [attribute('Sortierklasse').id]: [
-        record(option('Sortierklasse', 'B'), '2026-10-31T10:47:45.000Z', aaron),
-      ],
-      [attribute('Notiz').id]: [record('105x145', '2026-10-31T10:47:50.000Z', aaron)],
-    }),
+    ...base.timber_items.filter((item) => item.tag_number?.startsWith('104')),
     otherStem('7', {}),
     otherStem('1500', {
       [attribute('Holzart').id]: [

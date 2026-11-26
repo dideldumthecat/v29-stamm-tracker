@@ -30,7 +30,7 @@ class ApiTest extends WebTestCase
 {
     private const FIXTURES = __DIR__.'/../../../frontend/shared/fixtures/';
     private const KERSTIN = '993955be-5888-4f39-937c-56af8c5187c1';
-    private const ALEX = '1634106f-49e1-459f-9b11-bf0cd848292d';
+    private const ALEX = '00000000-0000-7000-8000-000000000001';
     private const ITEM_123 = '9e12e819-ef6e-45c7-8801-494177724c56';
     private const HOLZART = '0847b35f-f94e-4f68-84c6-63426a5dcf77';
     private const HOLZFEUCHTE = 'd609577e-6b6c-42ce-8ad2-17729b975338';
