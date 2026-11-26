@@ -5,7 +5,7 @@ import type {
   DashboardCardsSection,
   DashboardDiameterSection,
   DashboardResponse,
-} from '@v29/shared/contract'
+} from '@/api/contract'
 import dashboardFixture from '@v29/shared/fixtures/dashboard-response.json' with { type: 'json' }
 
 import { user } from '@/auth'

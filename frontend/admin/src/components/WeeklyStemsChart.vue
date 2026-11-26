@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { PileCardSection } from '@v29/shared/contract'
+import type { PileCardSection } from '@/api/contract'
 
 import WeeklyColumns from '@/components/WeeklyColumns.vue'
 import { stemsChartDescription } from '@/pileCard'

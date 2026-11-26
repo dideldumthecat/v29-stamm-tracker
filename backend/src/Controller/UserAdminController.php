@@ -14,7 +14,7 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Uid\Uuid;
 
-/** AdminUsersResponse, AdminUserInput and AdminInviteResponse in frontend/shared/contract.ts. The role check for /api/admin/ happens in AuthenticateListener, the rules of who may do what in UserAdmin. */
+/** AdminUsersResponse, AdminUserInput and AdminInviteResponse in frontend/admin/src/api/contract.ts. The role check for /api/admin/ happens in AuthenticateListener, the rules of who may do what in UserAdmin. */
 final class UserAdminController extends AbstractController
 {
     use JsonBody;

@@ -1,4 +1,4 @@
-import type { PileCardSection } from '@v29/shared/contract'
+import type { PileCardSection } from '@/api/contract'
 
 import { formatOneDecimal } from '@/keyFigures'
 

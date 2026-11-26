@@ -17,7 +17,6 @@
     "./FormattedTag.vue": "./FormattedTag.vue",
     "./BeamRowLabel.vue": "./BeamRowLabel.vue",
     "./AuthorCredit.vue": "./AuthorCredit.vue",
-    "./SawBladeIcon.vue": "./SawBladeIcon.vue",
     "./V29Logo.vue": "./V29Logo.vue",
     "./fixtures/*": "./fixtures/*"
   },

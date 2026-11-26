@@ -1,5 +1,6 @@
 import { vi } from 'vitest'
-import type { DashboardResponse, PileCardsResponse, Snapshot } from '@v29/shared/contract'
+import type { Snapshot } from '@v29/shared/contract'
+import type { DashboardResponse, PileCardsResponse } from '../api/contract'
 
 import dashboardFixture from '@v29/shared/fixtures/dashboard-response.json' with { type: 'json' }
 import pileCardsFixture from '@v29/shared/fixtures/pile-cards-response.json' with { type: 'json' }

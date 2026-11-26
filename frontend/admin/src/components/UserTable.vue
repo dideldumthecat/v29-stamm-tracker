@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AdminUser } from '@v29/shared/contract'
+import type { AdminUser } from '@/api/contract'
 import { ChevronDownIcon, ChevronRightIcon } from '@lucide/vue'
 
 import { formatDate } from '@/activity'

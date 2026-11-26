@@ -11,7 +11,7 @@ use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
- * Maintenance of the piles in the administration: GET/POST/PATCH /api/admin/piles, see AdminPile in frontend/shared/contract.ts.
+ * Maintenance of the piles in the administration: GET/POST/PATCH /api/admin/piles, see AdminPile in frontend/admin/src/api/contract.ts.
  * A pile is an option of the attribute with the key "source" plus its master data (Pile). All rules live here.
  * The label of the option is derived from number and location on every save ("number (location)" or only the number), the value recorded on
  * timber items stays the option id. Nothing is deleted, the administration does not deactivate piles (attribute_options.active stays as it is).

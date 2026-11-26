@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AdminPile } from '@v29/shared/contract'
+import type { AdminPile } from '@/api/contract'
 import { ChevronDownIcon, ChevronRightIcon, ExternalLinkIcon } from '@lucide/vue'
 
 import { formatVolume, mapUrl } from '@/piles'

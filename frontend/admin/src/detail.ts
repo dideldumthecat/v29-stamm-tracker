@@ -1,22 +1,13 @@
-import type {
-  ActivityEntry,
-  ActivityItem,
-  Attribute,
-  AttributeValueRecord,
-  ItemKind,
-  TimberItem,
-} from '@v29/shared/contract'
+import type { Attribute, AttributeValueRecord, ItemKind, TimberItem } from '@v29/shared/contract'
+import type { ActivityEntry, ActivityItem } from '@/api/contract'
+import { bySortOrder, formatValue, isInheritedValue, SAWN_KEY } from '@v29/shared/attributes'
 import {
-  bySortOrder,
   CROSS_SECTION_KEY,
   currentValue,
-  formatValue,
   hasValueOfKey,
-  isInheritedValue,
   isMarked,
-  SAWN_KEY,
   UNSAWABLE_KEY,
-} from '@v29/shared/attributes'
+} from '@/itemValues'
 import { itemRoles, splitChoiceOf } from '@v29/shared/itemRoles'
 import { formatTag } from '@v29/shared/tag'
 

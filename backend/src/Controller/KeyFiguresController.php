@@ -9,7 +9,7 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Uid\Uuid;
 
-/** KeyFiguresResponse in frontend/shared/contract.ts. The role check for /api/admin/ happens in AuthenticateListener. */
+/** KeyFiguresResponse in frontend/admin/src/api/contract.ts. The role check for /api/admin/ happens in AuthenticateListener. */
 final class KeyFiguresController extends AbstractController
 {
     #[Route('/api/admin/timber-items/{id}/key-figures', methods: ['GET'])]

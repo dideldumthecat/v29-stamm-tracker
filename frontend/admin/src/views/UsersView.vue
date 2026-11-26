@@ -5,7 +5,7 @@ import type {
   AdminUser,
   AdminUserResponse,
   AdminUsersResponse,
-} from '@v29/shared/contract'
+} from '@/api/contract'
 import { CheckIcon, CopyIcon, PlusIcon, TriangleAlertIcon } from '@lucide/vue'
 
 import { ApiError, request } from '@/api/client'

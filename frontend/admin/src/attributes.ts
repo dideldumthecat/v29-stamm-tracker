@@ -1,11 +1,6 @@
 import type { LocationQuery, LocationQueryRaw } from 'vue-router'
-import type {
-  AdminAttribute,
-  AdminAttributeInput,
-  AttributeType,
-  ItemKind,
-  Uuid,
-} from '@v29/shared/contract'
+import type { AttributeType, ItemKind, Uuid } from '@v29/shared/contract'
+import type { AdminAttribute, AdminAttributeInput } from '@/api/contract'
 
 import { countText } from '@/listFilters'
 

@@ -5,7 +5,7 @@ namespace App\KeyFigures;
 use App\Pile\PileEditor;
 
 /**
- * The cards of the page "Polter" (PileCardSection in frontend/shared/contract.ts), one per pile with at least one stem, the newest pile first.
+ * The cards of the page "Polter" (PileCardSection in frontend/admin/src/api/contract.ts), one per pile with at least one stem, the newest pile first.
  * The sums and the yield are those of KeyFigures::totals(), the same definitions as the dashboard, only over the stems of one pile.
  * Beams belong to the pile of their stem. Nothing here asks the database.
  */

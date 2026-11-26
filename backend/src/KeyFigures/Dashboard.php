@@ -7,7 +7,7 @@ use App\Entity\TimberItem;
 use App\Pile\PileEditor;
 use Doctrine\ORM\EntityManagerInterface;
 
-/** DashboardResponse in frontend/shared/contract.ts: loads every item that is not voided and lets KeyFigures add up. */
+/** DashboardResponse in frontend/admin/src/api/contract.ts: loads every item that is not voided and lets KeyFigures add up. */
 final class Dashboard
 {
     public function __construct(private readonly EntityManagerInterface $em, private readonly MeasureLoader $loader, private readonly KeyFigures $figures, private readonly PileEditor $piles, private readonly DashboardCards $cards)

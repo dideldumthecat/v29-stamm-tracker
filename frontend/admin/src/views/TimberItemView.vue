@@ -3,13 +3,8 @@ import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ChevronDownIcon, CornerLeftUpIcon, TreesIcon } from '@lucide/vue'
 import { beamSummary } from '@v29/shared/attributes'
-import type {
-  ActivityEntry,
-  ActivityResponse,
-  KeyFigure,
-  KeyFiguresResponse,
-  Snapshot,
-} from '@v29/shared/contract'
+import type { Snapshot } from '@v29/shared/contract'
+import type { ActivityEntry, ActivityResponse, KeyFigure, KeyFiguresResponse } from '@/api/contract'
 import BeamRowLabel from '@v29/shared/BeamRowLabel.vue'
 import FormattedTag from '@v29/shared/FormattedTag.vue'
 

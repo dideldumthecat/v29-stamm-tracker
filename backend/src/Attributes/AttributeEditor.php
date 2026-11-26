@@ -9,7 +9,7 @@ use App\Entity\EventType;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
- * Maintenance of attributes in the administration: GET/POST/PATCH/PUT /api/admin/attributes, see AdminAttribute in frontend/shared/contract.ts.
+ * Maintenance of attributes in the administration: GET/POST/PATCH/PUT /api/admin/attributes, see AdminAttribute in frontend/admin/src/api/contract.ts.
  * All rules live here. Attributes with a key (system attributes) are created and changed in migrations (App\Migration\AttributeMigration):
  * the administration may only change their name, description and order. Nothing is deleted, options are only deactivated.
  * No events: attributes are configuration.

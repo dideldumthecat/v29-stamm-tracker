@@ -1,4 +1,8 @@
-import type { DiameterClass } from '@v29/shared/contract'
+import type { Attribute, TimberItem } from '@v29/shared/contract'
+import { MID_DIAMETER_KEYS } from '@v29/shared/attributes'
+
+import { valueOfKey } from './itemValues'
+import type { DiameterClass } from './api/contract'
 
 export type DiameterColumn =
   'diameter' | 'yield' | 'stems' | 'not_sawable' | 'beams_per_stem_large' | 'beams_per_stem_small'
@@ -30,3 +34,28 @@ export const sortOn = (sort: DiameterSort, column: DiameterColumn): DiameterSort
   sort.column === column
     ? { column, dir: sort.dir === 'asc' ? 'desc' : 'asc' }
     : { column, dir: 'desc' }
+
+/**
+ * The diameter class of a stem, as `from_cm` (classes of two whole cm: 32 and 33 cm are 32, shown "32–33 cm"); null without a diameter.
+ * The same rule as the server (`KeyFigures::diameterClass`, tested with the same cases): the mean of both diameters, rounded commercially
+ * to whole cm (half up: 32.5 → 33); with only one recorded it counts for both; 0 or less is not measured.
+ */
+export function diameterClass(max: unknown, min: unknown): number | null {
+  const known = (value: unknown) => (typeof value === 'number' && value > 0 ? value : null)
+  const a = known(max) ?? known(min)
+  const b = known(min) ?? known(max)
+  if (a === null || b === null) return null
+  // Rounded to 6 places first, so that float noise does not turn 32.5 into 32.4999…
+  const whole = Math.round(Math.round(((a + b) / 2) * 1e6) / 1e6)
+  return Math.floor(whole / 2) * 2
+}
+
+/** The diameter class of a stem from its values (the attributes are found by key); null without a diameter. */
+export const diameterClassOf = (item: Pick<TimberItem, 'values'>, attributes: Attribute[]) =>
+  diameterClass(
+    valueOfKey(item, attributes, MID_DIAMETER_KEYS[0]),
+    valueOfKey(item, attributes, MID_DIAMETER_KEYS[1]),
+  )
+
+/** A class as V29 reads it: from_cm 32 → "32–33 cm". */
+export const formatDiameterClass = (fromCm: number) => `${fromCm}–${fromCm + 1} cm`

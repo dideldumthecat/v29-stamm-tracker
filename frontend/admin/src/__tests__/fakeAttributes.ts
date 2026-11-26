@@ -1,4 +1,4 @@
-import type { AdminAttribute, AdminAttributeInput } from '@v29/shared/contract'
+import type { AdminAttribute, AdminAttributeInput } from '../api/contract'
 
 import { snapshotFixture } from './fakeSnapshot'
 

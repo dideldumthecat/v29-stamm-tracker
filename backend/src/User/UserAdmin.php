@@ -11,7 +11,7 @@ use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * User management in the administration: GET/POST/PATCH /api/admin/users, see AdminUser in frontend/shared/contract.ts.
+ * User management in the administration: GET/POST/PATCH /api/admin/users, see AdminUser in frontend/admin/src/api/contract.ts.
  * All rules live here; the controller only passes the acting user. The console commands app:user:* stay for the first superadmin.
  *
  * Who may do what (the interface hides the rest, the server refuses it with 403):

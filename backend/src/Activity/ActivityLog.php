@@ -13,7 +13,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * ActivityResponse in frontend/shared/contract.ts: who recorded what and when, newest first.
+ * ActivityResponse in frontend/admin/src/api/contract.ts: who recorded what and when, newest first.
  *
  * Works in two steps so a page stays cheap with tens of thousands of events: all events matching the filter are read
  * with a few small columns and grouped into entries; only the events of the entries on the requested page are read in full.
@@ -42,7 +42,7 @@ final class ActivityLog
      *                            match the beams of the stems; a beam tag (104-A, 104a, 104A) matches only that beam
      * @param string|null $before cursor of the last entry of the previous page
      *
-     * @return array<string, mixed> see ActivityPage in frontend/shared/contract.ts
+     * @return array<string, mixed> see ActivityPage in frontend/admin/src/api/contract.ts
      *
      * @throws \InvalidArgumentException with a message for the client if a filter is malformed
      */
@@ -297,7 +297,7 @@ final class ActivityLog
      * @param array<string, Attribute>            $attributes by id (RFC 4122)
      * @param array<string, string>               $labels     option label by id
      *
-     * @return array{kind: string, name: string, value: string} see ActivityChange in frontend/shared/contract.ts
+     * @return array{kind: string, name: string, value: string} see ActivityChange in frontend/admin/src/api/contract.ts
      */
     private function change(array $event, array $events, array $attributes, array $labels): array
     {

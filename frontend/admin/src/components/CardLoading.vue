@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue'
-import SawBladeIcon from '@v29/shared/SawBladeIcon.vue'
+import SawBladeIcon from '@/components/SawBladeIcon.vue'
 
 import { LOADING_TEXT } from '@/loadingText'
 

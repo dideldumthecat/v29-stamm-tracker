@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import type { KeyFigure } from '@v29/shared/contract'
+import type { KeyFigure } from '@/api/contract'
 
 import FigureInfo from '@/components/FigureInfo.vue'
 import { formatFigure, formatPercent } from '@/keyFigures'

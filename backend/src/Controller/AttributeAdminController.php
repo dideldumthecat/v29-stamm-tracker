@@ -14,7 +14,7 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Uid\Uuid;
 
-/** AdminAttributesResponse, AdminAttributeInput and AttributeErrorsResponse in frontend/shared/contract.ts. The role check for /api/admin/ happens in AuthenticateListener. */
+/** AdminAttributesResponse, AdminAttributeInput and AttributeErrorsResponse in frontend/admin/src/api/contract.ts. The role check for /api/admin/ happens in AuthenticateListener. */
 final class AttributeAdminController extends AbstractController
 {
     use JsonBody;

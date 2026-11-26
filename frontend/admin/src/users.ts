@@ -1,4 +1,4 @@
-import type { AdminUser, UserRole } from '@v29/shared/contract'
+import type { AdminUser, UserRole } from '@/api/contract'
 
 import { formatDate } from '@/activity'
 import { errorsOf } from '@/attributes'

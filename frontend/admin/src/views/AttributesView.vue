@@ -7,7 +7,7 @@ import {
   useRouter,
   type RouteLocationNormalized,
 } from 'vue-router'
-import type { AdminAttribute, AdminAttributesResponse } from '@v29/shared/contract'
+import type { AdminAttribute, AdminAttributesResponse } from '@/api/contract'
 import { CheckIcon, GripVerticalIcon, LockIcon, MousePointerClickIcon, PlusIcon } from '@lucide/vue'
 
 import { ApiError, request } from '@/api/client'

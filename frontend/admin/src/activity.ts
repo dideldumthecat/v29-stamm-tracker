@@ -1,4 +1,4 @@
-import type { ActivityEntry, ActivityItem } from '@v29/shared/contract'
+import type { ActivityEntry, ActivityItem } from '@/api/contract'
 
 import { countText, plural } from '@/listFilters'
 

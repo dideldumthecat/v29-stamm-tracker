@@ -1,4 +1,4 @@
-import type { AdminInviteResponse, AdminUser, AdminUsersResponse } from '@v29/shared/contract'
+import type { AdminInviteResponse, AdminUser, AdminUsersResponse } from '../api/contract'
 
 import listFixture from '@v29/shared/fixtures/admin-users-response.json' with { type: 'json' }
 

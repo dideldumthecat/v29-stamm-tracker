@@ -1,4 +1,4 @@
-import type { AdminPile } from '@v29/shared/contract'
+import type { AdminPile } from '@/api/contract'
 
 import { errorsOf } from '@/attributes'
 import { parseCoordinate } from '@/coordinates'

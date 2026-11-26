@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { AdminAttribute, ItemKind } from '@v29/shared/contract'
+import type { ItemKind } from '@v29/shared/contract'
+import type { AdminAttribute } from '@/api/contract'
 
 import {
   applyVisibleOrder,

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { ExternalLinkIcon } from '@lucide/vue'
-import type { PileCardSection } from '@v29/shared/contract'
+import type { PileCardSection } from '@/api/contract'
 
 import InfoPopover from '@/components/InfoPopover.vue'
 import WeeklyBeamsChart from '@/components/WeeklyBeamsChart.vue'

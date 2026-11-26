@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { enableAutoUnmount, flushPromises, mount, type DOMWrapper } from '@vue/test-utils'
-import type { PileCardSection, PileCardsResponse } from '@v29/shared/contract'
+import type { PileCardSection, PileCardsResponse } from '@/api/contract'
 import pileCardsFixture from '@v29/shared/fixtures/pile-cards-response.json' with { type: 'json' }
 
 import PileCard from '@/components/PileCard.vue'

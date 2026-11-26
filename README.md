@@ -75,7 +75,7 @@ flowchart LR
 └── .github/     checks and deployment workflows
 ```
 
-The API contract lives in `frontend/shared/contract.ts`. Its JSON fixtures (`frontend/shared/fixtures/`) serve both as mock data for the app and as expected results in the backend tests, so frontend and backend cannot drift apart unnoticed.
+The API contract of the capture app lives in `frontend/shared/contract.ts`, the one of the administration (`/api/admin/…`) in `frontend/admin/src/api/contract.ts`. Its JSON fixtures (`frontend/shared/fixtures/`) serve both as mock data for the app and as expected results in the backend tests, so frontend and backend cannot drift apart unnoticed.
 
 ## Local development
 

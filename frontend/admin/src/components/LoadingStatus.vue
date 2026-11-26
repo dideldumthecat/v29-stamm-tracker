@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import SawBladeIcon from '@v29/shared/SawBladeIcon.vue'
+import SawBladeIcon from '@/components/SawBladeIcon.vue'
 
 import StatusCard from '@/components/StatusCard.vue'
 import { LOADING_TEXT } from '@/loadingText'

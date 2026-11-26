@@ -10,7 +10,7 @@ use Doctrine\ORM\Mapping as ORM;
  * the value recorded on a timber item stays the option id. The row is created with the first save in the administration, so an option
  * without a row is a pile without master data (it has no number yet).
  *
- * The decimal columns are strings in PHP (Doctrine's mapping), the administration sees numbers (see AdminPile in frontend/shared/contract.ts).
+ * The decimal columns are strings in PHP (Doctrine's mapping), the administration sees numbers (see AdminPile in frontend/admin/src/api/contract.ts).
  */
 #[ORM\Entity]
 #[ORM\Table(name: 'piles')]

@@ -7,7 +7,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Attribute\Route;
 
-/** AdminMeResponse in frontend/shared/contract.ts. The role check for /api/admin/ happens in AuthenticateListener. */
+/** AdminMeResponse in frontend/admin/src/api/contract.ts. The role check for /api/admin/ happens in AuthenticateListener. */
 final class AdminMeController extends AbstractController
 {
     #[Route('/api/admin/me', methods: ['GET'])]

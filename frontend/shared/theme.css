@@ -34,11 +34,7 @@
   --color-lockline: #b0b0b0; /* locked field border */
   --color-desk: #e4e4e2; /* area beside the app column (desktop) */
   --color-disabled: #cccccc;
-  --color-beam-large: #949494; /* large beams: the weekly chart and the figure on the pile cards; not for text; white text on it reaches 3:1 (large figures only) */
-  --color-beam-small: #d0d0d0; /* small beams, as above */
-  --color-beam-small-text: #767676; /* the number of small beams above a column: the column grey is too light for text */
   --color-alert: #b42318; /* only errors and warnings, never an accent */
-  --color-accent: #b3500f; /* the one highlighted dashboard card ("Vorrat reicht bis ca."); 5.6:1 on white */
 
   --font-sans: 'Roboto Variable', 'Helvetica Neue', Helvetica, Arial, sans-serif;
 

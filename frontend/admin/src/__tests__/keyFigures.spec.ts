@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { KeyFigure } from '@v29/shared/contract'
+import type { KeyFigure } from '@/api/contract'
 
 import { formatFigure, formatPercent, formatVolume, numberParts } from '@/keyFigures'
 

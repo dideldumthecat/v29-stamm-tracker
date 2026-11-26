@@ -9,7 +9,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 
-/** ActivityResponse in frontend/shared/contract.ts. The role check for /api/admin/ happens in AuthenticateListener. */
+/** ActivityResponse in frontend/admin/src/api/contract.ts. The role check for /api/admin/ happens in AuthenticateListener. */
 final class ActivityController extends AbstractController
 {
     #[Route('/api/admin/activity', methods: ['GET'])]

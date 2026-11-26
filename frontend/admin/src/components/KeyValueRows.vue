@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { ActivityItem } from '@v29/shared/contract'
+import type { ActivityItem } from '@/api/contract'
 
 import { detailRows } from '@/activity'
 

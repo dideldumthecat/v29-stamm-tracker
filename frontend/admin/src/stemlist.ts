@@ -1,12 +1,7 @@
 import type { LocationQueryRaw } from 'vue-router'
-import {
-  bySortOrder,
-  currentValue,
-  diameterClassOf,
-  formatDiameterClass,
-  isInheritedValue,
-  MID_DIAMETER_KEYS,
-} from '@v29/shared/attributes'
+import { bySortOrder, isInheritedValue, MID_DIAMETER_KEYS } from '@v29/shared/attributes'
+import { currentValue } from '@/itemValues'
+import { diameterClassOf, formatDiameterClass } from '@/diameterClasses'
 import type {
   Attribute,
   AttributeValueRecord,

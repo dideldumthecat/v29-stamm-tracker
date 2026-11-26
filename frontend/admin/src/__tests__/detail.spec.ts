@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { ActivityChange, ActivityEntry } from '@v29/shared/contract'
+import type { ActivityChange, ActivityEntry } from '@/api/contract'
 
 import {
   beamsOf,

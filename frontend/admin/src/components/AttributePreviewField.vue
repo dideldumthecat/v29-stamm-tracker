@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { CalendarIcon, CameraIcon, ChevronDownIcon, GripVerticalIcon, LockIcon } from '@lucide/vue'
-import type { AdminAttribute } from '@v29/shared/contract'
+import type { AdminAttribute } from '@/api/contract'
 
 /**
  * One attribute of the preview, drawn as the app shows it empty (choice, number, month, date, text, yes/no, photos), for looking only:

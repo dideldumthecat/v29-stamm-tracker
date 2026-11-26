@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { Attribute, DashboardDiameterSection, DashboardResponse } from '@v29/shared/contract'
+import type { Attribute } from '@v29/shared/contract'
+import type { DashboardDiameterSection, DashboardResponse } from '@/api/contract'
 import dashboardFixture from '@v29/shared/fixtures/dashboard-response.json' with { type: 'json' }
 
 import { applyFilters, tagFilter } from '@/listFilters'

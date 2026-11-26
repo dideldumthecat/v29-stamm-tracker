@@ -2,7 +2,7 @@
 import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
 import { useRoute, useRouter, type LocationQueryRaw } from 'vue-router'
 import { ChevronDownIcon, LoaderCircleIcon, TreesIcon, XIcon } from '@lucide/vue'
-import type { ActivityEntry, ActivityResponse } from '@v29/shared/contract'
+import type { ActivityEntry, ActivityResponse } from '@/api/contract'
 
 import { completeDays, describePeriod, entriesText, groupByDay } from '@/activity'
 import { ApiError, request } from '@/api/client'

@@ -1,11 +1,6 @@
-import {
-  bySortOrder,
-  currentValue,
-  formatDate,
-  formatDiameterClass,
-  formatMonthLong,
-  formatNumber,
-} from '@v29/shared/attributes'
+import { bySortOrder, formatDate, formatNumber } from '@v29/shared/attributes'
+import { currentValue, formatMonthLong } from './itemValues'
+import { formatDiameterClass } from './diameterClasses'
 import type {
   Attribute,
   AttributeType,

@@ -11,7 +11,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 
-/** AdminPilesResponse, AdminPile, AdminPileInput and AttributeErrorsResponse in frontend/shared/contract.ts. The role check for /api/admin/ happens in AuthenticateListener. */
+/** AdminPilesResponse, AdminPile, AdminPileInput and AttributeErrorsResponse in frontend/admin/src/api/contract.ts. The role check for /api/admin/ happens in AuthenticateListener. */
 final class PileAdminController extends AbstractController
 {
     use JsonBody;

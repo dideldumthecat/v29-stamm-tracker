@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { RefreshCwIcon } from '@lucide/vue'
-import type { DashboardResponse } from '@v29/shared/contract'
+import type { DashboardResponse } from '@/api/contract'
 
 import { formatDateTime } from '@/activity'
 import { ApiError, request } from '@/api/client'

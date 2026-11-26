@@ -6,8 +6,8 @@ import {
   ArrowUpNarrowWideIcon,
   ChevronsUpDownIcon,
 } from '@lucide/vue'
-import { formatDiameterClass } from '@v29/shared/attributes'
-import type { DashboardDiameterSection } from '@v29/shared/contract'
+import { formatDiameterClass } from '@/diameterClasses'
+import type { DashboardDiameterSection } from '@/api/contract'
 
 import InfoPopover from '@/components/InfoPopover.vue'
 import { DEFAULT_DIAMETER_SORT, sortClasses, sortOn, type DiameterColumn } from '@/diameterClasses'

@@ -2,7 +2,7 @@
 
 namespace App\KeyFigures;
 
-/** KeyFigure in frontend/shared/contract.ts: a figure with the texts that explain it. */
+/** KeyFigure in frontend/admin/src/api/contract.ts: a figure with the texts that explain it. */
 final readonly class KeyFigure
 {
     public function __construct(

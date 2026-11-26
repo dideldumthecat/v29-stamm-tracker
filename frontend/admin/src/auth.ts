@@ -1,5 +1,5 @@
 import { ref } from 'vue'
-import type { AdminMeResponse } from '@v29/shared/contract'
+import type { AdminMeResponse } from '@/api/contract'
 
 import { ApiError, request } from '@/api/client'
 

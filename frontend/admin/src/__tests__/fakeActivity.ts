@@ -1,4 +1,4 @@
-import type { ActivityEntry, ActivityResponse } from '@v29/shared/contract'
+import type { ActivityEntry, ActivityResponse } from '../api/contract'
 import { parseTags } from '../listFilters'
 import fixture from '@v29/shared/fixtures/activity-response.json' with { type: 'json' }
 

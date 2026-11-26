@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, useId } from 'vue'
 import { ChevronDownIcon } from '@lucide/vue'
-import type { ActivityEntry } from '@v29/shared/contract'
+import type { ActivityEntry } from '@/api/contract'
 import FormattedTag from '@v29/shared/FormattedTag.vue'
 
 import KeyValueRows from '@/components/KeyValueRows.vue'

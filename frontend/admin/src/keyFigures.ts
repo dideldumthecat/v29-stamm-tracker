@@ -1,5 +1,5 @@
-import { formatDiameterClass } from '@v29/shared/attributes'
-import type { KeyFigure } from '@v29/shared/contract'
+import { formatDiameterClass } from '@/diameterClasses'
+import type { KeyFigure } from '@/api/contract'
 
 const volume = new Intl.NumberFormat('de-DE', {
   minimumFractionDigits: 3,

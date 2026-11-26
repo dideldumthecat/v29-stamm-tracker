@@ -3,7 +3,7 @@
 namespace App\KeyFigures;
 
 /**
- * The card sections "Rundholz" and "Schnittholz" of the dashboard (DashboardCardsSection in frontend/shared/contract.ts).
+ * The card sections "Rundholz" and "Schnittholz" of the dashboard (DashboardCardsSection in frontend/admin/src/api/contract.ts).
  * Counts, volumes and yield are those of KeyFigures::totals(); new here are the Raummeter (Rm) of the piles shared out per stem,
  * the week a stem was processed, the tempo and the forecast. The cards are display only: the server formats every text (de-DE).
  * Nothing here asks the database.

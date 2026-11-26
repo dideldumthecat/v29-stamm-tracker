@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { DashboardCard, DashboardCardsSection } from '@v29/shared/contract'
+import type { DashboardCard, DashboardCardsSection } from '@/api/contract'
 
 import FigureInfo from '@/components/FigureInfo.vue'
 import { numberParts } from '@/keyFigures'

@@ -6,7 +6,7 @@ use App\Entity\TimberItem;
 use App\Pile\PileEditor;
 use Doctrine\ORM\EntityManagerInterface;
 
-/** PileCardsResponse in frontend/shared/contract.ts: loads every item that is not voided and lets PileSections build the cards. */
+/** PileCardsResponse in frontend/admin/src/api/contract.ts: loads every item that is not voided and lets PileSections build the cards. */
 final class PileCards
 {
     public function __construct(private readonly EntityManagerInterface $em, private readonly MeasureLoader $loader, private readonly PileEditor $piles, private readonly PileSections $sections)

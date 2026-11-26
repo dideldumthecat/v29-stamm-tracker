@@ -10,7 +10,8 @@ import {
   TrashIcon,
   XIcon,
 } from '@lucide/vue'
-import type { AdminAttribute, AttributeType, ItemKind } from '@v29/shared/contract'
+import type { AttributeType, ItemKind } from '@v29/shared/contract'
+import type { AdminAttribute } from '@/api/contract'
 
 import CheckboxRow from '@/components/CheckboxRow.vue'
 import SelectField from '@/components/SelectField.vue'

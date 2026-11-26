@@ -1,4 +1,4 @@
-import type { AdminPile, AdminPileInput } from '@v29/shared/contract'
+import type { AdminPile, AdminPileInput } from '../api/contract'
 
 import fixture from '@v29/shared/fixtures/admin-piles-response.json' with { type: 'json' }
 

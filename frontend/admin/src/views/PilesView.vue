@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId, useTemplateRef } from 'vue'
-import type { AdminPile, AdminPilesResponse } from '@v29/shared/contract'
+import type { AdminPile, AdminPilesResponse } from '@/api/contract'
 import { PlusIcon } from '@lucide/vue'
 
 import { ApiError, request } from '@/api/client'

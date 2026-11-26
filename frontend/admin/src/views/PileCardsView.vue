@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import type { PileCardSection, PileCardsResponse } from '@v29/shared/contract'
+import type { PileCardSection, PileCardsResponse } from '@/api/contract'
 
 import { ApiError, request } from '@/api/client'
 import LoadFailure from '@/components/LoadFailure.vue'
