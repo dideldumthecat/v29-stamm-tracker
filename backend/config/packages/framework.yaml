@@ -5,6 +5,8 @@ framework:
     # Note that the session will be started ONLY if you read or write from it.
     session: true
 
+    error_controller: App\Controller\ApiErrorController::__invoke
+
     # Bots probing for /wp-login.php or /.env must not look like errors in the log; the line stays, as notice.
     exceptions:
         Symfony\Component\HttpKernel\Exception\NotFoundHttpException:
