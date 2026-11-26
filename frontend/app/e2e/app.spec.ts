@@ -179,6 +179,7 @@ test('"Mehrere Balken" locks the stem and saves it with the beams A and B; the b
   await expect(holzart).toContainText('Vom Stamm geerbt')
 
   // Sent in one go: stem and beams, 1 + 1 + 1 entries.
+  await writesDone(page)
   await page.goto('/sync')
   await expect(page.locator('h1')).toHaveText('Synchronisierung (5)')
   await page.getByRole('button', { name: 'Jetzt synchronisieren', exact: true }).click()
@@ -196,11 +197,13 @@ test('removes a synced beam, the sync sends the removal, and its letter is free 
   await page.getByRole('button', { name: 'Balken entfernen', exact: true }).click()
   await expect(page.locator('a[href="/timber-item/789-B"]')).toHaveCount(0)
 
+  await writesDone(page)
   await page.goto('/sync')
   await expect(page.getByText('Balken 00789-B entfernen')).toBeVisible()
   await page.getByRole('button', { name: 'Jetzt synchronisieren', exact: true }).click()
   await expect(page.getByText('1 Eintrag übertragen')).toBeVisible()
 
+  await writesDone(page)
   await page.goto('/timber-item/789')
   await expect(page.locator('a[href="/timber-item/789-A"]')).toBeVisible()
   await expect(page.locator('a[href="/timber-item/789-B"]')).toHaveCount(0)
@@ -281,6 +284,7 @@ test('saves a further beam on a split stem; it is queued and removing it asks', 
   await expect(page.getByText('Stamm 00789 gespeichert')).toBeVisible()
   await expect(page.locator('a[href="/timber-item/789-C"]')).toBeVisible()
 
+  await writesDone(page)
   await page.goto('/sync')
   await expect(page.locator('h1')).toHaveText('Synchronisierung (1)')
   await expect(page.getByText('Balken angelegt: 00789-C')).toBeVisible()
@@ -468,6 +472,7 @@ test('a 401 on sync keeps the queue and syncs after signing in again', async ({ 
   await page.getByRole('button', { name: 'Stamm anlegen & schließen', exact: true }).click()
   await page.evaluate(SIGNED_OUT)
 
+  await writesDone(page)
   await page.goto('/sync')
   await page.getByRole('button', { name: 'Jetzt synchronisieren', exact: true }).click()
   await expect(page.getByRole('alert')).toContainText('nicht (mehr) angemeldet')
@@ -497,6 +502,7 @@ test('discards a new stem on the sync screen after confirming', async ({ page })
   await page.getByRole('button', { name: 'Stamm anlegen & schließen', exact: true }).click()
   await expect(page.getByText('Stamm 01666 gespeichert')).toBeVisible()
 
+  await writesDone(page)
   await page.goto('/sync')
   await expect(page.locator('h1')).toHaveText('Synchronisierung (1)')
   await page.getByRole('button', { name: 'Eintrag verwerfen', exact: true }).click()
@@ -527,6 +533,7 @@ test('opening the app refreshes the data without tapping and keeps pending entri
     page.getByRole('link', { name: 'Synchronisieren, 2 offene Einträge', exact: true }),
   ).toBeVisible()
 
+  await writesDone(page)
   await page.reload()
   await expect(page.getByText('Stand der Daten:')).not.toContainText('noch nie')
   await expect(
