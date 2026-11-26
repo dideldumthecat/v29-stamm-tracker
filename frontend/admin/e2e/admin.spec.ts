@@ -108,7 +108,7 @@ for (const [path, landing, heading] of [
 
     await expect(page).toHaveURL(new RegExp(`${landing}$`))
     await expect(page.locator('h1')).toHaveText(heading)
-    await expect(page.locator('header')).toContainText('Ada')
+    await expect(page.getByRole('banner')).toContainText('Ada')
   })
 }
 
@@ -145,7 +145,7 @@ test('the frame: active navigation item, credit, and one 1280px column from head
 }) => {
   await page.setViewportSize({ width: 1920, height: 900 })
   await page.goto('/admin/login')
-  await expect(page.locator('header')).toHaveCount(0)
+  await expect(page.getByRole('banner')).toHaveCount(0)
   await expect(page.getByRole('link', { name: 'Alexander Summa', exact: true })).toBeVisible()
   await signIn(page, 'K7QM4XHT9RDP')
 
@@ -182,7 +182,7 @@ for (const width of [1000, 390]) {
     await page.setViewportSize({ width, height: 800 })
     await page.goto('/admin/')
     await signIn(page, 'K7QM4XHT9RDP')
-    await expect(page.locator('header')).toBeVisible()
+    await expect(page.getByRole('banner')).toBeVisible()
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
     )
@@ -1030,7 +1030,7 @@ test.describe('detail view', () => {
     await page.locator('summary', { hasText: 'Verlauf' }).click()
     await page.evaluate(() => window.scrollTo(0, 400))
     // 24 px under the sticky header (from 1024px on)
-    const header = (await page.locator('header').first().boundingBox())!
+    const header = (await page.getByRole('banner').boundingBox())!
     expect(
       Math.abs((await photos.boundingBox())!.y - (header.y + header.height + 24)),
     ).toBeLessThan(2)
@@ -1592,7 +1592,7 @@ test.describe('stem list', () => {
       expect(await sideways(page)).toBeGreaterThan(0)
 
       const fixed = [
-        page.locator('header'),
+        page.getByRole('banner'),
         page.getByRole('heading', { level: 1 }),
         page.getByRole('textbox', { name: 'Kennung', exact: true }),
         resultsBar(page),
