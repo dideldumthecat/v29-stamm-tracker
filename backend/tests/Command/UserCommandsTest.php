@@ -37,9 +37,9 @@ class UserCommandsTest extends KernelTestCase
 
     private function code(string $display): string
     {
-        preg_match('~Dein Einladungscode: (\S+)~', $display, $match);
+        preg_match('~^[0-9A-HJKMNP-TV-Z]{4}(-[0-9A-HJKMNP-TV-Z]{4}){2}$~m', $display, $match);
 
-        return $match[1];
+        return $match[0];
     }
 
     /** @return list<User> */
@@ -50,17 +50,13 @@ class UserCommandsTest extends KernelTestCase
         return $this->em->getRepository(User::class)->findAll();
     }
 
-    public function testCreatePrintsInviteMessageAndStoresOnlyTheHash(): void
+    public function testCreatePrintsTheFormattedCodeAndStoresOnlyTheHash(): void
     {
         $tester = $this->execute('app:user:create', ['name' => ' Kerstin ']);
 
         self::assertSame(Command::SUCCESS, $tester->getStatusCode());
         $display = $tester->getDisplay();
-        self::assertStringContainsString('Hallo Kerstin,', $display);
-        self::assertStringContainsString('Adresse: https://v29-stamm-tracker.ddev.site'."\n", $display);
-        self::assertStringContainsString('Bitte danach IMMER über das Symbol öffnen', $display);
-        $group = '[0-9A-HJKMNP-TV-Z]{4}';
-        self::assertMatchesRegularExpression("~Dein Einladungscode: $group-$group-$group\$~m", $display);
+        self::assertStringNotContainsString('Hallo', $display);
         $token = str_replace('-', '', $this->code($display));
 
         $users = $this->users();

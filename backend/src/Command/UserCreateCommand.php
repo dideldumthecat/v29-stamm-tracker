@@ -12,7 +12,7 @@ use Symfony\Component\Console\Attribute\Option;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
-#[AsCommand(name: 'app:user:create', description: 'Create a user and print the invite message with their personal code')]
+#[AsCommand(name: 'app:user:create', description: 'Create a user and print their personal invite code')]
 class UserCreateCommand
 {
     public function __construct(
@@ -48,7 +48,7 @@ class UserCreateCommand
         $this->em->flush();
 
         $io->success(\sprintf('Created %s "%s" (%s).', $user->role->value, $user->name, $user->id->toRfc4122()));
-        $io->writeln($this->invites->message($user, $code));
+        $io->writeln($code);
         $io->warning('The invite code is shown here once and not stored; whoever loses it gets a new one (administration: "Neuer Code").');
 
         return Command::SUCCESS;
