@@ -1,16 +1,7 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref, useId, useTemplateRef } from 'vue'
-import type {
-  AdminGroup,
-  AdminGroupsResponse,
-  AdminInviteResponse,
-  AdminUser,
-  AdminUserResponse,
-  AdminUsersResponse,
-} from '@/api/contract'
+import { useId, useTemplateRef } from 'vue'
 import { CheckIcon, CopyIcon, PlusIcon, TriangleAlertIcon } from '@lucide/vue'
 
-import { ApiError, request } from '@/api/client'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import LoadFailure from '@/components/LoadFailure.vue'
 import LoadingStatus from '@/components/LoadingStatus.vue'
@@ -18,199 +9,62 @@ import PageHeader from '@/components/PageHeader.vue'
 import ResultsBar from '@/components/ResultsBar.vue'
 import SelectField from '@/components/SelectField.vue'
 import UserTable from '@/components/UserTable.vue'
-import { defaultGroup } from '@/groups'
 import { useAddCard } from '@/useAddCard'
-import { useAttempt } from '@/useAttempt'
 import { isBlocked, ROLE_LABELS } from '@/users'
+import { useUsers } from '@/useUsers'
 
 /**
  * The page "Nutzer": a table; one user at a time opens in a card below the row (name, role, invite code, new code, block). The button
- * above the table adds a user. What the acting user may do comes from the server with every user (`can_manage`, `can_block`,
- * `can_set_role`, `creatable_roles`): the page only hides what is not allowed, the server refuses it too.
+ * above the table adds a user. The state and the actions are in `useUsers`.
  */
 const id = useId()
+const {
+  status,
+  failure,
+  users,
+  creatableRoles,
+  groups,
+  busy,
+  notice,
+  load,
+  openId,
+  openUser,
+  split,
+  draft,
+  saveErrors,
+  changed,
+  code,
+  copied,
+  copyFailed,
+  toggle,
+  copy,
+  save,
+  renewTarget,
+  renewOpen,
+  askRenew,
+  renew,
+  blockTarget,
+  blockOpen,
+  askBlock,
+  setBlocked,
+  adding,
+  newName,
+  newRole,
+  newGroupId,
+  createErrors,
+  toggleAdd,
+  create,
+} = useUsers()
 
-const status = ref<'loading' | 'ready' | 'error'>('loading')
-const failure = ref(0)
-const users = ref<AdminUser[]>([])
-const creatableRoles = ref<AdminUsersResponse['creatable_roles']>(['user'])
-const groups = ref<AdminGroup[]>([])
-// The group of a new user, preselected as the server would choose it.
-const newGroupId = ref('')
-
-async function load() {
-  status.value = 'loading'
-  try {
-    const [answer, groupsAnswer] = await Promise.all([
-      request<AdminUsersResponse>('GET', 'admin/users'),
-      request<AdminGroupsResponse>('GET', 'admin/groups'),
-    ])
-    users.value = answer.users
-    creatableRoles.value = answer.creatable_roles
-    groups.value = groupsAnswer.groups
-    newGroupId.value = defaultGroup(groups.value)?.id ?? ''
-    status.value = 'ready'
-  } catch (error) {
-    failure.value = error instanceof ApiError ? error.status : 0
-    status.value = 'error'
-  }
-}
-void load()
-
-const { busy, notice, attempt, say } = useAttempt()
-const replace = (user: AdminUser) =>
-  (users.value = users.value.map((entry) => (entry.id === user.id ? user : entry)))
-
-// --- The open user ---------------------------------------------------------------------------------------------------------------
-
-const openId = ref<string | null>(null)
-const openUser = computed(() => users.value.find((user) => user.id === openId.value) ?? null)
-// The table splits below the open row: the card of the user hangs in between.
-const split = computed(() => {
-  const index = users.value.findIndex((user) => user.id === openId.value)
-  return index < 0
-    ? { before: users.value, after: [] }
-    : { before: users.value.slice(0, index + 1), after: users.value.slice(index + 1) }
-})
-
-// What is typed in the card; it is thrown away with every other user opened. Name, role and group are saved together with "Speichern".
-const draft = ref<{ name: string; role: 'user' | 'admin'; groupId: string }>({
-  name: '',
-  role: 'user',
-  groupId: '',
-})
-const saveErrors = ref<Record<string, string>>({})
-const changed = computed(
-  () =>
-    !!openUser.value &&
-    (draft.value.name.trim() !== openUser.value.name ||
-      draft.value.groupId !== openUser.value.group_id ||
-      (openUser.value.can_set_role && draft.value.role !== openUser.value.role)),
-)
-
-// The code is a password: the server keeps no copy, so it exists only in the answer to "Anlegen" or "Neuer Code". It is shown while that user
-// stays open; closing, opening another user or leaving the page drops it.
-const code = ref<string | null>(null)
-const copied = ref(false)
-const copyFailed = ref(false)
-let copiedTimer: ReturnType<typeof setTimeout> | undefined
-onBeforeUnmount(() => clearTimeout(copiedTimer))
-
-function select(user: AdminUser) {
-  openId.value = user.id
-  draft.value = {
-    name: user.name,
-    role: user.role === 'admin' ? 'admin' : 'user',
-    groupId: user.group_id,
-  }
-  saveErrors.value = {}
-  copied.value = false
-  copyFailed.value = false
-  code.value = null
-}
-
-function toggle(user: AdminUser) {
-  if (openId.value === user.id) {
-    openId.value = null
-    return
-  }
-  select(user)
-}
-
-async function copy() {
-  copyFailed.value = false
-  try {
-    await navigator.clipboard.writeText(code.value!)
-  } catch {
-    copyFailed.value = true
-    return
-  }
-  copied.value = true
-  clearTimeout(copiedTimer)
-  copiedTimer = setTimeout(() => (copied.value = false), 3000)
-}
-
-const save = () =>
-  attempt(
-    async () => {
-      const user = openUser.value!
-      const body: { name?: string; role?: string; group_id?: string } = {}
-      if (draft.value.name.trim() !== user.name) body.name = draft.value.name
-      if (draft.value.groupId !== user.group_id) body.group_id = draft.value.groupId
-      if (user.can_set_role && draft.value.role !== user.role) body.role = draft.value.role
-      const answer = await request<AdminUserResponse>('PATCH', `admin/users/${user.id}`, body)
-      replace(answer.user)
-      openId.value = null
-      say(`${answer.user.name} ist gespeichert.`)
-    },
-    (errors) => (saveErrors.value = errors),
-  )
-
-// "Neuer Code" and "Sperren" act at once, whatever is typed in the card. Both ask first (the old code stops working, the user is out).
-const renewTarget = ref<AdminUser | null>(null)
-const renewOpen = ref(false)
-const renew = () => {
-  const user = renewTarget.value!
-  return attempt(async () => {
-    const answer = await request<AdminInviteResponse>('POST', `admin/users/${user.id}/invite`)
-    replace(answer.user)
-    if (openId.value === user.id) code.value = answer.invite.code
-    say(`Neuer Code für ${user.name}. Der alte gilt nicht mehr.`)
-  })
-}
-
-const blockTarget = ref<AdminUser | null>(null)
-const blockOpen = ref(false)
-const setBlocked = (user: AdminUser, blocked: boolean) =>
-  attempt(async () => {
-    const answer = await request<AdminUserResponse>('PATCH', `admin/users/${user.id}`, { blocked })
-    replace(answer.user)
-    say(blocked ? `${user.name} ist gesperrt.` : `${user.name} ist wieder freigegeben.`)
-    // A code shown before does not work while the user is blocked
-    if (blocked) code.value = null
-  })
-
-// --- Add -------------------------------------------------------------------------------------------------------------------------
-
-const adding = ref(false)
-const newName = ref('')
-const newRole = ref<AdminUsersResponse['creatable_roles'][number]>('user')
-const createErrors = ref<Record<string, string>>({})
 const nameField = useTemplateRef<HTMLInputElement>('nameField')
 const { arrowRight, placeArrow } = useAddCard()
-
-async function toggleAdd() {
-  adding.value = !adding.value
-  if (!adding.value) return
-  createErrors.value = {}
-  await nextTick()
+const focusName = () => nameField.value?.focus()
+const onOpenAdd = () => {
   placeArrow()
-  nameField.value?.focus()
+  focusName()
 }
-
-const create = () =>
-  attempt(
-    async () => {
-      createErrors.value = {}
-      const answer = await request<AdminInviteResponse>('POST', 'admin/users', {
-        name: newName.value,
-        role: newRole.value,
-        group_id: newGroupId.value,
-      })
-      users.value = [...users.value, answer.user]
-      adding.value = false
-      newName.value = ''
-      select(answer.user)
-      code.value = answer.invite.code
-      say(`${answer.user.name} ist angelegt.`)
-      await nextTick()
-      document.getElementById(`${id}-panel`)?.scrollIntoView?.({ block: 'nearest' })
-    },
-    (errors) => {
-      createErrors.value = errors
-      nameField.value?.focus()
-    },
-  )
+const showPanel = () =>
+  document.getElementById(`${id}-panel`)?.scrollIntoView?.({ block: 'nearest' })
 
 const button =
   'flex h-11 items-center justify-center gap-2 rounded-lg border-2 px-4 font-bold whitespace-nowrap'
@@ -258,7 +112,7 @@ const label = 'text-caption font-semibold text-mute'
           ]"
           :aria-expanded="adding"
           :aria-controls="`${id}-add`"
-          @click="toggleAdd"
+          @click="toggleAdd(onOpenAdd)"
         >
           <PlusIcon :size="20" aria-hidden="true" />
           Nutzer hinzufügen
@@ -281,7 +135,7 @@ const label = 'text-caption font-semibold text-mute'
           aria-hidden="true"
         />
         <h2 :id="`${id}-add-title`" class="text-label font-bold">Nutzer hinzufügen</h2>
-        <form @submit.prevent="create">
+        <form @submit.prevent="create(focusName, showPanel)">
           <div class="mt-4 flex flex-wrap items-start gap-x-6 gap-y-4">
             <div class="min-w-60 flex-1 basis-60 sm:max-w-[420px]">
               <label :for="`${id}-name`" :class="label">Name</label>
@@ -325,7 +179,7 @@ const label = 'text-caption font-semibold text-mute'
             </div>
           </div>
           <div class="mt-6 flex justify-end gap-3">
-            <button type="button" :class="[button, 'border-ink']" @click="toggleAdd">
+            <button type="button" :class="[button, 'border-ink']" @click="toggleAdd(onOpenAdd)">
               Abbrechen
             </button>
             <button
@@ -426,7 +280,7 @@ const label = 'text-caption font-semibold text-mute'
                         type="button"
                         :class="[button, 'border-ink']"
                         :disabled="busy"
-                        @click="((renewTarget = openUser), (renewOpen = true))"
+                        @click="askRenew(openUser)"
                       >
                         Neuer Code
                       </button>
@@ -499,7 +353,7 @@ const label = 'text-caption font-semibold text-mute'
                     type="button"
                     :class="[button, 'border-alert text-alert']"
                     :disabled="busy"
-                    @click="((blockTarget = openUser), (blockOpen = true))"
+                    @click="askBlock(openUser)"
                   >
                     Sperren
                   </button>
